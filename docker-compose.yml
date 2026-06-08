@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: animatch-postgres
+    environment:
+      POSTGRES_USER: animatch
+      POSTGRES_PASSWORD: animatch_password
+      POSTGRES_DB: animatch
+    ports:
+      - "5432:5432"
+    volumes:
+      - animatch_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  animatch_postgres_data:

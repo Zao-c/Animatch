@@ -1,0 +1,15 @@
+node_modules
+.next
+.env
+.env.*
+!.env.example
+!.env.production.example
+coverage
+dist
+out
+.turbo
+*.log
+docker-data
+backups
+tsconfig.tsbuildinfo
+.git
