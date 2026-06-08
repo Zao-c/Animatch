@@ -14,7 +14,8 @@
     "db:down": "docker compose down",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "dev:setup": "pnpm prisma generate && pnpm prisma migrate dev"
+    "dev:setup": "pnpm prisma generate && pnpm prisma migrate dev",
+    "deploy:check": "bash scripts/deploy-check.sh"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",
