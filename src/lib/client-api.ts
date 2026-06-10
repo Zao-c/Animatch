@@ -4,6 +4,7 @@ export interface PublicAnime {
   title: string;
   titleCn: string | null;
   titleJa: string | null;
+  titleEn: string | null;
   imageUrl: string | null;
   imageSmallUrl: string | null;
   imageMediumUrl: string | null;
@@ -19,6 +20,17 @@ export interface PublicAnime {
   animeType: string | null;
   studios: string[];
   source: string;
+  display?: EffectiveAnimeDisplay;
+}
+
+export interface EffectiveAnimeDisplay {
+  title: string;
+  subtitle: string | null;
+  coverUrl: string | null;
+  animeType: string | null;
+  tags: string[];
+  sourceLabel: string;
+  isOverridden: boolean;
 }
 
 export interface PoolSummary {
@@ -42,8 +54,16 @@ export interface PoolAnimeEntry {
   position: number;
   note: string | null;
   initialElo: number;
+  displayTitleOverride: string | null;
+  coverUrlOverride: string | null;
+  animeTypeOverride: string | null;
+  tagsOverride: string[];
+  overrideNote: string | null;
+  overrideUpdatedAt: string | null;
   createdAt: string;
+  updatedAt: string;
   anime: PublicAnime;
+  display: EffectiveAnimeDisplay;
 }
 
 export interface PoolDetail extends PoolSummary {
@@ -364,6 +384,35 @@ export function removeAnimeFromPool(poolId: string, animeId: string) {
   return fetchJson<{ ok: true }>(`/api/pools/${poolId}/anime/${animeId}`, {
     method: "DELETE"
   });
+}
+
+export function updatePoolAnimeDisplay(
+  poolId: string,
+  animeId: string,
+  data: {
+    displayTitleOverride?: string;
+    coverUrlOverride?: string;
+    animeTypeOverride?: string;
+    tagsOverride?: string[];
+    overrideNote?: string;
+  }
+) {
+  return fetchJson<{ poolAnime: PoolAnimeEntry; display: EffectiveAnimeDisplay }>(
+    `/api/pools/${poolId}/anime/${animeId}`,
+    {
+      method: "PATCH",
+      body: data
+    }
+  );
+}
+
+export function clearPoolAnimeDisplayOverrides(poolId: string, animeId: string) {
+  return fetchJson<{ poolAnime: PoolAnimeEntry; display: EffectiveAnimeDisplay }>(
+    `/api/pools/${poolId}/anime/${animeId}/overrides`,
+    {
+      method: "DELETE"
+    }
+  );
 }
 
 export function getOrCreateDefaultRun(poolId: string) {

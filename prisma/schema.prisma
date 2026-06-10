@@ -177,16 +177,22 @@ model CustomPool {
 }
 
 model PoolAnime {
-  id         String     @id @default(cuid())
-  poolId     String
-  animeId    String
-  position   Int
-  note       String?
-  initialElo Float      @default(1500)
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  pool       CustomPool @relation("PoolAnimeEntries", fields: [poolId], references: [id], onDelete: Cascade)
-  anime      Anime      @relation("AnimePoolEntries", fields: [animeId], references: [id])
+  id                   String     @id @default(cuid())
+  poolId               String
+  animeId              String
+  position             Int
+  note                 String?
+  initialElo           Float      @default(1500)
+  displayTitleOverride String?
+  coverUrlOverride     String?
+  animeTypeOverride    String?
+  tagsOverride         String[]   @default([])
+  overrideNote         String?
+  overrideUpdatedAt    DateTime?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+  pool                 CustomPool @relation("PoolAnimeEntries", fields: [poolId], references: [id], onDelete: Cascade)
+  anime                Anime      @relation("AnimePoolEntries", fields: [animeId], references: [id])
 
   @@unique([poolId, animeId])
   @@index([poolId])

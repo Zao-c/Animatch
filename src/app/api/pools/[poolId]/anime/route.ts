@@ -1,8 +1,9 @@
 import { Prisma } from "@prisma/client";
 import { badRequest, forbidden, notFound, ok, serverError } from "@/lib/api-response";
-import { getOrImportAnimeByBgmId, toPublicAnime } from "@/lib/anime-service";
+import { getOrImportAnimeByBgmId } from "@/lib/anime-service";
 import { getOrCreateDevUser } from "@/lib/dev-user";
 import { prisma } from "@/lib/db";
+import { serializePoolAnime } from "@/lib/pool-anime-serializer";
 
 interface RouteContext {
   params: {
@@ -102,19 +103,4 @@ export async function POST(request: Request, context: RouteContext) {
 
     return serverError(error instanceof Error ? error.message : "Adding anime failed");
   }
-}
-
-function serializePoolAnime(
-  entry: Prisma.PoolAnimeGetPayload<{ include: { anime: true } }>
-) {
-  return {
-    id: entry.id,
-    poolId: entry.poolId,
-    animeId: entry.animeId,
-    position: entry.position,
-    note: entry.note,
-    initialElo: entry.initialElo,
-    createdAt: entry.createdAt,
-    anime: toPublicAnime(entry.anime)
-  };
 }

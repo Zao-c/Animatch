@@ -14,6 +14,7 @@ export interface PublicAnime {
   title: string;
   titleCn: string | null;
   titleJa: string | null;
+  titleEn: string | null;
   imageUrl: string | null;
   imageSmallUrl: string | null;
   imageMediumUrl: string | null;
@@ -162,6 +163,7 @@ export function toPublicAnime(anime: Anime): PublicAnime {
     title: anime.title,
     titleCn: anime.titleCn,
     titleJa: anime.titleJa,
+    titleEn: anime.titleEn,
     imageUrl: anime.imageUrl,
     imageSmallUrl: anime.imageSmallUrl,
     imageMediumUrl: anime.imageMediumUrl,

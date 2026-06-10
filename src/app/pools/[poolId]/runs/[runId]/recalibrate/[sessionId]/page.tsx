@@ -221,7 +221,8 @@ function RecalibrateSide({
   onPick: (result: ComparisonResult) => void;
 }) {
   const anime = side === "left" ? pair.left : pair.right;
-  const title = anime.titleCn ?? anime.title;
+  const title = anime.display?.title ?? anime.titleCn ?? anime.title;
+  const coverUrl = anime.display?.coverUrl ?? anime.imageLargeUrl ?? anime.imageMediumUrl ?? anime.imageUrl;
 
   return (
     <button
@@ -231,7 +232,8 @@ function RecalibrateSide({
       className="rounded-lg border border-white/10 bg-white/[0.04] p-4 text-left transition hover:border-cyan-300/60 hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-60"
     >
       <AnimeCover
-        src={anime.imageLargeUrl ?? anime.imageMediumUrl ?? anime.imageUrl}
+        src={coverUrl}
+        secondarySrc={anime.imageLargeUrl ?? anime.imageMediumUrl ?? anime.imageUrl}
         title={title}
         size="lg"
       />

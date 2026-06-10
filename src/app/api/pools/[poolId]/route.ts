@@ -1,8 +1,8 @@
 import { PoolStatus, Visibility } from "@prisma/client";
 import { badRequest, forbidden, notFound, ok, serverError } from "@/lib/api-response";
-import { toPublicAnime } from "@/lib/anime-service";
 import { getOrCreateDevUser } from "@/lib/dev-user";
 import { prisma } from "@/lib/db";
+import { serializePoolAnime } from "@/lib/pool-anime-serializer";
 
 interface RouteContext {
   params: {
@@ -58,16 +58,7 @@ export async function GET(_request: Request, context: RouteContext) {
       createdAt: pool.createdAt,
       updatedAt: pool.updatedAt,
       deletedAt: pool.deletedAt,
-      anime: pool.poolAnime.map((entry) => ({
-        id: entry.id,
-        poolId: entry.poolId,
-        animeId: entry.animeId,
-        position: entry.position,
-        note: entry.note,
-        initialElo: entry.initialElo,
-        createdAt: entry.createdAt,
-        anime: toPublicAnime(entry.anime)
-      }))
+      anime: pool.poolAnime.map(serializePoolAnime)
     });
   } catch (error) {
     return serverError(error instanceof Error ? error.message : "Pool lookup failed");

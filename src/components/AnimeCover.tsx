@@ -25,9 +25,12 @@ export function AnimeCover({
   const [failed, setFailed] = useState(false);
   const [secondaryFailed, setSecondaryFailed] = useState(false);
 
-  const primarySrc = src || secondarySrc || null;
-  const shouldShowImage = Boolean(primarySrc) && !failed;
-  const imageSrc = primarySrc ?? "";
+  const imageSrc = !failed
+    ? src ?? (secondaryFailed ? null : secondarySrc ?? null)
+    : secondaryFailed
+      ? null
+      : secondarySrc ?? null;
+  const shouldShowImage = Boolean(imageSrc);
 
   return (
     <div
@@ -35,17 +38,16 @@ export function AnimeCover({
     >
       {shouldShowImage ? (
         <Image
-          src={imageSrc}
+          src={imageSrc ?? ""}
           alt={title}
           fill
           sizes={size === "lg" ? "(max-width: 768px) 90vw, 38vw" : "160px"}
           className="object-cover"
           onError={() => {
-            if (!secondaryFailed && secondarySrc) {
-              setSecondaryFailed(true);
-              setFailed(false);
-            } else {
+            if (!failed) {
               setFailed(true);
+            } else {
+              setSecondaryFailed(true);
             }
           }}
           priority={size === "lg"}

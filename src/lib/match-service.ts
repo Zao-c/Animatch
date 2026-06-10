@@ -10,6 +10,7 @@ import {
 } from "@prisma/client";
 import { AppError } from "./app-error";
 import { toPublicAnime } from "./anime-service";
+import { getEffectiveAnimeDisplay, type EffectiveAnimeDisplay } from "./anime-display";
 import { prisma } from "./db";
 import { updateElo, type EloResult } from "./elo";
 import { makePairKey } from "./pair-key";
@@ -25,6 +26,7 @@ import {
 } from "./match-rules";
 
 export interface PublicAnimeWithScore extends ReturnType<typeof toPublicAnime> {
+  display?: EffectiveAnimeDisplay;
   eloScore: number;
   uncertainty: number;
   compareCount: number;
@@ -94,16 +96,29 @@ export async function getMatchQueue(params: {
   await assertRunAccess(params);
   await initializeScoresForRun(params);
 
-  const scores = await prisma.userPoolScore.findMany({
-    where: {
-      userId: params.userId,
-      poolId: params.poolId,
-      runId: params.runId
-    },
-    include: {
-      anime: true
-    }
-  });
+  const [scores, poolAnimeEntries] = await Promise.all([
+    prisma.userPoolScore.findMany({
+      where: {
+        userId: params.userId,
+        poolId: params.poolId,
+        runId: params.runId
+      },
+      include: {
+        anime: true
+      }
+    }),
+    prisma.poolAnime.findMany({
+      where: {
+        poolId: params.poolId
+      },
+      include: {
+        anime: true
+      }
+    })
+  ]);
+  const displayByAnimeId = new Map(
+    poolAnimeEntries.map((entry) => [entry.animeId, getEffectiveAnimeDisplay(entry)])
+  );
   const visibleScores = scores.filter((score) => !score.isHidden);
 
   if (visibleScores.length < 2) {
@@ -161,8 +176,8 @@ export async function getMatchQueue(params: {
     queuedPairKeys.add(pairKey);
     pairs.push({
       pairId: makeQueuePairId(left.animeId, right.animeId),
-      left: toPublicAnimeWithScore(left),
-      right: toPublicAnimeWithScore(right),
+      left: toPublicAnimeWithScore(left, displayByAnimeId.get(left.animeId)),
+      right: toPublicAnimeWithScore(right, displayByAnimeId.get(right.animeId)),
       reason: pickedPair.reason
     });
   }
@@ -404,9 +419,13 @@ function toScoreItem(score: ScoreWithAnime): ScoreItem {
   };
 }
 
-function toPublicAnimeWithScore(score: ScoreWithAnime): PublicAnimeWithScore {
+function toPublicAnimeWithScore(
+  score: ScoreWithAnime,
+  display?: EffectiveAnimeDisplay
+): PublicAnimeWithScore {
   return {
     ...toPublicAnime(score.anime),
+    display,
     eloScore: score.eloScore,
     uncertainty: score.uncertainty,
     compareCount: score.compareCount

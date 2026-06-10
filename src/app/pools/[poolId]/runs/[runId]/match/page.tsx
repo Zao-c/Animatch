@@ -224,7 +224,9 @@ function MatchSide({
   onPick: (result: ComparisonResult) => void;
 }) {
   const anime = side === "left" ? pair.left : pair.right;
-  const title = anime.titleCn ?? anime.title;
+  const title = anime.display?.title ?? anime.titleCn ?? anime.title;
+  const subtitle = anime.display?.subtitle ?? (anime.titleCn ? anime.title : null);
+  const coverUrl = anime.display?.coverUrl ?? anime.imageLargeUrl ?? anime.imageMediumUrl ?? anime.imageUrl;
 
   return (
     <button
@@ -234,13 +236,14 @@ function MatchSide({
       className="group rounded-lg border border-white/10 bg-white/[0.04] p-4 text-left transition hover:border-cyan-300/60 hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-60"
     >
       <AnimeCover
-        src={anime.imageLargeUrl ?? anime.imageMediumUrl ?? anime.imageUrl}
+        src={coverUrl}
+        secondarySrc={anime.imageLargeUrl ?? anime.imageMediumUrl ?? anime.imageUrl}
         title={title}
         size="lg"
       />
       <div className="mt-4">
         <h2 className="line-clamp-2 text-2xl font-semibold text-white">{title}</h2>
-        {anime.titleCn ? <p className="mt-1 text-sm text-zinc-400">{anime.title}</p> : null}
+        {subtitle ? <p className="mt-1 text-sm text-zinc-400">{subtitle}</p> : null}
         <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
           <Metric label="Elo" value={anime.eloScore.toFixed(1)} />
           <Metric label="次数" value={String(anime.compareCount)} />

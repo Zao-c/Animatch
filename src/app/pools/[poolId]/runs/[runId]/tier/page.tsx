@@ -313,7 +313,7 @@ export default function TierPage({
                         : "border-white/15 text-zinc-300"
                     }`}
                   >
-                    {item.titleCn ?? item.title}
+                    {item.display?.title ?? item.titleCn ?? item.title}
                   </button>
                 );
               })}
@@ -387,7 +387,8 @@ function TierCard({
   onDragStart: () => void;
   onDropBefore: () => void;
 }) {
-  const title = item.titleCn ?? item.title;
+  const title = item.display?.title ?? item.titleCn ?? item.title;
+  const coverUrl = item.display?.coverUrl ?? item.imageSmallUrl ?? item.imageMediumUrl ?? item.imageUrl;
 
   return (
     <div
@@ -404,7 +405,8 @@ function TierCard({
     >
       <div className="flex gap-3">
         <AnimeCover
-          src={item.imageSmallUrl ?? item.imageMediumUrl ?? item.imageUrl}
+          src={coverUrl}
+          secondarySrc={item.imageSmallUrl ?? item.imageMediumUrl ?? item.imageUrl}
           title={title}
           size="sm"
         />

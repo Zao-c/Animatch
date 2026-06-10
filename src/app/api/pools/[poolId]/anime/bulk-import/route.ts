@@ -6,6 +6,7 @@ import {
 } from "@/lib/anime-service";
 import { getOrCreateDevUser } from "@/lib/dev-user";
 import { prisma } from "@/lib/db";
+import { serializePoolAnime } from "@/lib/pool-anime-serializer";
 
 interface RouteContext {
   params: {
@@ -15,14 +16,6 @@ interface RouteContext {
 
 interface BulkImportBody {
   input?: unknown;
-}
-
-interface AddedPoolAnime {
-  id: string;
-  poolId: string;
-  animeId: string;
-  position: number;
-  anime: PublicAnime;
 }
 
 export async function POST(request: Request, context: RouteContext) {
@@ -50,7 +43,7 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     const importedResult = await importBangumiSubjects(input);
-    const added: AddedPoolAnime[] = [];
+    const added: ReturnType<typeof serializePoolAnime>[] = [];
     const skipped: PublicAnime[] = [];
 
     for (const anime of importedResult.imported) {
@@ -87,13 +80,7 @@ export async function POST(request: Request, context: RouteContext) {
         }
       });
 
-      added.push({
-        id: createdEntry.id,
-        poolId: createdEntry.poolId,
-        animeId: createdEntry.animeId,
-        position: createdEntry.position,
-        anime: toPublicAnime(createdEntry.anime)
-      });
+      added.push(serializePoolAnime(createdEntry));
     }
 
     return ok({

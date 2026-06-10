@@ -1,5 +1,6 @@
 import type { Anime, UserPoolScore } from "@prisma/client";
 import { toPublicAnime } from "./anime-service";
+import { getEffectiveAnimeDisplay, type EffectiveAnimeDisplay } from "./anime-display";
 import { prisma } from "./db";
 import { buildTierList, calculateRankingConfidence, type Tier } from "./tier";
 import { assertRunAccess } from "./run-service";
@@ -7,6 +8,7 @@ import { assertRunAccess } from "./run-service";
 type ScoreWithAnime = UserPoolScore & { anime: Anime };
 
 export interface TierListItem extends ReturnType<typeof toPublicAnime> {
+  display?: EffectiveAnimeDisplay;
   animeId: string;
   eloScore: number;
   uncertainty: number;
@@ -29,9 +31,13 @@ export interface RunTierListResult {
   totalComparisons: number;
 }
 
-export function toTierListItem(score: ScoreWithAnime): TierListItem {
+export function toTierListItem(
+  score: ScoreWithAnime,
+  display?: EffectiveAnimeDisplay
+): TierListItem {
   return {
     ...toPublicAnime(score.anime),
+    display,
     animeId: score.animeId,
     eloScore: score.eloScore,
     uncertainty: score.uncertainty,
@@ -54,7 +60,7 @@ export async function getRunTierList(params: {
 }): Promise<RunTierListResult> {
   await assertRunAccess(params);
 
-  const [scores, totalComparisons] = await Promise.all([
+  const [scores, totalComparisons, poolAnimeEntries] = await Promise.all([
     prisma.userPoolScore.findMany({
       where: {
         userId: params.userId,
@@ -71,9 +77,22 @@ export async function getRunTierList(params: {
         poolId: params.poolId,
         runId: params.runId
       }
+    }),
+    prisma.poolAnime.findMany({
+      where: {
+        poolId: params.poolId
+      },
+      include: {
+        anime: true
+      }
     })
   ]);
-  const items = scores.map(toTierListItem);
+  const displayByAnimeId = new Map(
+    poolAnimeEntries.map((entry) => [entry.animeId, getEffectiveAnimeDisplay(entry)])
+  );
+  const items = scores.map((score) =>
+    toTierListItem(score, displayByAnimeId.get(score.animeId))
+  );
   const tiers = buildTierList(items);
 
   return {
