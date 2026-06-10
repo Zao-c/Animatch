@@ -15,10 +15,7 @@ export function preloadImage(src: string | null | undefined): Promise<boolean> {
 }
 
 export async function preloadPair(pair: MatchPair): Promise<boolean> {
-  const [leftLoaded, rightLoaded] = await Promise.all([
-    preloadImage(bestImageSrc(pair.left)),
-    preloadImage(bestImageSrc(pair.right))
-  ]);
+  const [leftLoaded, rightLoaded] = await preloadPairImages(pair);
 
   return leftLoaded || rightLoaded;
 }
@@ -35,21 +32,29 @@ export async function preloadPairs(
     return { loaded: 0, total: 0 };
   }
 
-  if (options.firstPairRequired === true) {
-    await preloadPair(targetPairs[0]);
-  }
+  const firstPairResults =
+    options.firstPairRequired === true ? await preloadPairImages(targetPairs[0]) : [];
+  const remainingPairs = options.firstPairRequired === true ? targetPairs.slice(1) : targetPairs;
 
-  const results = await Promise.all(
-    targetPairs.flatMap((pair) => [
+  const remainingResults = await Promise.all(
+    remainingPairs.flatMap((pair) => [
       preloadImage(bestImageSrc(pair.left)),
       preloadImage(bestImageSrc(pair.right))
     ])
   );
+  const results = [...firstPairResults, ...remainingResults];
 
   return {
     loaded: results.filter(Boolean).length,
     total
   };
+}
+
+function preloadPairImages(pair: MatchPair): Promise<[boolean, boolean]> {
+  return Promise.all([
+    preloadImage(bestImageSrc(pair.left)),
+    preloadImage(bestImageSrc(pair.right))
+  ]);
 }
 
 function bestImageSrc(anime: {

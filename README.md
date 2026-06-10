@@ -1,6 +1,6 @@
 # AniMatch
 
-AniMatch 是一个动画两两对决与个人 Tier List 网站。当前仓库只建设长期数据地基、Bangumi 代理缓存、Custom Pool 基础 API、算法工具函数和工程规则，不实现复杂 UI、个人 Match 页面、社区赛季或 Live 房间。
+AniMatch 是一个动画两两对决与个人 Tier List 网站。当前仓库已包含长期数据地基、Bangumi/Manami 动画缓存、Custom Pool 基础 API、算法工具函数、工程规则，以及个人 Match、Tier List 与桌面端手动 Tier 的 MVP 页面；社区赛季和 Live 房间仍未实现。
 
 ## 技术栈
 
@@ -144,7 +144,7 @@ pnpm dev
 - `SKIP`、`LEFT_UNSEEN`、`RIGHT_UNSEEN`、`BOTH_UNSEEN` 不改变 Elo，也不增加 `compareCount`。
 - `UNSEEN` 会更新 `UserAnimeStatus`，`source="MATCH"`，后续可用于推荐、隐藏和冷启动判断。
 - 当前 Tier List 来自 `UserPoolScore` 的当前状态，通过 `GET /api/pools/[poolId]/runs/[runId]/tierlist` 获取。
-- 手动 Tier 字段保留但本阶段不实现拖拽调整 API。
+- 手动 Tier 字段已保留；后续前端阶段提供拖拽保存 API。
 
 ## Phase 4：前端 MVP 与图片预加载
 
@@ -156,7 +156,7 @@ pnpm dev
 - 后续队列少于 3 组时，前端后台拉取下一批 pair 并预加载图片，避免连续点击时卡顿。
 - 图片加载失败不会阻塞选择，`AnimeCover` 会显示标题占位卡。
 - 前端永远不计算 Elo，只提交 `leftAnimeId`、`rightAnimeId`、`result` 和 `clientMutationId`。
-- Tier List 页面从后端 `UserPoolScore` 构建，只展示当前状态，不实现拖拽。
+- Tier List 页面从后端 `UserPoolScore` 构建，展示当前状态；桌面端可保存手动 Tier 调整。
 
 ## Phase 5：手动最终设定与校准模式
 
@@ -270,7 +270,7 @@ Phase 4:
 
 - NextAuth OAuth provider 尚未接入，`src/lib/auth.ts` 只保留配置位置。
 - Bangumi 数据刷新策略、限流和后台任务尚未实现。
-- 个人 Match 页面尚未实现，本轮只实现后端闭环 API。
+- 个人 Match 页面已实现 MVP；复杂动画、键盘快捷操作等体验可继续迭代。
 - 手动 Tier 已支持桌面拖拽保存，移动端拖拽体验后续可继续优化。
 - 推荐和相似度只建立数据模型，尚未实现计算任务。
 - 社区赛季和 Live PK 房间没有建表，只在路线图中保留。
