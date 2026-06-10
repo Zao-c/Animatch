@@ -115,14 +115,14 @@ model Anime {
   bangumiScore         Float?
   bangumiVotes         Int?
   tags                 String[]
-  aliases              String[]
+  aliases              String[]               @default([])
   year                 Int?
   season               String?
   animeType            String?
   episodes             Int?
   status               String?
-  studios              String[]
-  externalLinks        String[]
+  studios              String[]               @default([])
+  externalLinks        String[]               @default([])
   source               String                 @default("BANGUMI")
   sourceId             String?
   rawJson              Json?
