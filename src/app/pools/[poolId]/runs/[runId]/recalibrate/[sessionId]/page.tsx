@@ -16,6 +16,7 @@ import {
   type RecalibrationSession,
   type TierListItem
 } from "@/lib/client-api";
+import { createClientMutationId } from "@/lib/client-id";
 import { preloadPairs } from "@/lib/preload-images";
 
 export default function RecalibratePage({
@@ -81,7 +82,7 @@ export default function RecalibratePage({
         result,
         mode: modeForSession(session),
         recalibrationSessionId: session.id,
-        clientMutationId: crypto.randomUUID()
+        clientMutationId: createClientMutationId("comparison")
       });
       await loadNextPair();
     } catch (reason) {

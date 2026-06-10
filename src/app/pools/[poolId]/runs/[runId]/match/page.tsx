@@ -11,6 +11,7 @@ import {
   type ComparisonResult,
   type MatchPair
 } from "@/lib/client-api";
+import { createClientMutationId } from "@/lib/client-id";
 import { preloadPairs } from "@/lib/preload-images";
 
 export default function MatchPage({
@@ -113,7 +114,7 @@ export default function MatchPage({
         leftAnimeId: currentPair.left.id,
         rightAnimeId: currentPair.right.id,
         result,
-        clientMutationId: crypto.randomUUID()
+        clientMutationId: createClientMutationId("comparison")
       });
       setQueue((current) => current.slice(1));
     } catch (reason) {

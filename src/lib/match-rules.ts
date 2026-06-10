@@ -1,4 +1,5 @@
 import { PoolComparisonResult } from "@prisma/client";
+import { createClientMutationId } from "./client-id";
 import { makePairKey } from "./pair-key";
 
 export interface SeenState {
@@ -60,5 +61,5 @@ export function shouldHideAfterUnseen(unseenCount: number): boolean {
 }
 
 export function makeQueuePairId(leftAnimeId: string, rightAnimeId: string): string {
-  return `${makePairKey(leftAnimeId, rightAnimeId)}:${crypto.randomUUID()}`;
+  return `${makePairKey(leftAnimeId, rightAnimeId)}:${createClientMutationId("pair")}`;
 }
