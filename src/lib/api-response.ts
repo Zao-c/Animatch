@@ -69,5 +69,16 @@ function toFriendlyServerMessage(message: string): string {
     return "Can't reach database server. Start PostgreSQL with docker compose up -d, then run pnpm prisma migrate dev.";
   }
 
+  if (message === "fetch failed" || message.includes("fetch failed")) {
+    return "无法连接 Bangumi 数据源，请稍后重试或使用 Bangumi ID 直接导入。";
+  }
+
+  if (
+    message.includes("Bangumi API request timed out") ||
+    message.includes("timed out")
+  ) {
+    return "Bangumi API 请求超时，请稍后重试。";
+  }
+
   return message;
 }

@@ -12,3 +12,6 @@ coverage
 docker-data
 backups
 *.tsbuildinfo
+data/anime-offline-database*.json
+data/anime-offline-database*.jsonl
+data/anime-offline-database*.zst

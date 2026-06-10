@@ -99,19 +99,32 @@ model User {
 
 model Anime {
   id                   String                 @id @default(cuid())
-  bgmId                Int                    @unique
+  bgmId                Int?                   @unique
   title                String
   titleCn              String?
+  titleJa              String?
+  titleEn              String?
   summary              String?
   imageUrl             String?
   imageSmallUrl        String?
   imageMediumUrl       String?
   imageLargeUrl        String?
+  thumbnailUrl         String?
   airDate              DateTime?
   bangumiRank          Int?
   bangumiScore         Float?
   bangumiVotes         Int?
   tags                 String[]
+  aliases              String[]
+  year                 Int?
+  season               String?
+  animeType            String?
+  episodes             Int?
+  status               String?
+  studios              String[]
+  externalLinks        String[]
+  source               String                 @default("BANGUMI")
+  sourceId             String?
   rawJson              Json?
   fetchedAt            DateTime?
   imageStatus          String                 @default("UNKNOWN")

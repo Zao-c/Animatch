@@ -1,16 +1,24 @@
 export interface PublicAnime {
   id: string;
-  bgmId: number;
+  bgmId: number | null;
   title: string;
   titleCn: string | null;
+  titleJa: string | null;
   imageUrl: string | null;
   imageSmallUrl: string | null;
   imageMediumUrl: string | null;
   imageLargeUrl: string | null;
+  thumbnailUrl: string | null;
   airDate?: string | Date | null;
   bangumiRank: number | null;
   bangumiScore: number | null;
   tags: string[];
+  aliases: string[];
+  year: number | null;
+  season: string | null;
+  animeType: string | null;
+  studios: string[];
+  source: string;
 }
 
 export interface PoolSummary {
@@ -222,7 +230,51 @@ export function searchAnime(q: string, limit = 20) {
     limit: String(limit)
   });
 
-  return fetchJson<{ items: PublicAnime[] }>(`/api/anime/search?${params.toString()}`);
+  return fetchJson<{ items: PublicAnime[]; message?: string }>(`/api/anime/search?${params.toString()}`);
+}
+
+export function discoverAnime(params: {
+  q?: string;
+  tag?: string;
+  studio?: string;
+  yearFrom?: number;
+  yearTo?: number;
+  type?: string;
+  sort?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const searchParams = new URLSearchParams();
+  if (params.q) searchParams.set("q", params.q);
+  if (params.tag) searchParams.set("tag", params.tag);
+  if (params.studio) searchParams.set("studio", params.studio);
+  if (params.yearFrom) searchParams.set("yearFrom", String(params.yearFrom));
+  if (params.yearTo) searchParams.set("yearTo", String(params.yearTo));
+  if (params.type) searchParams.set("type", params.type);
+  if (params.sort) searchParams.set("sort", params.sort);
+  if (params.limit) searchParams.set("limit", String(params.limit));
+  if (params.offset) searchParams.set("offset", String(params.offset));
+
+  return fetchJson<{ items: PublicAnime[]; total: number }>(`/api/anime/discover?${searchParams.toString()}`);
+}
+
+export function createManualAnime(data: {
+  title: string;
+  titleCn?: string;
+  titleJa?: string;
+  imageUrl?: string;
+  thumbnailUrl?: string;
+  year?: number;
+  season?: string;
+  animeType?: string;
+  tags?: string[];
+  studios?: string[];
+  summary?: string;
+}) {
+  return fetchJson<PublicAnime>("/api/anime/manual", {
+    method: "POST",
+    body: data,
+  });
 }
 
 export function bulkImportAnime(input: string) {

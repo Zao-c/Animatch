@@ -30,7 +30,7 @@ export function AnimeCard({
       } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
     >
       <AnimeCover
-        src={anime.imageMediumUrl ?? anime.imageUrl ?? anime.imageSmallUrl}
+        src={anime.thumbnailUrl ?? anime.imageMediumUrl ?? anime.imageUrl ?? anime.imageSmallUrl}
         title={title}
         size="md"
         className="shrink-0"
@@ -43,7 +43,9 @@ export function AnimeCard({
         <div className="mt-3 flex flex-wrap gap-2 text-xs text-zinc-300">
           {anime.bangumiScore !== null ? <span>评分 {anime.bangumiScore}</span> : null}
           {anime.bangumiRank !== null ? <span>排名 #{anime.bangumiRank}</span> : null}
-          <span>BGM {anime.bgmId}</span>
+          {anime.year !== null ? <span>{anime.year}</span> : null}
+          {anime.animeType !== null ? <span>{anime.animeType}</span> : null}
+          {anime.bgmId !== null ? <span>BGM {anime.bgmId}</span> : <span className="text-zinc-500">{anime.source}</span>}
         </div>
         {actionLabel ? (
           <div className="mt-4 text-sm font-medium text-cyan-300">{actionLabel}</div>

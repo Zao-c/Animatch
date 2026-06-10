@@ -11,22 +11,27 @@ const SIZE_CLASS = {
 
 export function AnimeCover({
   src,
+  secondarySrc,
   title,
   size = "md",
   className = ""
 }: {
   src: string | null | undefined;
+  secondarySrc?: string | null;
   title: string;
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);
-  const shouldShowImage = Boolean(src) && !failed;
-  const imageSrc = src ?? "";
+  const [secondaryFailed, setSecondaryFailed] = useState(false);
+
+  const primarySrc = src || secondarySrc || null;
+  const shouldShowImage = Boolean(primarySrc) && !failed;
+  const imageSrc = primarySrc ?? "";
 
   return (
     <div
-      className={`${SIZE_CLASS[size]} relative overflow-hidden rounded-lg border border-white/10 bg-zinc-900 ${className}`}
+      className={`${SIZE_CLASS[size]} relative overflow-hidden rounded-lg border border-white/10 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 ${className}`}
     >
       {shouldShowImage ? (
         <Image
@@ -35,12 +40,26 @@ export function AnimeCover({
           fill
           sizes={size === "lg" ? "(max-width: 768px) 90vw, 38vw" : "160px"}
           className="object-cover"
-          onError={() => setFailed(true)}
+          onError={() => {
+            if (!secondaryFailed && secondarySrc) {
+              setSecondaryFailed(true);
+              setFailed(false);
+            } else {
+              setFailed(true);
+            }
+          }}
           priority={size === "lg"}
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center bg-zinc-900 p-3 text-center text-xs font-medium leading-5 text-zinc-400">
-          {title}
+        <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-cyan-900/30 via-zinc-900 to-purple-900/20 p-3">
+          <span className="text-lg font-bold text-cyan-400/60">
+            {title.charAt(0).toUpperCase() || "A"}
+          </span>
+          {size !== "sm" && (
+            <span className="line-clamp-2 text-center text-[10px] font-medium leading-tight text-zinc-500">
+              {title}
+            </span>
+          )}
         </div>
       )}
     </div>

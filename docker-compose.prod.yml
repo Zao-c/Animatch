@@ -24,11 +24,17 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    dns:
+      - 223.5.5.5
+      - 119.29.29.29
     environment:
       DATABASE_URL: ${DATABASE_URL}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       NODE_ENV: production
+      NODE_OPTIONS: --dns-result-order=ipv4first
+      BANGUMI_PROXY_URL: ${BANGUMI_PROXY_URL:-}
+      BANGUMI_ACCESS_TOKEN: ${BANGUMI_ACCESS_TOKEN:-}
     ports:
       - "3000:3000"
 

@@ -1,5 +1,39 @@
-const BANGUMI_BASE_URL = "https://api.bgm.tv/v0";
-const DEFAULT_USER_AGENT = "AniMatch/0.1 (development)";
+const BANGUMI_BASE_URL = process.env.BANGUMI_PROXY_URL ?? "https://api.bgm.tv/v0";
+const BANGUMI_ACCESS_TOKEN = process.env.BANGUMI_ACCESS_TOKEN ?? "";
+const DEFAULT_USER_AGENT = "AniMatch/0.1 (https://github.com/Zao-c/Animatch)";
+const FETCH_TIMEOUT_MS = 30_000;
+
+function buildHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const headers: Record<string, string> = {
+    "User-Agent": DEFAULT_USER_AGENT,
+    "Accept": "application/json",
+    ...extra,
+  };
+  if (BANGUMI_ACCESS_TOKEN) {
+    headers["Authorization"] = `Bearer ${BANGUMI_ACCESS_TOKEN}`;
+  }
+  return headers;
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    return response;
+  } catch (error: unknown) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("Bangumi API request timed out after 30 seconds");
+    }
+    if (error instanceof TypeError && error.message === "fetch failed") {
+      throw new Error("无法连接 Bangumi API，请确认网络环境或配置代理后重试");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export type JsonValue =
   | null
@@ -67,12 +101,9 @@ export async function searchBangumiAnime(
   const limit = clampInteger(options.limit ?? 20, 1, 30);
   const offset = Math.max(0, Math.trunc(options.offset ?? 0));
   const url = `${BANGUMI_BASE_URL}/search/subjects?limit=${limit}&offset=${offset}`;
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": DEFAULT_USER_AGENT
-    },
+    headers: buildHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
       keyword: trimmedKeyword,
       filter: {
@@ -99,11 +130,9 @@ export async function getBangumiSubject(
     throw new Error("subjectId must be a positive integer");
   }
 
-  const response = await fetch(`${BANGUMI_BASE_URL}/subjects/${subjectId}`, {
+  const response = await fetchWithTimeout(`${BANGUMI_BASE_URL}/subjects/${subjectId}`, {
     method: "GET",
-    headers: {
-      "User-Agent": DEFAULT_USER_AGENT
-    }
+    headers: buildHeaders(),
   });
 
   if (!response.ok) {
