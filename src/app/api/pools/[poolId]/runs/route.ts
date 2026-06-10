@@ -18,7 +18,7 @@ export async function GET(_request: Request, context: RouteContext) {
       }
     });
 
-    if (pool === null || pool.deletedAt !== null) {
+    if (pool === null) {
       throw new AppError("Pool not found", 404, "POOL_NOT_FOUND");
     }
 

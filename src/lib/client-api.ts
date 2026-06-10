@@ -32,6 +32,7 @@ export interface PoolSummary {
   tags: string[];
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
 }
 
 export interface PoolAnimeEntry {
@@ -287,8 +288,18 @@ export function bulkImportAnime(input: string) {
   );
 }
 
-export function listPools() {
-  return fetchJson<{ items: PoolSummary[] }>("/api/pools");
+export function listPools(params: {
+  q?: string;
+  status?: "ACTIVE" | "ARCHIVED";
+  includeArchived?: boolean;
+} = {}) {
+  const searchParams = new URLSearchParams();
+  if (params.q) searchParams.set("q", params.q);
+  if (params.status) searchParams.set("status", params.status);
+  if (params.includeArchived) searchParams.set("includeArchived", "1");
+  const query = searchParams.toString();
+
+  return fetchJson<{ items: PoolSummary[] }>(`/api/pools${query ? `?${query}` : ""}`);
 }
 
 export function createPool(data: {
@@ -300,6 +311,27 @@ export function createPool(data: {
   return fetchJson<PoolSummary>("/api/pools", {
     method: "POST",
     body: data
+  });
+}
+
+export function updatePool(
+  poolId: string,
+  data: {
+    name: string;
+    description?: string | null;
+    visibility: "PRIVATE" | "UNLISTED" | "PUBLIC";
+    tags?: string[];
+  }
+) {
+  return fetchJson<PoolSummary>(`/api/pools/${poolId}`, {
+    method: "PATCH",
+    body: data
+  });
+}
+
+export function archivePool(poolId: string) {
+  return fetchJson<{ ok: true }>(`/api/pools/${poolId}`, {
+    method: "DELETE"
   });
 }
 
@@ -341,6 +373,10 @@ export function getOrCreateDefaultRun(poolId: string) {
       method: "POST"
     }
   );
+}
+
+export function listRuns(poolId: string) {
+  return fetchJson<{ items: PersonalRun[] }>(`/api/pools/${poolId}/runs`);
 }
 
 export function getMatchQueue(poolId: string, runId: string, limit = 8) {
