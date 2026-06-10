@@ -1,4 +1,4 @@
--- CreateEnum
+﻿-- CreateEnum
 CREATE TYPE "Visibility" AS ENUM ('PRIVATE', 'UNLISTED', 'PUBLIC');
 
 -- CreateEnum
@@ -44,19 +44,32 @@ CREATE TABLE "User" (
 -- CreateTable
 CREATE TABLE "Anime" (
     "id" TEXT NOT NULL,
-    "bgmId" INTEGER NOT NULL,
+    "bgmId" INTEGER,
     "title" TEXT NOT NULL,
     "titleCn" TEXT,
+    "titleJa" TEXT,
+    "titleEn" TEXT,
     "summary" TEXT,
     "imageUrl" TEXT,
     "imageSmallUrl" TEXT,
     "imageMediumUrl" TEXT,
     "imageLargeUrl" TEXT,
+    "thumbnailUrl" TEXT,
     "airDate" TIMESTAMP(3),
     "bangumiRank" INTEGER,
     "bangumiScore" DOUBLE PRECISION,
     "bangumiVotes" INTEGER,
     "tags" TEXT[],
+    "aliases" TEXT[],
+    "year" INTEGER,
+    "season" TEXT,
+    "animeType" TEXT,
+    "episodes" INTEGER,
+    "status" TEXT,
+    "studios" TEXT[],
+    "externalLinks" TEXT[],
+    "source" TEXT NOT NULL DEFAULT 'BANGUMI',
+    "sourceId" TEXT,
     "rawJson" JSONB,
     "fetchedAt" TIMESTAMP(3),
     "imageStatus" TEXT NOT NULL DEFAULT 'UNKNOWN',

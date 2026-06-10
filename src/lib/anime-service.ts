@@ -188,30 +188,24 @@ export async function searchLocalAnime(
   const trimmed = query.trim();
   if (!trimmed) return [];
 
-  const terms = trimmed.split(/\s+/).filter(Boolean).map((t) => t.toLowerCase());
+  const terms = trimmed.split(/\s+/).filter(Boolean);
   if (terms.length === 0) return [];
 
-  const conditions = terms.map((term, idx) => {
-    const paramName = `term${idx}`;
-    return Prisma.sql`(
-      LOWER("title") LIKE ${`%${term}%`}
-      OR LOWER("titleCn") LIKE ${`%${term}%`}
-      OR LOWER("titleJa") LIKE ${`%${term}%`}
-      OR LOWER("titleEn") LIKE ${`%${term}%`}
-      OR EXISTS (
-        SELECT 1 FROM unnest("aliases") alias
-        WHERE LOWER(alias) LIKE ${`%${term}%`}
-      )
-      OR EXISTS (
-        SELECT 1 FROM unnest("tags") tag
-        WHERE LOWER(tag) LIKE ${`%${term}%`}
-      )
-      OR EXISTS (
-        SELECT 1 FROM unnest("studios") studio
-        WHERE LOWER(studio) LIKE ${`%${term}%`}
-      )
-    )`;
-  });
+  const conditions: Prisma.AnimeWhereInput[] = terms.map((term) => ({
+    OR: [
+      { title: { contains: term, mode: "insensitive" } },
+      { titleCn: { contains: term, mode: "insensitive" } },
+      { titleJa: { contains: term, mode: "insensitive" } },
+      { titleEn: { contains: term, mode: "insensitive" } },
+      { sourceId: { contains: term, mode: "insensitive" } },
+      { animeType: { contains: term, mode: "insensitive" } },
+      { season: { contains: term, mode: "insensitive" } },
+      { aliases: { has: term } },
+      { tags: { has: term } },
+      { studios: { has: term } },
+      { externalLinks: { has: term } },
+    ],
+  }));
 
   const offset = Math.max(0, Math.trunc(options.offset ?? 0));
 
