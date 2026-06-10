@@ -180,6 +180,186 @@ export function toPublicAnime(anime: Anime): PublicAnime {
   };
 }
 
+export type AnimeSearchScoringFields = Pick<
+  Anime,
+  | "title"
+  | "titleCn"
+  | "titleJa"
+  | "titleEn"
+  | "aliases"
+  | "animeType"
+  | "episodes"
+  | "bangumiScore"
+  | "year"
+  | "rawJson"
+>;
+
+const SEARCH_ALIAS_OVERRIDES: Record<string, string[]> = {
+  "进击的巨人": ["Attack on Titan", "Shingeki no Kyojin", "進撃の巨人"],
+  "進擊的巨人": ["Attack on Titan", "Shingeki no Kyojin", "進撃の巨人"],
+  "间谍过家家": ["Spy x Family", "Spy Family", "SPY×FAMILY"],
+  "間諜過家家": ["Spy x Family", "Spy Family", "SPY×FAMILY"],
+  "海贼王": ["One Piece", "ONE PIECE", "航海王"],
+  "海賊王": ["One Piece", "ONE PIECE", "航海王"],
+};
+
+const TYPE_SCORE: Record<string, number> = {
+  TV: 120,
+  MOVIE: 100,
+  OVA: 60,
+  ONA: -30,
+  SPECIAL: -50,
+  MUSIC: -120,
+  CM: -150,
+  PV: -150,
+  UNKNOWN: -20,
+};
+
+const SHORT_FORM_KEYWORDS = [
+  "campaign",
+  "cm",
+  "pv",
+  "commercial",
+  "music video",
+  "trailer",
+  "teaser",
+  "recap",
+  "digest",
+  "summary",
+  "special interview",
+  "collaboration",
+  "ayataka",
+  "追いつける",
+  "10分",
+  "15分",
+  "20分",
+  "25分",
+  "おさらい",
+  "振り返り",
+  "総集編",
+  "宣伝",
+  "キャンペーン",
+  "コラボ",
+];
+
+export function normalizeTitleForSearch(value: string): string {
+  return value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[\s"'“”‘’「」『』【】（）()[\]{}:：!！?？.,，。・/\\_\-]+/g, "");
+}
+
+export function scoreAnimeSearchResult(
+  anime: AnimeSearchScoringFields,
+  query: string
+): number {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return 0;
+
+  const queryVariants = expandSearchTerm(trimmedQuery);
+  const normalizedQueries = queryVariants.map(normalizeTitleForSearch).filter(Boolean);
+  const titleFields = [
+    anime.title,
+    anime.titleCn,
+    anime.titleJa,
+    anime.titleEn,
+  ].filter((value): value is string => Boolean(value));
+  const aliases = anime.aliases ?? [];
+  const searchableValues = [...titleFields, ...aliases];
+  const normalizedValues = searchableValues.map(normalizeTitleForSearch);
+
+  let score = 0;
+
+  if (anime.titleCn !== null && hasExactMatch([anime.titleCn], queryVariants)) {
+    score += 1000;
+  }
+
+  if (hasExactChineseAlias(aliases, queryVariants)) {
+    score += 1000;
+  }
+
+  if (hasExactMatch([anime.title, anime.titleEn, anime.titleJa], queryVariants)) {
+    score += 800;
+  }
+
+  if (
+    normalizedQueries.some((normalizedQuery) =>
+      normalizedValues.some((value) => value.includes(normalizedQuery))
+    )
+  ) {
+    score += 500;
+  }
+
+  if (hasExactMatch(aliases, queryVariants)) {
+    score += 300;
+  }
+
+  if (containsAnyQuery(anime.title, queryVariants)) {
+    score += 250;
+  }
+
+  const normalizedType = normalizeAnimeType(anime.animeType);
+  score += TYPE_SCORE[normalizedType] ?? 0;
+
+  if ((anime.episodes ?? 0) >= 12) {
+    score += 120;
+  } else if ((anime.episodes ?? 0) >= 6) {
+    score += 80;
+  }
+
+  if (
+    anime.episodes === 1 &&
+    (normalizedType === "ONA" || normalizedType === "SPECIAL")
+  ) {
+    score -= 100;
+  }
+
+  if (
+    titleFields.some((title) => title.length <= trimmedQuery.length + 4) &&
+    normalizedQueries.some((normalizedQuery) =>
+      normalizedValues.some((value) => value === normalizedQuery)
+    )
+  ) {
+    score += 120;
+  }
+
+  score += qualityScore(anime) * 8;
+  score += shortFormPenalty(searchableValues);
+
+  return score;
+}
+
+export function rankAnimeSearchResults<T extends AnimeSearchScoringFields>(
+  items: T[],
+  query: string
+): T[] {
+  return items
+    .map((item, index) => ({
+      item,
+      index,
+      score: scoreAnimeSearchResult(item, query),
+      typeRank: primaryTypeRank(item.animeType),
+      quality: qualityScore(item),
+      year: item.year ?? 0,
+    }))
+    .sort((left, right) => {
+      const scoreDelta = right.score - left.score;
+      if (Math.abs(scoreDelta) >= 50) return scoreDelta;
+
+      const typeDelta = right.typeRank - left.typeRank;
+      if (typeDelta !== 0) return typeDelta;
+
+      const qualityDelta = right.quality - left.quality;
+      if (qualityDelta !== 0) return qualityDelta;
+
+      const yearDelta = right.year - left.year;
+      if (yearDelta !== 0) return yearDelta;
+
+      return left.index - right.index;
+    })
+    .map((ranked) => ranked.item);
+}
+
 export async function searchLocalAnime(
   query: string,
   limit = 20,
@@ -191,32 +371,135 @@ export async function searchLocalAnime(
   const terms = trimmed.split(/\s+/).filter(Boolean);
   if (terms.length === 0) return [];
 
-  const conditions: Prisma.AnimeWhereInput[] = terms.map((term) => ({
-    OR: [
-      { title: { contains: term, mode: "insensitive" } },
-      { titleCn: { contains: term, mode: "insensitive" } },
-      { titleJa: { contains: term, mode: "insensitive" } },
-      { titleEn: { contains: term, mode: "insensitive" } },
-      { sourceId: { contains: term, mode: "insensitive" } },
-      { animeType: { contains: term, mode: "insensitive" } },
-      { season: { contains: term, mode: "insensitive" } },
-      { aliases: { has: term } },
-      { tags: { has: term } },
-      { studios: { has: term } },
-      { externalLinks: { has: term } },
-    ],
-  }));
+  const conditions: Prisma.AnimeWhereInput[] = terms.map((term) => {
+    const variants = expandSearchTerm(term);
+
+    return {
+      OR: variants.flatMap((variant) => [
+        { title: { contains: variant, mode: "insensitive" } },
+        { titleCn: { contains: variant, mode: "insensitive" } },
+        { titleJa: { contains: variant, mode: "insensitive" } },
+        { titleEn: { contains: variant, mode: "insensitive" } },
+        { sourceId: { contains: variant, mode: "insensitive" } },
+        { animeType: { contains: variant, mode: "insensitive" } },
+        { season: { contains: variant, mode: "insensitive" } },
+        { aliases: { has: variant } },
+        { tags: { has: variant } },
+        { studios: { has: variant } },
+        { externalLinks: { has: variant } },
+      ]),
+    };
+  });
 
   const offset = Math.max(0, Math.trunc(options.offset ?? 0));
+  const normalizedLimit = Math.min(50, Math.max(1, Math.trunc(limit)));
+  const candidateTake = Math.min(500, Math.max(50, offset + normalizedLimit * 8));
 
-  return prisma.anime.findMany({
+  const candidates = await prisma.anime.findMany({
     where: {
       AND: conditions,
     },
     orderBy: { bgmId: { sort: "asc", nulls: "last" } },
-    take: Math.min(50, Math.max(1, Math.trunc(limit))),
-    skip: offset,
+    take: candidateTake,
   });
+
+  return rankAnimeSearchResults(candidates, trimmed).slice(offset, offset + normalizedLimit);
+}
+
+function expandSearchTerm(term: string): string[] {
+  const trimmed = term.trim();
+  if (!trimmed) return [];
+
+  const aliases = SEARCH_ALIAS_OVERRIDES[trimmed] ?? [];
+  return Array.from(new Set([trimmed, ...aliases]));
+}
+
+function normalizeAnimeType(type: string | null): string {
+  return (type ?? "UNKNOWN").trim().toUpperCase();
+}
+
+function hasExactMatch(values: Array<string | null>, queries: string[]): boolean {
+  return values.some((value) => {
+    if (value === null) return false;
+    const normalizedValue = normalizeTitleForSearch(value);
+    return queries.some((query) => normalizedValue === normalizeTitleForSearch(query));
+  });
+}
+
+function hasExactChineseAlias(aliases: string[], queries: string[]): boolean {
+  return aliases.some(
+    (alias) => CHINESE_CHAR_RANGE.test(alias) && hasExactMatch([alias], queries)
+  );
+}
+
+function containsAnyQuery(value: string, queries: string[]): boolean {
+  const normalizedValue = normalizeTitleForSearch(value);
+  return queries.some((query) => normalizedValue.includes(normalizeTitleForSearch(query)));
+}
+
+function shortFormPenalty(values: string[]): number {
+  const normalizedValues = values.map((value) => normalizeTitleForSearch(value));
+  let penalty = 0;
+
+  for (const keyword of SHORT_FORM_KEYWORDS) {
+    const normalizedKeyword = normalizeTitleForSearch(keyword);
+    if (normalizedValues.some((value) => value.includes(normalizedKeyword))) {
+      penalty -= isStrongShortFormKeyword(keyword) ? 800 : 300;
+    }
+  }
+
+  return Math.max(-1200, penalty);
+}
+
+function isStrongShortFormKeyword(keyword: string): boolean {
+  return [
+    "campaign",
+    "commercial",
+    "music video",
+    "recap",
+    "digest",
+    "summary",
+    "ayataka",
+    "追いつける",
+    "10分",
+    "15分",
+    "20分",
+    "25分",
+    "総集編",
+    "キャンペーン",
+  ].includes(keyword);
+}
+
+function qualityScore(anime: AnimeSearchScoringFields): number {
+  if (anime.bangumiScore !== null) {
+    return anime.bangumiScore;
+  }
+
+  const rawJson = anime.rawJson;
+  if (rawJson === null || typeof rawJson !== "object" || Array.isArray(rawJson)) {
+    return 0;
+  }
+
+  const score = rawJson.score;
+  if (score === null || typeof score !== "object" || Array.isArray(score)) {
+    return 0;
+  }
+
+  const arithmeticGeometricMean = score.arithmeticGeometricMean;
+  return typeof arithmeticGeometricMean === "number" ? arithmeticGeometricMean : 0;
+}
+
+function primaryTypeRank(type: string | null): number {
+  switch (normalizeAnimeType(type)) {
+    case "TV":
+      return 4;
+    case "MOVIE":
+      return 3;
+    case "OVA":
+      return 2;
+    default:
+      return 1;
+  }
 }
 
 export interface ManualAnimeInput {
