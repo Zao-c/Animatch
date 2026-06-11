@@ -400,6 +400,9 @@ export async function searchLocalAnime(
   const candidates = await prisma.anime.findMany({
     where: {
       AND: conditions,
+      source: {
+        not: "CUSTOM_UPLOAD"
+      }
     },
     orderBy: { bgmId: { sort: "asc", nulls: "last" } },
     take: candidateTake,

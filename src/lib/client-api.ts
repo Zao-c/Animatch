@@ -380,6 +380,42 @@ export function bulkImportAnimeToPool(poolId: string, input: string) {
   });
 }
 
+export async function uploadCustomItemToPool(
+  poolId: string,
+  input: {
+    file: File;
+    title?: string;
+    note?: string;
+    tags?: string[];
+  }
+) {
+  const formData = new FormData();
+  formData.set("file", input.file);
+  if (input.title !== undefined) formData.set("title", input.title);
+  if (input.note !== undefined) formData.set("note", input.note);
+  if (input.tags !== undefined) formData.set("tags", JSON.stringify(input.tags));
+
+  const response = await fetch(`/api/pools/${poolId}/custom-items`, {
+    method: "POST",
+    body: formData
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | ApiResponse<{ poolAnime: PoolAnimeEntry }>
+    | null;
+
+  if (payload === null) {
+    throw new Error(response.ok ? "Invalid API response" : `Request failed (${response.status})`);
+  }
+
+  if (!response.ok || payload.ok === false) {
+    const message =
+      payload.ok === false ? payload.error.message : `Request failed (${response.status})`;
+    throw new Error(message);
+  }
+
+  return payload.data;
+}
+
 export function removeAnimeFromPool(poolId: string, animeId: string) {
   return fetchJson<{ ok: true }>(`/api/pools/${poolId}/anime/${animeId}`, {
     method: "DELETE"

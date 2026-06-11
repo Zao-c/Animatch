@@ -16,7 +16,11 @@ export async function GET(request: Request) {
   const offset = parseOffset(url.searchParams.get("offset"));
 
   try {
-    const where: Prisma.AnimeWhereInput = {};
+    const where: Prisma.AnimeWhereInput = {
+      source: {
+        not: "CUSTOM_UPLOAD"
+      }
+    };
 
     if (query) {
       const terms = query.split(/\s+/).filter(Boolean).map((t) => t.toLowerCase());

@@ -24,6 +24,7 @@ import {
   listRuns,
   removeAnimeFromPool,
   searchAnime,
+  uploadCustomItemToPool,
   uploadPoolAnimeCover,
   updatePoolAnimeDisplay,
   updatePool,
@@ -33,13 +34,21 @@ import {
   type PublicAnime,
 } from "@/lib/client-api";
 
-type AddTab = "search" | "browse" | "manual" | "bangumi";
+type AddTab = "search" | "browse" | "manual" | "custom" | "bangumi";
 type DisplayOverrideForm = {
   displayTitleOverride: string;
   coverUrlOverride: string;
   animeTypeOverride: string;
   tagsOverride: string;
   overrideNote: string;
+};
+type CustomUploadDraft = {
+  id: string;
+  file: File;
+  title: string;
+  tags: string;
+  previewUrl: string;
+  error: string | null;
 };
 
 const ANIME_TYPE_OPTIONS = ["", "TV", "MOVIE", "OVA", "ONA", "SPECIAL", "MUSIC", "CM", "PV", "UNKNOWN"];
@@ -49,6 +58,7 @@ const TABS: { key: AddTab; label: string }[] = [
   { key: "search", label: "本地搜索" },
   { key: "browse", label: "分类浏览" },
   { key: "manual", label: "手动添加" },
+  { key: "custom", label: "上传图片" },
   { key: "bangumi", label: "外部导入" },
 ];
 
@@ -101,6 +111,10 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [manualType, setManualType] = useState("");
   const [manualTags, setManualTags] = useState("");
   const [bulkInput, setBulkInput] = useState("");
+  const [customUploadDrafts, setCustomUploadDrafts] = useState<CustomUploadDraft[]>([]);
+  const [isUploadingCustomItems, setIsUploadingCustomItems] = useState(false);
+  const customUploadInputRef = useRef<HTMLInputElement>(null);
+  const customUploadDraftsRef = useRef<CustomUploadDraft[]>([]);
 
   const refreshRuns = useCallback(async () => {
     const data = await listRuns(params.poolId);
@@ -128,6 +142,16 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     if (pool === null) return;
     void refreshRuns().catch(() => setRuns([]));
   }, [pool, refreshRuns]);
+
+  useEffect(() => {
+    customUploadDraftsRef.current = customUploadDrafts;
+  }, [customUploadDrafts]);
+
+  useEffect(() => {
+    return () => {
+      customUploadDraftsRef.current.forEach((draft) => URL.revokeObjectURL(draft.previewUrl));
+    };
+  }, []);
 
   function clearMessage() {
     setError(null);
@@ -321,6 +345,95 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "批量导入失败");
     } finally {
+      setIsMutating(false);
+    }
+  }
+
+  function handleCustomFileChange(event: ChangeEvent<HTMLInputElement>) {
+    addCustomUploadFiles(event.target.files);
+    event.target.value = "";
+  }
+
+  function handleCustomDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    addCustomUploadFiles(event.dataTransfer.files);
+  }
+
+  function addCustomUploadFiles(files: FileList | null) {
+    if (files === null || archived()) return;
+    const drafts = Array.from(files).map((file) => {
+      const error = validateCustomUploadFile(file);
+      return {
+        id: makeDraftId(),
+        file,
+        title: titleFromFileName(file.name),
+        tags: "",
+        previewUrl: URL.createObjectURL(file),
+        error
+      };
+    });
+
+    setCustomUploadDrafts((current) => [...current, ...drafts]);
+  }
+
+  function updateCustomDraft(id: string, patch: Partial<Pick<CustomUploadDraft, "title" | "tags">>) {
+    setCustomUploadDrafts((current) =>
+      current.map((draft) => (draft.id === id ? { ...draft, ...patch } : draft))
+    );
+  }
+
+  function removeCustomDraft(id: string) {
+    setCustomUploadDrafts((current) => {
+      const target = current.find((draft) => draft.id === id);
+      if (target !== undefined) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+      return current.filter((draft) => draft.id !== id);
+    });
+  }
+
+  async function handleUploadCustomItems() {
+    if (pool === null || archived() || customUploadDrafts.length === 0) return;
+    clearMessage();
+    setIsUploadingCustomItems(true);
+    setIsMutating(true);
+
+    try {
+      const failedDrafts: CustomUploadDraft[] = [];
+      let uploadedCount = 0;
+
+      for (const draft of customUploadDrafts) {
+        const validationError = draft.error ?? validateCustomUploadFile(draft.file);
+
+        if (validationError !== null) {
+          failedDrafts.push({ ...draft, error: validationError });
+          continue;
+        }
+
+        try {
+          await uploadCustomItemToPool(pool.id, {
+            file: draft.file,
+            title: draft.title,
+            tags: draft.tags
+              .split(",")
+              .map((tag) => tag.trim())
+              .filter(Boolean)
+          });
+          uploadedCount++;
+          URL.revokeObjectURL(draft.previewUrl);
+        } catch (reason) {
+          failedDrafts.push({
+            ...draft,
+            error: reason instanceof Error ? reason.message : "上传失败"
+          });
+        }
+      }
+
+      setCustomUploadDrafts(failedDrafts);
+      await refreshPool();
+      setNotice(`已上传并加入 ${uploadedCount} 张图片${failedDrafts.length > 0 ? `，${failedDrafts.length} 张失败` : ""}`);
+    } finally {
+      setIsUploadingCustomItems(false);
       setIsMutating(false);
     }
   }
@@ -720,6 +833,100 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 </form>
               ) : null}
 
+              {activeTab === "custom" ? (
+                <div className="mt-4 space-y-4">
+                  <StatusHint
+                    label="自定义图片池"
+                    title="上传本地图片作为参赛项"
+                    description="适合角色图、头像、海报或场景图排序。每张图片会作为当前番组内的条目参与 Match 和 Tier List，不会进入 Manami 搜索。"
+                    tone="guide"
+                  />
+                  <input
+                    ref={customUploadInputRef}
+                    type="file"
+                    accept={COVER_UPLOAD_ACCEPT}
+                    multiple
+                    onChange={handleCustomFileChange}
+                    className="hidden"
+                  />
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => customUploadInputRef.current?.click()}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        customUploadInputRef.current?.click();
+                      }
+                    }}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={handleCustomDrop}
+                    className="rounded-2xl border border-dashed border-purple-300/30 bg-purple-300/[0.06] p-5 text-center text-sm leading-6 text-slate-300 transition hover:border-purple-300/50 hover:bg-purple-300/[0.09]"
+                  >
+                    <p className="font-semibold text-purple-100">拖拽图片到这里，或点击选择多张文件</p>
+                    <p className="mt-1 text-xs text-slate-500">支持 jpg/png/webp/gif，单张最大 5MB，不支持 svg。</p>
+                  </div>
+
+                  {customUploadDrafts.length > 0 ? (
+                    <div className="space-y-3">
+                      {customUploadDrafts.map((draft) => (
+                        <div
+                          key={draft.id}
+                          className="rounded-2xl border border-white/10 bg-slate-950/45 p-3"
+                        >
+                          <div className="flex gap-3">
+                            <div
+                              className="h-20 w-14 shrink-0 rounded-xl bg-cover bg-center"
+                              style={{ backgroundImage: `url(${draft.previewUrl})` }}
+                            />
+                            <div className="min-w-0 flex-1 space-y-2">
+                              <input
+                                value={draft.title}
+                                onChange={(event) =>
+                                  updateCustomDraft(draft.id, { title: event.target.value })
+                                }
+                                placeholder="图片标题"
+                                className="anime-field text-xs"
+                              />
+                              <input
+                                value={draft.tags}
+                                onChange={(event) =>
+                                  updateCustomDraft(draft.id, { tags: event.target.value })
+                                }
+                                placeholder="标签，逗号分隔（可选）"
+                                className="anime-field text-xs"
+                              />
+                              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                                <span>{formatFileSize(draft.file.size)}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => removeCustomDraft(draft.id)}
+                                  className="text-rose-200 hover:text-rose-100"
+                                >
+                                  移除
+                                </button>
+                              </div>
+                              {draft.error ? (
+                                <p className="text-xs leading-5 text-rose-200">{draft.error}</p>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <AppButton
+                        type="button"
+                        onClick={handleUploadCustomItems}
+                        disabled={isUploadingCustomItems || isMutating}
+                        variant="primary"
+                        className="w-full"
+                      >
+                        {isUploadingCustomItems ? "上传中..." : "上传并加入番组"}
+                      </AppButton>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
               {activeTab === "bangumi" ? (
                 <div className="mt-4">
                   <p className="mb-3 text-xs leading-5 text-slate-500">
@@ -803,6 +1010,34 @@ function getPoolGuidance(animeCount: number, isArchived: boolean) {
 
 function hasChineseText(value: string) {
   return /[\u4e00-\u9fff]/.test(value);
+}
+
+function validateCustomUploadFile(file: File) {
+  if (!COVER_UPLOAD_ACCEPT.split(",").includes(file.type)) {
+    return "只支持 jpg、png、webp、gif 图片，不支持 svg。";
+  }
+
+  if (file.size > COVER_UPLOAD_MAX_BYTES) {
+    return "图片不能超过 5MB。";
+  }
+
+  return null;
+}
+
+function titleFromFileName(fileName: string) {
+  return fileName.replace(/\.[^.]+$/, "").trim() || "未命名图片";
+}
+
+function makeDraftId() {
+  return `draft-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function formatFileSize(size: number) {
+  if (size < 1024 * 1024) {
+    return `${Math.max(1, Math.round(size / 1024))} KB`;
+  }
+
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function PoolAnimeCard({

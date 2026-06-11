@@ -3,6 +3,7 @@ import { mkdir, unlink, writeFile } from "fs/promises";
 import path from "path";
 
 export const ANIME_COVER_UPLOAD_PUBLIC_PREFIX = "/uploads/anime-covers/";
+export const CUSTOM_ITEM_UPLOAD_PUBLIC_PREFIX = "/uploads/custom-items/";
 export const MAX_ANIME_COVER_UPLOAD_BYTES = 5 * 1024 * 1024;
 
 const MIME_EXTENSION: Record<string, string> = {
@@ -16,6 +17,13 @@ export function getAnimeCoverUploadDir() {
   return (
     process.env.ANIMATCH_ANIME_COVER_UPLOAD_DIR ??
     path.join(process.cwd(), "public", "uploads", "anime-covers")
+  );
+}
+
+export function getCustomItemUploadDir() {
+  return (
+    process.env.ANIMATCH_CUSTOM_ITEM_UPLOAD_DIR ??
+    path.join(process.cwd(), "public", "uploads", "custom-items")
   );
 }
 
@@ -33,6 +41,19 @@ export function isLocalAnimeCoverPath(value: string | null | undefined): value i
   }
 
   const fileName = value.slice(ANIME_COVER_UPLOAD_PUBLIC_PREFIX.length);
+  return /^[a-zA-Z0-9._-]+$/.test(fileName) && !fileName.includes("..");
+}
+
+export function isLocalCustomItemPath(value: string | null | undefined): value is string {
+  if (value === null || value === undefined) {
+    return false;
+  }
+
+  if (!value.startsWith(CUSTOM_ITEM_UPLOAD_PUBLIC_PREFIX)) {
+    return false;
+  }
+
+  const fileName = value.slice(CUSTOM_ITEM_UPLOAD_PUBLIC_PREFIX.length);
   return /^[a-zA-Z0-9._-]+$/.test(fileName) && !fileName.includes("..");
 }
 
@@ -89,6 +110,34 @@ export async function saveAnimeCoverUpload({
   return `${ANIME_COVER_UPLOAD_PUBLIC_PREFIX}${fileName}`;
 }
 
+export async function saveCustomItemUpload({
+  file,
+  poolId
+}: {
+  file: File;
+  poolId: string;
+}) {
+  const extension = MIME_EXTENSION[file.type];
+
+  if (extension === undefined) {
+    throw new AnimeCoverUploadError("Only jpg, png, webp, and gif images are supported", 400);
+  }
+
+  if (file.size > MAX_ANIME_COVER_UPLOAD_BYTES) {
+    throw new AnimeCoverUploadError("Custom item image must be 5MB or smaller", 413);
+  }
+
+  const safePoolId = safeNamePart(poolId);
+  const fileName = `${safePoolId}-custom-${Date.now()}-${randomUUID().slice(0, 8)}.${extension}`;
+  const uploadDir = getCustomItemUploadDir();
+  const filePath = path.join(uploadDir, fileName);
+
+  await mkdir(uploadDir, { recursive: true });
+  await writeFile(filePath, Buffer.from(await file.arrayBuffer()));
+
+  return `${CUSTOM_ITEM_UPLOAD_PUBLIC_PREFIX}${fileName}`;
+}
+
 export async function deleteLocalAnimeCoverIfPresent(value: string | null | undefined) {
   const filePath = value === undefined || value === null ? null : localAnimeCoverPublicPathToFilePath(value);
 
@@ -100,6 +149,23 @@ export async function deleteLocalAnimeCoverIfPresent(value: string | null | unde
     await unlink(filePath);
   } catch (error) {
     console.warn("Failed to delete local anime cover upload", error);
+  }
+}
+
+export async function deleteLocalCustomItemIfPresent(value: string | null | undefined) {
+  const filePath =
+    value === undefined || value === null || !isLocalCustomItemPath(value)
+      ? null
+      : path.join(getCustomItemUploadDir(), value.slice(CUSTOM_ITEM_UPLOAD_PUBLIC_PREFIX.length));
+
+  if (filePath === null) {
+    return;
+  }
+
+  try {
+    await unlink(filePath);
+  } catch (error) {
+    console.warn("Failed to delete local custom item upload", error);
   }
 }
 
