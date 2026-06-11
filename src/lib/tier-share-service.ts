@@ -18,6 +18,7 @@ export interface TierShareSnapshotItem {
   coverUrl?: string;
   source: string;
   animeType?: string;
+  tags?: string[];
   elo?: number;
   isLocked?: boolean;
   isEdited?: boolean;
@@ -115,28 +116,50 @@ export async function createTierShare(params: {
     throw new AppError("poolId and runId are required", 400, "INVALID_SHARE_INPUT");
   }
 
-  const [pool, tierList] = await Promise.all([
+  const [pool, run] = await Promise.all([
     prisma.customPool.findUnique({
       where: {
         id: params.poolId
       },
       select: {
         id: true,
-        name: true,
-        deletedAt: true
+        name: true
       }
     }),
-    getRunTierList({
-      userId: params.userId,
-      poolId: params.poolId,
-      runId: params.runId
+    prisma.personalRun.findUnique({
+      where: {
+        id: params.runId
+      },
+      select: {
+        id: true,
+        userId: true,
+        poolId: true,
+        deletedAt: true
+      }
     })
   ]);
 
-  if (pool === null || pool.deletedAt !== null) {
+  if (pool === null) {
     throw new AppError("Pool not found", 404, "POOL_NOT_FOUND");
   }
 
+  if (run === null || run.deletedAt !== null) {
+    throw new AppError("Run not found", 404, "RUN_NOT_FOUND");
+  }
+
+  if (run.userId !== params.userId) {
+    throw new AppError("Run does not belong to the current user", 403, "RUN_FORBIDDEN");
+  }
+
+  if (run.poolId !== pool.id) {
+    throw new AppError("Run does not belong to pool", 404, "RUN_POOL_MISMATCH");
+  }
+
+  const tierList = await getRunTierList({
+    userId: params.userId,
+    poolId: params.poolId,
+    runId: params.runId
+  });
   const tierLabels = sanitizeTierShareLabels(params.tierLabels);
   const description = sanitizeTierShareDescription(params.description);
   const snapshot = buildTierShareSnapshot({
@@ -190,6 +213,7 @@ function toSnapshotItem(item: TierListItem): TierShareSnapshotItem {
   const subtitle = item.display?.subtitle ?? item.titleJa ?? item.titleEn ?? undefined;
   const coverUrl = getAnimeCoverUrl(item, { intent: "export" }) ?? undefined;
   const animeType = item.display?.animeType ?? item.animeType ?? undefined;
+  const tags = item.display?.tags ?? item.tags;
 
   return {
     animeId: item.animeId,
@@ -198,6 +222,7 @@ function toSnapshotItem(item: TierListItem): TierShareSnapshotItem {
     ...(coverUrl ? { coverUrl } : {}),
     source: item.source,
     ...(animeType ? { animeType } : {}),
+    ...(tags.length > 0 ? { tags } : {}),
     elo: Number(item.eloScore.toFixed(1)),
     isLocked: item.manualLocked,
     isEdited: item.display?.isOverridden === true

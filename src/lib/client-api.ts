@@ -171,6 +171,7 @@ export interface TierShareSnapshotItem {
   coverUrl?: string;
   source: string;
   animeType?: string;
+  tags?: string[];
   elo?: number;
   isLocked?: boolean;
   isEdited?: boolean;

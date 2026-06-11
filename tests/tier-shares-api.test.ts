@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "../src/lib/app-error";
 import { GET } from "../src/app/api/tier-shares/[token]/route";
 import { POST } from "../src/app/api/tier-shares/route";
@@ -17,6 +17,10 @@ const mockedCreateTierShare = vi.mocked(createTierShare);
 const mockedGetPublicTierShare = vi.mocked(getPublicTierShare);
 
 describe("tier shares API", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("POST creates a tier share and returns the public URL", async () => {
     mockedCreateTierShare.mockResolvedValue({
       token: "token-1",
@@ -50,6 +54,46 @@ describe("tier shares API", () => {
         tierLabels: { S: "神作" }
       })
     );
+  });
+
+  it("POST returns Pool not found when the pool is missing", async () => {
+    mockedCreateTierShare.mockRejectedValue(
+      new AppError("Pool not found", 404, "POOL_NOT_FOUND")
+    );
+
+    const response = await POST(
+      new Request("http://test.local/api/tier-shares", {
+        method: "POST",
+        body: JSON.stringify({
+          poolId: "missing-pool",
+          runId: "run-1"
+        })
+      })
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(payload.error.message).toBe("Pool not found");
+  });
+
+  it("POST returns an explicit error when the run does not belong to the pool", async () => {
+    mockedCreateTierShare.mockRejectedValue(
+      new AppError("Run does not belong to pool", 404, "RUN_POOL_MISMATCH")
+    );
+
+    const response = await POST(
+      new Request("http://test.local/api/tier-shares", {
+        method: "POST",
+        body: JSON.stringify({
+          poolId: "pool-1",
+          runId: "other-run"
+        })
+      })
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(payload.error.message).toBe("Run does not belong to pool");
   });
 
   it("GET returns a public tier share", async () => {

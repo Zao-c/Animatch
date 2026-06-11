@@ -1,3 +1,5 @@
+import React from "react";
+
 export function ErrorAlert({
   message,
   tone = "error",

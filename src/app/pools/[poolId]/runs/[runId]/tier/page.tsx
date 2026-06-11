@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TierAnimeCard } from "@/components/TierAnimeCard";
 import { TierExportCanvas } from "@/components/TierExportCanvas";
+import { TierSharePanel } from "@/components/TierSharePanel";
 import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
 import { AppBadge } from "@/components/ui/AppBadge";
@@ -282,7 +283,8 @@ export default function TierPage({
         setShareCopied(false);
       }
     } catch (reason) {
-      setShareError(reason instanceof Error ? reason.message : "生成分享链接失败");
+      const message = reason instanceof Error ? reason.message : "请稍后重试。";
+      setShareError(`分享链接生成失败：${message}`);
     } finally {
       setIsSharing(false);
     }
@@ -388,20 +390,12 @@ export default function TierPage({
 
       {error ? <ErrorAlert message={error} className="mb-5" /> : null}
       {exportError ? <ErrorAlert message={exportError} className="mb-5" /> : null}
-      {shareError ? <ErrorAlert message={shareError} className="mb-5" /> : null}
-      {shareUrl ? (
-        <AppCard className="mb-5 p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <AppBadge tone="source">{shareCopied ? "分享链接已复制" : "分享链接已生成"}</AppBadge>
-              <p className="mt-3 break-all text-sm text-slate-300">{shareUrl}</p>
-            </div>
-            <AppButton onClick={handleCopyShareUrl} variant="primary">
-              复制链接
-            </AppButton>
-          </div>
-        </AppCard>
-      ) : null}
+      <TierSharePanel
+        shareError={shareError}
+        shareUrl={shareUrl}
+        shareCopied={shareCopied}
+        onCopyShareUrl={handleCopyShareUrl}
+      />
       {isLoading ? <ErrorAlert message="正在加载榜单..." tone="notice" className="mb-5" /> : null}
       {isEditing ? (
         <ErrorAlert
