@@ -23,6 +23,15 @@ export function buildTierExportFilename(poolName: string, date = new Date()): st
   return `animatch-tier-${sanitizeFilenameSegment(poolName)}-${formatTierExportTimestamp(date)}.png`;
 }
 
+export function getTierExportDimensions(node: HTMLElement): { width: number; height: number } {
+  const rect = node.getBoundingClientRect();
+
+  return {
+    width: Math.ceil(rect.width),
+    height: Math.ceil(node.scrollHeight)
+  };
+}
+
 function pad(value: number): string {
   return value.toString().padStart(2, "0");
 }

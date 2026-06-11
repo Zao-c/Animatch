@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildTierExportFilename,
   formatTierExportTimestamp,
+  getTierExportDimensions,
   sanitizeFilenameSegment
 } from "../src/lib/tier-export";
 
@@ -22,5 +23,15 @@ describe("tier export helpers", () => {
     expect(buildTierExportFilename("Test Pool", new Date(2026, 5, 11, 22, 30))).toBe(
       "animatch-tier-Test-Pool-20260611-2230.png"
     );
+  });
+
+  it("uses scrollHeight for export height", () => {
+    const node = {
+      getBoundingClientRect: () => ({ width: 1279.2 }),
+      scrollHeight: 2440,
+      clientHeight: 900
+    } as unknown as HTMLElement;
+
+    expect(getTierExportDimensions(node)).toEqual({ width: 1280, height: 2440 });
   });
 });

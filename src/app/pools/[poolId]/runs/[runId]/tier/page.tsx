@@ -22,7 +22,11 @@ import {
   type TierListItem,
   type TierListResponse
 } from "@/lib/client-api";
-import { buildTierExportFilename, formatTierExportTimestamp } from "@/lib/tier-export";
+import {
+  buildTierExportFilename,
+  formatTierExportTimestamp,
+  getTierExportDimensions
+} from "@/lib/tier-export";
 
 const TIERS = ["S", "A", "B", "C", "D"] as const;
 type Tier = (typeof TIERS)[number];
@@ -187,12 +191,19 @@ export default function TierPage({
     setExportedAt(generatedAt);
 
     try {
-      await waitForPaint();
+      await waitForExportReady();
+      const exportSize = getTierExportDimensions(exportRef.current);
       const dataUrl = await toPng(exportRef.current, {
         backgroundColor: EXPORT_BACKGROUND,
         cacheBust: true,
+        width: exportSize.width,
+        height: exportSize.height,
         pixelRatio: 2,
         imagePlaceholder: EXPORT_IMAGE_PLACEHOLDER,
+        style: {
+          width: `${exportSize.width}px`,
+          height: `${exportSize.height}px`
+        },
         filter: (node) =>
           !(node instanceof HTMLElement && node.dataset.exportHidden === "true")
       });
@@ -420,16 +431,19 @@ export default function TierPage({
       {tierList && visibleTiers ? (
         <div
           ref={exportRef}
-          className={`tier-export-surface ${isExporting ? "tier-export-mode" : ""}`}
+          data-testid="tier-export-canvas"
+          className={`tier-export-surface tier-export-canvas ${
+            isExporting ? "tier-export-mode" : ""
+          }`}
         >
-          <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="tier-export-header mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="flex flex-wrap gap-2">
                 <AppBadge tone="source">AniMatch</AppBadge>
                 <AppBadge tone="tier">Tier Wall</AppBadge>
                 <AppBadge tone="status">{poolName}</AppBadge>
               </div>
-              <h2 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
+              <h2 className="tier-export-title mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
                 {poolName}
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-400">
@@ -522,6 +536,12 @@ function Stat({ label, value }: { label: string; value: string }) {
       <p className="mt-2 text-3xl font-black text-white">{value}</p>
     </AppCard>
   );
+}
+
+async function waitForExportReady(): Promise<void> {
+  await waitForPaint();
+  await document.fonts?.ready;
+  await waitForPaint();
 }
 
 function waitForPaint(): Promise<void> {
