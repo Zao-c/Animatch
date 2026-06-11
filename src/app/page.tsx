@@ -30,6 +30,23 @@ const FEATURES = [
 
 const STATUS = ["Manami 本地库", "中文搜索", "个人番组"];
 const COMING_SOON = ["账号系统", "分享榜单", "推荐系统"];
+const QUICK_START = [
+  {
+    step: "01",
+    title: "创建番组",
+    body: "把这次想比较的动画放进同一个番组，测试池和正式池可以分开管理。"
+  },
+  {
+    step: "02",
+    title: "搜索并加入动画",
+    body: "支持中文、英文、日文关键词；标题或封面不理想时，加入后可以编辑显示。"
+  },
+  {
+    step: "03",
+    title: "开始对决生成 Tier List",
+    body: "用几轮左右对决替代一次性打分，系统会逐步更新 Elo、统计和 S/A/B/C/D 榜单。"
+  }
+];
 
 export default function Home() {
   return (
@@ -81,6 +98,31 @@ export default function Home() {
             </div>
           </div>
         </AppCard>
+      </section>
+
+      <section className="mt-6">
+        <SectionHeader
+          eyebrow="Quick start"
+          title="3 步开始"
+          description="第一次使用时，先完成一个小番组的完整流程；建议加入 4-8 部动画，第一次体验会更稳定。"
+          action={
+            <Link href="/pools/new" className={appButtonClasses({ variant: "primary" })}>
+              创建第一个番组
+            </Link>
+          }
+        />
+        <div className="mt-5 grid gap-4 md:grid-cols-3">
+          {QUICK_START.map((item) => (
+            <AppCard key={item.step} className="p-5">
+              <div className="flex items-center justify-between gap-3">
+                <AppBadge tone="source">{item.step}</AppBadge>
+                <span className="text-xs uppercase tracking-[0.18em] text-slate-500">start</span>
+              </div>
+              <h3 className="mt-5 text-lg font-semibold text-white">{item.title}</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-400">{item.body}</p>
+            </AppCard>
+          ))}
+        </div>
       </section>
 
       <section className="mt-6">

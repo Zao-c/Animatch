@@ -126,7 +126,7 @@ export default function RecalibratePage({
           description={
             completed
               ? "你的榜单已经根据最新选择更新。"
-              : "可以添加更多动画，或先进行更多普通对决。"
+              : "当前没有足够可校准的组合。通常是因为动画数量较少，或当前可比较组合已经完成。你可以添加更多动画，或先进行普通对决。"
           }
           action={
             <div className="flex flex-wrap justify-center gap-3">
@@ -181,6 +181,9 @@ export default function RecalibratePage({
           <div>
             <AppBadge tone="source">为什么是它们？</AppBadge>
             <p className="mt-3 text-sm leading-6 text-cyan-50">{pair?.reason}</p>
+            <p className="mt-2 text-xs leading-5 text-slate-400">
+              系统会优先选择分数接近、信息不足或未直接比较过的作品。
+            </p>
           </div>
           <div className="text-sm text-slate-500">
             {activeSession.completedCount} / {activeSession.plannedCount}

@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AnimeCard } from "@/components/AnimeCard";
 import { AnimeCover } from "@/components/AnimeCover";
 import { PageShell } from "@/components/PageShell";
+import { StatusHint } from "@/components/StatusHint";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
@@ -75,6 +76,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   });
 
   const [searchKeyword, setSearchKeyword] = useState("");
+  const [lastSearchKeyword, setLastSearchKeyword] = useState("");
   const [searchResults, setSearchResults] = useState<PublicAnime[]>([]);
   const [searchMessage, setSearchMessage] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -189,6 +191,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     setIsSearching(true);
 
     try {
+      setLastSearchKeyword(searchKeyword.trim());
       const data = await searchAnime(searchKeyword, 12);
       setSearchResults(data.items);
       setSearchMessage(data.message ?? null);
@@ -426,6 +429,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const latestRun = runs[0];
   const canStart = pool.anime.length >= 2 && !isArchived;
   const joinedAnimeIds = new Set(pool.anime.map((entry) => entry.animeId));
+  const poolGuidance = getPoolGuidance(pool.anime.length, isArchived);
+  const searchHadNoResults =
+    lastSearchKeyword.length > 0 && !isSearching && searchResults.length === 0;
 
   return (
     <PageShell>
@@ -497,12 +503,12 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       </section>
 
       <div className="mt-5 space-y-3">
-        {isArchived ? (
-          <ErrorAlert message="该番组已归档，只能查看历史结果。" tone="warning" />
-        ) : null}
-        {!isArchived && !canStart ? (
-          <ErrorAlert message="至少添加 2 部动画后才能开始对决。" tone="warning" />
-        ) : null}
+        <StatusHint
+          label={poolGuidance.label}
+          title={poolGuidance.title}
+          description={poolGuidance.description}
+          tone={poolGuidance.tone}
+        />
         {error ? <ErrorAlert message={error} /> : null}
         {notice ? <ErrorAlert message={notice} tone="notice" /> : null}
       </div>
@@ -602,6 +608,13 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
               {activeTab === "search" ? (
                 <div className="mt-4">
+                  <StatusHint
+                    label="本地搜索"
+                    title="支持中文、英文、日文关键词"
+                    description="如果标题或封面不理想，可以先加入番组，再点击“编辑显示”修正。Bangumi 导入是可选备用，不是主流程。"
+                    tone="guide"
+                    className="mb-4"
+                  />
                   <form onSubmit={handleSearch} className="flex gap-2">
                     <input
                       value={searchKeyword}
@@ -614,6 +627,19 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                     </AppButton>
                   </form>
                   {searchMessage ? <p className="mt-3 text-sm text-slate-400">{searchMessage}</p> : null}
+                  {searchHadNoResults ? (
+                    <StatusHint
+                      label="无结果"
+                      title="没有找到匹配动画"
+                      description={
+                        hasChineseText(lastSearchKeyword)
+                          ? "可以换用英文、日文或更短关键词再试；当前数据库可能还不是全量导入。也可以切到“手动添加”先创建条目。"
+                          : "可以换用更短关键词、原标题或别名再试；也可以切到“手动添加”先创建条目。"
+                      }
+                      tone="warning"
+                      className="mt-4"
+                    />
+                  ) : null}
                   <div className="mt-4 space-y-3">
                     {searchResults.map((anime) => (
                       <AnimeCard
@@ -673,6 +699,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                   <input value={manualTitle} onChange={(event) => setManualTitle(event.target.value)} placeholder="动画名称 *" required className="anime-field" />
                   <input value={manualTitleCn} onChange={(event) => setManualTitleCn(event.target.value)} placeholder="中文名（可选）" className="anime-field" />
                   <input value={manualImageUrl} onChange={(event) => setManualImageUrl(event.target.value)} placeholder="封面图 URL（可选）" className="anime-field" />
+                  <p className="text-xs leading-5 text-slate-500">
+                    如果外部封面加载失败，页面会自动显示 fallback，不会阻塞对决。
+                  </p>
                   <div className="grid gap-2 sm:grid-cols-2">
                     <input value={manualYear} onChange={(event) => setManualYear(event.target.value)} placeholder="年份" className="anime-field" />
                     <input value={manualType} onChange={(event) => setManualType(event.target.value)} placeholder="类型 e.g. TV" className="anime-field" />
@@ -718,6 +747,55 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       </p>
     </PageShell>
   );
+}
+
+function getPoolGuidance(animeCount: number, isArchived: boolean) {
+  if (isArchived) {
+    return {
+      label: "只读",
+      title: "该番组已归档",
+      description: "该番组已归档，只能查看历史结果。如需继续对决，请新建或复制番组。",
+      tone: "warning" as const
+    };
+  }
+
+  if (animeCount === 0) {
+    return {
+      label: "下一步",
+      title: "先添加几部动画",
+      description: "建议至少添加 4 部，这样系统才能生成更稳定的对决和 Tier List。",
+      tone: "guide" as const
+    };
+  }
+
+  if (animeCount === 1) {
+    return {
+      label: "还差一步",
+      title: "还需要至少 1 部动画才能开始对决",
+      description: "建议添加 4-8 部进行第一次体验，动画越多，排序越有参考价值。",
+      tone: "warning" as const
+    };
+  }
+
+  if (animeCount < 4) {
+    return {
+      label: "可开始",
+      title: "已经可以开始对决，但 pair 很少",
+      description: "添加更多动画可以让 Tier List 更准确；现在也可以先体验一次完整流程。",
+      tone: "success" as const
+    };
+  }
+
+  return {
+    label: "准备好了",
+    title: "可以开始对决",
+    description: "完成更多比较后，Tier List 会更稳定；标题或封面不理想时，可在作品卡片里编辑显示。",
+    tone: "success" as const
+  };
+}
+
+function hasChineseText(value: string) {
+  return /[\u4e00-\u9fff]/.test(value);
 }
 
 function PoolAnimeCard({
@@ -793,6 +871,9 @@ function PoolAnimeCard({
       </div>
       {isEditing && !isArchived ? (
         <form onSubmit={onSave} className="mt-3 space-y-2 border-t border-white/10 pt-3">
+          <p className="text-xs leading-5 text-cyan-100">
+            这个修改只影响当前番组，不会改动全局动画库。
+          </p>
           <input
             value={displayForm.displayTitleOverride}
             onChange={(event) =>
@@ -809,6 +890,9 @@ function PoolAnimeCard({
             placeholder="封面 URL"
             className="anime-field text-xs"
           />
+          <p className="text-xs leading-5 text-slate-500">
+            如果外部封面加载失败，页面会自动显示 fallback。
+          </p>
           <div className="grid gap-2 sm:grid-cols-2">
             <select
               value={displayForm.animeTypeOverride}

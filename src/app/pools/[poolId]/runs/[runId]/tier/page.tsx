@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TierAnimeCard } from "@/components/TierAnimeCard";
 import { PageShell } from "@/components/PageShell";
+import { StatusHint } from "@/components/StatusHint";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
@@ -243,19 +244,37 @@ export default function TierPage({
       {isLoading ? <ErrorAlert message="正在加载榜单..." tone="notice" className="mb-5" /> : null}
       {isEditing ? (
         <ErrorAlert
-          message="正在编辑最终设定，保存后将锁定你的手动排序。"
+          message="正在编辑最终设定，保存后将锁定你的手动排序，但不会删除任何对决历史。"
           tone="warning"
           className="mb-5"
         />
       ) : null}
 
       {tierList ? (
-        <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Stat label="信心指数" value={tierList.confidenceScore.toFixed(1)} />
-          <Stat label="总作品" value={String(tierList.totalAnime)} />
-          <Stat label="已比较作品" value={String(tierList.comparedAnime)} />
-          <Stat label="总对决" value={String(tierList.totalComparisons)} />
-        </div>
+        <>
+          <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Stat label="信心指数" value={tierList.confidenceScore.toFixed(1)} />
+            <Stat label="总作品" value={String(tierList.totalAnime)} />
+            <Stat label="已比较作品" value={String(tierList.comparedAnime)} />
+            <Stat label="总对决" value={String(tierList.totalComparisons)} />
+          </div>
+          <div className="mb-8 space-y-3">
+            <StatusHint
+              label="榜单说明"
+              title="系统排序来自两两对决"
+              description="每次选择都会更新作品的相对位置；手动最终设定不会删除对决历史，锁标记代表用户手动确认过最终排序。"
+              tone="guide"
+            />
+            {tierList.totalComparisons === 0 ? (
+              <StatusHint
+                label="初始估计"
+                title="还没有对决记录"
+                description="当前 Tier List 只是初始估计。完成几轮对决后，分数、分层和信心指数会更准确。"
+                tone="warning"
+              />
+            ) : null}
+          </div>
+        </>
       ) : null}
 
       <AppCard className="mb-8 p-4">
@@ -287,7 +306,7 @@ export default function TierPage({
               <AppBadge tone="source">校准实验室</AppBadge>
               <h2 className="mt-3 text-2xl font-black text-white">微调你的榜单边界</h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                选择校准方式和计划场数，系统会生成更适合复核的对决组合。
+                选择校准方式和计划场数，系统会优先选择分数接近、信息不足或未直接比较过的作品。
               </p>
             </div>
             <AppButton onClick={handleCreateRecalibration} disabled={isSaving} variant="primary">

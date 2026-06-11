@@ -26,6 +26,7 @@ export default function MatchPage({
   params: { poolId: string; runId: string };
 }) {
   const [poolName, setPoolName] = useState("当前番组");
+  const [poolAnimeCount, setPoolAnimeCount] = useState<number | null>(null);
   const [queue, setQueue] = useState<MatchPair[]>([]);
   const [confidenceScore, setConfidenceScore] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -65,6 +66,7 @@ export default function MatchPage({
         getMatchQueue(params.poolId, params.runId, 8)
       ]);
       setPoolName(pool.name);
+      setPoolAnimeCount(pool.anime.length);
       setConfidenceScore(data.confidenceScore);
       setQueue(data.pairs);
       const progress = await preloadPairs(data.pairs, {
@@ -146,11 +148,13 @@ export default function MatchPage({
   const currentPair = queue[0];
 
   if (currentPair === undefined) {
+    const emptyCopy = getMatchEmptyCopy(poolAnimeCount);
+
     return (
       <PageShell>
         <EmptyState
-          title="当前没有足够可匹配的动画"
-          description="可以添加更多作品，或查看 Tier List。"
+          title={emptyCopy.title}
+          description={emptyCopy.description}
           action={
             <div className="flex flex-wrap justify-center gap-3">
               <Link href={`/pools/${params.poolId}`} className={appButtonClasses({ variant: "ghost" })}>
@@ -256,4 +260,26 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function pairKeyForPair(pair: MatchPair): string {
   return [pair.left.id, pair.right.id].sort().join(":");
+}
+
+function getMatchEmptyCopy(poolAnimeCount: number | null) {
+  if (poolAnimeCount !== null && poolAnimeCount < 2) {
+    return {
+      title: "至少需要 2 部动画才能开始对决",
+      description: "返回番组详情页继续添加动画；建议添加 4-8 部进行第一次体验。"
+    };
+  }
+
+  if (poolAnimeCount !== null && poolAnimeCount >= 2) {
+    return {
+      title: "当前番组的可用组合已经比较完了",
+      description:
+        "你可以查看 Tier List，添加更多动画，或使用手动最终设定微调排序。"
+    };
+  }
+
+  return {
+    title: "当前没有足够可匹配的动画",
+    description: "可以添加更多作品或查看 Tier List。"
+  };
 }
