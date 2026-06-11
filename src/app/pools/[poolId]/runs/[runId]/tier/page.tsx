@@ -2,12 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { DragEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { AnimeCover } from "@/components/AnimeCover";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { TierAnimeCard } from "@/components/TierAnimeCard";
 import { PageShell } from "@/components/PageShell";
+import { AppBadge } from "@/components/ui/AppBadge";
+import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
+import { AppCard } from "@/components/ui/AppCard";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorAlert } from "@/components/ui/ErrorAlert";
 import {
   clearManualTier,
   createRecalibrationSession,
+  getPool,
   getTierList,
   saveManualTierList,
   type RecalibrationType,
@@ -19,12 +25,27 @@ const TIERS = ["S", "A", "B", "C", "D"] as const;
 type Tier = (typeof TIERS)[number];
 type TierMap = Record<Tier, TierListItem[]>;
 
+const TIER_STYLE: Record<Tier, string> = {
+  S: "border-cyan-300/28 from-cyan-300/14",
+  A: "border-purple-300/24 from-purple-300/12",
+  B: "border-blue-300/20 from-blue-300/10",
+  C: "border-emerald-300/18 from-emerald-300/8",
+  D: "border-slate-300/14 from-slate-300/6"
+};
+
+const RECALIBRATION_MODES: { type: RecalibrationType; title: string; body: string }[] = [
+  { type: "SMART", title: "智能校准", body: "自动挑选最值得复核的组合。" },
+  { type: "RANGE", title: "区间校准", body: "围绕某个 Tier 边界做微调。" },
+  { type: "FOCUS", title: "焦点校准", body: "指定 1-3 部动画进行重点复核。" }
+];
+
 export default function TierPage({
   params
 }: {
   params: { poolId: string; runId: string };
 }) {
   const router = useRouter();
+  const [poolName, setPoolName] = useState("当前番组");
   const [tierList, setTierList] = useState<TierListResponse | null>(null);
   const [editableTiers, setEditableTiers] = useState<TierMap | null>(null);
   const [dragSource, setDragSource] = useState<{ tier: Tier; animeId: string } | null>(null);
@@ -43,7 +64,11 @@ export default function TierPage({
     setError(null);
 
     try {
-      const data = await getTierList(params.poolId, params.runId);
+      const [pool, data] = await Promise.all([
+        getPool(params.poolId),
+        getTierList(params.poolId, params.runId)
+      ]);
+      setPoolName(pool.name);
       setTierList(data);
       if (!isEditing) {
         setEditableTiers(cloneTiers(data.tiers));
@@ -66,6 +91,14 @@ export default function TierPage({
 
     setEditableTiers(cloneTiers(tierList.tiers));
     setIsEditing(true);
+    setError(null);
+  }
+
+  function cancelEditing() {
+    if (tierList !== null) {
+      setEditableTiers(cloneTiers(tierList.tiers));
+    }
+    setIsEditing(false);
     setError(null);
   }
 
@@ -179,58 +212,42 @@ export default function TierPage({
     <PageShell>
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-white">Tier List</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
-            手动设定不会删除 Elo，也不会删除对决历史，只影响最终展示和后续口味画像。
+          <div className="flex flex-wrap gap-2">
+            <AppBadge tone="tier">Tier Wall</AppBadge>
+            <AppBadge tone="status">{poolName}</AppBadge>
+          </div>
+          <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
+            Tier List 排名榜单墙
+          </h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
+            手动设定不会删除 Elo 或对决历史，只影响最终展示和后续口味画像。
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Link
-            href={`/pools/${params.poolId}`}
-            className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
-          >
+          <Link href={`/pools/${params.poolId}`} className={appButtonClasses({ variant: "ghost" })}>
             返回番组
           </Link>
-          <Link
-            href={`/pools/${params.poolId}/runs/${params.runId}/match`}
-            className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
-          >
+          <Link href={`/pools/${params.poolId}/runs/${params.runId}/match`} className={appButtonClasses({ variant: "ghost" })}>
             继续对决
           </Link>
-          <button
-            onClick={() => setShowRecalibration((value) => !value)}
-            className="rounded-lg border border-cyan-300/40 px-4 py-2 text-sm font-semibold text-cyan-200 hover:bg-cyan-300/10"
-          >
+          <AppButton onClick={() => setShowRecalibration((value) => !value)} variant="secondary">
             校准榜单
-          </button>
-          {isEditing ? (
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="rounded-lg bg-cyan-300 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-cyan-200 disabled:opacity-50"
-            >
-              保存最终设定
-            </button>
-          ) : (
-            <button
-              onClick={startEditing}
-              className="rounded-lg bg-cyan-300 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-cyan-200"
-            >
-              编辑最终设定
-            </button>
-          )}
-          <button
-            onClick={handleClearManual}
-            disabled={isSaving}
-            className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
-          >
-            恢复系统排序
-          </button>
+          </AppButton>
+          <AppButton disabled variant="ghost">
+            分享榜单 Coming soon
+          </AppButton>
         </div>
       </div>
 
-      {isLoading ? <p className="text-sm text-zinc-400">正在加载榜单...</p> : null}
-      {error ? <p className="mb-5 text-sm text-red-300">{error}</p> : null}
+      {error ? <ErrorAlert message={error} className="mb-5" /> : null}
+      {isLoading ? <ErrorAlert message="正在加载榜单..." tone="notice" className="mb-5" /> : null}
+      {isEditing ? (
+        <ErrorAlert
+          message="正在编辑最终设定，保存后将锁定你的手动排序。"
+          tone="warning"
+          className="mb-5"
+        />
+      ) : null}
 
       {tierList ? (
         <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -241,29 +258,72 @@ export default function TierPage({
         </div>
       ) : null}
 
+      <AppCard className="mb-8 p-4">
+        <div className="flex flex-wrap gap-3">
+          {isEditing ? (
+            <>
+              <AppButton onClick={handleSave} disabled={isSaving} variant="primary">
+                保存最终设定
+              </AppButton>
+              <AppButton onClick={cancelEditing} disabled={isSaving} variant="ghost">
+                取消编辑
+              </AppButton>
+            </>
+          ) : (
+            <AppButton onClick={startEditing} variant="primary">
+              编辑最终设定
+            </AppButton>
+          )}
+          <AppButton onClick={handleClearManual} disabled={isSaving} variant="ghost">
+            恢复系统排序
+          </AppButton>
+        </div>
+      </AppCard>
+
       {showRecalibration ? (
-        <section className="mb-8 rounded-lg border border-cyan-300/20 bg-cyan-300/10 p-5">
-          <h2 className="text-lg font-semibold text-white">校准模式</h2>
-          <div className="mt-4 grid gap-4 lg:grid-cols-4">
+        <AppCard className="mb-8 p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <AppBadge tone="source">校准实验室</AppBadge>
+              <h2 className="mt-3 text-2xl font-black text-white">微调你的榜单边界</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                选择校准方式和计划场数，系统会生成更适合复核的对决组合。
+              </p>
+            </div>
+            <AppButton onClick={handleCreateRecalibration} disabled={isSaving} variant="primary">
+              开始校准
+            </AppButton>
+          </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            {RECALIBRATION_MODES.map((mode) => {
+              const selected = recalibrationType === mode.type;
+              return (
+                <button
+                  key={mode.type}
+                  type="button"
+                  onClick={() => setRecalibrationType(mode.type)}
+                  className={`rounded-2xl border p-4 text-left transition ${
+                    selected
+                      ? "border-cyan-300/50 bg-cyan-300/12 shadow-[0_0_28px_rgba(3,218,197,0.14)]"
+                      : "border-white/10 bg-slate-950/42 hover:border-white/20"
+                  }`}
+                >
+                  <h3 className="font-semibold text-white">{mode.title}</h3>
+                  <p className="mt-2 text-sm leading-5 text-slate-400">{mode.body}</p>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-3">
             <label className="block">
-              <span className="text-sm text-zinc-300">模式</span>
-              <select
-                value={recalibrationType}
-                onChange={(event) => setRecalibrationType(event.target.value as RecalibrationType)}
-                className="mt-2 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-white"
-              >
-                <option value="SMART">智能校准</option>
-                <option value="RANGE">区间校准</option>
-                <option value="FOCUS">焦点校准</option>
-              </select>
-            </label>
-            <label className="block">
-              <span className="text-sm text-zinc-300">目标 Tier</span>
+              <span className="text-sm text-slate-300">目标 Tier</span>
               <select
                 value={targetTier}
                 onChange={(event) => setTargetTier(event.target.value as Tier)}
                 disabled={recalibrationType !== "RANGE"}
-                className="mt-2 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-white disabled:opacity-50"
+                className="anime-field mt-2 disabled:opacity-50"
               >
                 {TIERS.map((tier) => (
                   <option key={tier} value={tier}>
@@ -273,24 +333,18 @@ export default function TierPage({
               </select>
             </label>
             <label className="block">
-              <span className="text-sm text-zinc-300">计划场数</span>
+              <span className="text-sm text-slate-300">计划场数</span>
               <input
                 type="number"
                 min={1}
                 max={50}
                 value={plannedCount}
                 onChange={(event) => setPlannedCount(Number(event.target.value))}
-                className="mt-2 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-white"
+                className="anime-field mt-2"
               />
             </label>
-            <button
-              onClick={handleCreateRecalibration}
-              disabled={isSaving}
-              className="self-end rounded-lg bg-cyan-300 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-cyan-200 disabled:opacity-50"
-            >
-              开始校准
-            </button>
           </div>
+
           {recalibrationType === "FOCUS" ? (
             <div className="mt-4 flex flex-wrap gap-2">
               {allItems.map((item) => {
@@ -307,10 +361,10 @@ export default function TierPage({
                             : [...current, item.animeId]
                       )
                     }
-                    className={`rounded-md border px-3 py-1 text-xs ${
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
                       selected
-                        ? "border-cyan-300 bg-cyan-300 text-zinc-950"
-                        : "border-white/15 text-zinc-300"
+                        ? "border-cyan-300 bg-cyan-300 text-slate-950"
+                        : "border-white/15 text-slate-300 hover:border-cyan-300/35"
                     }`}
                   >
                     {item.display?.title ?? item.titleCn ?? item.title}
@@ -319,7 +373,7 @@ export default function TierPage({
               })}
             </div>
           ) : null}
-        </section>
+        </AppCard>
       ) : null}
 
       {visibleTiers ? (
@@ -329,17 +383,19 @@ export default function TierPage({
               key={tier}
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => handleDrop(tier)}
-              className="grid gap-4 rounded-lg border border-white/10 bg-white/[0.04] p-4 lg:grid-cols-[72px_1fr]"
+              className={`grid gap-4 rounded-2xl border bg-gradient-to-r ${TIER_STYLE[tier]} to-slate-950/46 p-4 backdrop-blur-xl lg:grid-cols-[88px_1fr]`}
             >
-              <div className="flex h-16 items-center justify-center rounded-lg bg-zinc-950 text-3xl font-bold text-cyan-200">
+              <div className="flex h-20 items-center justify-center rounded-2xl border border-white/10 bg-slate-950/72 text-4xl font-black text-cyan-100 shadow-[0_0_32px_rgba(3,218,197,0.12)]">
                 {tier}
               </div>
               {visibleTiers[tier].length === 0 ? (
-                <div className="flex min-h-32 items-center text-sm text-zinc-500">暂无</div>
+                <div className="flex min-h-32 items-center">
+                  <EmptyState title={`${tier} Tier 暂无作品`} description="继续对决后作品会自动进入对应区间。" />
+                </div>
               ) : (
                 <div className="flex gap-3 overflow-x-auto pb-2">
                   {visibleTiers[tier].map((item) => (
-                    <TierCard
+                    <TierAnimeCard
                       key={item.animeId}
                       item={item}
                       editable={isEditing}
@@ -369,62 +425,9 @@ function cloneTiers(tiers: TierMap): TierMap {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
-      <p className="text-xs text-zinc-500">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
-    </div>
-  );
-}
-
-function TierCard({
-  item,
-  editable,
-  onDragStart,
-  onDropBefore
-}: {
-  item: TierListItem;
-  editable: boolean;
-  onDragStart: () => void;
-  onDropBefore: () => void;
-}) {
-  const title = item.display?.title ?? item.titleCn ?? item.title;
-  const coverUrl = item.display?.coverUrl ?? item.imageSmallUrl ?? item.imageMediumUrl ?? item.imageUrl;
-
-  return (
-    <div
-      draggable={editable}
-      onDragStart={onDragStart}
-      onDragOver={(event: DragEvent<HTMLDivElement>) => event.preventDefault()}
-      onDrop={(event) => {
-        event.stopPropagation();
-        onDropBefore();
-      }}
-      className={`w-52 shrink-0 rounded-lg border border-white/10 bg-zinc-950/60 p-3 ${
-        editable ? "cursor-grab active:cursor-grabbing" : ""
-      }`}
-    >
-      <div className="flex gap-3">
-        <AnimeCover
-          src={coverUrl}
-          secondarySrc={item.imageSmallUrl ?? item.imageMediumUrl ?? item.imageUrl}
-          title={title}
-          size="sm"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="line-clamp-2 text-sm font-semibold text-white">{title}</h3>
-            {item.manualLocked ? <span className="text-xs text-cyan-300">锁</span> : null}
-          </div>
-          <p className="mt-2 text-xs text-zinc-400">Elo {item.eloScore.toFixed(1)}</p>
-          <p className="mt-1 text-xs text-zinc-500">对决 {item.compareCount}</p>
-        </div>
-      </div>
-      <div className="mt-3 grid grid-cols-4 gap-1 text-center text-[11px] text-zinc-400">
-        <span>胜 {item.winCount}</span>
-        <span>负 {item.lossCount}</span>
-        <span>平 {item.drawCount}</span>
-        <span>未看 {item.unseenCount}</span>
-      </div>
-    </div>
+    <AppCard className="p-4">
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="mt-2 text-3xl font-black text-white">{value}</p>
+    </AppCard>
   );
 }

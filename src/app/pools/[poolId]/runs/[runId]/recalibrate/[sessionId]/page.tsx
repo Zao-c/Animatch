@@ -2,10 +2,16 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AnimeCover } from "@/components/AnimeCover";
+import { DuelAnimeCard } from "@/components/DuelAnimeCard";
 import { LoadingRoom } from "@/components/LoadingRoom";
 import { PageShell } from "@/components/PageShell";
+import { AppBadge } from "@/components/ui/AppBadge";
+import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
+import { AppCard } from "@/components/ui/AppCard";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorAlert } from "@/components/ui/ErrorAlert";
 import {
+  getPool,
   getRecalibrationNextPair,
   getTierList,
   submitComparison,
@@ -24,6 +30,7 @@ export default function RecalibratePage({
 }: {
   params: { poolId: string; runId: string; sessionId: string };
 }) {
+  const [poolName, setPoolName] = useState("当前番组");
   const [items, setItems] = useState<TierListItem[]>([]);
   const [session, setSession] = useState<RecalibrationSession | null>(null);
   const [pair, setPair] = useState<RecalibrationPair | null>(null);
@@ -42,13 +49,18 @@ export default function RecalibratePage({
     setError(null);
 
     try {
-      const [tierList, next] = await Promise.all([
+      const [pool, tierList, next] = await Promise.all([
+        getPool(params.poolId),
         getTierList(params.poolId, params.runId),
         getRecalibrationNextPair(params.poolId, params.runId, params.sessionId)
       ]);
       const flatItems = Object.values(tierList.tiers).flat();
-      const nextMatchPair = next.pair === null ? null : toMatchPair(next.pair, new Map(flatItems.map((item) => [item.animeId, item])));
+      const nextMatchPair =
+        next.pair === null
+          ? null
+          : toMatchPair(next.pair, new Map(flatItems.map((item) => [item.animeId, item])));
 
+      setPoolName(pool.name);
       setItems(flatItems);
       setSession(next.session);
       setPair(next.pair);
@@ -101,29 +113,39 @@ export default function RecalibratePage({
   }
 
   if (matchPair === null || session === null || session.status === "COMPLETED") {
+    const completed = session?.status === "COMPLETED";
+
     return (
       <PageShell>
-        <div className="rounded-lg border border-white/10 bg-white/[0.04] p-8 text-center">
-          <h1 className="text-2xl font-semibold text-white">本轮校准完成</h1>
-          <p className="mt-3 text-sm text-zinc-400">
-            已完成 {session?.completedCount ?? 0} / {session?.plannedCount ?? 0} 场。
-          </p>
-          {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
-          <div className="mt-6 flex justify-center gap-3">
-            <Link
-              href={`/pools/${params.poolId}/runs/${params.runId}/tier`}
-              className="rounded-lg bg-cyan-300 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-cyan-200"
-            >
-              查看 Tier List
-            </Link>
-            <Link
-              href={`/pools/${params.poolId}/runs/${params.runId}/match`}
-              className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
-            >
-              继续普通对决
-            </Link>
-          </div>
-        </div>
+        <EmptyState
+          title={
+            completed
+              ? "本轮校准完成"
+              : "当前没有足够可校准的组合"
+          }
+          description={
+            completed
+              ? "你的榜单已经根据最新选择更新。"
+              : "可以添加更多动画，或先进行更多普通对决。"
+          }
+          action={
+            <div className="flex flex-wrap justify-center gap-3">
+              <Link
+                href={`/pools/${params.poolId}/runs/${params.runId}/tier`}
+                className={appButtonClasses({ variant: "primary" })}
+              >
+                查看 Tier List
+              </Link>
+              <Link
+                href={`/pools/${params.poolId}/runs/${params.runId}/match`}
+                className={appButtonClasses({ variant: "ghost" })}
+              >
+                继续普通对决
+              </Link>
+            </div>
+          }
+        />
+        {error ? <ErrorAlert message={error} className="mt-5" /> : null}
       </PageShell>
     );
   }
@@ -132,48 +154,82 @@ export default function RecalibratePage({
 
   return (
     <PageShell>
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-white">校准模式</h1>
-          <p className="mt-2 text-sm text-zinc-400">
-            {activeSession.type} / {activeSession.completedCount} / {activeSession.plannedCount}
+          <div className="flex flex-wrap gap-2">
+            <AppBadge tone="source">校准实验室</AppBadge>
+            <AppBadge tone="status">{poolName}</AppBadge>
+            <AppBadge tone="tier">{activeSession.type}</AppBadge>
+          </div>
+          <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
+            微调实验室
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-slate-400">
+            已完成 {activeSession.completedCount} / {activeSession.plannedCount} 场。每次选择都会用于修正榜单边界。
           </p>
         </div>
         <Link
           href={`/pools/${params.poolId}/runs/${params.runId}/tier`}
-          className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+          className={appButtonClasses({ variant: "ghost" })}
         >
           查看 Tier List
         </Link>
       </div>
 
-      <div className="mb-5 rounded-lg border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-sm text-cyan-100">
-        为什么是它们？{pair?.reason}
-      </div>
-      {error ? <p className="mb-5 text-sm text-red-300">{error}</p> : null}
+      <AppCard className="mb-5 p-4">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <AppBadge tone="source">为什么是它们？</AppBadge>
+            <p className="mt-3 text-sm leading-6 text-cyan-50">{pair?.reason}</p>
+          </div>
+          <div className="text-sm text-slate-500">
+            {activeSession.completedCount} / {activeSession.plannedCount}
+          </div>
+        </div>
+      </AppCard>
+      {error ? <ErrorAlert message={error} className="mb-5" /> : null}
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <RecalibrateSide pair={matchPair} side="left" disabled={isSubmitting} onPick={handleSubmit} />
-        <RecalibrateSide pair={matchPair} side="right" disabled={isSubmitting} onPick={handleSubmit} />
+      <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)]">
+        <DuelAnimeCard
+          anime={matchPair.left}
+          side="left"
+          disabled={isSubmitting}
+          actionLabel="选择左边"
+          onPick={() => handleSubmit("LEFT_WIN")}
+        />
+        <div className="flex items-center justify-center">
+          <div className="flex h-24 w-24 items-center justify-center rounded-full border border-purple-300/30 bg-purple-300/10 text-3xl font-black text-purple-100 shadow-[0_0_45px_rgba(187,134,252,0.22)]">
+            VS
+          </div>
+        </div>
+        <DuelAnimeCard
+          anime={matchPair.right}
+          side="right"
+          disabled={isSubmitting}
+          actionLabel="选择右边"
+          onPick={() => handleSubmit("RIGHT_WIN")}
+        />
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <ActionButton disabled={isSubmitting} onClick={() => handleSubmit("DRAW")}>
-          差不多
-        </ActionButton>
-        <ActionButton disabled={isSubmitting} onClick={() => handleSubmit("SKIP")}>
-          跳过
-        </ActionButton>
-        <ActionButton disabled={isSubmitting} onClick={() => handleSubmit("LEFT_UNSEEN")}>
-          左边没看过
-        </ActionButton>
-        <ActionButton disabled={isSubmitting} onClick={() => handleSubmit("RIGHT_UNSEEN")}>
-          右边没看过
-        </ActionButton>
-        <ActionButton disabled={isSubmitting} onClick={() => handleSubmit("BOTH_UNSEEN")}>
-          两个都没看过
-        </ActionButton>
-      </div>
+      <AppCard className="mt-6 p-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("DRAW")} variant="secondary">
+            差不多
+          </AppButton>
+          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("SKIP")} variant="ghost">
+            跳过
+          </AppButton>
+          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("LEFT_UNSEEN")} variant="ghost">
+            左边没看过
+          </AppButton>
+          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("RIGHT_UNSEEN")} variant="ghost">
+            右边没看过
+          </AppButton>
+          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("BOTH_UNSEEN")} variant="ghost">
+            两个都没看过
+          </AppButton>
+        </div>
+      </AppCard>
     </PageShell>
   );
 }
@@ -207,72 +263,4 @@ function modeForSession(session: RecalibrationSession): RecalibrationMode {
   }
 
   return "RECALIBRATE";
-}
-
-function RecalibrateSide({
-  pair,
-  side,
-  disabled,
-  onPick
-}: {
-  pair: MatchPair;
-  side: "left" | "right";
-  disabled: boolean;
-  onPick: (result: ComparisonResult) => void;
-}) {
-  const anime = side === "left" ? pair.left : pair.right;
-  const title = anime.display?.title ?? anime.titleCn ?? anime.title;
-  const coverUrl = anime.display?.coverUrl ?? anime.imageLargeUrl ?? anime.imageMediumUrl ?? anime.imageUrl;
-
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() => onPick(side === "left" ? "LEFT_WIN" : "RIGHT_WIN")}
-      className="rounded-lg border border-white/10 bg-white/[0.04] p-4 text-left transition hover:border-cyan-300/60 hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      <AnimeCover
-        src={coverUrl}
-        secondarySrc={anime.imageLargeUrl ?? anime.imageMediumUrl ?? anime.imageUrl}
-        title={title}
-        size="lg"
-      />
-      <h2 className="mt-4 line-clamp-2 text-2xl font-semibold text-white">{title}</h2>
-      <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
-        <Metric label="Elo" value={anime.eloScore.toFixed(1)} />
-        <Metric label="次数" value={String(anime.compareCount)} />
-        <Metric label="BGM" value={anime.bangumiScore?.toFixed(1) ?? "-"} />
-      </div>
-    </button>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg bg-zinc-950/70 px-3 py-2">
-      <div className="text-xs text-zinc-500">{label}</div>
-      <div className="mt-1 font-semibold text-white">{value}</div>
-    </div>
-  );
-}
-
-function ActionButton({
-  children,
-  disabled,
-  onClick
-}: {
-  children: React.ReactNode;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="rounded-lg border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      {children}
-    </button>
-  );
 }

@@ -2,11 +2,17 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimeCover } from "@/components/AnimeCover";
+import { DuelAnimeCard } from "@/components/DuelAnimeCard";
 import { LoadingRoom } from "@/components/LoadingRoom";
 import { PageShell } from "@/components/PageShell";
+import { AppBadge } from "@/components/ui/AppBadge";
+import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
+import { AppCard } from "@/components/ui/AppCard";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorAlert } from "@/components/ui/ErrorAlert";
 import {
   getMatchQueue,
+  getPool,
   submitComparison,
   type ComparisonResult,
   type MatchPair
@@ -19,6 +25,7 @@ export default function MatchPage({
 }: {
   params: { poolId: string; runId: string };
 }) {
+  const [poolName, setPoolName] = useState("当前番组");
   const [queue, setQueue] = useState<MatchPair[]>([]);
   const [confidenceScore, setConfidenceScore] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,7 +60,11 @@ export default function MatchPage({
     setError(null);
 
     try {
-      const data = await getMatchQueue(params.poolId, params.runId, 8);
+      const [pool, data] = await Promise.all([
+        getPool(params.poolId),
+        getMatchQueue(params.poolId, params.runId, 8)
+      ]);
+      setPoolName(pool.name);
       setConfidenceScore(data.confidenceScore);
       setQueue(data.pairs);
       const progress = await preloadPairs(data.pairs, {
@@ -137,150 +148,109 @@ export default function MatchPage({
   if (currentPair === undefined) {
     return (
       <PageShell>
-        <div className="rounded-lg border border-white/10 bg-white/[0.04] p-8 text-center">
-          <h1 className="text-2xl font-semibold text-white">当前没有足够可匹配的动画</h1>
-          <p className="mt-3 text-sm text-zinc-400">
-            可能是番组少于 2 部，或可用作品都已被隐藏。
-          </p>
-          {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
-          <div className="mt-6 flex justify-center gap-3">
-            <Link
-              href={`/pools/${params.poolId}`}
-              className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
-            >
-              返回番组
-            </Link>
-            <Link
-              href={`/pools/${params.poolId}/runs/${params.runId}/tier`}
-              className="rounded-lg bg-cyan-300 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-cyan-200"
-            >
-              查看 Tier List
-            </Link>
-          </div>
-        </div>
+        <EmptyState
+          title="当前没有足够可匹配的动画"
+          description="可以添加更多作品，或查看 Tier List。"
+          action={
+            <div className="flex flex-wrap justify-center gap-3">
+              <Link href={`/pools/${params.poolId}`} className={appButtonClasses({ variant: "ghost" })}>
+                返回番组
+              </Link>
+              <Link
+                href={`/pools/${params.poolId}/runs/${params.runId}/tier`}
+                className={appButtonClasses({ variant: "primary" })}
+              >
+                查看 Tier List
+              </Link>
+            </div>
+          }
+        />
+        {error ? <ErrorAlert message={error} className="mt-5" /> : null}
       </PageShell>
     );
   }
 
   return (
     <PageShell>
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-white">两两对决</h1>
-          <p className="mt-2 text-sm text-zinc-400">
-            信心指数 {confidenceScore.toFixed(1)} / 队列剩余 {queue.length}
-            {isRefilling ? " / 正在补充队列" : ""}
+          <div className="flex flex-wrap gap-2">
+            <AppBadge tone="source">普通对决</AppBadge>
+            <AppBadge tone="status">{poolName}</AppBadge>
+          </div>
+          <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
+            两两对决舞台
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-slate-400">
+            选择更喜欢的一边。系统会根据有效对决更新 Elo 和榜单信心。
           </p>
         </div>
-        <Link
-          href={`/pools/${params.poolId}/runs/${params.runId}/tier`}
-          className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
-        >
-          查看 Tier List
-        </Link>
-      </div>
-
-      {error ? (
-        <div className="mb-5 rounded-lg border border-red-300/20 bg-red-300/10 px-4 py-3 text-sm text-red-100">
-          {error}
+        <div className="flex flex-wrap gap-3">
+          <Stat label="信心指数" value={confidenceScore.toFixed(1)} />
+          <Stat label="队列剩余" value={String(queue.length)} />
+          <Link
+            href={`/pools/${params.poolId}/runs/${params.runId}/tier`}
+            className={appButtonClasses({ variant: "ghost", className: "self-end" })}
+          >
+            查看 Tier List
+          </Link>
         </div>
-      ) : null}
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        <MatchSide pair={currentPair} side="left" disabled={isSubmitting} onPick={handleSubmit} />
-        <MatchSide pair={currentPair} side="right" disabled={isSubmitting} onPick={handleSubmit} />
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <ActionButton disabled={isSubmitting} onClick={() => handleSubmit("DRAW")}>
-          差不多
-        </ActionButton>
-        <ActionButton disabled={isSubmitting} onClick={() => handleSubmit("SKIP")}>
-          跳过
-        </ActionButton>
-        <ActionButton disabled={isSubmitting} onClick={() => handleSubmit("LEFT_UNSEEN")}>
-          左边没看过
-        </ActionButton>
-        <ActionButton disabled={isSubmitting} onClick={() => handleSubmit("RIGHT_UNSEEN")}>
-          右边没看过
-        </ActionButton>
-        <ActionButton disabled={isSubmitting} onClick={() => handleSubmit("BOTH_UNSEEN")}>
-          两个都没看过
-        </ActionButton>
+      {isRefilling ? <ErrorAlert message="正在补充后续对局..." tone="notice" className="mb-5" /> : null}
+      {error ? <ErrorAlert message={error} className="mb-5" /> : null}
+
+      <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)]">
+        <DuelAnimeCard
+          anime={currentPair.left}
+          side="left"
+          disabled={isSubmitting}
+          actionLabel="选择左边"
+          onPick={() => handleSubmit("LEFT_WIN")}
+        />
+        <div className="flex items-center justify-center">
+          <div className="flex h-24 w-24 items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-300/10 text-3xl font-black text-cyan-100 shadow-[0_0_45px_rgba(3,218,197,0.24)]">
+            VS
+          </div>
+        </div>
+        <DuelAnimeCard
+          anime={currentPair.right}
+          side="right"
+          disabled={isSubmitting}
+          actionLabel="选择右边"
+          onPick={() => handleSubmit("RIGHT_WIN")}
+        />
       </div>
+
+      <AppCard className="mt-6 p-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("DRAW")} variant="secondary">
+            差不多
+          </AppButton>
+          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("SKIP")} variant="ghost">
+            跳过
+          </AppButton>
+          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("LEFT_UNSEEN")} variant="ghost">
+            左边没看过
+          </AppButton>
+          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("RIGHT_UNSEEN")} variant="ghost">
+            右边没看过
+          </AppButton>
+          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("BOTH_UNSEEN")} variant="ghost">
+            两个都没看过
+          </AppButton>
+        </div>
+      </AppCard>
     </PageShell>
   );
 }
 
-function MatchSide({
-  pair,
-  side,
-  disabled,
-  onPick
-}: {
-  pair: MatchPair;
-  side: "left" | "right";
-  disabled: boolean;
-  onPick: (result: ComparisonResult) => void;
-}) {
-  const anime = side === "left" ? pair.left : pair.right;
-  const title = anime.display?.title ?? anime.titleCn ?? anime.title;
-  const subtitle = anime.display?.subtitle ?? (anime.titleCn ? anime.title : null);
-  const coverUrl = anime.display?.coverUrl ?? anime.imageLargeUrl ?? anime.imageMediumUrl ?? anime.imageUrl;
-
+function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() => onPick(side === "left" ? "LEFT_WIN" : "RIGHT_WIN")}
-      className="group rounded-lg border border-white/10 bg-white/[0.04] p-4 text-left transition hover:border-cyan-300/60 hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      <AnimeCover
-        src={coverUrl}
-        secondarySrc={anime.imageLargeUrl ?? anime.imageMediumUrl ?? anime.imageUrl}
-        title={title}
-        size="lg"
-      />
-      <div className="mt-4">
-        <h2 className="line-clamp-2 text-2xl font-semibold text-white">{title}</h2>
-        {subtitle ? <p className="mt-1 text-sm text-zinc-400">{subtitle}</p> : null}
-        <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
-          <Metric label="Elo" value={anime.eloScore.toFixed(1)} />
-          <Metric label="次数" value={String(anime.compareCount)} />
-          <Metric label="BGM" value={anime.bangumiScore?.toFixed(1) ?? "-"} />
-        </div>
-      </div>
-    </button>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg bg-zinc-950/70 px-3 py-2">
-      <div className="text-xs text-zinc-500">{label}</div>
-      <div className="mt-1 font-semibold text-white">{value}</div>
+    <div className="min-w-28 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 backdrop-blur-xl">
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="mt-1 text-xl font-black text-white">{value}</p>
     </div>
-  );
-}
-
-function ActionButton({
-  children,
-  disabled,
-  onClick
-}: {
-  children: React.ReactNode;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="rounded-lg border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      {children}
-    </button>
   );
 }
 
