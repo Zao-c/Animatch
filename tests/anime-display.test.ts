@@ -45,6 +45,7 @@ describe("getEffectiveAnimeDisplay", () => {
 
     expect(display.coverUrl).toBe("https://example.com/override.jpg");
     expect(display.isOverridden).toBe(true);
+    expect(display.isCoverOverridden).toBe(true);
   });
 
   it("uses local uploaded cover overrides", () => {
@@ -56,6 +57,7 @@ describe("getEffectiveAnimeDisplay", () => {
 
     expect(display.coverUrl).toBe("/uploads/anime-covers/pool-1-anime-1-cover.webp");
     expect(display.isOverridden).toBe(true);
+    expect(display.isCoverOverridden).toBe(true);
   });
 
   it("uses CUSTOM_UPLOAD imageUrl as display cover", () => {
@@ -91,5 +93,6 @@ describe("getEffectiveAnimeDisplay", () => {
     expect(display.animeType).toBe("TV");
     expect(display.tags).toEqual(["action", "fantasy"]);
     expect(display.isOverridden).toBe(false);
+    expect(display.isCoverOverridden).toBe(false);
   });
 });

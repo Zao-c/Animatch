@@ -1075,7 +1075,10 @@ function PoolAnimeCard({
   const [coverUploadError, setCoverUploadError] = useState<string | null>(null);
   const display = entry.display;
   const title = display.title;
-  const coverUrl = getAnimeCoverUrl({ ...entry.anime, display });
+  const coverUrl = getAnimeCoverUrl(
+    { ...entry.anime, display, coverUrlOverride: entry.coverUrlOverride },
+    { intent: "thumbnail" }
+  );
 
   useEffect(() => {
     if (selectedCoverFile === null) {

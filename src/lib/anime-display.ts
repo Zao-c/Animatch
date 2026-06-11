@@ -6,6 +6,7 @@ export interface EffectiveAnimeDisplay {
   tags: string[];
   sourceLabel: string;
   isOverridden: boolean;
+  isCoverOverridden: boolean;
 }
 
 interface AnimeDisplayFields {
@@ -46,12 +47,13 @@ export function getEffectiveAnimeDisplay(
     entry.anime.titleCn
   ]);
   const tags = entry.tagsOverride.length > 0 ? entry.tagsOverride : entry.anime.tags;
+  const coverOverride = nonEmpty(entry.coverUrlOverride);
 
   return {
     title,
     subtitle,
     coverUrl:
-      nonEmpty(entry.coverUrlOverride) ??
+      coverOverride ??
       nonEmpty(entry.anime.thumbnailUrl) ??
       nonEmpty(entry.anime.imageUrl) ??
       null,
@@ -63,7 +65,8 @@ export function getEffectiveAnimeDisplay(
       nonEmpty(entry.coverUrlOverride) !== null ||
       nonEmpty(entry.animeTypeOverride) !== null ||
       entry.tagsOverride.length > 0 ||
-      nonEmpty(entry.overrideNote ?? null) !== null
+      nonEmpty(entry.overrideNote ?? null) !== null,
+    isCoverOverridden: coverOverride !== null
   };
 }
 

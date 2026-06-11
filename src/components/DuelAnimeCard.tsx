@@ -25,7 +25,7 @@ export function DuelAnimeCard({
 }) {
   const title = anime.display?.title ?? anime.titleCn ?? anime.title;
   const subtitle = anime.display?.subtitle ?? (anime.titleCn ? anime.title : null);
-  const coverUrl = getAnimeCoverUrl(anime);
+  const coverUrl = getAnimeCoverUrl(anime, { intent: "hero" });
   const animeType = anime.display?.animeType ?? anime.animeType;
 
   return (

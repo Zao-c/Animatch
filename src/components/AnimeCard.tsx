@@ -18,7 +18,7 @@ export function AnimeCard({
   actionLabel?: string;
 }) {
   const title = anime.titleCn ?? anime.title;
-  const coverUrl = getAnimeCoverUrl(anime);
+  const coverUrl = getAnimeCoverUrl(anime, { intent: "thumbnail" });
 
   return (
     <button

@@ -32,6 +32,7 @@ export interface EffectiveAnimeDisplay {
   tags: string[];
   sourceLabel: string;
   isOverridden: boolean;
+  isCoverOverridden?: boolean;
 }
 
 export interface PoolSummary {

@@ -20,7 +20,7 @@ export function TierAnimeCard({
   className?: string;
 }) {
   const title = item.display?.title ?? item.titleCn ?? item.title;
-  const coverUrl = getAnimeCoverUrl(item);
+  const coverUrl = getAnimeCoverUrl(item, { intent: "display" });
 
   return (
     <div

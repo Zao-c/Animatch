@@ -93,6 +93,27 @@ describe("anime cover rendering", () => {
     expect(html).toContain('src="/uploads/custom-items/test.png"');
   });
 
+  it("DuelAnimeCard prefers imageUrl over thumbnailUrl for hero covers", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DuelAnimeCard, {
+        anime: baseAnime({
+          source: "MANAMI",
+          imageUrl: "https://example.com/high.jpg",
+          imageMediumUrl: "https://example.com/medium.jpg",
+          thumbnailUrl: "https://example.com/thumb.jpg",
+          coverUrl: "https://example.com/thumb.jpg"
+        }),
+        side: "left",
+        disabled: false,
+        actionLabel: "Pick",
+        onPick: () => undefined
+      })
+    );
+
+    expect(html).toContain('src="https://example.com/high.jpg"');
+    expect(html).not.toContain('src="https://example.com/thumb.jpg"');
+  });
+
   it("TierAnimeCard renders an img when coverUrl is present", () => {
     const html = renderToStaticMarkup(
       React.createElement(TierAnimeCard, {
@@ -105,5 +126,25 @@ describe("anime cover rendering", () => {
 
     expect(html).toContain("<img");
     expect(html).toContain('src="/uploads/custom-items/test.png"');
+  });
+
+  it("TierAnimeCard prefers imageUrl over thumbnailUrl for display covers", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(TierAnimeCard, {
+        item: tierItem({
+          source: "MANAMI",
+          imageUrl: "https://example.com/high.jpg",
+          imageMediumUrl: "https://example.com/medium.jpg",
+          thumbnailUrl: "https://example.com/thumb.jpg",
+          coverUrl: "https://example.com/thumb.jpg"
+        }),
+        editable: false,
+        onDragStart: () => undefined,
+        onDropBefore: () => undefined
+      })
+    );
+
+    expect(html).toContain('src="https://example.com/high.jpg"');
+    expect(html).not.toContain('src="https://example.com/thumb.jpg"');
   });
 });
