@@ -170,6 +170,12 @@ export async function getMatchQueue(params: {
   const effectiveComparisons = allComparisons.filter(
     (comparison) => comparison.isEffective
   ).length;
+  const progress = buildRankingProgress({
+    totalItems: visibleScores.length,
+    effectiveComparisons,
+    comparedItems: visibleScores.filter((score) => score.compareCount > 0).length,
+    totalComparisons: allComparisons.length
+  });
   const queuedPairKeys = new Set<string>();
   const pairs: MatchQueuePair[] = [];
 
@@ -177,7 +183,10 @@ export async function getMatchQueue(params: {
     const pickedPair = pickNextPair(
       visibleScores.map(toScoreItem),
       comparedPairKeys,
-      new Set([...recentPairKeys, ...queuedPairKeys])
+      new Set([...recentPairKeys, ...queuedPairKeys]),
+      {
+        stage: progress.stage
+      }
     );
 
     if (pickedPair === null) {
@@ -193,6 +202,9 @@ export async function getMatchQueue(params: {
     }
 
     queuedPairKeys.add(pairKey);
+    if (process.env.NODE_ENV === "development" && pickedPair.selectedPairDebug !== undefined) {
+      console.debug("next-pair-v2", pickedPair.selectedPairDebug);
+    }
     pairs.push({
       pairId: makeQueuePairId(left.animeId, right.animeId),
       left: toPublicAnimeWithScore(left, displayByAnimeId.get(left.animeId)),
@@ -205,12 +217,7 @@ export async function getMatchQueue(params: {
     pairs,
     confidenceScore: calculateQueueConfidence(scores),
     scoreDistribution: buildScoreDistribution(visibleScores.map((score) => score.eloScore)),
-    progress: buildRankingProgress({
-      totalItems: visibleScores.length,
-      effectiveComparisons,
-      comparedItems: visibleScores.filter((score) => score.compareCount > 0).length,
-      totalComparisons: allComparisons.length
-    })
+    progress
   };
 }
 
@@ -441,7 +448,8 @@ function toScoreItem(score: ScoreWithAnime): ScoreItem {
     compareCount: score.compareCount,
     tier: score.manualTier ?? undefined,
     rank: score.manualRank ?? undefined,
-    isHidden: score.isHidden
+    isHidden: score.isHidden,
+    manualLocked: score.manualLocked
   };
 }
 

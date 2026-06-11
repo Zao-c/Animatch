@@ -6,7 +6,8 @@ This document audits the current personal ranking engine before Ranking Engine v
 
 - Normal Match queue API: `src/app/api/pools/[poolId]/runs/[runId]/match-queue/route.ts`
 - Normal Match service: `src/lib/match-service.ts`
-- Pair picker: `src/lib/pairing.ts`
+- Pair picker compatibility export: `src/lib/pairing.ts`
+- Pair picker v2 implementation: `src/lib/ranking-pairing.ts`
 - Comparison submit API: `src/app/api/pools/[poolId]/runs/[runId]/comparisons/route.ts`
 - Result semantics: `src/lib/match-rules.ts`
 - Elo update: `src/lib/elo.ts`
@@ -25,21 +26,24 @@ Normal Match uses `GET /api/pools/:poolId/runs/:runId/match-queue`.
 4. The service reads all scores for this user/pool/run and all pool anime display overrides.
 5. Hidden scores are removed from pairing with `visibleScores = scores.filter(score => !score.isHidden)`.
 6. The service reads recent comparisons, taking the latest 50, and all comparison pair keys for the run.
-7. It repeatedly calls `pickNextPair` until the requested queue is full or no candidate remains.
+7. It builds ranking progress, then repeatedly calls `pickNextPair` with the current stage until the requested queue is full or no candidate remains.
 8. Newly queued pairs are tracked in `queuedPairKeys`, so the API response does not include duplicate pairs in the same queue.
 
-`pickNextPair` scores every pair candidate. It rejects same-item pairs, hidden items, and recent pairs. It does not reject older repeated pairs, but older repeated pairs lose the new-pair bonus.
+`pickNextPair` scores every pair candidate. It rejects same-item pairs and hidden items. It strongly avoids recent pairs by selecting from non-recent candidates first. If all candidates are recent, it falls back to recent candidates with a large penalty so Match does not get stuck while legal pairs still exist.
 
-The priority formula currently rewards:
+The v2 priority formula records explicit reasons and rewards or penalizes:
 
-- close Elo: `max(0, 400 - eloDiff)`
-- uncertainty: `avgUncertainty * 0.4`
-- low compare count: `max(0, 80 - avgCompareCount * 4)`
-- never directly compared before: `+120`
-- same manual tier: `+60`
-- adjacent manual rank: up to `+40`
+- cold start coverage for items with `compareCount < 2`
+- low exposure relative to the stage target
+- Elo closeness
+- tier-boundary proximity based on rank percentile
+- new pairs
+- recent repeat penalty
+- manual lock penalty
+- neighboring rank proximity
+- small random jitter
 
-The picker sorts by priority and deterministic pair key, takes the top 20, then randomly selects one of those top candidates.
+The picker sorts by total score and deterministic pair key. Randomness is a small jitter in the score, not a top-20 random post-selection.
 
 ## 3. Current score read logic
 
@@ -91,10 +95,9 @@ These three write `PoolComparison.isEffective = true`, update Elo, increment `co
 ## 6. Current strengths
 
 - The system has clean separation between result semantics, Elo update, pair priority, Match service, and Recalibration rules.
-- Pairing avoids exact duplicate pairs inside one queue response and excludes the latest 50 recent pair keys.
-- New pairs are prioritized with a clear bonus.
-- Elo-close pairs are favored, which helps refine boundaries.
-- Uncertainty and low compare count both increase priority, so early exploration has a path.
+- Pairing avoids exact duplicate pairs inside one queue response and strongly avoids the latest 50 recent pair keys.
+- New pairs, cold-start items, low-exposure items, Elo-close pairs, and boundary pairs are prioritized with explicit debug reasons.
+- Stage-aware weights favor broad coverage early and boundary refinement later.
 - `clientMutationId` makes comparison submission idempotent.
 - `isEffective` gives a stable way to count real ranking signal separately from skip/unseen history.
 - Recalibration uses a separate queue builder with SMART/RANGE/FOCUS modes instead of overloading normal Match.
@@ -102,20 +105,18 @@ These three write `PoolComparison.isEffective = true`, update Elo, increment `co
 ## 7. Current issues
 
 - Normal Match can still repeat older pair keys after they leave the recent window. It receives no new-pair bonus, but it is still eligible.
-- The top-20 random pick makes behavior less predictable and makes before/after debugging harder.
-- Pairing does not explicitly reserve exploration slots for never-compared or very low compare-count items; it relies on the priority formula.
-- Manual locked items can still be paired in normal Match. They are not mutated by manual tier ordering, but their Elo can still change through Match results.
+- v2 does not mathematically optimize total information gain; it is a product heuristic with explicit scoring reasons.
+- Manual locked items can still be paired in normal Match, but v2 now lowers their priority. They are not mutated by manual tier ordering, but their Elo can still change through Match results.
 - Archived pool behavior is governed by `assertRunAccess` and route-level pool policies. Normal Match still requires an active run and is not a dedicated read-only flow.
 - Recalibration and normal Match use similar but separate priority formulas; future behavior changes need to be duplicated or intentionally kept separate.
-- Pairing does not currently explain user-facing reasons from normal Match beyond an internal `reason` string.
+- Pairing explains internal reasons through `selectedPairDebug`, but the UI still intentionally avoids exposing detailed debug scoring.
 - Effective progress was previously not exposed as first-class UI state; users saw confidence but not how many meaningful comparisons were needed.
 
 ## 8. Next-pair v2 recommendations
 
 - Keep Elo update and comparison result semantics unchanged.
-- Introduce a deterministic candidate scoring breakdown for debugging: Elo closeness, novelty, low data, uncertainty, tier boundary, and manual lock penalties.
-- Add explicit quotas or staged modes: early exploration for low compare-count items, then boundary refinement for Elo-close items.
-- Treat manual locked items as lower priority or opt them out from normal Match unless the user starts Recalibration.
+- Consider adding real slot quotas on top of v2 scoring if cold-start coverage still feels too slow in large pools.
+- Consider exposing a short user-facing reason separate from the internal `selectedPairDebug`.
 - Use `isEffective` counts for progress and stage decisions everywhere.
 - Keep recent-pair blocking, but consider a stronger repeat cooldown based on pair age and total pool size.
 - Return a user-facing reason for each normal Match pair that does not expose internal numeric noise.
