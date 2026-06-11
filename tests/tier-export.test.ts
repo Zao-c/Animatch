@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   buildTierExportFilename,
   formatTierExportTimestamp,
@@ -25,13 +26,25 @@ describe("tier export helpers", () => {
     );
   });
 
-  it("uses scrollHeight for export height", () => {
+  it("uses scrollWidth and scrollHeight for export dimensions", () => {
     const node = {
-      getBoundingClientRect: () => ({ width: 1279.2 }),
+      scrollWidth: 1279.2,
       scrollHeight: 2440,
+      clientWidth: 960,
       clientHeight: 900
     } as unknown as HTMLElement;
 
     expect(getTierExportDimensions(node)).toEqual({ width: 1280, height: 2440 });
+  });
+
+  it("wires the export button to the compact canvas", () => {
+    const source = readFileSync(
+      "src/app/pools/[poolId]/runs/[runId]/tier/page.tsx",
+      "utf8"
+    );
+
+    expect(source).toContain("导出图片");
+    expect(source).toContain("TierExportCanvas");
+    expect(source).toContain("ref={exportRef}");
   });
 });

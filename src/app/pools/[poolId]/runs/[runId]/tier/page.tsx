@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TierAnimeCard } from "@/components/TierAnimeCard";
+import { TierExportCanvas } from "@/components/TierExportCanvas";
 import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
 import { AppBadge } from "@/components/ui/AppBadge";
@@ -46,7 +47,7 @@ const RECALIBRATION_MODES: { type: RecalibrationType; title: string; body: strin
   { type: "FOCUS", title: "焦点校准", body: "指定 1-3 部动画进行重点复核。" }
 ];
 
-const EXPORT_BACKGROUND = "#07101f";
+const EXPORT_BACKGROUND = "#101310";
 const EXPORT_IMAGE_PLACEHOLDER =
   "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='448' viewBox='0 0 320 448'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop stop-color='%230f766e' stop-opacity='.65'/%3E%3Cstop offset='1' stop-color='%23312e81' stop-opacity='.65'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='320' height='448' fill='%23071121'/%3E%3Crect x='28' y='28' width='264' height='392' rx='24' fill='url(%23g)'/%3E%3Ctext x='160' y='230' text-anchor='middle' fill='%23a5f3fc' font-family='Arial' font-size='28' font-weight='700'%3EAniMatch%3C/text%3E%3C/svg%3E";
 
@@ -291,7 +292,7 @@ export default function TierPage({
             disabled={isExporting || tierList === null}
             variant="primary"
           >
-            {isExporting ? "导出中..." : "导出图片"}
+            {isExporting ? "生成中..." : "导出图片"}
           </AppButton>
           <AppButton disabled variant="ghost">
             分享榜单 Coming soon
@@ -429,13 +430,7 @@ export default function TierPage({
       ) : null}
 
       {tierList && visibleTiers ? (
-        <div
-          ref={exportRef}
-          data-testid="tier-export-canvas"
-          className={`tier-export-surface tier-export-canvas ${
-            isExporting ? "tier-export-mode" : ""
-          }`}
-        >
+        <div className="tier-export-surface">
           <div className="tier-export-header mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="flex flex-wrap gap-2">
@@ -491,19 +486,12 @@ export default function TierPage({
                     <EmptyState title={`${tier} Tier 暂无作品`} description="继续对决后作品会自动进入对应区间。" />
                   </div>
                 ) : (
-                  <div
-                    className={
-                      isExporting
-                        ? "flex flex-wrap gap-3 pb-2"
-                        : "flex gap-3 overflow-x-auto pb-2"
-                    }
-                  >
+                  <div className="flex gap-3 overflow-x-auto pb-2">
                     {visibleTiers[tier].map((item) => (
                       <TierAnimeCard
                         key={item.animeId}
                         item={item}
                         editable={isEditing}
-                        exportMode={isExporting}
                         onDragStart={() => setDragSource({ tier, animeId: item.animeId })}
                         onDropBefore={() => handleDrop(tier, item.animeId)}
                       />
@@ -512,6 +500,14 @@ export default function TierPage({
                 )}
               </section>
             ))}
+          </div>
+        </div>
+      ) : null}
+
+      {visibleTiers ? (
+        <div className="tiermaker-export-host" aria-hidden="true">
+          <div ref={exportRef}>
+            <TierExportCanvas tiers={visibleTiers} />
           </div>
         </div>
       ) : null}

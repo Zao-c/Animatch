@@ -24,10 +24,8 @@ export function buildTierExportFilename(poolName: string, date = new Date()): st
 }
 
 export function getTierExportDimensions(node: HTMLElement): { width: number; height: number } {
-  const rect = node.getBoundingClientRect();
-
   return {
-    width: Math.ceil(rect.width),
+    width: Math.ceil(node.scrollWidth),
     height: Math.ceil(node.scrollHeight)
   };
 }
