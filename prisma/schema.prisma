@@ -277,40 +277,56 @@ model UserPoolScore {
 }
 
 model PoolComparison {
-  id               String               @id @default(cuid())
-  userId           String
-  poolId           String
-  runId            String
-  leftAnimeId      String
-  rightAnimeId     String
-  winnerAnimeId    String?
-  loserAnimeId     String?
-  result           PoolComparisonResult
-  mode             PoolComparisonMode   @default(NORMAL)
-  pairKey          String
-  isEffective      Boolean              @default(true)
-  leftSeen         Boolean?
-  rightSeen        Boolean?
-  leftEloBefore    Float?
-  leftEloAfter     Float?
-  rightEloBefore   Float?
-  rightEloAfter    Float?
-  algorithmVersion String               @default("elo-v1")
-  pairingVersion   String               @default("active-v1")
-  tierRuleVersion  String               @default("percentile-v1")
-  clientMutationId String
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  user             User                 @relation("UserPoolComparisons", fields: [userId], references: [id])
-  pool             CustomPool           @relation("PoolComparisons", fields: [poolId], references: [id])
-  run              PersonalRun          @relation("RunComparisons", fields: [runId], references: [id])
-  leftAnime        Anime                @relation("LeftAnimeComparisons", fields: [leftAnimeId], references: [id])
-  rightAnime       Anime                @relation("RightAnimeComparisons", fields: [rightAnimeId], references: [id])
-  winnerAnime      Anime?               @relation("WinnerAnimeComparisons", fields: [winnerAnimeId], references: [id])
-  loserAnime       Anime?               @relation("LoserAnimeComparisons", fields: [loserAnimeId], references: [id])
+  id                 String               @id @default(cuid())
+  userId             String
+  poolId             String
+  runId              String
+  leftAnimeId        String
+  rightAnimeId       String
+  winnerAnimeId      String?
+  loserAnimeId       String?
+  result             PoolComparisonResult
+  mode               PoolComparisonMode   @default(NORMAL)
+  pairKey            String
+  isEffective        Boolean              @default(true)
+  leftSeen           Boolean?
+  rightSeen          Boolean?
+  leftEloBefore      Float?
+  leftEloAfter       Float?
+  rightEloBefore     Float?
+  rightEloAfter      Float?
+  leftPosition       Int?
+  rightPosition      Int?
+  leftKFactor        Float?
+  rightKFactor       Float?
+  expectedLeft       Float?
+  expectedRight      Float?
+  deltaLeft          Float?
+  deltaRight         Float?
+  leftScore10Before  Float?
+  leftScore10After   Float?
+  rightScore10Before Float?
+  rightScore10After  Float?
+  algorithmVersion   String               @default("elo-v1")
+  pairingVersion     String               @default("active-v1")
+  tierRuleVersion    String               @default("percentile-v1")
+  clientMutationId   String
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  user               User                 @relation("UserPoolComparisons", fields: [userId], references: [id])
+  pool               CustomPool           @relation("PoolComparisons", fields: [poolId], references: [id])
+  run                PersonalRun          @relation("RunComparisons", fields: [runId], references: [id])
+  leftAnime          Anime                @relation("LeftAnimeComparisons", fields: [leftAnimeId], references: [id])
+  rightAnime         Anime                @relation("RightAnimeComparisons", fields: [rightAnimeId], references: [id])
+  winnerAnime        Anime?               @relation("WinnerAnimeComparisons", fields: [winnerAnimeId], references: [id])
+  loserAnime         Anime?               @relation("LoserAnimeComparisons", fields: [loserAnimeId], references: [id])
 
   @@unique([userId, clientMutationId])
   @@index([userId, poolId, runId])
+  @@index([poolId, runId, createdAt])
+  @@index([userId, poolId, runId, createdAt])
+  @@index([leftAnimeId])
+  @@index([rightAnimeId])
   @@index([pairKey])
   @@index([createdAt])
   @@index([mode])

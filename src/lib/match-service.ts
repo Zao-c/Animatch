@@ -12,10 +12,14 @@ import { AppError } from "./app-error";
 import { toPublicAnime } from "./anime-service";
 import { getEffectiveAnimeDisplay, type EffectiveAnimeDisplay } from "./anime-display";
 import { prisma } from "./db";
-import { updateElo, type EloResult } from "./elo";
+import { expectedScore, getKFactor, updateElo, type EloResult } from "./elo";
 import { makePairKey } from "./pair-key";
 import { pickNextPair, type ScoreItem } from "./pairing";
-import { buildScoreDistribution, type RankingScoreDistribution } from "./ranking-display";
+import {
+  buildScoreDistribution,
+  getAniScore,
+  type RankingScoreDistribution
+} from "./ranking-display";
 import { buildRankingProgress, type RankingProgress } from "./ranking-progress";
 import { calculateRankingConfidence } from "./tier";
 import { assertRunAccess, initializeScoresForRun } from "./run-service";
@@ -88,6 +92,11 @@ export interface PublicScore {
 }
 
 type ScoreWithAnime = UserPoolScore & { anime: Anime };
+type LedgerScoreSnapshot = {
+  scores: Array<{ animeId: string; eloScore: number }>;
+  positionsByAnimeId: Map<string, number>;
+  distribution: RankingScoreDistribution;
+};
 
 export async function getMatchQueue(params: {
   userId: string;
@@ -280,6 +289,7 @@ export async function submitComparison(
       upsertScore(tx, params.userId, params.poolId, params.runId, leftPoolAnime.animeId, leftPoolAnime.initialElo),
       upsertScore(tx, params.userId, params.poolId, params.runId, rightPoolAnime.animeId, rightPoolAnime.initialElo)
     ]);
+    const ledgerSnapshotBefore = await getLedgerScoreSnapshot(tx, params);
     const pairKey = makePairKey(params.leftAnimeId, params.rightAnimeId);
     const now = new Date();
     const seenState = getSeenState(params.result);
@@ -300,6 +310,24 @@ export async function submitComparison(
           result: params.result as EloResult
         })
       : null;
+    const leftEloAfter = eloUpdate?.leftEloAfter ?? leftScoreBefore.eloScore;
+    const rightEloAfter = eloUpdate?.rightEloAfter ?? rightScoreBefore.eloScore;
+    const ledgerSnapshotAfter = buildAfterLedgerScoreSnapshot(
+      ledgerSnapshotBefore,
+      params.leftAnimeId,
+      leftEloAfter,
+      params.rightAnimeId,
+      rightEloAfter
+    );
+    const ledgerMetrics = buildLedgerMetrics({
+      effective,
+      leftScoreBefore,
+      rightScoreBefore,
+      leftEloAfter,
+      rightEloAfter,
+      beforeDistribution: ledgerSnapshotBefore.distribution,
+      afterDistribution: ledgerSnapshotAfter.distribution
+    });
 
     const comparison = await tx.poolComparison.create({
       data: {
@@ -316,10 +344,22 @@ export async function submitComparison(
         isEffective: effective,
         leftSeen: seenState.leftSeen,
         rightSeen: seenState.rightSeen,
-        leftEloBefore: effective ? leftScoreBefore.eloScore : null,
-        leftEloAfter: eloUpdate?.leftEloAfter ?? null,
-        rightEloBefore: effective ? rightScoreBefore.eloScore : null,
-        rightEloAfter: eloUpdate?.rightEloAfter ?? null,
+        leftEloBefore: leftScoreBefore.eloScore,
+        leftEloAfter,
+        rightEloBefore: rightScoreBefore.eloScore,
+        rightEloAfter,
+        leftPosition: ledgerSnapshotBefore.positionsByAnimeId.get(params.leftAnimeId) ?? null,
+        rightPosition: ledgerSnapshotBefore.positionsByAnimeId.get(params.rightAnimeId) ?? null,
+        leftKFactor: ledgerMetrics.leftKFactor,
+        rightKFactor: ledgerMetrics.rightKFactor,
+        expectedLeft: ledgerMetrics.expectedLeft,
+        expectedRight: ledgerMetrics.expectedRight,
+        deltaLeft: ledgerMetrics.deltaLeft,
+        deltaRight: ledgerMetrics.deltaRight,
+        leftScore10Before: ledgerMetrics.leftScore10Before,
+        leftScore10After: ledgerMetrics.leftScore10After,
+        rightScore10Before: ledgerMetrics.rightScore10Before,
+        rightScore10After: ledgerMetrics.rightScore10After,
         algorithmVersion: "elo-v1",
         pairingVersion: "active-v1",
         tierRuleVersion: "percentile-v1",
@@ -346,6 +386,99 @@ export async function submitComparison(
       rightScore: toPublicScore(rightScore)
     };
   });
+}
+
+async function getLedgerScoreSnapshot(
+  tx: Prisma.TransactionClient,
+  params: Pick<SubmitComparisonParams, "userId" | "poolId" | "runId">
+): Promise<LedgerScoreSnapshot> {
+  const scores = await tx.userPoolScore.findMany({
+    where: {
+      userId: params.userId,
+      poolId: params.poolId,
+      runId: params.runId
+    },
+    select: {
+      animeId: true,
+      eloScore: true
+    }
+  });
+  const sortedScores = [...scores].sort((left, right) => {
+    const eloDelta = right.eloScore - left.eloScore;
+    return eloDelta !== 0 ? eloDelta : left.animeId.localeCompare(right.animeId);
+  });
+  const positionsByAnimeId = new Map<string, number>(
+    sortedScores.map((score, index) => [score.animeId, index + 1])
+  );
+
+  return {
+    scores,
+    positionsByAnimeId,
+    distribution: buildScoreDistribution(scores.map((score) => score.eloScore))
+  };
+}
+
+function buildAfterLedgerScoreSnapshot(
+  snapshot: LedgerScoreSnapshot,
+  leftAnimeId: string,
+  leftEloAfter: number,
+  rightAnimeId: string,
+  rightEloAfter: number
+): LedgerScoreSnapshot {
+  const scores = snapshot.scores.map((score) => {
+    if (score.animeId === leftAnimeId) {
+      return { ...score, eloScore: leftEloAfter };
+    }
+
+    if (score.animeId === rightAnimeId) {
+      return { ...score, eloScore: rightEloAfter };
+    }
+
+    return score;
+  });
+
+  return {
+    scores,
+    positionsByAnimeId: snapshot.positionsByAnimeId,
+    distribution: buildScoreDistribution(scores.map((score) => score.eloScore))
+  };
+}
+
+function buildLedgerMetrics(input: {
+  effective: boolean;
+  leftScoreBefore: UserPoolScore;
+  rightScoreBefore: UserPoolScore;
+  leftEloAfter: number;
+  rightEloAfter: number;
+  beforeDistribution: RankingScoreDistribution;
+  afterDistribution: RankingScoreDistribution;
+}) {
+  return {
+    leftKFactor: input.effective
+      ? getKFactor(input.leftScoreBefore.compareCount, input.leftScoreBefore.uncertainty)
+      : null,
+    rightKFactor: input.effective
+      ? getKFactor(input.rightScoreBefore.compareCount, input.rightScoreBefore.uncertainty)
+      : null,
+    expectedLeft: input.effective
+      ? expectedScore(input.leftScoreBefore.eloScore, input.rightScoreBefore.eloScore)
+      : null,
+    expectedRight: input.effective
+      ? expectedScore(input.rightScoreBefore.eloScore, input.leftScoreBefore.eloScore)
+      : null,
+    deltaLeft: input.leftEloAfter - input.leftScoreBefore.eloScore,
+    deltaRight: input.rightEloAfter - input.rightScoreBefore.eloScore,
+    leftScore10Before: getAniScore(
+      input.leftScoreBefore.eloScore,
+      input.beforeDistribution
+    ).score10,
+    leftScore10After: getAniScore(input.leftEloAfter, input.afterDistribution).score10,
+    rightScore10Before: getAniScore(
+      input.rightScoreBefore.eloScore,
+      input.beforeDistribution
+    ).score10,
+    rightScore10After: getAniScore(input.rightEloAfter, input.afterDistribution).score10
+  };
 }
 
 function validateSubmitComparisonParams(params: SubmitComparisonParams): void {
