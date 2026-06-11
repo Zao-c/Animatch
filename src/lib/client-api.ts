@@ -102,6 +102,8 @@ export interface MatchPair {
 export interface MatchQueueResponse {
   pairs: MatchPair[];
   confidenceScore: number;
+  scoreDistribution: RankingScoreDistribution;
+  progress: RankingProgress;
 }
 
 export type ComparisonResult =
@@ -159,6 +161,29 @@ export interface TierListResponse {
   totalAnime: number;
   comparedAnime: number;
   totalComparisons: number;
+  effectiveComparisons: number;
+  scoreDistribution: RankingScoreDistribution;
+  progress: RankingProgress;
+}
+
+export interface RankingScoreDistribution {
+  count: number;
+  mean: number;
+  median: number;
+  std: number;
+}
+
+export interface RankingProgress {
+  totalItems: number;
+  effectiveComparisons: number;
+  draftTarget: number;
+  reliableTarget: number;
+  highConfidenceTarget: number;
+  progressRatio: number;
+  stage: "EMPTY" | "DRAFTING" | "DRAFT_READY" | "RELIABLE" | "HIGH_CONFIDENCE";
+  stageLabel: string;
+  nextTargetLabel: string;
+  remainingToNextStage: number;
 }
 
 export type TierKey = "S" | "A" | "B" | "C" | "D";

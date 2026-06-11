@@ -15,6 +15,8 @@ import { prisma } from "./db";
 import { updateElo, type EloResult } from "./elo";
 import { makePairKey } from "./pair-key";
 import { pickNextPair, type ScoreItem } from "./pairing";
+import { buildScoreDistribution, type RankingScoreDistribution } from "./ranking-display";
+import { buildRankingProgress, type RankingProgress } from "./ranking-progress";
 import { calculateRankingConfidence } from "./tier";
 import { assertRunAccess, initializeScoresForRun } from "./run-service";
 import {
@@ -42,6 +44,8 @@ export interface MatchQueuePair {
 export interface MatchQueueResult {
   pairs: MatchQueuePair[];
   confidenceScore: number;
+  scoreDistribution: RankingScoreDistribution;
+  progress: RankingProgress;
 }
 
 export interface SubmitComparisonParams {
@@ -124,7 +128,18 @@ export async function getMatchQueue(params: {
   if (visibleScores.length < 2) {
     return {
       pairs: [],
-      confidenceScore: calculateQueueConfidence(scores)
+      confidenceScore: calculateQueueConfidence(scores),
+      scoreDistribution: buildScoreDistribution(scores.map((score) => score.eloScore)),
+      progress: buildRankingProgress({
+        totalItems: scores.length,
+        effectiveComparisons: Math.floor(
+          scores.reduce((sum, score) => sum + score.compareCount, 0) / 2
+        ),
+        comparedItems: scores.filter((score) => score.compareCount > 0).length,
+        totalComparisons: Math.floor(
+          scores.reduce((sum, score) => sum + score.compareCount, 0) / 2
+        )
+      })
     };
   }
 
@@ -146,11 +161,15 @@ export async function getMatchQueue(params: {
       runId: params.runId
     },
     select: {
-      pairKey: true
+      pairKey: true,
+      isEffective: true
     }
   });
   const recentPairKeys = new Set(recentComparisons.map((comparison) => comparison.pairKey));
   const comparedPairKeys = new Set(allComparisons.map((comparison) => comparison.pairKey));
+  const effectiveComparisons = allComparisons.filter(
+    (comparison) => comparison.isEffective
+  ).length;
   const queuedPairKeys = new Set<string>();
   const pairs: MatchQueuePair[] = [];
 
@@ -184,7 +203,14 @@ export async function getMatchQueue(params: {
 
   return {
     pairs,
-    confidenceScore: calculateQueueConfidence(scores)
+    confidenceScore: calculateQueueConfidence(scores),
+    scoreDistribution: buildScoreDistribution(visibleScores.map((score) => score.eloScore)),
+    progress: buildRankingProgress({
+      totalItems: visibleScores.length,
+      effectiveComparisons,
+      comparedItems: visibleScores.filter((score) => score.compareCount > 0).length,
+      totalComparisons: allComparisons.length
+    })
   };
 }
 

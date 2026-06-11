@@ -4,12 +4,14 @@ import React, { type DragEvent } from "react";
 import { AnimeCover } from "./AnimeCover";
 import { AppBadge } from "./ui/AppBadge";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
-import type { TierListItem } from "@/lib/client-api";
+import { getAniScore } from "@/lib/ranking-display";
+import type { RankingScoreDistribution, TierListItem } from "@/lib/client-api";
 
 export function TierAnimeCard({
   item,
   editable,
   exportMode = false,
+  scoreDistribution,
   onDragStart,
   onDropBefore,
   className = ""
@@ -17,12 +19,14 @@ export function TierAnimeCard({
   item: TierListItem;
   editable: boolean;
   exportMode?: boolean;
+  scoreDistribution: RankingScoreDistribution;
   onDragStart: () => void;
   onDropBefore: () => void;
   className?: string;
 }) {
   const title = item.display?.title ?? item.titleCn ?? item.title;
   const coverUrl = getAnimeCoverUrl(item, { intent: "display" });
+  const aniScore = getAniScore(item.eloScore, scoreDistribution);
 
   return (
     <div
@@ -51,8 +55,10 @@ export function TierAnimeCard({
             {item.display?.isOverridden ? <AppBadge tone="source">Edited</AppBadge> : null}
           </div>
           <h3 className="mt-2 line-clamp-2 text-sm font-semibold text-white">{title}</h3>
-          <p className="mt-2 text-xs text-slate-400">Elo {item.eloScore.toFixed(1)}</p>
-          <p className="mt-1 text-xs text-slate-500">对决 {item.compareCount}</p>
+          <p className="mt-2 text-sm font-bold text-cyan-100">{aniScore.label}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            对决 {item.compareCount} · Elo {item.eloScore.toFixed(0)}
+          </p>
         </div>
       </div>
       <div className="mt-3 grid grid-cols-4 gap-1 text-center text-[11px] text-slate-400">

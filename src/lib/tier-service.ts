@@ -2,6 +2,8 @@ import type { Anime, UserPoolScore } from "@prisma/client";
 import { toPublicAnime } from "./anime-service";
 import { getEffectiveAnimeDisplay, type EffectiveAnimeDisplay } from "./anime-display";
 import { prisma } from "./db";
+import { buildScoreDistribution, type RankingScoreDistribution } from "./ranking-display";
+import { buildRankingProgress, type RankingProgress } from "./ranking-progress";
 import { buildTierList, calculateRankingConfidence, type Tier } from "./tier";
 import { assertRunAccess } from "./run-service";
 
@@ -29,6 +31,9 @@ export interface RunTierListResult {
   totalAnime: number;
   comparedAnime: number;
   totalComparisons: number;
+  effectiveComparisons: number;
+  scoreDistribution: RankingScoreDistribution;
+  progress: RankingProgress;
 }
 
 export function toTierListItem(
@@ -60,7 +65,7 @@ export async function getRunTierList(params: {
 }): Promise<RunTierListResult> {
   await assertRunAccess(params);
 
-  const [scores, totalComparisons, poolAnimeEntries] = await Promise.all([
+  const [scores, totalComparisons, effectiveComparisons, poolAnimeEntries] = await Promise.all([
     prisma.userPoolScore.findMany({
       where: {
         userId: params.userId,
@@ -76,6 +81,14 @@ export async function getRunTierList(params: {
         userId: params.userId,
         poolId: params.poolId,
         runId: params.runId
+      }
+    }),
+    prisma.poolComparison.count({
+      where: {
+        userId: params.userId,
+        poolId: params.poolId,
+        runId: params.runId,
+        isEffective: true
       }
     }),
     prisma.poolAnime.findMany({
@@ -100,6 +113,14 @@ export async function getRunTierList(params: {
     confidenceScore: calculateRankingConfidence(items),
     totalAnime: scores.length,
     comparedAnime: scores.filter((score) => score.compareCount > 0).length,
-    totalComparisons
+    totalComparisons,
+    effectiveComparisons,
+    scoreDistribution: buildScoreDistribution(items.map((item) => item.eloScore)),
+    progress: buildRankingProgress({
+      totalItems: scores.length,
+      effectiveComparisons,
+      comparedItems: scores.filter((score) => score.compareCount > 0).length,
+      totalComparisons
+    })
   };
 }

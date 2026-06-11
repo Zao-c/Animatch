@@ -8,6 +8,7 @@ import { TierAnimeCard } from "@/components/TierAnimeCard";
 import { TierExportCanvas } from "@/components/TierExportCanvas";
 import { TierSharePanel } from "@/components/TierSharePanel";
 import { PageShell } from "@/components/PageShell";
+import { RankingProgressCard } from "@/components/RankingProgressCard";
 import { StatusHint } from "@/components/StatusHint";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
@@ -345,6 +346,7 @@ export default function TierPage({
     () => (tierList === null ? [] : TIERS.flatMap((tier) => tierList.tiers[tier])),
     [tierList]
   );
+  const scoreDistribution = tierList?.scoreDistribution ?? fallbackScoreDistribution;
 
   return (
     <PageShell>
@@ -589,9 +591,15 @@ export default function TierPage({
 
           <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Stat label="信心指数" value={tierList.confidenceScore.toFixed(1)} />
+            <Stat label="当前阶段" value={tierList.progress.stageLabel} />
+            <Stat
+              label="有效对决"
+              value={`${tierList.effectiveComparisons}/${tierList.progress.highConfidenceTarget}`}
+            />
             <Stat label="总作品" value={String(tierList.totalAnime)} />
-            <Stat label="已比较作品" value={String(tierList.comparedAnime)} />
-            <Stat label="总对决" value={String(tierList.totalComparisons)} />
+          </div>
+          <div className="mb-8">
+            <RankingProgressCard progress={tierList.progress} compact />
           </div>
           <div className="mb-8 space-y-3">
             <StatusHint
@@ -634,6 +642,7 @@ export default function TierPage({
                         key={item.animeId}
                         item={item}
                         editable={isEditing}
+                        scoreDistribution={scoreDistribution}
                         onDragStart={() => setDragSource({ tier, animeId: item.animeId })}
                         onDropBefore={() => handleDrop(tier, item.animeId)}
                       />
@@ -675,6 +684,13 @@ function Stat({ label, value }: { label: string; value: string }) {
     </AppCard>
   );
 }
+
+const fallbackScoreDistribution = {
+  count: 0,
+  mean: 1500,
+  median: 1500,
+  std: 120
+};
 
 async function waitForExportReady(): Promise<void> {
   await waitForPaint();

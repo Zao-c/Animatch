@@ -6,7 +6,8 @@ import { AppBadge } from "./ui/AppBadge";
 import { AppButton } from "./ui/AppButton";
 import { AppCard } from "./ui/AppCard";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
-import type { PublicAnimeWithScore } from "@/lib/client-api";
+import { getAniScore } from "@/lib/ranking-display";
+import type { PublicAnimeWithScore, RankingScoreDistribution } from "@/lib/client-api";
 
 export function DuelAnimeCard({
   anime,
@@ -14,6 +15,7 @@ export function DuelAnimeCard({
   disabled,
   actionLabel,
   onPick,
+  scoreDistribution,
   className = ""
 }: {
   anime: PublicAnimeWithScore;
@@ -21,12 +23,14 @@ export function DuelAnimeCard({
   disabled: boolean;
   actionLabel: string;
   onPick: () => void;
+  scoreDistribution: RankingScoreDistribution;
   className?: string;
 }) {
   const title = anime.display?.title ?? anime.titleCn ?? anime.title;
   const subtitle = anime.display?.subtitle ?? (anime.titleCn ? anime.title : null);
   const coverUrl = getAnimeCoverUrl(anime, { intent: "hero" });
   const animeType = anime.display?.animeType ?? anime.animeType;
+  const aniScore = getAniScore(anime.eloScore, scoreDistribution);
 
   return (
     <AppCard
@@ -64,9 +68,9 @@ export function DuelAnimeCard({
       </div>
 
       <div className="mt-5 grid grid-cols-3 gap-2">
-        <Metric label="Elo" value={anime.eloScore.toFixed(1)} />
+        <Metric label="AniScore" value={aniScore.label} />
         <Metric label="对决" value={String(anime.compareCount)} />
-        <Metric label="不确定性" value={anime.uncertainty.toFixed(0)} />
+        <Metric label="Elo" value={anime.eloScore.toFixed(0)} muted />
       </div>
 
       <AppButton
@@ -83,11 +87,13 @@ export function DuelAnimeCard({
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({ label, value, muted = false }: { label: string; value: string; muted?: boolean }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-3 text-center">
       <div className="text-[11px] text-slate-500">{label}</div>
-      <div className="mt-1 text-sm font-bold text-white">{value}</div>
+      <div className={`mt-1 text-sm font-bold ${muted ? "text-slate-300" : "text-white"}`}>
+        {value}
+      </div>
     </div>
   );
 }

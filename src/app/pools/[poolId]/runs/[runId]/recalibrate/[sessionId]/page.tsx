@@ -24,6 +24,7 @@ import {
 } from "@/lib/client-api";
 import { createClientMutationId } from "@/lib/client-id";
 import { preloadPairs } from "@/lib/preload-images";
+import { buildScoreDistribution } from "@/lib/ranking-display";
 
 export default function RecalibratePage({
   params
@@ -40,6 +41,10 @@ export default function RecalibratePage({
 
   const itemByAnimeId = useMemo(
     () => new Map(items.map((item) => [item.animeId, item])),
+    [items]
+  );
+  const scoreDistribution = useMemo(
+    () => buildScoreDistribution(items.map((item) => item.eloScore)),
     [items]
   );
   const matchPair = pair === null ? null : toMatchPair(pair, itemByAnimeId);
@@ -198,6 +203,7 @@ export default function RecalibratePage({
           side="left"
           disabled={isSubmitting}
           actionLabel="选择左边"
+          scoreDistribution={scoreDistribution}
           onPick={() => handleSubmit("LEFT_WIN")}
         />
         <div className="flex items-center justify-center">
@@ -210,6 +216,7 @@ export default function RecalibratePage({
           side="right"
           disabled={isSubmitting}
           actionLabel="选择右边"
+          scoreDistribution={scoreDistribution}
           onPick={() => handleSubmit("RIGHT_WIN")}
         />
       </div>

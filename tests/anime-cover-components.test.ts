@@ -6,6 +6,13 @@ import { DuelAnimeCard } from "../src/components/DuelAnimeCard";
 import { TierAnimeCard } from "../src/components/TierAnimeCard";
 import type { PublicAnimeWithScore, TierListItem } from "../src/lib/client-api";
 
+const scoreDistribution = {
+  count: 3,
+  mean: 1500,
+  median: 1500,
+  std: 80
+};
+
 function baseAnime(overrides: Partial<PublicAnimeWithScore> = {}): PublicAnimeWithScore {
   return {
     id: "anime-1",
@@ -85,6 +92,7 @@ describe("anime cover rendering", () => {
         side: "left",
         disabled: false,
         actionLabel: "Pick",
+        scoreDistribution,
         onPick: () => undefined
       })
     );
@@ -106,6 +114,7 @@ describe("anime cover rendering", () => {
         side: "left",
         disabled: false,
         actionLabel: "Pick",
+        scoreDistribution,
         onPick: () => undefined
       })
     );
@@ -119,6 +128,7 @@ describe("anime cover rendering", () => {
       React.createElement(TierAnimeCard, {
         item: tierItem(),
         editable: false,
+        scoreDistribution,
         onDragStart: () => undefined,
         onDropBefore: () => undefined
       })
@@ -139,6 +149,7 @@ describe("anime cover rendering", () => {
           coverUrl: "https://example.com/thumb.jpg"
         }),
         editable: false,
+        scoreDistribution,
         onDragStart: () => undefined,
         onDropBefore: () => undefined
       })
@@ -154,6 +165,7 @@ describe("anime cover rendering", () => {
         item: tierItem(),
         editable: true,
         exportMode: true,
+        scoreDistribution,
         onDragStart: () => undefined,
         onDropBefore: () => undefined
       })
@@ -161,5 +173,39 @@ describe("anime cover rendering", () => {
 
     expect(html).not.toContain('draggable="true"');
     expect(html).toContain("Custom Upload");
+  });
+
+  it("DuelAnimeCard shows AniScore as the primary score", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DuelAnimeCard, {
+        anime: baseAnime({ eloScore: 1554.3 }),
+        side: "left",
+        disabled: false,
+        actionLabel: "Pick",
+        scoreDistribution,
+        onPick: () => undefined
+      })
+    );
+
+    expect(html).toContain("AniScore");
+    expect(html).toContain("/ 10");
+    expect(html).not.toContain("1554.3");
+  });
+
+  it("TierAnimeCard shows /10 and keeps Elo secondary", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(TierAnimeCard, {
+        item: tierItem({ eloScore: 1554.3, compareCount: 3 }),
+        editable: false,
+        scoreDistribution,
+        onDragStart: () => undefined,
+        onDropBefore: () => undefined
+      })
+    );
+
+    expect(html).toContain("/ 10");
+    expect(html).toContain("对决 3");
+    expect(html).toContain("Elo 1554");
+    expect(html).not.toContain("Elo 1554.3");
   });
 });

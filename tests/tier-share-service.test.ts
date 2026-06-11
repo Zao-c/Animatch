@@ -7,7 +7,7 @@ import {
   sanitizeTierShareLabels
 } from "../src/lib/tier-share-service";
 import { prisma } from "../src/lib/db";
-import { getRunTierList } from "../src/lib/tier-service";
+import { getRunTierList, type RunTierListResult } from "../src/lib/tier-service";
 
 vi.mock("../src/lib/db", () => ({
   prisma: {
@@ -326,7 +326,7 @@ function tierShareRecord(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function tierListFixture() {
+function tierListFixture(): RunTierListResult {
   return {
     tiers: {
       S: [
@@ -385,6 +385,25 @@ function tierListFixture() {
     confidenceScore: 20,
     totalAnime: 1,
     comparedAnime: 1,
-    totalComparisons: 1
+    totalComparisons: 1,
+    effectiveComparisons: 1,
+    scoreDistribution: {
+      count: 1,
+      mean: 1510,
+      median: 1510,
+      std: 120
+    },
+    progress: {
+      totalItems: 1,
+      effectiveComparisons: 1,
+      draftTarget: 0,
+      reliableTarget: 0,
+      highConfidenceTarget: 0,
+      progressRatio: 0,
+      stage: "EMPTY",
+      stageLabel: "作品不足",
+      nextTargetLabel: "至少添加 2 个作品",
+      remainingToNextStage: 0
+    }
   };
 }

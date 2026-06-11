@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { DuelAnimeCard } from "@/components/DuelAnimeCard";
 import { LoadingRoom } from "@/components/LoadingRoom";
 import { PageShell } from "@/components/PageShell";
+import { RankingProgressCard } from "@/components/RankingProgressCard";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
@@ -15,7 +16,8 @@ import {
   getPool,
   submitComparison,
   type ComparisonResult,
-  type MatchPair
+  type MatchPair,
+  type MatchQueueResponse
 } from "@/lib/client-api";
 import { createClientMutationId } from "@/lib/client-id";
 import { preloadPairs } from "@/lib/preload-images";
@@ -29,6 +31,10 @@ export default function MatchPage({
   const [poolAnimeCount, setPoolAnimeCount] = useState<number | null>(null);
   const [queue, setQueue] = useState<MatchPair[]>([]);
   const [confidenceScore, setConfidenceScore] = useState(0);
+  const [queueMeta, setQueueMeta] = useState<Pick<
+    MatchQueueResponse,
+    "scoreDistribution" | "progress"
+  > | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRefilling, setIsRefilling] = useState(false);
@@ -68,6 +74,10 @@ export default function MatchPage({
       setPoolName(pool.name);
       setPoolAnimeCount(pool.anime.length);
       setConfidenceScore(data.confidenceScore);
+      setQueueMeta({
+        scoreDistribution: data.scoreDistribution,
+        progress: data.progress
+      });
       setQueue(data.pairs);
       const progress = await preloadPairs(data.pairs, {
         firstPairRequired: true,
@@ -92,6 +102,10 @@ export default function MatchPage({
     try {
       const data = await getMatchQueue(params.poolId, params.runId, 8);
       setConfidenceScore(data.confidenceScore);
+      setQueueMeta({
+        scoreDistribution: data.scoreDistribution,
+        progress: data.progress
+      });
       appendUniquePairs(data.pairs);
       void preloadPairs(data.pairs, { preloadCount: 4 });
     } catch {
@@ -203,6 +217,11 @@ export default function MatchPage({
 
       {isRefilling ? <ErrorAlert message="正在补充后续对局..." tone="notice" className="mb-5" /> : null}
       {error ? <ErrorAlert message={error} className="mb-5" /> : null}
+      {queueMeta ? (
+        <div className="mb-6">
+          <RankingProgressCard progress={queueMeta.progress} compact />
+        </div>
+      ) : null}
 
       <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)]">
         <DuelAnimeCard
@@ -210,6 +229,7 @@ export default function MatchPage({
           side="left"
           disabled={isSubmitting}
           actionLabel="选择左边"
+          scoreDistribution={queueMeta?.scoreDistribution ?? fallbackScoreDistribution}
           onPick={() => handleSubmit("LEFT_WIN")}
         />
         <div className="flex items-center justify-center">
@@ -222,6 +242,7 @@ export default function MatchPage({
           side="right"
           disabled={isSubmitting}
           actionLabel="选择右边"
+          scoreDistribution={queueMeta?.scoreDistribution ?? fallbackScoreDistribution}
           onPick={() => handleSubmit("RIGHT_WIN")}
         />
       </div>
@@ -261,6 +282,13 @@ function Stat({ label, value }: { label: string; value: string }) {
 function pairKeyForPair(pair: MatchPair): string {
   return [pair.left.id, pair.right.id].sort().join(":");
 }
+
+const fallbackScoreDistribution = {
+  count: 0,
+  mean: 1500,
+  median: 1500,
+  std: 120
+};
 
 function getMatchEmptyCopy(poolAnimeCount: number | null) {
   if (poolAnimeCount !== null && poolAnimeCount < 2) {
