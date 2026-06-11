@@ -23,10 +23,10 @@ export function AnimeCard({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`group flex w-full gap-4 rounded-lg border p-3 text-left transition ${
+      className={`group flex w-full gap-4 rounded-2xl border p-3 text-left backdrop-blur-xl transition ${
         selected
-          ? "border-cyan-400 bg-cyan-400/10"
-          : "border-white/10 bg-white/[0.04] hover:border-white/25 hover:bg-white/[0.07]"
+          ? "border-cyan-300/60 bg-cyan-300/12 shadow-[0_0_26px_rgba(3,218,197,0.14)]"
+          : "border-white/10 bg-slate-950/45 hover:border-cyan-300/25 hover:bg-white/[0.07]"
       } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
     >
       <AnimeCover
@@ -40,12 +40,12 @@ export function AnimeCard({
         {anime.titleCn ? (
           <p className="mt-1 line-clamp-1 text-sm text-zinc-400">{anime.title}</p>
         ) : null}
-        <div className="mt-3 flex flex-wrap gap-2 text-xs text-zinc-300">
+        <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-300">
           {anime.bangumiScore !== null ? <span>评分 {anime.bangumiScore}</span> : null}
           {anime.bangumiRank !== null ? <span>排名 #{anime.bangumiRank}</span> : null}
           {anime.year !== null ? <span>{anime.year}</span> : null}
           {anime.animeType !== null ? <span>{anime.animeType}</span> : null}
-          {anime.bgmId !== null ? <span>BGM {anime.bgmId}</span> : <span className="text-zinc-500">{anime.source}</span>}
+          {anime.bgmId !== null ? <span>BGM {anime.bgmId}</span> : <span className="text-slate-500">{anime.source}</span>}
         </div>
         {actionLabel ? (
           <div className="mt-4 text-sm font-medium text-cyan-300">{actionLabel}</div>

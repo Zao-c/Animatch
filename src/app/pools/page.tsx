@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { PageShell } from "@/components/PageShell";
+import { AppBadge } from "@/components/ui/AppBadge";
+import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
+import { AppCard } from "@/components/ui/AppCard";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorAlert } from "@/components/ui/ErrorAlert";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import {
   archivePool,
   listPools,
@@ -96,9 +102,7 @@ export default function PoolsPage() {
   }
 
   async function handleArchive(pool: PoolSummary) {
-    if (
-      !window.confirm("这会从列表中隐藏该番组，但不会删除对决历史。是否继续？")
-    ) {
+    if (!window.confirm("这会从列表中隐藏该番组，但不会删除对决历史。是否继续？")) {
       return;
     }
 
@@ -118,175 +122,199 @@ export default function PoolsPage() {
   }
 
   const hasSearch = query.trim().length > 0;
+  const activeCount = pools.filter((pool) => pool.status !== "ARCHIVED" && pool.deletedAt === null).length;
 
   return (
     <PageShell>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div>
-          <h1 className="text-3xl font-semibold text-white">我的番组</h1>
-          <p className="mt-2 text-sm text-zinc-400">当前使用开发期临时用户。</p>
+          <AppBadge tone="source">Dashboard</AppBadge>
+          <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
+            我的番组
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+            管理你的动画池，创建对决、编辑信息，或者把测试番组归档到历史列表。
+          </p>
         </div>
-        <Link
-          href="/pools/new"
-          className="rounded-lg bg-cyan-300 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-cyan-200"
-        >
-          新建番组
-        </Link>
+        <AppCard className="p-5">
+          <div className="grid grid-cols-2 gap-3">
+            <Stat label="当前显示" value={String(pools.length)} />
+            <Stat label="进行中" value={String(activeCount)} />
+          </div>
+          <Link
+            href="/pools/new"
+            className={appButtonClasses({ variant: "primary", className: "mt-4 w-full" })}
+          >
+            新建番组
+          </Link>
+        </AppCard>
+      </section>
+
+      <AppCard className="mt-7 p-4">
+        <form onSubmit={handleSearch} className="grid gap-3 md:grid-cols-[1fr_180px_auto]">
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索番组名称或描述"
+            className="anime-field"
+          />
+          <select
+            value={filter}
+            onChange={(event) => setFilter(event.target.value as PoolFilter)}
+            className="anime-field"
+          >
+            <option value="ALL">全部</option>
+            <option value="ACTIVE">进行中</option>
+            <option value="ARCHIVED">已归档</option>
+          </select>
+          <AppButton type="submit" variant="ghost" disabled={isLoading}>
+            搜索
+          </AppButton>
+        </form>
+      </AppCard>
+
+      <div className="mt-5 space-y-3">
+        {error ? <ErrorAlert message={error} /> : null}
+        {notice ? <ErrorAlert message={notice} tone="notice" /> : null}
+        {isLoading ? <ErrorAlert message="正在加载番组..." tone="notice" /> : null}
       </div>
 
-      <form onSubmit={handleSearch} className="mt-6 grid gap-3 md:grid-cols-[1fr_180px_auto]">
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜索番组名称或描述"
-          className="rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-        />
-        <select
-          value={filter}
-          onChange={(event) => setFilter(event.target.value as PoolFilter)}
-          className="rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-        >
-          <option value="ALL">全部</option>
-          <option value="ACTIVE">进行中</option>
-          <option value="ARCHIVED">已归档</option>
-        </select>
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
-        >
-          搜索
-        </button>
-      </form>
-
-      {isLoading ? <StateText text="正在加载番组..." /> : null}
-      {error ? <StateText text={error} tone="error" /> : null}
-      {notice ? <StateText text={notice} tone="notice" /> : null}
       {!isLoading && !error && pools.length === 0 ? (
-        <div className="mt-10 rounded-lg border border-dashed border-white/15 p-10 text-center">
-          <p className="text-zinc-300">
-            {hasSearch ? "没有匹配的番组，请调整关键词。" : "还没有番组，创建第一个番组开始排序。"}
-          </p>
-          {!hasSearch ? (
-            <Link href="/pools/new" className="mt-4 inline-block text-sm font-semibold text-cyan-300">
-              去创建
-            </Link>
-          ) : null}
+        <div className="mt-8">
+          <EmptyState
+            title={hasSearch ? "没有匹配的番组" : "还没有番组"}
+            description={hasSearch ? "调整关键词或切换状态过滤后再试。" : "创建第一个番组，添加动画后就可以开始两两对决。"}
+            action={
+              !hasSearch ? (
+                <Link href="/pools/new" className={appButtonClasses({ variant: "primary" })}>
+                  创建番组
+                </Link>
+              ) : null
+            }
+          />
         </div>
       ) : null}
 
-      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {pools.map((pool) => {
-          const isArchived = pool.status === "ARCHIVED" || pool.deletedAt !== null;
-          const isEditing = editingPoolId === pool.id;
+      <section className="mt-8">
+        <SectionHeader
+          eyebrow="Pools"
+          title="番组列表"
+          description="归档番组会弱化显示，历史数据仍保留。"
+        />
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {pools.map((pool) => {
+            const isArchived = pool.status === "ARCHIVED" || pool.deletedAt !== null;
+            const isEditing = editingPoolId === pool.id;
 
-          return (
-            <article
-              key={pool.id}
-              className="rounded-lg border border-white/10 bg-white/[0.04] p-5"
-            >
-              {isEditing ? (
-                <div className="space-y-3">
-                  <input
-                    value={editName}
-                    onChange={(event) => setEditName(event.target.value)}
-                    className="w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-                  />
-                  <textarea
-                    value={editDescription}
-                    onChange={(event) => setEditDescription(event.target.value)}
-                    className="min-h-20 w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-                  />
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <select
-                      value={editVisibility}
-                      onChange={(event) =>
-                        setEditVisibility(event.target.value as "PRIVATE" | "UNLISTED" | "PUBLIC")
-                      }
-                      className="rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-                    >
-                      <option value="PRIVATE">PRIVATE</option>
-                      <option value="UNLISTED">UNLISTED</option>
-                      <option value="PUBLIC">PUBLIC</option>
-                    </select>
+            return (
+              <AppCard
+                key={pool.id}
+                className={`p-5 transition hover:border-cyan-300/25 ${
+                  isArchived ? "opacity-60 grayscale-[0.25]" : ""
+                }`}
+              >
+                {isEditing ? (
+                  <div className="space-y-3">
                     <input
-                      value={editTags}
-                      onChange={(event) => setEditTags(event.target.value)}
-                      placeholder="标签，逗号分隔"
-                      className="rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
+                      value={editName}
+                      onChange={(event) => setEditName(event.target.value)}
+                      className="anime-field"
                     />
+                    <textarea
+                      value={editDescription}
+                      onChange={(event) => setEditDescription(event.target.value)}
+                      className="anime-field min-h-24"
+                    />
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <select
+                        value={editVisibility}
+                        onChange={(event) =>
+                          setEditVisibility(event.target.value as "PRIVATE" | "UNLISTED" | "PUBLIC")
+                        }
+                        className="anime-field"
+                      >
+                        <option value="PRIVATE">PRIVATE</option>
+                        <option value="UNLISTED">UNLISTED</option>
+                        <option value="PUBLIC">PUBLIC</option>
+                      </select>
+                      <input
+                        value={editTags}
+                        onChange={(event) => setEditTags(event.target.value)}
+                        placeholder="标签，逗号分隔"
+                        className="anime-field"
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <AppButton onClick={() => handleSave(pool.id)} disabled={isMutating} variant="primary">
+                        保存
+                      </AppButton>
+                      <AppButton onClick={() => setEditingPoolId(null)} disabled={isMutating} variant="ghost">
+                        取消
+                      </AppButton>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleSave(pool.id)}
-                      disabled={isMutating}
-                      className="rounded-lg bg-cyan-300 px-3 py-2 text-sm font-semibold text-zinc-950 disabled:opacity-50"
-                    >
-                      保存
-                    </button>
-                    <button
-                      onClick={() => setEditingPoolId(null)}
-                      disabled={isMutating}
-                      className="rounded-lg border border-white/15 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
-                    >
-                      取消
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-start justify-between gap-3">
-                    <Link
-                      href={`/pools/${pool.id}`}
-                      className="text-lg font-semibold text-white hover:text-cyan-200"
-                    >
-                      {pool.name}
-                    </Link>
-                    <span className="rounded-md border border-white/10 px-2 py-1 text-xs text-zinc-400">
-                      {isArchived ? "ARCHIVED" : pool.visibility}
-                    </span>
-                  </div>
-                  <p className="mt-3 line-clamp-2 min-h-10 text-sm leading-5 text-zinc-400">
-                    {pool.description ?? "暂无描述"}
-                  </p>
-                  <p className="mt-5 text-xs text-zinc-500">
-                    更新于 {new Date(pool.updatedAt).toLocaleString()}
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      onClick={() => beginEdit(pool)}
-                      disabled={isArchived || isMutating}
-                      className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      编辑
-                    </button>
-                    <button
-                      onClick={() => handleArchive(pool)}
-                      disabled={isArchived || isMutating}
-                      className="rounded-lg border border-red-300/30 px-3 py-1.5 text-xs font-semibold text-red-200 hover:bg-red-300/10 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      归档/删除
-                    </button>
-                  </div>
-                </>
-              )}
-            </article>
-          );
-        })}
-      </div>
+                ) : (
+                  <>
+                    <div className="flex items-start justify-between gap-3">
+                      <Link
+                        href={`/pools/${pool.id}`}
+                        className="line-clamp-2 text-lg font-semibold text-white transition hover:text-cyan-200"
+                      >
+                        {pool.name}
+                      </Link>
+                      <AppBadge tone={isArchived ? "danger" : "status"}>
+                        {isArchived ? "ARCHIVED" : pool.visibility}
+                      </AppBadge>
+                    </div>
+                    <p className="mt-3 line-clamp-2 min-h-10 text-sm leading-5 text-slate-400">
+                      {pool.description ?? "暂无描述"}
+                    </p>
+                    {pool.tags.length > 0 ? (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {pool.tags.slice(0, 4).map((tag) => (
+                          <AppBadge key={tag} tone="muted">
+                            {tag}
+                          </AppBadge>
+                        ))}
+                      </div>
+                    ) : null}
+                    <p className="mt-5 text-xs text-slate-500">
+                      更新于 {new Date(pool.updatedAt).toLocaleString()}
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <AppButton
+                        onClick={() => beginEdit(pool)}
+                        disabled={isArchived || isMutating}
+                        variant="ghost"
+                        size="sm"
+                      >
+                        编辑
+                      </AppButton>
+                      <AppButton
+                        onClick={() => handleArchive(pool)}
+                        disabled={isArchived || isMutating}
+                        variant="danger"
+                        size="sm"
+                      >
+                        归档/删除
+                      </AppButton>
+                    </div>
+                  </>
+                )}
+              </AppCard>
+            );
+          })}
+        </div>
+      </section>
     </PageShell>
   );
 }
 
-function StateText({
-  text,
-  tone = "muted",
-}: {
-  text: string;
-  tone?: "muted" | "error" | "notice";
-}) {
-  const color =
-    tone === "error" ? "text-red-300" : tone === "notice" ? "text-cyan-200" : "text-zinc-400";
-
-  return <p className={`mt-8 text-sm ${color}`}>{text}</p>;
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="mt-2 text-3xl font-black text-white">{value}</p>
+    </div>
+  );
 }

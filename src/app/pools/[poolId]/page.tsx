@@ -5,6 +5,12 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AnimeCard } from "@/components/AnimeCard";
 import { AnimeCover } from "@/components/AnimeCover";
 import { PageShell } from "@/components/PageShell";
+import { AppBadge } from "@/components/ui/AppBadge";
+import { AppButton } from "@/components/ui/AppButton";
+import { AppCard } from "@/components/ui/AppCard";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorAlert } from "@/components/ui/ErrorAlert";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import {
   addAnimeToPool,
   archivePool,
@@ -35,12 +41,11 @@ type DisplayOverrideForm = {
 };
 
 const ANIME_TYPE_OPTIONS = ["", "TV", "MOVIE", "OVA", "ONA", "SPECIAL", "MUSIC", "CM", "PV", "UNKNOWN"];
-
 const TABS: { key: AddTab; label: string }[] = [
   { key: "search", label: "本地搜索" },
   { key: "browse", label: "分类浏览" },
   { key: "manual", label: "手动添加" },
-  { key: "bangumi", label: "Bangumi 导入（可选）" },
+  { key: "bangumi", label: "外部导入" },
 ];
 
 export default function PoolDetailPage({ params }: { params: { poolId: string } }) {
@@ -305,9 +310,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     try {
       const result = await bulkImportAnimeToPool(params.poolId, bulkInput);
       await refreshPool();
-      setNotice(
-        `新增 ${result.added.length} 部，跳过 ${result.skipped.length} 部，失败 ${result.failed.length} 部`
-      );
+      setNotice(`新增 ${result.added.length} 部，跳过 ${result.skipped.length} 部，失败 ${result.failed.length} 部`);
       if (result.failed.length === 0) setBulkInput("");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "批量导入失败");
@@ -363,9 +366,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       });
       await refreshPool();
       setEditingDisplayAnimeId(null);
-      setNotice("Anime display overrides saved.");
+      setNotice("动画显示信息已保存");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Saving display overrides failed");
+      setError(reason instanceof Error ? reason.message : "保存显示修正失败");
     } finally {
       setIsMutating(false);
     }
@@ -381,9 +384,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       await clearPoolAnimeDisplayOverrides(pool.id, animeId);
       await refreshPool();
       setEditingDisplayAnimeId(null);
-      setNotice("Anime display overrides cleared.");
+      setNotice("显示修正已清除");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Clearing display overrides failed");
+      setError(reason instanceof Error ? reason.message : "清除显示修正失败");
     } finally {
       setIsMutating(false);
     }
@@ -406,7 +409,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   if (isLoading) {
     return (
       <PageShell>
-        <p className="text-sm text-zinc-400">正在加载番组详情...</p>
+        <ErrorAlert message="正在加载番组详情..." tone="notice" />
       </PageShell>
     );
   }
@@ -414,7 +417,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   if (pool === null) {
     return (
       <PageShell>
-        <p className="text-sm text-red-300">{error ?? "番组不存在"}</p>
+        <ErrorAlert message={error ?? "番组不存在"} />
       </PageShell>
     );
   }
@@ -426,301 +429,170 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
   return (
     <PageShell>
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+      <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div>
-          <h1 className="text-3xl font-semibold text-white">{pool.name}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
+          <div className="flex flex-wrap gap-2">
+            <AppBadge tone={isArchived ? "danger" : "status"}>
+              {isArchived ? "已归档" : pool.visibility}
+            </AppBadge>
+            <AppBadge tone="source">{pool.anime.length} 部动画</AppBadge>
+          </div>
+          <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
+            {pool.name}
+          </h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
             {pool.description ?? "暂无描述"}
           </p>
-          <p className="mt-3 text-xs text-zinc-500">
-            {pool.visibility} / {pool.anime.length} 部动画
-            {isArchived ? " / 已归档" : ""}
-          </p>
+          {pool.tags.length > 0 ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {pool.tags.map((tag) => (
+                <AppBadge key={tag} tone="muted">
+                  {tag}
+                </AppBadge>
+              ))}
+            </div>
+          ) : null}
         </div>
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={() => enterRun("match")}
-            disabled={!canStart || isMutating}
-            className="rounded-lg bg-cyan-300 px-4 py-2 text-sm font-semibold text-zinc-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            开始对决
-          </button>
-          <button
-            onClick={() =>
-              isArchived && latestRun !== undefined
-                ? router.push(`/pools/${params.poolId}/runs/${latestRun.id}/tier`)
-                : enterRun("tier")
-            }
-            disabled={isMutating || (isArchived && latestRun === undefined)}
-            className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            查看 Tier List
-          </button>
-          <button
-            onClick={() => setIsEditingPool((value) => !value)}
-            disabled={isArchived || isMutating}
-            className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            编辑番组信息
-          </button>
-          <button
-            onClick={handleArchivePool}
-            disabled={isArchived || isMutating}
-            className="rounded-lg border border-red-300/30 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-300/10 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            归档/删除
-          </button>
-        </div>
+        <AppCard className="p-5">
+          <div className="grid gap-3">
+            <AppButton
+              onClick={() => enterRun("match")}
+              disabled={!canStart || isMutating}
+              variant="primary"
+              size="lg"
+            >
+              开始对决
+            </AppButton>
+            <AppButton
+              onClick={() =>
+                isArchived && latestRun !== undefined
+                  ? router.push(`/pools/${params.poolId}/runs/${latestRun.id}/tier`)
+                  : enterRun("tier")
+              }
+              disabled={isMutating || (isArchived && latestRun === undefined)}
+              variant="secondary"
+            >
+              查看 Tier List
+            </AppButton>
+            <div className="grid grid-cols-2 gap-2">
+              <AppButton
+                onClick={() => setIsEditingPool((value) => !value)}
+                disabled={isArchived || isMutating}
+                variant="ghost"
+                size="sm"
+              >
+                编辑信息
+              </AppButton>
+              <AppButton
+                onClick={handleArchivePool}
+                disabled={isArchived || isMutating}
+                variant="danger"
+                size="sm"
+              >
+                归档/删除
+              </AppButton>
+            </div>
+          </div>
+        </AppCard>
+      </section>
+
+      <div className="mt-5 space-y-3">
+        {isArchived ? (
+          <ErrorAlert message="该番组已归档，只能查看历史结果。" tone="warning" />
+        ) : null}
+        {!isArchived && !canStart ? (
+          <ErrorAlert message="至少添加 2 部动画后才能开始对决。" tone="warning" />
+        ) : null}
+        {error ? <ErrorAlert message={error} /> : null}
+        {notice ? <ErrorAlert message={notice} tone="notice" /> : null}
       </div>
 
-      {isArchived ? (
-        <p className="mt-5 rounded-lg border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
-          该番组已归档，只能查看历史结果。
-        </p>
-      ) : null}
-      {!isArchived && !canStart ? (
-        <p className="mt-5 rounded-lg border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
-          至少添加 2 部动画后才能开始对决。
-        </p>
-      ) : null}
       {isEditingPool && !isArchived ? (
-        <form
-          onSubmit={handleSavePool}
-          className="mt-5 rounded-lg border border-white/10 bg-white/[0.04] p-5"
-        >
-          <div className="grid gap-3 md:grid-cols-[1fr_180px]">
-            <input
-              value={editName}
-              onChange={(event) => setEditName(event.target.value)}
-              className="rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
+        <AppCard className="mt-6 p-5">
+          <form onSubmit={handleSavePool}>
+            <div className="grid gap-3 md:grid-cols-[1fr_180px]">
+              <input value={editName} onChange={(event) => setEditName(event.target.value)} className="anime-field" />
+              <select
+                value={editVisibility}
+                onChange={(event) =>
+                  setEditVisibility(event.target.value as "PRIVATE" | "UNLISTED" | "PUBLIC")
+                }
+                className="anime-field"
+              >
+                <option value="PRIVATE">PRIVATE</option>
+                <option value="UNLISTED">UNLISTED</option>
+                <option value="PUBLIC">PUBLIC</option>
+              </select>
+            </div>
+            <textarea
+              value={editDescription}
+              onChange={(event) => setEditDescription(event.target.value)}
+              className="anime-field mt-3 min-h-24"
             />
-            <select
-              value={editVisibility}
-              onChange={(event) =>
-                setEditVisibility(event.target.value as "PRIVATE" | "UNLISTED" | "PUBLIC")
-              }
-              className="rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-            >
-              <option value="PRIVATE">PRIVATE</option>
-              <option value="UNLISTED">UNLISTED</option>
-              <option value="PUBLIC">PUBLIC</option>
-            </select>
-          </div>
-          <textarea
-            value={editDescription}
-            onChange={(event) => setEditDescription(event.target.value)}
-            className="mt-3 min-h-20 w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-          />
-          <input
-            value={editTags}
-            onChange={(event) => setEditTags(event.target.value)}
-            placeholder="标签，逗号分隔"
-            className="mt-3 w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-          />
-          <div className="mt-3 flex gap-2">
-            <button
-              type="submit"
-              disabled={isMutating}
-              className="rounded-lg bg-cyan-300 px-4 py-2 text-sm font-semibold text-zinc-950 disabled:opacity-50"
-            >
-              保存
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsEditingPool(false)}
-              disabled={isMutating}
-              className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
-            >
-              取消
-            </button>
-          </div>
-        </form>
+            <input
+              value={editTags}
+              onChange={(event) => setEditTags(event.target.value)}
+              placeholder="标签，逗号分隔"
+              className="anime-field mt-3"
+            />
+            <div className="mt-3 flex gap-2">
+              <AppButton type="submit" disabled={isMutating} variant="primary">保存</AppButton>
+              <AppButton type="button" onClick={() => setIsEditingPool(false)} disabled={isMutating} variant="ghost">
+                取消
+              </AppButton>
+            </div>
+          </form>
+        </AppCard>
       ) : null}
-      {error ? <p className="mt-5 text-sm text-red-300">{error}</p> : null}
-      {notice ? <p className="mt-5 text-sm text-cyan-200">{notice}</p> : null}
 
-      <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_400px]">
-        <div className="rounded-lg border border-white/10 bg-white/[0.04] p-5">
-          <h2 className="text-lg font-semibold text-white">作品列表</h2>
+      <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_410px]">
+        <AppCard className="p-5">
+          <SectionHeader
+            eyebrow="Anime pool"
+            title="作品列表"
+            description="这些显示修正只作用于当前番组。"
+          />
           {pool.anime.length === 0 ? (
-            <p className="mt-5 text-sm text-zinc-400">还没有添加动画。</p>
+            <div className="mt-5">
+              <EmptyState title="还没有添加动画" description="从右侧本地搜索、分类浏览或手动添加开始。" />
+            </div>
           ) : (
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {pool.anime.map((entry) => {
-                const display = entry.display;
-                const title = display.title;
-                const coverUrl =
-                  display.coverUrl ??
-                  entry.anime.thumbnailUrl ??
-                  entry.anime.imageSmallUrl ??
-                  entry.anime.imageMediumUrl ??
-                  entry.anime.imageUrl;
-
-                return (
-                  <div key={entry.id} className="rounded-lg border border-white/10 bg-zinc-950/50 p-3">
-                    <div className="flex gap-3">
-                      <AnimeCover
-                        src={coverUrl}
-                        secondarySrc={entry.anime.imageSmallUrl ?? entry.anime.imageUrl}
-                        title={title}
-                        size="sm"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start gap-2">
-                          <h3 className="line-clamp-2 text-sm font-semibold text-white">
-                            {title}
-                          </h3>
-                          {display.isOverridden ? (
-                            <span className="shrink-0 rounded border border-cyan-300/30 px-1.5 py-0.5 text-[10px] text-cyan-200">
-                              Edited
-                            </span>
-                          ) : null}
-                        </div>
-                        {display.subtitle ? (
-                          <p className="mt-1 line-clamp-1 text-xs text-zinc-500">{display.subtitle}</p>
-                        ) : null}
-                        <p className="mt-1 text-xs text-zinc-500">
-                          #{entry.position}
-                          {display.animeType ? ` / ${display.animeType}` : ""}
-                        </p>
-                        {display.tags.length > 0 ? (
-                          <p className="mt-1 line-clamp-1 text-xs text-zinc-500">
-                            {display.tags.slice(0, 4).join(" / ")}
-                          </p>
-                        ) : null}
-                        <div className="mt-3 flex flex-wrap gap-3">
-                          {!isArchived ? (
-                            <button
-                              onClick={() => startEditingDisplay(entry)}
-                              disabled={isMutating}
-                              className="text-xs font-medium text-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              编辑显示
-                            </button>
-                          ) : null}
-                          <button
-                            onClick={() => handleRemove(entry.animeId)}
-                            disabled={isArchived || isMutating}
-                            className="text-xs font-medium text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            移除
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    {editingDisplayAnimeId === entry.animeId && !isArchived ? (
-                      <form onSubmit={handleSaveDisplay} className="mt-3 space-y-2 border-t border-white/10 pt-3">
-                        <input
-                          value={displayForm.displayTitleOverride}
-                          onChange={(event) =>
-                            setDisplayForm((current) => ({
-                              ...current,
-                              displayTitleOverride: event.target.value,
-                            }))
-                          }
-                          placeholder="显示标题"
-                          className="w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-xs text-white outline-none focus:border-cyan-300"
-                        />
-                        <input
-                          value={displayForm.coverUrlOverride}
-                          onChange={(event) =>
-                            setDisplayForm((current) => ({
-                              ...current,
-                              coverUrlOverride: event.target.value,
-                            }))
-                          }
-                          placeholder="封面 URL"
-                          className="w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-xs text-white outline-none focus:border-cyan-300"
-                        />
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          <select
-                            value={displayForm.animeTypeOverride}
-                            onChange={(event) =>
-                              setDisplayForm((current) => ({
-                                ...current,
-                                animeTypeOverride: event.target.value,
-                              }))
-                            }
-                            className="rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-xs text-white outline-none focus:border-cyan-300"
-                          >
-                            {ANIME_TYPE_OPTIONS.map((type) => (
-                              <option key={type || "empty"} value={type}>
-                                {type || "原始类型"}
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            value={displayForm.tagsOverride}
-                            onChange={(event) =>
-                              setDisplayForm((current) => ({
-                                ...current,
-                                tagsOverride: event.target.value,
-                              }))
-                            }
-                            placeholder="标签，逗号分隔"
-                            className="rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-xs text-white outline-none focus:border-cyan-300"
-                          />
-                        </div>
-                        <input
-                          value={displayForm.overrideNote}
-                          onChange={(event) =>
-                            setDisplayForm((current) => ({
-                              ...current,
-                              overrideNote: event.target.value,
-                            }))
-                          }
-                          placeholder="备注"
-                          className="w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-xs text-white outline-none focus:border-cyan-300"
-                        />
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="submit"
-                            disabled={isMutating}
-                            className="rounded bg-cyan-300 px-3 py-1.5 text-xs font-semibold text-zinc-950 disabled:opacity-50"
-                          >
-                            保存
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleClearDisplay(entry.animeId)}
-                            disabled={isMutating}
-                            className="rounded border border-white/15 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                          >
-                            清除修正
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingDisplayAnimeId(null)}
-                            disabled={isMutating}
-                            className="rounded border border-white/15 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                          >
-                            取消
-                          </button>
-                        </div>
-                      </form>
-                    ) : null}
-                  </div>
-                );
-              })}
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {pool.anime.map((entry) => (
+                <PoolAnimeCard
+                  key={entry.id}
+                  entry={entry}
+                  isArchived={isArchived}
+                  isMutating={isMutating}
+                  isEditing={editingDisplayAnimeId === entry.animeId}
+                  displayForm={displayForm}
+                  setDisplayForm={setDisplayForm}
+                  onEdit={() => startEditingDisplay(entry)}
+                  onRemove={() => handleRemove(entry.animeId)}
+                  onSave={handleSaveDisplay}
+                  onClear={() => handleClearDisplay(entry.animeId)}
+                  onCancel={() => setEditingDisplayAnimeId(null)}
+                />
+              ))}
             </div>
           )}
-        </div>
+        </AppCard>
 
-        <aside className="rounded-lg border border-white/10 bg-white/[0.04] p-5">
-          <h2 className="text-lg font-semibold text-white">添加动画</h2>
+        <AppCard className="p-5">
+          <SectionHeader eyebrow="Add anime" title="添加动画" />
           {isArchived ? (
-            <p className="mt-4 text-sm text-zinc-400">归档番组不能继续添加动画。</p>
+            <p className="mt-4 text-sm text-slate-400">归档番组不能继续添加动画。</p>
           ) : (
             <>
-              <div className="mt-4 flex flex-wrap gap-1 border-b border-white/10 pb-2">
+              <div className="mt-4 flex flex-wrap gap-2 border-b border-white/10 pb-3">
                 {TABS.map((tab) => (
                   <button
                     key={tab.key}
                     onClick={() => setActiveTab(tab.key)}
-                    className={`rounded-t px-3 py-1.5 text-xs font-medium transition ${
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                       activeTab === tab.key
-                        ? "border-b-2 border-cyan-400 text-cyan-300"
-                        : "text-zinc-500 hover:text-zinc-300"
+                        ? "border-cyan-300/50 bg-cyan-300/12 text-cyan-100"
+                        : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
                     }`}
                   >
                     {tab.label}
@@ -735,17 +607,13 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                       value={searchKeyword}
                       onChange={(event) => setSearchKeyword(event.target.value)}
                       placeholder="输入动画名搜索本地库"
-                      className="min-w-0 flex-1 rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
+                      className="anime-field min-w-0 flex-1"
                     />
-                    <button
-                      type="submit"
-                      disabled={isSearching}
-                      className="rounded-lg bg-cyan-300 px-3 py-2 text-sm font-semibold text-zinc-950 disabled:opacity-50"
-                    >
+                    <AppButton type="submit" disabled={isSearching} variant="primary">
                       搜索
-                    </button>
+                    </AppButton>
                   </form>
-                  {searchMessage ? <p className="mt-3 text-sm text-zinc-400">{searchMessage}</p> : null}
+                  {searchMessage ? <p className="mt-3 text-sm text-slate-400">{searchMessage}</p> : null}
                   <div className="mt-4 space-y-3">
                     {searchResults.map((anime) => (
                       <AnimeCard
@@ -763,52 +631,24 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
               {activeTab === "browse" ? (
                 <div className="mt-4">
                   <form onSubmit={handleBrowse} className="space-y-3">
-                    <input
-                      value={browseTag}
-                      onChange={(event) => setBrowseTag(event.target.value)}
-                      placeholder="标签 e.g. mystery"
-                      className="w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-                    />
-                    <div className="flex gap-2">
-                      <input
-                        value={browseYearFrom}
-                        onChange={(event) => setBrowseYearFrom(event.target.value)}
-                        placeholder="年份起"
-                        className="flex-1 rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-                      />
-                      <input
-                        value={browseYearTo}
-                        onChange={(event) => setBrowseYearTo(event.target.value)}
-                        placeholder="年份止"
-                        className="flex-1 rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-                      />
+                    <input value={browseTag} onChange={(event) => setBrowseTag(event.target.value)} placeholder="标签 e.g. mystery" className="anime-field" />
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <input value={browseYearFrom} onChange={(event) => setBrowseYearFrom(event.target.value)} placeholder="年份起" className="anime-field" />
+                      <input value={browseYearTo} onChange={(event) => setBrowseYearTo(event.target.value)} placeholder="年份止" className="anime-field" />
                     </div>
-                    <div className="flex gap-2">
-                      <input
-                        value={browseType}
-                        onChange={(event) => setBrowseType(event.target.value)}
-                        placeholder="类型 e.g. TV"
-                        className="flex-1 rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-                      />
-                      <select
-                        value={browseSort}
-                        onChange={(event) => setBrowseSort(event.target.value)}
-                        className="flex-1 rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-                      >
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <input value={browseType} onChange={(event) => setBrowseType(event.target.value)} placeholder="类型 e.g. TV" className="anime-field" />
+                      <select value={browseSort} onChange={(event) => setBrowseSort(event.target.value)} className="anime-field">
                         <option value="title">按标题</option>
                         <option value="year">按年份</option>
                         <option value="score">按评分</option>
                       </select>
                     </div>
-                    <button
-                      type="submit"
-                      disabled={isBrowsing}
-                      className="w-full rounded-lg bg-cyan-300 px-3 py-2 text-sm font-semibold text-zinc-950 disabled:opacity-50"
-                    >
+                    <AppButton type="submit" disabled={isBrowsing} variant="primary" className="w-full">
                       浏览
-                    </button>
+                    </AppButton>
                   </form>
-                  {browseTotal > 0 ? <p className="mt-3 text-xs text-zinc-500">共 {browseTotal} 部</p> : null}
+                  {browseTotal > 0 ? <p className="mt-3 text-xs text-slate-500">共 {browseTotal} 部</p> : null}
                   <div className="mt-4 space-y-3">
                     {browseResults.map((anime) => (
                       <AnimeCard
@@ -821,106 +661,198 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                     ))}
                   </div>
                   {browseResults.length < browseTotal ? (
-                    <button
-                      onClick={handleBrowseMore}
-                      disabled={isBrowsing}
-                      className="mt-3 w-full rounded-lg border border-white/15 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
-                    >
+                    <AppButton onClick={handleBrowseMore} disabled={isBrowsing} variant="ghost" className="mt-3 w-full">
                       加载更多
-                    </button>
+                    </AppButton>
                   ) : null}
                 </div>
               ) : null}
 
               {activeTab === "manual" ? (
-                <div className="mt-4">
-                  <form onSubmit={handleManualAdd} className="space-y-3">
-                    <input
-                      value={manualTitle}
-                      onChange={(event) => setManualTitle(event.target.value)}
-                      placeholder="动画名称 *"
-                      required
-                      className="w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-                    />
-                    <input
-                      value={manualTitleCn}
-                      onChange={(event) => setManualTitleCn(event.target.value)}
-                      placeholder="中文名（可选）"
-                      className="w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-                    />
-                    <input
-                      value={manualImageUrl}
-                      onChange={(event) => setManualImageUrl(event.target.value)}
-                      placeholder="封面图 URL（可选）"
-                      className="w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-                    />
-                    <div className="flex gap-2">
-                      <input
-                        value={manualYear}
-                        onChange={(event) => setManualYear(event.target.value)}
-                        placeholder="年份"
-                        className="flex-1 rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-                      />
-                      <input
-                        value={manualType}
-                        onChange={(event) => setManualType(event.target.value)}
-                        placeholder="类型 e.g. TV"
-                        className="flex-1 rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-                      />
-                    </div>
-                    <input
-                      value={manualTags}
-                      onChange={(event) => setManualTags(event.target.value)}
-                      placeholder="标签，逗号分隔（可选）"
-                      className="w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-                    />
-                    <button
-                      type="submit"
-                      disabled={isMutating}
-                      className="w-full rounded-lg bg-cyan-300 px-3 py-2 text-sm font-semibold text-zinc-950 disabled:opacity-50"
-                    >
-                      创建并加入
-                    </button>
-                  </form>
-                </div>
+                <form onSubmit={handleManualAdd} className="mt-4 space-y-3">
+                  <input value={manualTitle} onChange={(event) => setManualTitle(event.target.value)} placeholder="动画名称 *" required className="anime-field" />
+                  <input value={manualTitleCn} onChange={(event) => setManualTitleCn(event.target.value)} placeholder="中文名（可选）" className="anime-field" />
+                  <input value={manualImageUrl} onChange={(event) => setManualImageUrl(event.target.value)} placeholder="封面图 URL（可选）" className="anime-field" />
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <input value={manualYear} onChange={(event) => setManualYear(event.target.value)} placeholder="年份" className="anime-field" />
+                    <input value={manualType} onChange={(event) => setManualType(event.target.value)} placeholder="类型 e.g. TV" className="anime-field" />
+                  </div>
+                  <input value={manualTags} onChange={(event) => setManualTags(event.target.value)} placeholder="标签，逗号分隔（可选）" className="anime-field" />
+                  <AppButton type="submit" disabled={isMutating} variant="primary" className="w-full">
+                    创建并加入
+                  </AppButton>
+                </form>
               ) : null}
 
               {activeTab === "bangumi" ? (
                 <div className="mt-4">
-                  <p className="mb-3 text-xs text-zinc-500">
-                    输入 Bangumi ID 导入（可选，可能受网络影响）。外部数据源不可用时，请使用本地搜索、分类浏览或手动添加。
+                  <p className="mb-3 text-xs leading-5 text-slate-500">
+                    Bangumi 导入是可选外部来源。不可用时，请使用本地搜索、分类浏览或手动添加。
                   </p>
                   <textarea
                     value={bulkInput}
                     onChange={(event) => setBulkInput(event.target.value)}
                     placeholder={"876, 877\nhttps://bgm.tv/subject/878"}
-                    className="min-h-32 w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
+                    className="anime-field min-h-32"
                   />
-                  <button
-                    onClick={handleBulkImport}
-                    disabled={isMutating}
-                    className="mt-3 w-full rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
-                  >
+                  <AppButton onClick={handleBulkImport} disabled={isMutating} variant="ghost" className="mt-3 w-full">
                     导入到番组
-                  </button>
+                  </AppButton>
                 </div>
               ) : null}
             </>
           )}
-        </aside>
+        </AppCard>
       </section>
 
-      <p className="mt-10 text-center text-xs text-zinc-600">
+      <p className="mt-10 text-center text-xs text-slate-600">
         Anime metadata powered by{" "}
         <a
           href="https://github.com/manami-project/anime-offline-database"
           target="_blank"
-          className="underline hover:text-zinc-400"
+          className="underline hover:text-slate-400"
         >
           anime-offline-database
         </a>
         . License: ODbL-1.0 + DbCL-1.0.
       </p>
     </PageShell>
+  );
+}
+
+function PoolAnimeCard({
+  entry,
+  isArchived,
+  isMutating,
+  isEditing,
+  displayForm,
+  setDisplayForm,
+  onEdit,
+  onRemove,
+  onSave,
+  onClear,
+  onCancel
+}: {
+  entry: PoolAnimeEntry;
+  isArchived: boolean;
+  isMutating: boolean;
+  isEditing: boolean;
+  displayForm: DisplayOverrideForm;
+  setDisplayForm: React.Dispatch<React.SetStateAction<DisplayOverrideForm>>;
+  onEdit: () => void;
+  onRemove: () => void;
+  onSave: (event: FormEvent<HTMLFormElement>) => void;
+  onClear: () => void;
+  onCancel: () => void;
+}) {
+  const display = entry.display;
+  const title = display.title;
+  const coverUrl =
+    display.coverUrl ??
+    entry.anime.thumbnailUrl ??
+    entry.anime.imageSmallUrl ??
+    entry.anime.imageMediumUrl ??
+    entry.anime.imageUrl;
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-3 transition hover:border-cyan-300/25">
+      <div className="flex gap-3">
+        <AnimeCover
+          src={coverUrl}
+          secondarySrc={entry.anime.imageSmallUrl ?? entry.anime.imageUrl}
+          title={title}
+          size="sm"
+          className="shrink-0 rounded-xl"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-2">
+            <h3 className="line-clamp-2 text-sm font-semibold text-white">{title}</h3>
+            {display.isOverridden ? <AppBadge tone="source">已修正</AppBadge> : null}
+          </div>
+          {display.subtitle ? <p className="mt-1 line-clamp-1 text-xs text-slate-500">{display.subtitle}</p> : null}
+          <p className="mt-1 text-xs text-slate-500">
+            #{entry.position}
+            {display.animeType ? ` / ${display.animeType}` : ""}
+          </p>
+          {display.tags.length > 0 ? (
+            <p className="mt-1 line-clamp-1 text-xs text-slate-500">
+              {display.tags.slice(0, 4).join(" / ")}
+            </p>
+          ) : null}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {!isArchived ? (
+              <AppButton onClick={onEdit} disabled={isMutating} variant="ghost" size="sm">
+                编辑显示
+              </AppButton>
+            ) : null}
+            <AppButton onClick={onRemove} disabled={isArchived || isMutating} variant="danger" size="sm">
+              移除
+            </AppButton>
+          </div>
+        </div>
+      </div>
+      {isEditing && !isArchived ? (
+        <form onSubmit={onSave} className="mt-3 space-y-2 border-t border-white/10 pt-3">
+          <input
+            value={displayForm.displayTitleOverride}
+            onChange={(event) =>
+              setDisplayForm((current) => ({ ...current, displayTitleOverride: event.target.value }))
+            }
+            placeholder="显示标题"
+            className="anime-field text-xs"
+          />
+          <input
+            value={displayForm.coverUrlOverride}
+            onChange={(event) =>
+              setDisplayForm((current) => ({ ...current, coverUrlOverride: event.target.value }))
+            }
+            placeholder="封面 URL"
+            className="anime-field text-xs"
+          />
+          <div className="grid gap-2 sm:grid-cols-2">
+            <select
+              value={displayForm.animeTypeOverride}
+              onChange={(event) =>
+                setDisplayForm((current) => ({ ...current, animeTypeOverride: event.target.value }))
+              }
+              className="anime-field text-xs"
+            >
+              {ANIME_TYPE_OPTIONS.map((type) => (
+                <option key={type || "empty"} value={type}>
+                  {type || "原始类型"}
+                </option>
+              ))}
+            </select>
+            <input
+              value={displayForm.tagsOverride}
+              onChange={(event) =>
+                setDisplayForm((current) => ({ ...current, tagsOverride: event.target.value }))
+              }
+              placeholder="标签，逗号分隔"
+              className="anime-field text-xs"
+            />
+          </div>
+          <input
+            value={displayForm.overrideNote}
+            onChange={(event) =>
+              setDisplayForm((current) => ({ ...current, overrideNote: event.target.value }))
+            }
+            placeholder="备注"
+            className="anime-field text-xs"
+          />
+          <div className="flex flex-wrap gap-2">
+            <AppButton type="submit" disabled={isMutating} variant="primary" size="sm">
+              保存
+            </AppButton>
+            <AppButton type="button" onClick={onClear} disabled={isMutating} variant="ghost" size="sm">
+              清除修正
+            </AppButton>
+            <AppButton type="button" onClick={onCancel} disabled={isMutating} variant="ghost" size="sm">
+              取消
+            </AppButton>
+          </div>
+        </form>
+      ) : null}
+    </div>
   );
 }
