@@ -170,10 +170,30 @@ model CustomPool {
   poolComparisons    PoolComparison[]       @relation("PoolComparisons")
   tierAdjustments    ManualTierAdjustment[] @relation("PoolTierAdjustments")
   tagPreferences     UserTagPreference[]    @relation("PoolTagPreferences")
+  tierShares         TierShare[]            @relation("PoolTierShares")
 
   @@index([creatorId])
   @@index([status])
   @@index([visibility])
+}
+
+model TierShare {
+  id          String      @id @default(cuid())
+  token       String      @unique
+  poolId      String
+  runId       String
+  title       String
+  description String?
+  tierLabels  Json
+  snapshot    Json
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  pool        CustomPool  @relation("PoolTierShares", fields: [poolId], references: [id])
+  run         PersonalRun @relation("RunTierShares", fields: [runId], references: [id])
+
+  @@index([poolId])
+  @@index([runId])
+  @@index([createdAt])
 }
 
 model PoolAnime {
@@ -218,6 +238,7 @@ model PersonalRun {
   comparisons      PoolComparison[]       @relation("RunComparisons")
   tierAdjustments  ManualTierAdjustment[] @relation("RunTierAdjustments")
   tagPreferences   UserTagPreference[]    @relation("RunTagPreferences")
+  tierShares       TierShare[]            @relation("RunTierShares")
 
   @@index([userId, poolId])
   @@index([poolId])

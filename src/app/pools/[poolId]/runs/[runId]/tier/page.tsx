@@ -16,6 +16,7 @@ import { ErrorAlert } from "@/components/ui/ErrorAlert";
 import {
   clearManualTier,
   createRecalibrationSession,
+  createTierShare,
   getPool,
   getTierList,
   saveManualTierList,
@@ -81,6 +82,10 @@ export default function TierPage({
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportedAt, setExportedAt] = useState<Date | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
   const [tierLabels, setTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
   const [draftTierLabels, setDraftTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
   const [showTierLabelEditor, setShowTierLabelEditor] = useState(false);
@@ -253,6 +258,49 @@ export default function TierPage({
     }
   }
 
+  async function handleCreateShare() {
+    if (tierList === null) {
+      return;
+    }
+
+    setIsSharing(true);
+    setShareError(null);
+    setShareCopied(false);
+
+    try {
+      const result = await createTierShare({
+        poolId: params.poolId,
+        runId: params.runId,
+        tierLabels
+      });
+      const absoluteUrl = `${window.location.origin}${result.url}`;
+      setShareUrl(absoluteUrl);
+      try {
+        await copyText(absoluteUrl);
+        setShareCopied(true);
+      } catch {
+        setShareCopied(false);
+      }
+    } catch (reason) {
+      setShareError(reason instanceof Error ? reason.message : "生成分享链接失败");
+    } finally {
+      setIsSharing(false);
+    }
+  }
+
+  async function handleCopyShareUrl() {
+    if (shareUrl === null) {
+      return;
+    }
+
+    try {
+      await copyText(shareUrl);
+      setShareCopied(true);
+    } catch {
+      setShareCopied(false);
+    }
+  }
+
   function handleDrop(targetTierName: Tier, beforeAnimeId?: string) {
     if (dragSource === null || editableTiers === null) {
       return;
@@ -328,14 +376,32 @@ export default function TierPage({
           >
             {isExporting ? "生成中..." : "导出图片"}
           </AppButton>
-          <AppButton disabled variant="ghost">
-            分享榜单 Coming soon
+          <AppButton
+            onClick={handleCreateShare}
+            disabled={isSharing || tierList === null}
+            variant="ghost"
+          >
+            {isSharing ? "生成分享链接中..." : "分享榜单"}
           </AppButton>
         </div>
       </div>
 
       {error ? <ErrorAlert message={error} className="mb-5" /> : null}
       {exportError ? <ErrorAlert message={exportError} className="mb-5" /> : null}
+      {shareError ? <ErrorAlert message={shareError} className="mb-5" /> : null}
+      {shareUrl ? (
+        <AppCard className="mb-5 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <AppBadge tone="source">{shareCopied ? "分享链接已复制" : "分享链接已生成"}</AppBadge>
+              <p className="mt-3 break-all text-sm text-slate-300">{shareUrl}</p>
+            </div>
+            <AppButton onClick={handleCopyShareUrl} variant="primary">
+              复制链接
+            </AppButton>
+          </div>
+        </AppCard>
+      ) : null}
       {isLoading ? <ErrorAlert message="正在加载榜单..." tone="notice" className="mb-5" /> : null}
       {isEditing ? (
         <ErrorAlert
@@ -626,4 +692,12 @@ function waitForPaint(): Promise<void> {
   return new Promise((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   });
+}
+
+async function copyText(value: string): Promise<void> {
+  if (!navigator.clipboard) {
+    throw new Error("Clipboard is not available");
+  }
+
+  await navigator.clipboard.writeText(value);
 }

@@ -161,6 +161,49 @@ export interface TierListResponse {
   totalComparisons: number;
 }
 
+export type TierKey = "S" | "A" | "B" | "C" | "D";
+export type PublicTierLabels = Record<TierKey, string>;
+
+export interface TierShareSnapshotItem {
+  animeId: string;
+  title: string;
+  subtitle?: string;
+  coverUrl?: string;
+  source: string;
+  animeType?: string;
+  elo?: number;
+  isLocked?: boolean;
+  isEdited?: boolean;
+}
+
+export interface TierShareSnapshotTier {
+  key: TierKey;
+  label: string;
+  items: TierShareSnapshotItem[];
+}
+
+export interface TierShareSnapshot {
+  version: 1;
+  generatedAt: string;
+  pool: {
+    id: string;
+    name: string;
+  };
+  run: {
+    id: string;
+  };
+  tiers: TierShareSnapshotTier[];
+}
+
+export interface PublicTierShare {
+  token: string;
+  title: string;
+  description: string | null;
+  tierLabels: PublicTierLabels;
+  snapshot: TierShareSnapshot;
+  createdAt: string;
+}
+
 export type RecalibrationType = "SMART" | "RANGE" | "FOCUS";
 export type RecalibrationMode = "RECALIBRATE" | "FOCUS_RECALIBRATE" | "RANGE_RECALIBRATE";
 
@@ -525,6 +568,22 @@ export function submitComparison(
 
 export function getTierList(poolId: string, runId: string) {
   return fetchJson<TierListResponse>(`/api/pools/${poolId}/runs/${runId}/tierlist`);
+}
+
+export function createTierShare(data: {
+  poolId: string;
+  runId: string;
+  tierLabels: PublicTierLabels;
+  description?: string;
+}) {
+  return fetchJson<{ token: string; url: string }>("/api/tier-shares", {
+    method: "POST",
+    body: data
+  });
+}
+
+export function getTierShare(token: string) {
+  return fetchJson<PublicTierShare>(`/api/tier-shares/${token}`);
 }
 
 export function saveManualTierList(
