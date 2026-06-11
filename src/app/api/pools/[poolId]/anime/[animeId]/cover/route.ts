@@ -1,6 +1,11 @@
+import { NextResponse } from "next/server";
 import { PoolStatus } from "@prisma/client";
 import { badRequest, forbidden, notFound, ok, serverError } from "@/lib/api-response";
-import { deleteLocalAnimeCoverIfPresent } from "@/lib/anime-cover-upload";
+import {
+  AnimeCoverUploadError,
+  deleteLocalAnimeCoverIfPresent,
+  saveAnimeCoverUpload
+} from "@/lib/anime-cover-upload";
 import { getOrCreateDevUser } from "@/lib/dev-user";
 import { prisma } from "@/lib/db";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
@@ -12,7 +17,7 @@ interface RouteContext {
   };
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function POST(request: Request, context: RouteContext) {
   try {
     const user = await getOrCreateDevUser();
     const pool = await prisma.customPool.findUnique({
@@ -30,7 +35,15 @@ export async function DELETE(_request: Request, context: RouteContext) {
     }
 
     if (pool.deletedAt !== null || pool.status === PoolStatus.ARCHIVED) {
-      return badRequest("Archived pools cannot edit anime display overrides");
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            message: "Archived pools cannot upload anime covers"
+          }
+        },
+        { status: 409 }
+      );
     }
 
     const existingEntry = await prisma.poolAnime.findUnique({
@@ -46,17 +59,31 @@ export async function DELETE(_request: Request, context: RouteContext) {
       return notFound("Anime is not in this pool");
     }
 
+    const formData = await request.formData().catch(() => null);
+
+    if (formData === null) {
+      return badRequest("Invalid multipart/form-data");
+    }
+
+    const file = formData.get("file");
+
+    if (!(file instanceof File)) {
+      return badRequest("File field is required");
+    }
+
+    const coverUrl = await saveAnimeCoverUpload({
+      file,
+      poolId: pool.id,
+      animeId: context.params.animeId
+    });
+    const oldCoverUrlOverride = existingEntry.coverUrlOverride;
     const updated = await prisma.poolAnime.update({
       where: {
         id: existingEntry.id
       },
       data: {
-        displayTitleOverride: null,
-        coverUrlOverride: null,
-        animeTypeOverride: null,
-        tagsOverride: [],
-        overrideNote: null,
-        overrideUpdatedAt: null
+        coverUrlOverride: coverUrl,
+        overrideUpdatedAt: new Date()
       },
       include: {
         anime: true
@@ -64,13 +91,27 @@ export async function DELETE(_request: Request, context: RouteContext) {
     });
     const poolAnime = serializePoolAnime(updated);
 
-    await deleteLocalAnimeCoverIfPresent(existingEntry.coverUrlOverride);
+    await deleteLocalAnimeCoverIfPresent(oldCoverUrlOverride);
 
     return ok({
+      ok: true,
+      coverUrl,
       poolAnime,
       display: poolAnime.display
     });
   } catch (error) {
-    return serverError(error instanceof Error ? error.message : "Clearing anime display overrides failed");
+    if (error instanceof AnimeCoverUploadError) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            message: error.message
+          }
+        },
+        { status: error.status }
+      );
+    }
+
+    return serverError(error instanceof Error ? error.message : "Uploading anime cover failed");
   }
 }

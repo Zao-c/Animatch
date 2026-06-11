@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { ChangeEvent, DragEvent, FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { AnimeCard } from "@/components/AnimeCard";
 import { AnimeCover } from "@/components/AnimeCover";
 import { PageShell } from "@/components/PageShell";
@@ -24,6 +24,7 @@ import {
   listRuns,
   removeAnimeFromPool,
   searchAnime,
+  uploadPoolAnimeCover,
   updatePoolAnimeDisplay,
   updatePool,
   type PersonalRun,
@@ -42,6 +43,8 @@ type DisplayOverrideForm = {
 };
 
 const ANIME_TYPE_OPTIONS = ["", "TV", "MOVIE", "OVA", "ONA", "SPECIAL", "MUSIC", "CM", "PV", "UNKNOWN"];
+const COVER_UPLOAD_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
+const COVER_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
 const TABS: { key: AddTab; label: string }[] = [
   { key: "search", label: "本地搜索" },
   { key: "browse", label: "分类浏览" },
@@ -349,7 +352,10 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     });
   }
 
-  async function handleSaveDisplay(event: FormEvent<HTMLFormElement>) {
+  async function handleSaveDisplay(
+    event: FormEvent<HTMLFormElement>,
+    coverUrlOverride?: string
+  ) {
     event.preventDefault();
     if (pool === null || archived() || editingDisplayAnimeId === null) return;
 
@@ -359,7 +365,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     try {
       await updatePoolAnimeDisplay(pool.id, editingDisplayAnimeId, {
         displayTitleOverride: displayForm.displayTitleOverride,
-        coverUrlOverride: displayForm.coverUrlOverride,
+        coverUrlOverride: coverUrlOverride ?? displayForm.coverUrlOverride,
         animeTypeOverride: displayForm.animeTypeOverride,
         tagsOverride: displayForm.tagsOverride
           .split(",")
@@ -578,6 +584,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                   onSave={handleSaveDisplay}
                   onClear={() => handleClearDisplay(entry.animeId)}
                   onCancel={() => setEditingDisplayAnimeId(null)}
+                  onUploaded={refreshPool}
                 />
               ))}
             </div>
@@ -809,7 +816,8 @@ function PoolAnimeCard({
   onRemove,
   onSave,
   onClear,
-  onCancel
+  onCancel,
+  onUploaded
 }: {
   entry: PoolAnimeEntry;
   isArchived: boolean;
@@ -819,10 +827,16 @@ function PoolAnimeCard({
   setDisplayForm: React.Dispatch<React.SetStateAction<DisplayOverrideForm>>;
   onEdit: () => void;
   onRemove: () => void;
-  onSave: (event: FormEvent<HTMLFormElement>) => void;
+  onSave: (event: FormEvent<HTMLFormElement>, coverUrlOverride?: string) => void | Promise<void>;
   onClear: () => void;
   onCancel: () => void;
+  onUploaded: () => Promise<void>;
 }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedCoverFile, setSelectedCoverFile] = useState<File | null>(null);
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [coverUploadError, setCoverUploadError] = useState<string | null>(null);
   const display = entry.display;
   const title = display.title;
   const coverUrl =
@@ -831,6 +845,95 @@ function PoolAnimeCard({
     entry.anime.imageSmallUrl ??
     entry.anime.imageMediumUrl ??
     entry.anime.imageUrl;
+
+  useEffect(() => {
+    if (selectedCoverFile === null) {
+      setCoverPreviewUrl(null);
+      return undefined;
+    }
+
+    const objectUrl = URL.createObjectURL(selectedCoverFile);
+    setCoverPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [selectedCoverFile]);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setSelectedCoverFile(null);
+      setCoverUploadError(null);
+    }
+  }, [isEditing]);
+
+  function handleCoverFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    selectCoverFile(file);
+  }
+
+  function handleCoverDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    selectCoverFile(event.dataTransfer.files[0] ?? null);
+  }
+
+  function selectCoverFile(file: File | null) {
+    setCoverUploadError(null);
+
+    if (file === null) {
+      setSelectedCoverFile(null);
+      return;
+    }
+
+    if (!COVER_UPLOAD_ACCEPT.split(",").includes(file.type)) {
+      setCoverUploadError("只支持 jpg、png、webp、gif 图片。");
+      setSelectedCoverFile(null);
+      return;
+    }
+
+    if (file.size > COVER_UPLOAD_MAX_BYTES) {
+      setCoverUploadError("图片不能超过 5MB。");
+      setSelectedCoverFile(null);
+      return;
+    }
+
+    setSelectedCoverFile(file);
+  }
+
+  async function uploadSelectedCover() {
+    if (selectedCoverFile === null) {
+      return null;
+    }
+
+    setIsUploadingCover(true);
+    setCoverUploadError(null);
+
+    try {
+      const result = await uploadPoolAnimeCover(entry.poolId, entry.animeId, selectedCoverFile);
+      setDisplayForm((current) => ({ ...current, coverUrlOverride: result.coverUrl }));
+      setSelectedCoverFile(null);
+      if (fileInputRef.current !== null) {
+        fileInputRef.current.value = "";
+      }
+      await onUploaded();
+      return result.coverUrl;
+    } catch (reason) {
+      setCoverUploadError(reason instanceof Error ? reason.message : "上传封面失败");
+      return null;
+    } finally {
+      setIsUploadingCover(false);
+    }
+  }
+
+  async function handleDisplaySubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const uploadedCoverUrl =
+      selectedCoverFile === null ? undefined : await uploadSelectedCover();
+
+    if (selectedCoverFile !== null && uploadedCoverUrl === null) {
+      return;
+    }
+
+    await onSave(event, uploadedCoverUrl ?? undefined);
+  }
 
   return (
     <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-3 transition hover:border-cyan-300/25">
@@ -870,7 +973,7 @@ function PoolAnimeCard({
         </div>
       </div>
       {isEditing && !isArchived ? (
-        <form onSubmit={onSave} className="mt-3 space-y-2 border-t border-white/10 pt-3">
+        <form onSubmit={handleDisplaySubmit} className="mt-3 space-y-2 border-t border-white/10 pt-3">
           <p className="text-xs leading-5 text-cyan-100">
             这个修改只影响当前番组，不会改动全局动画库。
           </p>
@@ -891,8 +994,63 @@ function PoolAnimeCard({
             className="anime-field text-xs"
           />
           <p className="text-xs leading-5 text-slate-500">
-            如果外部封面加载失败，页面会自动显示 fallback。
+            可以填写 http/https URL，也可以上传本地图片。外部封面加载失败时，页面会自动显示 fallback。
           </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={COVER_UPLOAD_ACCEPT}
+            onChange={handleCoverFileChange}
+            className="hidden"
+          />
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={handleCoverDrop}
+            className="rounded-2xl border border-dashed border-cyan-300/25 bg-cyan-300/[0.05] p-3 text-center text-xs leading-5 text-slate-300 transition hover:border-cyan-300/45 hover:bg-cyan-300/[0.08]"
+          >
+            {coverPreviewUrl ? (
+              <div className="flex items-center gap-3 text-left">
+                <div
+                  aria-label="封面预览"
+                  className="h-16 w-12 shrink-0 rounded-lg bg-cover bg-center"
+                  style={{ backgroundImage: `url(${coverPreviewUrl})` }}
+                />
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-white">{selectedCoverFile?.name}</p>
+                  <p className="text-slate-400">点击更换，或拖拽另一张图片到这里。</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <p className="font-semibold text-cyan-100">拖拽图片到这里，或点击选择文件</p>
+                <p className="mt-1 text-slate-500">支持 jpg/png/webp/gif，最大 5MB。</p>
+              </>
+            )}
+          </div>
+          {coverUploadError ? (
+            <p className="text-xs leading-5 text-rose-200">{coverUploadError}</p>
+          ) : null}
+          {selectedCoverFile ? (
+            <AppButton
+              type="button"
+              onClick={uploadSelectedCover}
+              disabled={isMutating || isUploadingCover}
+              variant="secondary"
+              size="sm"
+              className="w-full"
+            >
+              {isUploadingCover ? "上传中..." : "上传并使用"}
+            </AppButton>
+          ) : null}
           <div className="grid gap-2 sm:grid-cols-2">
             <select
               value={displayForm.animeTypeOverride}
@@ -925,8 +1083,8 @@ function PoolAnimeCard({
             className="anime-field text-xs"
           />
           <div className="flex flex-wrap gap-2">
-            <AppButton type="submit" disabled={isMutating} variant="primary" size="sm">
-              保存
+            <AppButton type="submit" disabled={isMutating || isUploadingCover} variant="primary" size="sm">
+              {selectedCoverFile ? "上传并保存" : "保存"}
             </AppButton>
             <AppButton type="button" onClick={onClear} disabled={isMutating} variant="ghost" size="sm">
               清除修正

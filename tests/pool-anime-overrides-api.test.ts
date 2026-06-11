@@ -1,6 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdtemp, readdir, rm, stat, writeFile } from "fs/promises";
+import os from "os";
+import path from "path";
 import { PoolStatus, Visibility } from "@prisma/client";
 import { PATCH } from "../src/app/api/pools/[poolId]/anime/[animeId]/route";
+import { POST as POST_COVER } from "../src/app/api/pools/[poolId]/anime/[animeId]/cover/route";
 import { DELETE as DELETE_OVERRIDES } from "../src/app/api/pools/[poolId]/anime/[animeId]/overrides/route";
 import { prisma } from "../src/lib/db";
 
@@ -22,6 +26,7 @@ vi.mock("../src/lib/db", () => ({
 
 const mockedCustomPool = vi.mocked(prisma.customPool);
 const mockedPoolAnime = vi.mocked(prisma.poolAnime);
+let tempUploadDir: string;
 
 function pool(overrides: Record<string, unknown> = {}) {
   return {
@@ -108,8 +113,15 @@ function poolAnime(overrides: Record<string, unknown> = {}) {
 }
 
 describe("pool anime display override API", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    tempUploadDir = await mkdtemp(path.join(os.tmpdir(), "animatch-covers-"));
+    process.env.ANIMATCH_ANIME_COVER_UPLOAD_DIR = tempUploadDir;
+  });
+
+  afterEach(async () => {
+    delete process.env.ANIMATCH_ANIME_COVER_UPLOAD_DIR;
+    await rm(tempUploadDir, { recursive: true, force: true });
   });
 
   it("PATCH sets displayTitleOverride", async () => {
@@ -175,6 +187,28 @@ describe("pool anime display override API", () => {
 
     expect(response.status).toBe(400);
     expect(mockedPoolAnime.update).not.toHaveBeenCalled();
+  });
+
+  it("PATCH accepts local uploaded cover paths", async () => {
+    mockedCustomPool.findUnique.mockResolvedValue(pool());
+    mockedPoolAnime.findUnique.mockResolvedValue(poolAnime());
+    mockedPoolAnime.update.mockResolvedValue(
+      poolAnime({
+        coverUrlOverride: "/uploads/anime-covers/pool-1-anime-1-cover.webp",
+      })
+    );
+
+    const response = await PATCH(
+      new Request("http://test.local/api/pools/pool-1/anime/anime-1", {
+        method: "PATCH",
+        body: JSON.stringify({
+          coverUrlOverride: "/uploads/anime-covers/pool-1-anime-1-cover.webp",
+        }),
+      }),
+      { params: { poolId: "pool-1", animeId: "anime-1" } }
+    );
+
+    expect(response.status).toBe(200);
   });
 
   it("PATCH returns 404 when anime is not in the pool", async () => {
@@ -246,6 +280,29 @@ describe("pool anime display override API", () => {
     );
   });
 
+  it("DELETE overrides removes local uploaded covers", async () => {
+    const fileName = "pool-1-anime-1-test.webp";
+    const filePath = path.join(tempUploadDir, fileName);
+    await writeFile(filePath, Buffer.from("image"));
+    mockedCustomPool.findUnique.mockResolvedValue(pool());
+    mockedPoolAnime.findUnique.mockResolvedValue(
+      poolAnime({
+        coverUrlOverride: `/uploads/anime-covers/${fileName}`,
+      })
+    );
+    mockedPoolAnime.update.mockResolvedValue(poolAnime());
+
+    const response = await DELETE_OVERRIDES(
+      new Request("http://test.local/api/pools/pool-1/anime/anime-1/overrides", {
+        method: "DELETE",
+      }),
+      { params: { poolId: "pool-1", animeId: "anime-1" } }
+    );
+
+    await expect(stat(filePath)).rejects.toThrow();
+    expect(response.status).toBe(200);
+  });
+
   it("archiving a pool does not delete existing override data", async () => {
     mockedCustomPool.findUnique.mockResolvedValue(
       pool({
@@ -262,6 +319,120 @@ describe("pool anime display override API", () => {
     );
 
     expect(response.status).toBe(400);
+    expect(mockedPoolAnime.update).not.toHaveBeenCalled();
+  });
+
+  it("POST cover uploads jpg and updates coverUrlOverride", async () => {
+    mockedCustomPool.findUnique.mockResolvedValue(pool());
+    mockedPoolAnime.findUnique.mockResolvedValue(poolAnime());
+    mockedPoolAnime.update.mockResolvedValue(
+      poolAnime({
+        coverUrlOverride: "/uploads/anime-covers/saved-cover.jpg",
+      }) as any
+    );
+    const formData = new FormData();
+    formData.set("file", new File([Buffer.from([0xff, 0xd8, 0xff])], "cover.jpg", { type: "image/jpeg" }));
+
+    const response = await POST_COVER(
+      new Request("http://test.local/api/pools/pool-1/anime/anime-1/cover", {
+        method: "POST",
+        body: formData,
+      }),
+      { params: { poolId: "pool-1", animeId: "anime-1" } }
+    );
+    const payload = await response.json();
+    const files = await readdir(tempUploadDir);
+
+    expect(response.status).toBe(200);
+    expect(payload.data.coverUrl).toMatch(/^\/uploads\/anime-covers\/pool-1-anime-1-/);
+    expect(payload.data.coverUrl).toMatch(/\.jpg$/);
+    expect(files).toHaveLength(1);
+    expect(mockedPoolAnime.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          coverUrlOverride: payload.data.coverUrl,
+          overrideUpdatedAt: expect.any(Date),
+        }),
+      })
+    );
+  });
+
+  it("POST cover rejects non-image files", async () => {
+    mockedCustomPool.findUnique.mockResolvedValue(pool());
+    mockedPoolAnime.findUnique.mockResolvedValue(poolAnime());
+    const formData = new FormData();
+    formData.set("file", new File(["hello"], "note.txt", { type: "text/plain" }));
+
+    const response = await POST_COVER(
+      new Request("http://test.local/api/pools/pool-1/anime/anime-1/cover", {
+        method: "POST",
+        body: formData,
+      }),
+      { params: { poolId: "pool-1", animeId: "anime-1" } }
+    );
+
+    expect(response.status).toBe(400);
+    expect(mockedPoolAnime.update).not.toHaveBeenCalled();
+  });
+
+  it("POST cover rejects oversized files", async () => {
+    mockedCustomPool.findUnique.mockResolvedValue(pool());
+    mockedPoolAnime.findUnique.mockResolvedValue(poolAnime());
+    const formData = new FormData();
+    formData.set(
+      "file",
+      new File([new Uint8Array(5 * 1024 * 1024 + 1)], "cover.png", { type: "image/png" })
+    );
+
+    const response = await POST_COVER(
+      new Request("http://test.local/api/pools/pool-1/anime/anime-1/cover", {
+        method: "POST",
+        body: formData,
+      }),
+      { params: { poolId: "pool-1", animeId: "anime-1" } }
+    );
+
+    expect(response.status).toBe(413);
+    expect(mockedPoolAnime.update).not.toHaveBeenCalled();
+  });
+
+  it("POST cover returns 404 when anime is not in the pool", async () => {
+    mockedCustomPool.findUnique.mockResolvedValue(pool());
+    mockedPoolAnime.findUnique.mockResolvedValue(null);
+    const formData = new FormData();
+    formData.set("file", new File([Buffer.from([0x89, 0x50])], "cover.png", { type: "image/png" }));
+
+    const response = await POST_COVER(
+      new Request("http://test.local/api/pools/pool-1/anime/missing/cover", {
+        method: "POST",
+        body: formData,
+      }),
+      { params: { poolId: "pool-1", animeId: "missing" } }
+    );
+
+    expect(response.status).toBe(404);
+    expect(mockedPoolAnime.update).not.toHaveBeenCalled();
+  });
+
+  it("POST cover rejects archived pools", async () => {
+    mockedCustomPool.findUnique.mockResolvedValue(
+      pool({
+        status: PoolStatus.ARCHIVED,
+        deletedAt: new Date("2026-01-03T00:00:00.000Z"),
+      })
+    );
+    const formData = new FormData();
+    formData.set("file", new File([Buffer.from([0x89, 0x50])], "cover.png", { type: "image/png" }));
+
+    const response = await POST_COVER(
+      new Request("http://test.local/api/pools/pool-1/anime/anime-1/cover", {
+        method: "POST",
+        body: formData,
+      }),
+      { params: { poolId: "pool-1", animeId: "anime-1" } }
+    );
+
+    expect(response.status).toBe(409);
     expect(mockedPoolAnime.update).not.toHaveBeenCalled();
   });
 });

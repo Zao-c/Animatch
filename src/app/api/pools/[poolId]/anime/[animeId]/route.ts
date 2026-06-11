@@ -1,5 +1,6 @@
 import { PoolStatus, Prisma } from "@prisma/client";
 import { badRequest, forbidden, notFound, ok, serverError } from "@/lib/api-response";
+import { deleteLocalAnimeCoverIfPresent, isAllowedCoverOverrideUrl } from "@/lib/anime-cover-upload";
 import { getOrCreateDevUser } from "@/lib/dev-user";
 import { prisma } from "@/lib/db";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
@@ -76,6 +77,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       return notFound("Anime is not in this pool");
     }
 
+    const oldCoverUrlOverride = existingEntry.coverUrlOverride;
     const updated = await prisma.poolAnime.update({
       where: {
         id: existingEntry.id
@@ -89,6 +91,13 @@ export async function PATCH(request: Request, context: RouteContext) {
       }
     });
     const poolAnime = serializePoolAnime(updated);
+
+    if (
+      Object.prototype.hasOwnProperty.call(data, "coverUrlOverride") &&
+      updated.coverUrlOverride !== oldCoverUrlOverride
+    ) {
+      await deleteLocalAnimeCoverIfPresent(oldCoverUrlOverride);
+    }
 
     return ok({
       poolAnime,
@@ -158,8 +167,8 @@ function buildOverrideUpdate(body: OverrideBody): Prisma.PoolAnimeUpdateInput | 
   if (Object.prototype.hasOwnProperty.call(body, "coverUrlOverride")) {
     const value = nullableTrimmedString(body.coverUrlOverride, "coverUrlOverride");
     if (value instanceof Error) return value;
-    if (value !== null && !isHttpUrl(value)) {
-      return new Error("coverUrlOverride must be an http or https URL");
+    if (value !== null && !isAllowedCoverOverrideUrl(value)) {
+      return new Error("coverUrlOverride must be an http/https URL or a local anime cover upload path");
     }
     data.coverUrlOverride = value;
   }
@@ -227,13 +236,4 @@ function normalizeTags(value: unknown): string[] | Error {
   }
 
   return tags;
-}
-
-function isHttpUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
 }

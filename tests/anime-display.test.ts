@@ -47,6 +47,17 @@ describe("getEffectiveAnimeDisplay", () => {
     expect(display.isOverridden).toBe(true);
   });
 
+  it("uses local uploaded cover overrides", () => {
+    const display = getEffectiveAnimeDisplay(
+      entry({
+        coverUrlOverride: "/uploads/anime-covers/pool-1-anime-1-cover.webp"
+      })
+    );
+
+    expect(display.coverUrl).toBe("/uploads/anime-covers/pool-1-anime-1-cover.webp");
+    expect(display.isOverridden).toBe(true);
+  });
+
   it("prefers non-empty tagsOverride over anime tags", () => {
     const display = getEffectiveAnimeDisplay(
       entry({

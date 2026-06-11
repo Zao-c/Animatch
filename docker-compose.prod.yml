@@ -37,6 +37,9 @@ services:
       BANGUMI_ACCESS_TOKEN: ${BANGUMI_ACCESS_TOKEN:-}
     ports:
       - "3000:3000"
+    volumes:
+      - anime_uploads:/app/public/uploads
 
 volumes:
   animatch_postgres_data:
+  anime_uploads:
