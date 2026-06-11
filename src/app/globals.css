@@ -112,3 +112,22 @@ textarea:focus {
   border-color: rgba(255, 255, 255, 0.18);
   background: rgba(8, 13, 27, 0.82);
 }
+
+[data-export-hidden="true"] {
+  display: none !important;
+}
+
+.tier-export-surface {
+  border-radius: 1.25rem;
+}
+
+.tier-export-mode {
+  width: 1280px;
+  min-width: 1280px;
+  padding: 32px;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(187, 134, 252, 0.22), transparent 30rem),
+    radial-gradient(circle at 88% 14%, rgba(3, 218, 197, 0.18), transparent 28rem),
+    linear-gradient(135deg, #07101f 0%, #101936 52%, #1a1130 100%);
+  color: #f8fafc;
+}

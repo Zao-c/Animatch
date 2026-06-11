@@ -1,8 +1,9 @@
 "use client";
 
+import { toPng } from "html-to-image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TierAnimeCard } from "@/components/TierAnimeCard";
 import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
@@ -21,6 +22,7 @@ import {
   type TierListItem,
   type TierListResponse
 } from "@/lib/client-api";
+import { buildTierExportFilename, formatTierExportTimestamp } from "@/lib/tier-export";
 
 const TIERS = ["S", "A", "B", "C", "D"] as const;
 type Tier = (typeof TIERS)[number];
@@ -40,12 +42,17 @@ const RECALIBRATION_MODES: { type: RecalibrationType; title: string; body: strin
   { type: "FOCUS", title: "焦点校准", body: "指定 1-3 部动画进行重点复核。" }
 ];
 
+const EXPORT_BACKGROUND = "#07101f";
+const EXPORT_IMAGE_PLACEHOLDER =
+  "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='448' viewBox='0 0 320 448'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop stop-color='%230f766e' stop-opacity='.65'/%3E%3Cstop offset='1' stop-color='%23312e81' stop-opacity='.65'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='320' height='448' fill='%23071121'/%3E%3Crect x='28' y='28' width='264' height='392' rx='24' fill='url(%23g)'/%3E%3Ctext x='160' y='230' text-anchor='middle' fill='%23a5f3fc' font-family='Arial' font-size='28' font-weight='700'%3EAniMatch%3C/text%3E%3C/svg%3E";
+
 export default function TierPage({
   params
 }: {
   params: { poolId: string; runId: string };
 }) {
   const router = useRouter();
+  const exportRef = useRef<HTMLDivElement | null>(null);
   const [poolName, setPoolName] = useState("当前番组");
   const [tierList, setTierList] = useState<TierListResponse | null>(null);
   const [editableTiers, setEditableTiers] = useState<TierMap | null>(null);
@@ -59,6 +66,9 @@ export default function TierPage({
   const [targetTier, setTargetTier] = useState<Tier>("A");
   const [focusIds, setFocusIds] = useState<string[]>([]);
   const [plannedCount, setPlannedCount] = useState(20);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportedAt, setExportedAt] = useState<Date | null>(null);
 
   const loadTierList = useCallback(async () => {
     setIsLoading(true);
@@ -166,6 +176,37 @@ export default function TierPage({
     }
   }
 
+  async function handleExportImage() {
+    if (exportRef.current === null || tierList === null) {
+      return;
+    }
+
+    setIsExporting(true);
+    setExportError(null);
+    const generatedAt = new Date();
+    setExportedAt(generatedAt);
+
+    try {
+      await waitForPaint();
+      const dataUrl = await toPng(exportRef.current, {
+        backgroundColor: EXPORT_BACKGROUND,
+        cacheBust: true,
+        pixelRatio: 2,
+        imagePlaceholder: EXPORT_IMAGE_PLACEHOLDER,
+        filter: (node) =>
+          !(node instanceof HTMLElement && node.dataset.exportHidden === "true")
+      });
+      const link = document.createElement("a");
+      link.download = buildTierExportFilename(poolName, generatedAt);
+      link.href = dataUrl;
+      link.click();
+    } catch (reason) {
+      setExportError(reason instanceof Error ? reason.message : "导出图片失败");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   function handleDrop(targetTierName: Tier, beforeAnimeId?: string) {
     if (dragSource === null || editableTiers === null) {
       return;
@@ -234,6 +275,13 @@ export default function TierPage({
           <AppButton onClick={() => setShowRecalibration((value) => !value)} variant="secondary">
             校准榜单
           </AppButton>
+          <AppButton
+            onClick={handleExportImage}
+            disabled={isExporting || tierList === null}
+            variant="primary"
+          >
+            {isExporting ? "导出中..." : "导出图片"}
+          </AppButton>
           <AppButton disabled variant="ghost">
             分享榜单 Coming soon
           </AppButton>
@@ -241,6 +289,7 @@ export default function TierPage({
       </div>
 
       {error ? <ErrorAlert message={error} className="mb-5" /> : null}
+      {exportError ? <ErrorAlert message={exportError} className="mb-5" /> : null}
       {isLoading ? <ErrorAlert message="正在加载榜单..." tone="notice" className="mb-5" /> : null}
       {isEditing ? (
         <ErrorAlert
@@ -248,33 +297,6 @@ export default function TierPage({
           tone="warning"
           className="mb-5"
         />
-      ) : null}
-
-      {tierList ? (
-        <>
-          <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Stat label="信心指数" value={tierList.confidenceScore.toFixed(1)} />
-            <Stat label="总作品" value={String(tierList.totalAnime)} />
-            <Stat label="已比较作品" value={String(tierList.comparedAnime)} />
-            <Stat label="总对决" value={String(tierList.totalComparisons)} />
-          </div>
-          <div className="mb-8 space-y-3">
-            <StatusHint
-              label="榜单说明"
-              title="系统排序来自两两对决"
-              description="每次选择都会更新作品的相对位置；手动最终设定不会删除对决历史，锁标记代表用户手动确认过最终排序。"
-              tone="guide"
-            />
-            {tierList.totalComparisons === 0 ? (
-              <StatusHint
-                label="初始估计"
-                title="还没有对决记录"
-                description="当前 Tier List 只是初始估计。完成几轮对决后，分数、分层和信心指数会更准确。"
-                tone="warning"
-              />
-            ) : null}
-          </div>
-        </>
       ) : null}
 
       <AppCard className="mb-8 p-4">
@@ -395,37 +417,88 @@ export default function TierPage({
         </AppCard>
       ) : null}
 
-      {visibleTiers ? (
-        <div className="space-y-4">
-          {TIERS.map((tier) => (
-            <section
-              key={tier}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={() => handleDrop(tier)}
-              className={`grid gap-4 rounded-2xl border bg-gradient-to-r ${TIER_STYLE[tier]} to-slate-950/46 p-4 backdrop-blur-xl lg:grid-cols-[88px_1fr]`}
-            >
-              <div className="flex h-20 items-center justify-center rounded-2xl border border-white/10 bg-slate-950/72 text-4xl font-black text-cyan-100 shadow-[0_0_32px_rgba(3,218,197,0.12)]">
-                {tier}
+      {tierList && visibleTiers ? (
+        <div
+          ref={exportRef}
+          className={`tier-export-surface ${isExporting ? "tier-export-mode" : ""}`}
+        >
+          <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="flex flex-wrap gap-2">
+                <AppBadge tone="source">AniMatch</AppBadge>
+                <AppBadge tone="tier">Tier Wall</AppBadge>
+                <AppBadge tone="status">{poolName}</AppBadge>
               </div>
-              {visibleTiers[tier].length === 0 ? (
-                <div className="flex min-h-32 items-center">
-                  <EmptyState title={`${tier} Tier 暂无作品`} description="继续对决后作品会自动进入对应区间。" />
+              <h2 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
+                {poolName}
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-slate-400">
+                生成时间 {formatTierExportTimestamp(exportedAt ?? new Date())}
+              </p>
+            </div>
+          </div>
+
+          <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Stat label="信心指数" value={tierList.confidenceScore.toFixed(1)} />
+            <Stat label="总作品" value={String(tierList.totalAnime)} />
+            <Stat label="已比较作品" value={String(tierList.comparedAnime)} />
+            <Stat label="总对决" value={String(tierList.totalComparisons)} />
+          </div>
+          <div className="mb-8 space-y-3">
+            <StatusHint
+              label="榜单说明"
+              title="系统排序来自两两对决"
+              description="每次选择都会更新作品的相对位置；手动最终设定不会删除对决历史，锁标记代表用户手动确认过最终排序。"
+              tone="guide"
+            />
+            {tierList.totalComparisons === 0 ? (
+              <StatusHint
+                label="初始估计"
+                title="还没有对决记录"
+                description="当前 Tier List 只是初始估计。完成几轮对决后，分数、分层和信心指数会更准确。"
+                tone="warning"
+              />
+            ) : null}
+          </div>
+
+          <div className="space-y-4">
+            {TIERS.map((tier) => (
+              <section
+                key={tier}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={() => handleDrop(tier)}
+                className={`grid gap-4 rounded-2xl border bg-gradient-to-r ${TIER_STYLE[tier]} to-slate-950/46 p-4 backdrop-blur-xl lg:grid-cols-[88px_1fr]`}
+              >
+                <div className="flex h-20 items-center justify-center rounded-2xl border border-white/10 bg-slate-950/72 text-4xl font-black text-cyan-100 shadow-[0_0_32px_rgba(3,218,197,0.12)]">
+                  {tier}
                 </div>
-              ) : (
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                  {visibleTiers[tier].map((item) => (
-                    <TierAnimeCard
-                      key={item.animeId}
-                      item={item}
-                      editable={isEditing}
-                      onDragStart={() => setDragSource({ tier, animeId: item.animeId })}
-                      onDropBefore={() => handleDrop(tier, item.animeId)}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-          ))}
+                {visibleTiers[tier].length === 0 ? (
+                  <div className="flex min-h-32 items-center">
+                    <EmptyState title={`${tier} Tier 暂无作品`} description="继续对决后作品会自动进入对应区间。" />
+                  </div>
+                ) : (
+                  <div
+                    className={
+                      isExporting
+                        ? "flex flex-wrap gap-3 pb-2"
+                        : "flex gap-3 overflow-x-auto pb-2"
+                    }
+                  >
+                    {visibleTiers[tier].map((item) => (
+                      <TierAnimeCard
+                        key={item.animeId}
+                        item={item}
+                        editable={isEditing}
+                        exportMode={isExporting}
+                        onDragStart={() => setDragSource({ tier, animeId: item.animeId })}
+                        onDropBefore={() => handleDrop(tier, item.animeId)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            ))}
+          </div>
         </div>
       ) : null}
     </PageShell>
@@ -449,4 +522,10 @@ function Stat({ label, value }: { label: string; value: string }) {
       <p className="mt-2 text-3xl font-black text-white">{value}</p>
     </AppCard>
   );
+}
+
+function waitForPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
 }

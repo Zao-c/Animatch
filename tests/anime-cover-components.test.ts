@@ -147,4 +147,19 @@ describe("anime cover rendering", () => {
     expect(html).toContain('src="https://example.com/high.jpg"');
     expect(html).not.toContain('src="https://example.com/thumb.jpg"');
   });
+
+  it("TierAnimeCard disables drag interaction in export mode", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(TierAnimeCard, {
+        item: tierItem(),
+        editable: true,
+        exportMode: true,
+        onDragStart: () => undefined,
+        onDropBefore: () => undefined
+      })
+    );
+
+    expect(html).not.toContain('draggable="true"');
+    expect(html).toContain("Custom Upload");
+  });
 });

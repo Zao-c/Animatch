@@ -9,12 +9,14 @@ import type { TierListItem } from "@/lib/client-api";
 export function TierAnimeCard({
   item,
   editable,
+  exportMode = false,
   onDragStart,
   onDropBefore,
   className = ""
 }: {
   item: TierListItem;
   editable: boolean;
+  exportMode?: boolean;
   onDragStart: () => void;
   onDropBefore: () => void;
   className?: string;
@@ -24,7 +26,7 @@ export function TierAnimeCard({
 
   return (
     <div
-      draggable={editable}
+      draggable={editable && !exportMode}
       onDragStart={onDragStart}
       onDragOver={(event: DragEvent<HTMLDivElement>) => event.preventDefault()}
       onDrop={(event) => {
