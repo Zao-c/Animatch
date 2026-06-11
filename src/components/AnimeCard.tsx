@@ -1,6 +1,7 @@
 "use client";
 
 import type { PublicAnime } from "@/lib/client-api";
+import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { AnimeCover } from "./AnimeCover";
 
 export function AnimeCard({
@@ -17,6 +18,7 @@ export function AnimeCard({
   actionLabel?: string;
 }) {
   const title = anime.titleCn ?? anime.title;
+  const coverUrl = getAnimeCoverUrl(anime);
 
   return (
     <button
@@ -30,7 +32,7 @@ export function AnimeCard({
       } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
     >
       <AnimeCover
-        src={anime.thumbnailUrl ?? anime.imageMediumUrl ?? anime.imageUrl ?? anime.imageSmallUrl}
+        src={coverUrl}
         title={title}
         size="md"
         className="shrink-0"

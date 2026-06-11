@@ -1,4 +1,4 @@
-import type { HTMLAttributes } from "react";
+import React, { type HTMLAttributes } from "react";
 
 type AppBadgeTone = "source" | "status" | "tier" | "success" | "muted" | "danger";
 

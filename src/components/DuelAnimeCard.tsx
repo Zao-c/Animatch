@@ -1,9 +1,11 @@
 "use client";
 
+import React from "react";
 import { AnimeCover } from "./AnimeCover";
 import { AppBadge } from "./ui/AppBadge";
 import { AppButton } from "./ui/AppButton";
 import { AppCard } from "./ui/AppCard";
+import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import type { PublicAnimeWithScore } from "@/lib/client-api";
 
 export function DuelAnimeCard({
@@ -23,12 +25,7 @@ export function DuelAnimeCard({
 }) {
   const title = anime.display?.title ?? anime.titleCn ?? anime.title;
   const subtitle = anime.display?.subtitle ?? (anime.titleCn ? anime.title : null);
-  const coverUrl =
-    anime.display?.coverUrl ??
-    anime.imageLargeUrl ??
-    anime.imageMediumUrl ??
-    anime.thumbnailUrl ??
-    anime.imageUrl;
+  const coverUrl = getAnimeCoverUrl(anime);
   const animeType = anime.display?.animeType ?? anime.animeType;
 
   return (
@@ -38,7 +35,7 @@ export function DuelAnimeCard({
       <div className="relative">
         <AnimeCover
           src={coverUrl}
-          secondarySrc={anime.imageLargeUrl ?? anime.imageMediumUrl ?? anime.imageUrl}
+          secondarySrc={anime.imageMediumUrl ?? anime.imageSmallUrl ?? anime.imageLargeUrl}
           title={title}
           size="lg"
           className="rounded-2xl border-cyan-200/10"

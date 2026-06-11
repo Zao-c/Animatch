@@ -1,8 +1,9 @@
 "use client";
 
-import type { DragEvent } from "react";
+import React, { type DragEvent } from "react";
 import { AnimeCover } from "./AnimeCover";
 import { AppBadge } from "./ui/AppBadge";
+import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import type { TierListItem } from "@/lib/client-api";
 
 export function TierAnimeCard({
@@ -19,12 +20,7 @@ export function TierAnimeCard({
   className?: string;
 }) {
   const title = item.display?.title ?? item.titleCn ?? item.title;
-  const coverUrl =
-    item.display?.coverUrl ??
-    item.imageSmallUrl ??
-    item.thumbnailUrl ??
-    item.imageMediumUrl ??
-    item.imageUrl;
+  const coverUrl = getAnimeCoverUrl(item);
 
   return (
     <div
@@ -42,7 +38,7 @@ export function TierAnimeCard({
       <div className="flex gap-3">
         <AnimeCover
           src={coverUrl}
-          secondarySrc={item.imageSmallUrl ?? item.imageMediumUrl ?? item.imageUrl}
+          secondarySrc={item.imageSmallUrl ?? item.imageMediumUrl ?? item.imageLargeUrl}
           title={title}
           size="sm"
           className="shrink-0 rounded-xl"

@@ -9,6 +9,7 @@ export interface PublicAnime {
   imageSmallUrl: string | null;
   imageMediumUrl: string | null;
   imageLargeUrl: string | null;
+  coverUrl: string | null;
   thumbnailUrl: string | null;
   airDate?: string | Date | null;
   bangumiRank: number | null;

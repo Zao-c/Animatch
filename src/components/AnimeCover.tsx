@@ -1,7 +1,8 @@
 "use client";
 
-import Image from "next/image";
-import { useState } from "react";
+/* eslint-disable @next/next/no-img-element */
+
+import React, { useEffect, useState } from "react";
 
 const SIZE_CLASS = {
   sm: "h-20 w-14",
@@ -25,6 +26,11 @@ export function AnimeCover({
   const [failed, setFailed] = useState(false);
   const [secondaryFailed, setSecondaryFailed] = useState(false);
 
+  useEffect(() => {
+    setFailed(false);
+    setSecondaryFailed(false);
+  }, [src, secondarySrc]);
+
   const imageSrc = !failed
     ? src ?? (secondaryFailed ? null : secondarySrc ?? null)
     : secondaryFailed
@@ -37,12 +43,10 @@ export function AnimeCover({
       className={`${SIZE_CLASS[size]} relative overflow-hidden rounded-lg border border-white/10 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 ${className}`}
     >
       {shouldShowImage ? (
-        <Image
+        <img
           src={imageSrc ?? ""}
           alt={title}
-          fill
-          sizes={size === "lg" ? "(max-width: 768px) 90vw, 38vw" : "160px"}
-          className="object-cover"
+          className="h-full w-full object-cover"
           onError={() => {
             if (!failed) {
               setFailed(true);
@@ -50,7 +54,6 @@ export function AnimeCover({
               setSecondaryFailed(true);
             }
           }}
-          priority={size === "lg"}
         />
       ) : (
         <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-cyan-900/30 via-zinc-900 to-purple-900/20 p-3">

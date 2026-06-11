@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes } from "react";
+import React, { type ButtonHTMLAttributes } from "react";
 
 type AppButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 type AppButtonSize = "sm" | "md" | "lg";

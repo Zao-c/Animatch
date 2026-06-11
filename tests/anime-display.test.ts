@@ -58,6 +58,21 @@ describe("getEffectiveAnimeDisplay", () => {
     expect(display.isOverridden).toBe(true);
   });
 
+  it("uses CUSTOM_UPLOAD imageUrl as display cover", () => {
+    const display = getEffectiveAnimeDisplay(
+      entry({
+        anime: {
+          ...entry().anime,
+          source: "CUSTOM_UPLOAD",
+          thumbnailUrl: null,
+          imageUrl: "/uploads/custom-items/test.png"
+        }
+      })
+    );
+
+    expect(display.coverUrl).toBe("/uploads/custom-items/test.png");
+  });
+
   it("prefers non-empty tagsOverride over anime tags", () => {
     const display = getEffectiveAnimeDisplay(
       entry({

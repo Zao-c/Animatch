@@ -19,6 +19,7 @@ export interface PublicAnime {
   imageSmallUrl: string | null;
   imageMediumUrl: string | null;
   imageLargeUrl: string | null;
+  coverUrl: string | null;
   thumbnailUrl: string | null;
   airDate: Date | null;
   bangumiRank: number | null;
@@ -168,6 +169,7 @@ export function toPublicAnime(anime: Anime): PublicAnime {
     imageSmallUrl: anime.imageSmallUrl,
     imageMediumUrl: anime.imageMediumUrl,
     imageLargeUrl: anime.imageLargeUrl,
+    coverUrl: anime.thumbnailUrl ?? anime.imageUrl,
     thumbnailUrl: anime.thumbnailUrl,
     airDate: anime.airDate,
     bangumiRank: anime.bangumiRank,

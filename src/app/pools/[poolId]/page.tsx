@@ -6,6 +6,7 @@ import { AnimeCard } from "@/components/AnimeCard";
 import { AnimeCover } from "@/components/AnimeCover";
 import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
+import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
@@ -1074,12 +1075,7 @@ function PoolAnimeCard({
   const [coverUploadError, setCoverUploadError] = useState<string | null>(null);
   const display = entry.display;
   const title = display.title;
-  const coverUrl =
-    display.coverUrl ??
-    entry.anime.thumbnailUrl ??
-    entry.anime.imageSmallUrl ??
-    entry.anime.imageMediumUrl ??
-    entry.anime.imageUrl;
+  const coverUrl = getAnimeCoverUrl({ ...entry.anime, display });
 
   useEffect(() => {
     if (selectedCoverFile === null) {
@@ -1175,7 +1171,7 @@ function PoolAnimeCard({
       <div className="flex gap-3">
         <AnimeCover
           src={coverUrl}
-          secondarySrc={entry.anime.imageSmallUrl ?? entry.anime.imageUrl}
+          secondarySrc={entry.anime.imageSmallUrl ?? entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl}
           title={title}
           size="sm"
           className="shrink-0 rounded-xl"
