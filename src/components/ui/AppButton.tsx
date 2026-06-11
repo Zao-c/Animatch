@@ -1,23 +1,25 @@
 import React, { type ButtonHTMLAttributes } from "react";
 
-type AppButtonVariant = "primary" | "secondary" | "danger" | "ghost";
+type AppButtonVariant = "primary" | "secondary" | "danger" | "ghost" | "quiet";
 type AppButtonSize = "sm" | "md" | "lg";
 
 const VARIANT_CLASS: Record<AppButtonVariant, string> = {
   primary:
-    "border-cyan-300/70 bg-cyan-300 text-slate-950 shadow-[0_0_28px_rgba(3,218,197,0.22)] hover:bg-cyan-200 hover:shadow-[0_0_36px_rgba(3,218,197,0.32)]",
+    "border-anime-cyan/80 bg-anime-cyan text-slate-950 shadow-anime-focus hover:bg-cyan-200 hover:shadow-[0_20px_70px_rgba(53,230,220,0.22)]",
   secondary:
-    "border-purple-300/35 bg-purple-300/10 text-purple-100 hover:border-purple-200/60 hover:bg-purple-300/18",
+    "border-anime-purple/35 bg-anime-purple/12 text-purple-100 hover:border-purple-200/60 hover:bg-anime-purple/20",
   danger:
-    "border-rose-300/35 bg-rose-400/10 text-rose-100 hover:border-rose-200/60 hover:bg-rose-400/18",
+    "border-anime-danger/35 bg-anime-danger/12 text-rose-100 hover:border-rose-200/60 hover:bg-anime-danger/20",
   ghost:
-    "border-white/10 bg-white/[0.04] text-slate-100 hover:border-cyan-200/35 hover:bg-white/[0.08]"
+    "border-anime-border bg-white/[0.04] text-slate-100 hover:border-anime-cyan/35 hover:bg-white/[0.08]",
+  quiet:
+    "border-transparent bg-transparent text-slate-300 hover:border-anime-border hover:bg-white/[0.05] hover:text-white"
 };
 
 const SIZE_CLASS: Record<AppButtonSize, string> = {
-  sm: "px-3 py-1.5 text-xs",
-  md: "px-4 py-2 text-sm",
-  lg: "px-5 py-3 text-sm"
+  sm: "min-h-9 px-3 py-1.5 text-xs",
+  md: "min-h-11 px-4 py-2 text-sm",
+  lg: "min-h-12 px-5 py-3 text-sm"
 };
 
 export function appButtonClasses({
@@ -30,7 +32,7 @@ export function appButtonClasses({
   className?: string;
 } = {}) {
   return [
-    "inline-flex items-center justify-center rounded-xl border font-semibold transition duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
+    "inline-flex cursor-pointer items-center justify-center rounded-xl border font-semibold transition duration-anime active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100",
     VARIANT_CLASS[variant],
     SIZE_CLASS[size],
     className
