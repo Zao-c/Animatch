@@ -53,7 +53,15 @@ describe("TierExportCanvas", () => {
           A: [],
           B: [],
           C: [],
-          D: [tierItem({ animeId: "anime-2", id: "anime-2", imageUrl: null, coverUrl: null, thumbnailUrl: null })]
+          D: [
+            tierItem({
+              animeId: "anime-2",
+              id: "anime-2",
+              imageUrl: null,
+              coverUrl: null,
+              thumbnailUrl: null
+            })
+          ]
         }
       })
     );
@@ -67,6 +75,43 @@ describe("TierExportCanvas", () => {
     expect(html).toContain(">D<");
     expect(html).toContain('src="/uploads/custom-items/export-test.png"');
     expect(html).toContain("tiermaker-export-fallback");
+  });
+
+  it("renders custom tier labels and uses export cover intent", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(TierExportCanvas, {
+        labels: {
+          S: "神作",
+          A: "喜欢",
+          B: "普通",
+          C: "待定",
+          D: "跳过"
+        },
+        tiers: {
+          S: [
+            tierItem({
+              source: "MANAMI",
+              imageLargeUrl: "https://example.com/large.jpg",
+              imageUrl: "https://example.com/high.jpg",
+              coverUrl: "https://example.com/thumb.jpg",
+              thumbnailUrl: "https://example.com/thumb.jpg"
+            })
+          ],
+          A: [],
+          B: [],
+          C: [],
+          D: []
+        }
+      })
+    );
+
+    expect(html).toContain("神作");
+    expect(html).toContain("喜欢");
+    expect(html).toContain("普通");
+    expect(html).toContain("待定");
+    expect(html).toContain("跳过");
+    expect(html).toContain('src="https://example.com/large.jpg"');
+    expect(html).not.toContain('src="https://example.com/thumb.jpg"');
   });
 
   it("does not render page chrome, stats, explanatory text, or item scores", () => {

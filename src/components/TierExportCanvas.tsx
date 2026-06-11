@@ -2,6 +2,7 @@
 import React from "react";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import type { TierListItem } from "@/lib/client-api";
+import { DEFAULT_TIER_LABELS, type TierLabels } from "@/lib/tier-labels";
 
 const EXPORT_TIERS = ["S", "A", "B", "C", "D"] as const;
 type ExportTier = (typeof EXPORT_TIERS)[number];
@@ -17,9 +18,11 @@ const TIER_LABEL_CLASS: Record<ExportTier, string> = {
 export type TierExportCanvasTiers = Record<ExportTier, TierListItem[]>;
 
 export function TierExportCanvas({
-  tiers
+  tiers,
+  labels = DEFAULT_TIER_LABELS
 }: {
   tiers: TierExportCanvasTiers;
+  labels?: TierLabels;
 }) {
   return (
     <div data-testid="tier-export-canvas" className="tiermaker-export-canvas">
@@ -27,7 +30,15 @@ export function TierExportCanvas({
       <div className="tiermaker-export-board">
         {EXPORT_TIERS.map((tier) => (
           <div key={tier} className="tiermaker-export-row">
-            <div className={`tiermaker-export-label ${TIER_LABEL_CLASS[tier]}`}>{tier}</div>
+            <div className={`tiermaker-export-label ${TIER_LABEL_CLASS[tier]}`}>
+              <span
+                className={`tiermaker-export-label-text ${
+                  labels[tier].length > 2 ? "tiermaker-export-label-long" : ""
+                }`}
+              >
+                {labels[tier]}
+              </span>
+            </div>
             <div className="tiermaker-export-items">
               {tiers[tier].map((item) => (
                 <TierExportItem key={item.animeId} item={item} />
@@ -43,7 +54,7 @@ export function TierExportCanvas({
 
 function TierExportItem({ item }: { item: TierListItem }) {
   const title = item.display?.title ?? item.titleCn ?? item.title;
-  const coverUrl = getAnimeCoverUrl(item, { intent: "thumbnail" });
+  const coverUrl = getAnimeCoverUrl(item, { intent: "export" });
   const fallback = title.trim().slice(0, 1).toUpperCase() || "A";
 
   return (

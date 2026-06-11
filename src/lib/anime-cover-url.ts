@@ -12,7 +12,7 @@ export interface AnimeCoverUrlFields {
   imageLargeUrl?: string | null;
 }
 
-export type AnimeCoverIntent = "thumbnail" | "display" | "hero";
+export type AnimeCoverIntent = "thumbnail" | "display" | "hero" | "export";
 
 export function getAnimeCoverUrl(
   anime: AnimeCoverUrlFields,
@@ -59,6 +59,19 @@ export function getAnimeCoverUrl(
       imageSmallUrl ??
       imageMediumUrl ??
       imageLargeUrl ??
+      null
+    );
+  }
+
+  if (intent === "export") {
+    return (
+      imageLargeUrl ??
+      imageUrl ??
+      imageMediumUrl ??
+      thumbnailUrl ??
+      imageSmallUrl ??
+      displayCover ??
+      genericCover ??
       null
     );
   }

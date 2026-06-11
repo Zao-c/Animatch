@@ -28,6 +28,13 @@ import {
   formatTierExportTimestamp,
   getTierExportDimensions
 } from "@/lib/tier-export";
+import {
+  DEFAULT_TIER_LABELS,
+  readTierLabels,
+  resetTierLabels,
+  saveTierLabels,
+  type TierLabels
+} from "@/lib/tier-labels";
 
 const TIERS = ["S", "A", "B", "C", "D"] as const;
 type Tier = (typeof TIERS)[number];
@@ -74,6 +81,9 @@ export default function TierPage({
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportedAt, setExportedAt] = useState<Date | null>(null);
+  const [tierLabels, setTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
+  const [draftTierLabels, setDraftTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
+  const [showTierLabelEditor, setShowTierLabelEditor] = useState(false);
 
   const loadTierList = useCallback(async () => {
     setIsLoading(true);
@@ -99,6 +109,12 @@ export default function TierPage({
   useEffect(() => {
     void loadTierList();
   }, [loadTierList]);
+
+  useEffect(() => {
+    const labels = readTierLabels(params.poolId, params.runId);
+    setTierLabels(labels);
+    setDraftTierLabels(labels);
+  }, [params.poolId, params.runId]);
 
   function startEditing() {
     if (tierList === null) {
@@ -179,6 +195,24 @@ export default function TierPage({
       setError(reason instanceof Error ? reason.message : "创建校准会话失败");
       setIsSaving(false);
     }
+  }
+
+  function openTierLabelEditor() {
+    setDraftTierLabels(tierLabels);
+    setShowTierLabelEditor(true);
+  }
+
+  function handleSaveTierLabels() {
+    const labels = saveTierLabels(params.poolId, params.runId, draftTierLabels);
+    setTierLabels(labels);
+    setDraftTierLabels(labels);
+    setShowTierLabelEditor(false);
+  }
+
+  function handleResetTierLabels() {
+    const labels = resetTierLabels(params.poolId, params.runId);
+    setTierLabels(labels);
+    setDraftTierLabels(labels);
   }
 
   async function handleExportImage() {
@@ -330,8 +364,54 @@ export default function TierPage({
           <AppButton onClick={handleClearManual} disabled={isSaving} variant="ghost">
             恢复系统排序
           </AppButton>
+          <AppButton onClick={openTierLabelEditor} variant="ghost">
+            编辑分层标签
+          </AppButton>
         </div>
       </AppCard>
+
+      {showTierLabelEditor ? (
+        <AppCard className="mb-8 p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <AppBadge tone="source">显示设置</AppBadge>
+              <h2 className="mt-3 text-2xl font-black text-white">编辑分层标签</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                仅修改显示名称，不影响 Elo、对决历史和分层排序。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <AppButton onClick={handleSaveTierLabels} variant="primary">
+                保存
+              </AppButton>
+              <AppButton onClick={handleResetTierLabels} variant="ghost">
+                重置默认
+              </AppButton>
+              <AppButton onClick={() => setShowTierLabelEditor(false)} variant="ghost">
+                取消
+              </AppButton>
+            </div>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-5">
+            {TIERS.map((tier) => (
+              <label key={tier} className="block">
+                <span className="text-sm text-slate-300">{tier}</span>
+                <input
+                  value={draftTierLabels[tier]}
+                  onChange={(event) =>
+                    setDraftTierLabels((current) => ({
+                      ...current,
+                      [tier]: event.target.value
+                    }))
+                  }
+                  maxLength={24}
+                  className="anime-field mt-2"
+                />
+              </label>
+            ))}
+          </div>
+        </AppCard>
+      ) : null}
 
       {showRecalibration ? (
         <AppCard className="mb-8 p-5">
@@ -479,7 +559,9 @@ export default function TierPage({
                 className={`grid gap-4 rounded-2xl border bg-gradient-to-r ${TIER_STYLE[tier]} to-slate-950/46 p-4 backdrop-blur-xl lg:grid-cols-[88px_1fr]`}
               >
                 <div className="flex h-20 items-center justify-center rounded-2xl border border-white/10 bg-slate-950/72 text-4xl font-black text-cyan-100 shadow-[0_0_32px_rgba(3,218,197,0.12)]">
-                  {tier}
+                  <span className="max-w-full px-2 text-center text-2xl font-black leading-tight [overflow-wrap:anywhere]">
+                    {tierLabels[tier]}
+                  </span>
                 </div>
                 {visibleTiers[tier].length === 0 ? (
                   <div className="flex min-h-32 items-center">
@@ -507,7 +589,7 @@ export default function TierPage({
       {visibleTiers ? (
         <div className="tiermaker-export-host" aria-hidden="true">
           <div ref={exportRef}>
-            <TierExportCanvas tiers={visibleTiers} />
+            <TierExportCanvas tiers={visibleTiers} labels={tierLabels} />
           </div>
         </div>
       ) : null}

@@ -76,4 +76,30 @@ describe("getAnimeCoverUrl", () => {
       )
     ).toBe("/uploads/custom-items/test.png");
   });
+
+  it("prefers large images over thumbnails for export intent", () => {
+    expect(
+      getAnimeCoverUrl(
+        coverFields({
+          imageLargeUrl: "https://example.com/large.jpg",
+          imageUrl: "https://example.com/high.jpg",
+          thumbnailUrl: "https://example.com/thumb.jpg",
+          coverUrl: "https://example.com/thumb.jpg"
+        }),
+        { intent: "export" }
+      )
+    ).toBe("https://example.com/large.jpg");
+  });
+
+  it("keeps cover overrides above export images", () => {
+    expect(
+      getAnimeCoverUrl(
+        coverFields({
+          coverUrlOverride: "https://example.com/override.jpg",
+          imageLargeUrl: "https://example.com/large.jpg"
+        }),
+        { intent: "export" }
+      )
+    ).toBe("https://example.com/override.jpg");
+  });
 });
