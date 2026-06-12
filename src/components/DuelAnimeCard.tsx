@@ -16,6 +16,7 @@ export function DuelAnimeCard({
   actionLabel,
   onPick,
   scoreDistribution,
+  highlighted = false,
   className = ""
 }: {
   anime: PublicAnimeWithScore;
@@ -24,6 +25,7 @@ export function DuelAnimeCard({
   actionLabel: string;
   onPick: () => void;
   scoreDistribution: RankingScoreDistribution;
+  highlighted?: boolean;
   className?: string;
 }) {
   const title = anime.display?.title ?? anime.titleCn ?? anime.title;
@@ -31,10 +33,33 @@ export function DuelAnimeCard({
   const coverUrl = getAnimeCoverUrl(anime, { intent: "hero" });
   const animeType = anime.display?.animeType ?? anime.animeType;
   const aniScore = getAniScore(anime.eloScore, scoreDistribution);
+  const sideLabel = side === "left" ? "LEFT" : "RIGHT";
+
+  function handlePick() {
+    if (!disabled) {
+      onPick();
+    }
+  }
 
   return (
     <AppCard
-      className={`group overflow-hidden p-4 transition duration-200 hover:border-cyan-300/35 hover:shadow-[0_0_45px_rgba(3,218,197,0.16)] ${className}`}
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      aria-disabled={disabled}
+      onClick={handlePick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          handlePick();
+        }
+      }}
+      className={`group overflow-hidden p-4 transition duration-anime hover:border-anime-cyan/35 hover:shadow-anime-focus ${
+        disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer"
+      } ${
+        highlighted
+          ? "border-anime-amber/60 shadow-[0_0_0_2px_rgba(246,196,83,0.28),0_24px_80px_rgba(246,196,83,0.16)]"
+          : ""
+      } ${className}`}
     >
       <div className="relative">
         <AnimeCover
@@ -47,11 +72,10 @@ export function DuelAnimeCard({
         <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-t from-slate-950/82 via-transparent to-transparent" />
         <div className="absolute left-4 top-4 flex flex-wrap gap-2">
           <AppBadge tone={side === "left" ? "source" : "status"}>
-            {side === "left" ? "LEFT" : "RIGHT"}
+            {sideLabel}
           </AppBadge>
           {animeType ? <AppBadge tone="muted">{animeType}</AppBadge> : null}
           {anime.year ? <AppBadge tone="muted">{anime.year}</AppBadge> : null}
-          <AppBadge tone="muted">{anime.source}</AppBadge>
         </div>
       </div>
 
@@ -67,16 +91,24 @@ export function DuelAnimeCard({
         ) : null}
       </div>
 
-      <div className="mt-5 grid grid-cols-3 gap-2">
-        <Metric label="AniScore" value={aniScore.label} />
-        <Metric label="对决" value={String(anime.compareCount)} />
-        <Metric label="Elo" value={anime.eloScore.toFixed(0)} muted />
-      </div>
+      <details className="mt-5 rounded-2xl border border-anime-border bg-slate-950/42 px-3 py-2 text-sm text-slate-400">
+        <summary className="cursor-pointer select-none text-xs font-semibold text-slate-300">
+          详细指标
+        </summary>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <Metric label="AniScore" value={aniScore.label} />
+          <Metric label="对决" value={String(anime.compareCount)} />
+          <Metric label="Elo" value={anime.eloScore.toFixed(0)} muted />
+        </div>
+      </details>
 
       <AppButton
         type="button"
         disabled={disabled}
-        onClick={onPick}
+        onClick={(event) => {
+          event.stopPropagation();
+          handlePick();
+        }}
         variant="primary"
         size="lg"
         className="mt-5 w-full"

@@ -44,11 +44,19 @@ type Tier = (typeof TIERS)[number];
 type TierMap = Record<Tier, TierListItem[]>;
 
 const TIER_STYLE: Record<Tier, string> = {
-  S: "border-cyan-300/28 from-cyan-300/14",
-  A: "border-purple-300/24 from-purple-300/12",
-  B: "border-blue-300/20 from-blue-300/10",
-  C: "border-emerald-300/18 from-emerald-300/8",
-  D: "border-slate-300/14 from-slate-300/6"
+  S: "border-anime-pink/35 from-anime-pink/18 via-anime-amber/10",
+  A: "border-anime-purple/30 from-anime-purple/16 via-anime-purple/8",
+  B: "border-blue-300/25 from-blue-400/14 via-blue-400/6",
+  C: "border-emerald-300/22 from-emerald-400/12 via-emerald-400/5",
+  D: "border-slate-300/16 from-slate-400/8 via-emerald-400/4"
+};
+
+const TIER_LABEL_STYLE: Record<Tier, string> = {
+  S: "bg-gradient-to-br from-anime-pink to-anime-amber text-slate-950",
+  A: "bg-anime-purple text-slate-950",
+  B: "bg-blue-300 text-slate-950",
+  C: "bg-emerald-300 text-slate-950",
+  D: "bg-slate-500 text-white"
 };
 
 const RECALIBRATION_MODES: { type: RecalibrationType; title: string; body: string }[] = [
@@ -91,6 +99,7 @@ export default function TierPage({
   const [tierLabels, setTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
   const [draftTierLabels, setDraftTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
   const [showTierLabelEditor, setShowTierLabelEditor] = useState(false);
+  const [showAdvancedActions, setShowAdvancedActions] = useState(false);
 
   const loadTierList = useCallback(async () => {
     setIsLoading(true);
@@ -350,7 +359,7 @@ export default function TierPage({
 
   return (
     <PageShell>
-      <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="flex flex-wrap gap-2">
             <AppBadge tone="tier">Tier Wall</AppBadge>
@@ -360,19 +369,20 @@ export default function TierPage({
             Tier List 排名榜单墙
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-            手动设定不会删除 Elo 或对决历史，只影响最终展示和后续口味画像。
+            导出和分享是这个页面的主动作；校准、手动设定和分层标签收进高级控制。
           </p>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <Link href={`/pools/${params.poolId}`} className={appButtonClasses({ variant: "ghost" })}>
-            返回番组
-          </Link>
-          <Link href={`/pools/${params.poolId}/runs/${params.runId}/match`} className={appButtonClasses({ variant: "ghost" })}>
-            继续对决
-          </Link>
-          <AppButton onClick={() => setShowRecalibration((value) => !value)} variant="secondary">
-            校准榜单
-          </AppButton>
+      </div>
+
+      <AppCard className="mb-6 p-4" variant="focus">
+        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div>
+            <h2 className="text-lg font-semibold text-white">生成你的榜单作品</h2>
+            <p className="mt-1 text-sm text-slate-400">
+              自定义 Tier 标签会同步用于页面展示、导出画布和公开分享。
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <AppButton
             onClick={handleExportImage}
             disabled={isExporting || tierList === null}
@@ -383,12 +393,28 @@ export default function TierPage({
           <AppButton
             onClick={handleCreateShare}
             disabled={isSharing || tierList === null}
-            variant="ghost"
+            variant="secondary"
           >
             {isSharing ? "生成分享链接中..." : "分享榜单"}
           </AppButton>
+          </div>
         </div>
-      </div>
+        <div className="mt-4 flex flex-wrap gap-3 border-t border-anime-border pt-4">
+          <Link href={`/pools/${params.poolId}/runs/${params.runId}/match`} className={appButtonClasses({ variant: "ghost" })}>
+            继续对决
+          </Link>
+          <Link href={`/pools/${params.poolId}`} className={appButtonClasses({ variant: "ghost" })}>
+            返回番组
+          </Link>
+          <AppButton
+            onClick={() => setShowAdvancedActions((value) => !value)}
+            variant="quiet"
+            aria-expanded={showAdvancedActions}
+          >
+            高级控制
+          </AppButton>
+        </div>
+      </AppCard>
 
       {error ? <ErrorAlert message={error} className="mb-5" /> : null}
       {exportError ? <ErrorAlert message={exportError} className="mb-5" /> : null}
@@ -407,7 +433,19 @@ export default function TierPage({
         />
       ) : null}
 
-      <AppCard className="mb-8 p-4">
+      {showAdvancedActions ? (
+      <AppCard className="mb-8 p-4" variant="soft">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-white">高级控制</h2>
+            <p className="mt-1 text-sm text-slate-400">
+              这些操作会影响最终展示或进入校准流程，默认收起以保持榜单墙聚焦。
+            </p>
+          </div>
+          <AppButton onClick={() => setShowRecalibration((value) => !value)} variant="secondary">
+            {showRecalibration ? "收起校准" : "校准榜单"}
+          </AppButton>
+        </div>
         <div className="flex flex-wrap gap-3">
           {isEditing ? (
             <>
@@ -431,6 +469,7 @@ export default function TierPage({
           </AppButton>
         </div>
       </AppCard>
+      ) : null}
 
       {showTierLabelEditor ? (
         <AppCard className="mb-8 p-5">
@@ -475,7 +514,7 @@ export default function TierPage({
         </AppCard>
       ) : null}
 
-      {showRecalibration ? (
+      {showAdvancedActions && showRecalibration ? (
         <AppCard className="mb-8 p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -624,16 +663,18 @@ export default function TierPage({
                 key={tier}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={() => handleDrop(tier)}
-                className={`grid gap-4 rounded-2xl border bg-gradient-to-r ${TIER_STYLE[tier]} to-slate-950/46 p-4 backdrop-blur-xl lg:grid-cols-[88px_1fr]`}
+                className={`grid gap-4 rounded-2xl border bg-gradient-to-r ${TIER_STYLE[tier]} to-slate-950/46 p-3 backdrop-blur-xl lg:grid-cols-[104px_1fr]`}
               >
-                <div className="flex h-20 items-center justify-center rounded-2xl border border-white/10 bg-slate-950/72 text-4xl font-black text-cyan-100 shadow-[0_0_32px_rgba(3,218,197,0.12)]">
-                  <span className="max-w-full px-2 text-center text-2xl font-black leading-tight [overflow-wrap:anywhere]">
+                <div className={`flex min-h-24 items-center justify-center rounded-xl border border-white/15 px-3 text-center shadow-anime-panel ${TIER_LABEL_STYLE[tier]}`}>
+                  <span className="max-w-full text-2xl font-black leading-tight [overflow-wrap:anywhere]">
                     {tierLabels[tier]}
                   </span>
                 </div>
                 {visibleTiers[tier].length === 0 ? (
-                  <div className="flex min-h-32 items-center">
-                    <EmptyState title={`${tier} Tier 暂无作品`} description="继续对决后作品会自动进入对应区间。" />
+                  <div className="flex min-h-24 items-center rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-4">
+                    <p className="text-sm text-slate-500">
+                      {tier} Tier 暂无作品。继续对决后作品会自动进入对应区间。
+                    </p>
                   </div>
                 ) : (
                   <div className="flex gap-3 overflow-x-auto pb-2">

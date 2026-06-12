@@ -72,6 +72,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AddTab>("search");
+  const [showMorePoolActions, setShowMorePoolActions] = useState(false);
+  const [showMoreImportMethods, setShowMoreImportMethods] = useState(false);
 
   const [isEditingPool, setIsEditingPool] = useState(false);
   const [editName, setEditName] = useState("");
@@ -550,24 +552,34 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const canStart = pool.anime.length >= 2 && !isArchived;
   const joinedAnimeIds = new Set(pool.anime.map((entry) => entry.animeId));
   const poolGuidance = getPoolGuidance(pool.anime.length, isArchived);
+  const selectedDisplayEntry =
+    editingDisplayAnimeId === null
+      ? null
+      : pool.anime.find((entry) => entry.animeId === editingDisplayAnimeId) ?? null;
   const searchHadNoResults =
     lastSearchKeyword.length > 0 && !isSearching && searchResults.length === 0;
 
   return (
     <PageShell>
-      <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div>
           <div className="flex flex-wrap gap-2">
             <AppBadge tone={isArchived ? "danger" : "status"}>
               {isArchived ? "已归档" : pool.visibility}
             </AppBadge>
             <AppBadge tone="source">{pool.anime.length} 部动画</AppBadge>
+            <AppBadge tone={canStart ? "success" : "warning"}>
+              {canStart ? "Ready" : "准备中"}
+            </AppBadge>
           </div>
           <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
             {pool.name}
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
             {pool.description ?? "暂无描述"}
+          </p>
+          <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-cyan-100">
+            下一步：{poolGuidance.title}
           </p>
           {pool.tags.length > 0 ? (
             <div className="mt-4 flex flex-wrap gap-2">
@@ -579,7 +591,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             </div>
           ) : null}
         </div>
-        <AppCard className="p-5">
+        <AppCard className="p-5" variant="focus">
           <div className="grid gap-3">
             <AppButton
               onClick={() => enterRun("match")}
@@ -600,24 +612,14 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             >
               查看 Tier List
             </AppButton>
-            <div className="grid grid-cols-2 gap-2">
-              <AppButton
-                onClick={() => setIsEditingPool((value) => !value)}
-                disabled={isArchived || isMutating}
-                variant="ghost"
-                size="sm"
-              >
-                编辑信息
-              </AppButton>
-              <AppButton
-                onClick={handleArchivePool}
-                disabled={isArchived || isMutating}
-                variant="danger"
-                size="sm"
-              >
-                归档/删除
-              </AppButton>
-            </div>
+            <AppButton
+              onClick={() => setShowMorePoolActions((value) => !value)}
+              variant="quiet"
+              size="sm"
+              aria-expanded={showMorePoolActions}
+            >
+              更多番组操作
+            </AppButton>
           </div>
         </AppCard>
       </section>
@@ -633,50 +635,78 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         {notice ? <ErrorAlert message={notice} tone="notice" /> : null}
       </div>
 
-      {isEditingPool && !isArchived ? (
-        <AppCard className="mt-6 p-5">
-          <form onSubmit={handleSavePool}>
-            <div className="grid gap-3 md:grid-cols-[1fr_180px]">
-              <input value={editName} onChange={(event) => setEditName(event.target.value)} className="anime-field" />
-              <select
-                value={editVisibility}
-                onChange={(event) =>
-                  setEditVisibility(event.target.value as "PRIVATE" | "UNLISTED" | "PUBLIC")
-                }
-                className="anime-field"
-              >
-                <option value="PRIVATE">PRIVATE</option>
-                <option value="UNLISTED">UNLISTED</option>
-                <option value="PUBLIC">PUBLIC</option>
-              </select>
+      {showMorePoolActions ? (
+        <AppCard className="mt-6 p-5" variant="soft">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-white">番组设置</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                编辑信息和归档是低频操作，默认收起避免干扰开始对决。
+              </p>
             </div>
-            <textarea
-              value={editDescription}
-              onChange={(event) => setEditDescription(event.target.value)}
-              className="anime-field mt-3 min-h-24"
-            />
-            <input
-              value={editTags}
-              onChange={(event) => setEditTags(event.target.value)}
-              placeholder="标签，逗号分隔"
-              className="anime-field mt-3"
-            />
-            <div className="mt-3 flex gap-2">
-              <AppButton type="submit" disabled={isMutating} variant="primary">保存</AppButton>
-              <AppButton type="button" onClick={() => setIsEditingPool(false)} disabled={isMutating} variant="ghost">
-                取消
+            <div className="flex flex-wrap gap-2">
+              <AppButton
+                onClick={() => setIsEditingPool((value) => !value)}
+                disabled={isArchived || isMutating}
+                variant="ghost"
+                size="sm"
+              >
+                编辑番组
+              </AppButton>
+              <AppButton
+                onClick={handleArchivePool}
+                disabled={isArchived || isMutating}
+                variant="danger"
+                size="sm"
+              >
+                归档/删除
               </AppButton>
             </div>
-          </form>
+          </div>
+          {isEditingPool && !isArchived ? (
+            <form onSubmit={handleSavePool} className="mt-5 border-t border-anime-border pt-5">
+              <div className="grid gap-3 md:grid-cols-[1fr_180px]">
+                <input value={editName} onChange={(event) => setEditName(event.target.value)} className="anime-field" />
+                <select
+                  value={editVisibility}
+                  onChange={(event) =>
+                    setEditVisibility(event.target.value as "PRIVATE" | "UNLISTED" | "PUBLIC")
+                  }
+                  className="anime-field"
+                >
+                  <option value="PRIVATE">PRIVATE</option>
+                  <option value="UNLISTED">UNLISTED</option>
+                  <option value="PUBLIC">PUBLIC</option>
+                </select>
+              </div>
+              <textarea
+                value={editDescription}
+                onChange={(event) => setEditDescription(event.target.value)}
+                className="anime-field mt-3 min-h-24"
+              />
+              <input
+                value={editTags}
+                onChange={(event) => setEditTags(event.target.value)}
+                placeholder="标签，逗号分隔"
+                className="anime-field mt-3"
+              />
+              <div className="mt-3 flex gap-2">
+                <AppButton type="submit" disabled={isMutating} variant="primary">保存</AppButton>
+                <AppButton type="button" onClick={() => setIsEditingPool(false)} disabled={isMutating} variant="ghost">
+                  取消
+                </AppButton>
+              </div>
+            </form>
+          ) : null}
         </AppCard>
       ) : null}
 
-      <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_410px]">
+      <section className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_410px]">
         <AppCard className="p-5">
           <SectionHeader
             eyebrow="Anime pool"
-            title="作品列表"
-            description="这些显示修正只作用于当前番组。"
+            title="作品墙"
+            description="封面优先展示；显示修正和移除操作保持低调。"
           />
           {pool.anime.length === 0 ? (
             <div className="mt-5">
@@ -690,20 +720,27 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                   entry={entry}
                   isArchived={isArchived}
                   isMutating={isMutating}
-                  isEditing={editingDisplayAnimeId === entry.animeId}
-                  displayForm={displayForm}
-                  setDisplayForm={setDisplayForm}
                   onEdit={() => startEditingDisplay(entry)}
                   onRemove={() => handleRemove(entry.animeId)}
-                  onSave={handleSaveDisplay}
-                  onClear={() => handleClearDisplay(entry.animeId)}
-                  onCancel={() => setEditingDisplayAnimeId(null)}
-                  onUploaded={refreshPool}
                 />
               ))}
             </div>
           )}
         </AppCard>
+
+        <div className="space-y-5">
+        {selectedDisplayEntry !== null ? (
+          <PoolAnimeDisplayPanel
+            entry={selectedDisplayEntry}
+            isMutating={isMutating}
+            displayForm={displayForm}
+            setDisplayForm={setDisplayForm}
+            onSave={handleSaveDisplay}
+            onClear={() => handleClearDisplay(selectedDisplayEntry.animeId)}
+            onCancel={() => setEditingDisplayAnimeId(null)}
+            onUploaded={refreshPool}
+          />
+        ) : null}
 
         <AppCard className="p-5">
           <SectionHeader eyebrow="Add anime" title="添加动画" />
@@ -711,20 +748,52 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             <p className="mt-4 text-sm text-slate-400">归档番组不能继续添加动画。</p>
           ) : (
             <>
-              <div className="mt-4 flex flex-wrap gap-2 border-b border-white/10 pb-3">
-                {TABS.map((tab) => (
+              <div className="mt-4 border-b border-anime-border pb-3">
+                <div className="flex flex-wrap gap-2">
                   <button
-                    key={tab.key}
-                    onClick={() => setActiveTab(tab.key)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                      activeTab === tab.key
-                        ? "border-cyan-300/50 bg-cyan-300/12 text-cyan-100"
-                        : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
+                    type="button"
+                    onClick={() => setActiveTab("search")}
+                    className={`min-h-11 rounded-full border px-4 py-2 text-xs font-semibold transition duration-anime ${
+                      activeTab === "search"
+                        ? "border-anime-cyan/50 bg-anime-cyan/12 text-cyan-100"
+                        : "border-anime-border bg-white/[0.03] text-slate-400 hover:text-white"
                     }`}
                   >
-                    {tab.label}
+                    本地搜索
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setShowMoreImportMethods((value) => !value)}
+                    className="min-h-11 rounded-full border border-anime-border bg-white/[0.03] px-4 py-2 text-xs font-semibold text-slate-300 transition duration-anime hover:text-white"
+                    aria-expanded={showMoreImportMethods}
+                  >
+                    更多导入方式
+                  </button>
+                </div>
+                {showMoreImportMethods ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {TABS.filter((tab) => tab.key !== "search").map((tab) => (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => setActiveTab(tab.key)}
+                        className={`min-h-10 rounded-full border px-3 py-1.5 text-xs font-semibold transition duration-anime ${
+                          activeTab === tab.key
+                            ? "border-anime-purple/50 bg-anime-purple/12 text-purple-100"
+                            : "border-anime-border bg-white/[0.03] text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : activeTab !== "search" ? (
+                  <div className="mt-3">
+                    <AppButton type="button" variant="quiet" size="sm" onClick={() => setActiveTab("search")}>
+                      收起导入方式并返回本地搜索
+                    </AppButton>
+                  </div>
+                ) : null}
               </div>
 
               {activeTab === "search" ? (
@@ -947,6 +1016,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             </>
           )}
         </AppCard>
+        </div>
       </section>
 
       <p className="mt-10 text-center text-xs text-slate-600">
@@ -1045,24 +1115,75 @@ function PoolAnimeCard({
   entry,
   isArchived,
   isMutating,
-  isEditing,
+  onEdit,
+  onRemove
+}: {
+  entry: PoolAnimeEntry;
+  isArchived: boolean;
+  isMutating: boolean;
+  onEdit: () => void;
+  onRemove: () => void;
+}) {
+  const display = entry.display;
+  const title = display.title;
+  const coverUrl = getAnimeCoverUrl(
+    { ...entry.anime, display, coverUrlOverride: entry.coverUrlOverride },
+    { intent: "display" }
+  );
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-anime-border bg-slate-950/45 transition duration-anime hover:border-anime-cyan/25">
+      <AnimeCover
+        src={coverUrl}
+        secondarySrc={entry.anime.imageSmallUrl ?? entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl}
+        title={title}
+        size="md"
+        className="h-56 w-full rounded-none border-0 sm:h-64"
+      />
+      <div className="p-3">
+        <div className="flex min-h-14 items-start gap-2">
+          <h3 className="line-clamp-2 flex-1 text-sm font-semibold text-white">{title}</h3>
+          {display.isOverridden ? <AppBadge tone="source">已修正</AppBadge> : null}
+        </div>
+        {display.subtitle ? <p className="mt-1 line-clamp-1 text-xs text-slate-500">{display.subtitle}</p> : null}
+        <p className="mt-1 text-xs text-slate-500">
+          #{entry.position}
+          {display.animeType ? ` / ${display.animeType}` : ""}
+        </p>
+        {display.tags.length > 0 ? (
+          <p className="mt-1 line-clamp-1 text-xs text-slate-500">
+            {display.tags.slice(0, 4).join(" / ")}
+          </p>
+        ) : null}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {!isArchived ? (
+            <AppButton onClick={onEdit} disabled={isMutating} variant="quiet" size="sm">
+              编辑显示
+            </AppButton>
+          ) : null}
+          <AppButton onClick={onRemove} disabled={isArchived || isMutating} variant="quiet" size="sm">
+            移除
+          </AppButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PoolAnimeDisplayPanel({
+  entry,
+  isMutating,
   displayForm,
   setDisplayForm,
-  onEdit,
-  onRemove,
   onSave,
   onClear,
   onCancel,
   onUploaded
 }: {
   entry: PoolAnimeEntry;
-  isArchived: boolean;
   isMutating: boolean;
-  isEditing: boolean;
   displayForm: DisplayOverrideForm;
   setDisplayForm: React.Dispatch<React.SetStateAction<DisplayOverrideForm>>;
-  onEdit: () => void;
-  onRemove: () => void;
   onSave: (event: FormEvent<HTMLFormElement>, coverUrlOverride?: string) => void | Promise<void>;
   onClear: () => void;
   onCancel: () => void;
@@ -1092,11 +1213,9 @@ function PoolAnimeCard({
   }, [selectedCoverFile]);
 
   useEffect(() => {
-    if (!isEditing) {
-      setSelectedCoverFile(null);
-      setCoverUploadError(null);
-    }
-  }, [isEditing]);
+    setSelectedCoverFile(null);
+    setCoverUploadError(null);
+  }, [entry.animeId]);
 
   function handleCoverFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null;
@@ -1170,7 +1289,7 @@ function PoolAnimeCard({
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-3 transition hover:border-cyan-300/25">
+    <AppCard className="p-5" variant="focus">
       <div className="flex gap-3">
         <AnimeCover
           src={coverUrl}
@@ -1194,20 +1313,9 @@ function PoolAnimeCard({
               {display.tags.slice(0, 4).join(" / ")}
             </p>
           ) : null}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {!isArchived ? (
-              <AppButton onClick={onEdit} disabled={isMutating} variant="ghost" size="sm">
-                编辑显示
-              </AppButton>
-            ) : null}
-            <AppButton onClick={onRemove} disabled={isArchived || isMutating} variant="danger" size="sm">
-              移除
-            </AppButton>
-          </div>
         </div>
       </div>
-      {isEditing && !isArchived ? (
-        <form onSubmit={handleDisplaySubmit} className="mt-3 space-y-2 border-t border-white/10 pt-3">
+        <form onSubmit={handleDisplaySubmit} className="mt-4 space-y-2 border-t border-anime-border pt-4">
           <p className="text-xs leading-5 text-cyan-100">
             这个修改只影响当前番组，不会改动全局动画库。
           </p>
@@ -1328,7 +1436,6 @@ function PoolAnimeCard({
             </AppButton>
           </div>
         </form>
-      ) : null}
-    </div>
+    </AppCard>
   );
 }

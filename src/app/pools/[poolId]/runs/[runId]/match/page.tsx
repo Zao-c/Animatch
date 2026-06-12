@@ -20,6 +20,7 @@ import {
   type MatchQueueResponse
 } from "@/lib/client-api";
 import { createClientMutationId } from "@/lib/client-id";
+import { getComparisonResultForShortcut } from "@/lib/match-shortcuts";
 import { preloadPairs } from "@/lib/preload-images";
 
 export default function MatchPage({
@@ -42,6 +43,7 @@ export default function MatchPage({
     null
   );
   const [error, setError] = useState<string | null>(null);
+  const [feedbackResult, setFeedbackResult] = useState<ComparisonResult | null>(null);
   const isRefillingRef = useRef(false);
 
   const appendUniquePairs = useCallback((incomingPairs: MatchPair[]) => {
@@ -126,7 +128,7 @@ export default function MatchPage({
     }
   }, [isLoading, queue.length, refillQueue]);
 
-  async function handleSubmit(result: ComparisonResult) {
+  const handleSubmit = useCallback(async (result: ComparisonResult) => {
     const currentPair = queue[0];
 
     if (currentPair === undefined || isSubmitting) {
@@ -143,13 +145,32 @@ export default function MatchPage({
         result,
         clientMutationId: createClientMutationId("comparison")
       });
+      setFeedbackResult(result);
+      await waitForMatchFeedback();
       setQueue((current) => current.slice(1));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "提交结果失败");
     } finally {
+      setFeedbackResult(null);
       setIsSubmitting(false);
     }
-  }
+  }, [isSubmitting, params.poolId, params.runId, queue]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const result = getComparisonResultForShortcut(event);
+
+      if (result === null) {
+        return;
+      }
+
+      event.preventDefault();
+      void handleSubmit(result);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleSubmit]);
 
   if (isLoading) {
     return (
@@ -200,7 +221,7 @@ export default function MatchPage({
             两两对决舞台
           </h1>
           <p className="mt-3 text-sm leading-6 text-slate-400">
-            选择更喜欢的一边。系统会根据有效对决更新 Elo 和榜单信心。
+            点击整张卡或使用方向键快速选择。分数和统计已收进详细指标，先专注判断作品。
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -231,9 +252,10 @@ export default function MatchPage({
           actionLabel="选择左边"
           scoreDistribution={queueMeta?.scoreDistribution ?? fallbackScoreDistribution}
           onPick={() => handleSubmit("LEFT_WIN")}
+          highlighted={feedbackResult === "LEFT_WIN"}
         />
         <div className="flex items-center justify-center">
-          <div className="flex h-24 w-24 items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-300/10 text-3xl font-black text-cyan-100 shadow-[0_0_45px_rgba(3,218,197,0.24)]">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full border border-anime-amber/35 bg-anime-amber/10 text-2xl font-black text-amber-100 shadow-anime-amber lg:h-24 lg:w-24 lg:text-3xl">
             VS
           </div>
         </div>
@@ -244,30 +266,62 @@ export default function MatchPage({
           actionLabel="选择右边"
           scoreDistribution={queueMeta?.scoreDistribution ?? fallbackScoreDistribution}
           onPick={() => handleSubmit("RIGHT_WIN")}
+          highlighted={feedbackResult === "RIGHT_WIN"}
         />
       </div>
 
-      <AppCard className="mt-6 p-4">
+      <AppCard className="mt-6 p-4" variant="soft">
+        <MatchShortcutHint />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("DRAW")} variant="secondary">
+          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("DRAW")} variant="quiet">
             差不多
           </AppButton>
-          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("SKIP")} variant="ghost">
+          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("SKIP")} variant="quiet">
             跳过
           </AppButton>
-          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("LEFT_UNSEEN")} variant="ghost">
+          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("LEFT_UNSEEN")} variant="quiet">
             左边没看过
           </AppButton>
-          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("RIGHT_UNSEEN")} variant="ghost">
+          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("RIGHT_UNSEEN")} variant="quiet">
             右边没看过
           </AppButton>
-          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("BOTH_UNSEEN")} variant="ghost">
+          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("BOTH_UNSEEN")} variant="quiet">
             两个都没看过
           </AppButton>
         </div>
       </AppCard>
     </PageShell>
   );
+}
+
+function MatchShortcutHint() {
+  return (
+    <div className="mb-3 flex flex-wrap gap-2 text-xs text-slate-400" aria-label="Match keyboard shortcuts">
+      {[
+        "← 左胜",
+        "→ 右胜",
+        "↑ 差不多",
+        "↓ 跳过",
+        "1 左未看",
+        "2 右未看",
+        "0 都未看"
+      ].map((item) => (
+        <span key={item} className="rounded-full border border-anime-border bg-white/[0.03] px-2.5 py-1">
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function waitForMatchFeedback(): Promise<void> {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, 180);
+  });
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
