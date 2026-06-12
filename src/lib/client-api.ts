@@ -47,7 +47,22 @@ export interface PoolSummary {
   createdAt: string;
   updatedAt: string;
   deletedAt?: string | null;
+  archived?: boolean;
+  animeCount?: number;
+  comparisonCount?: number;
+  confidenceScore?: number;
+  uiStatus?: PoolManagementStatus;
+  uiStatusLabel?: string;
+  sourceType?: string;
+  defaultRunId?: string | null;
 }
+
+export type PoolManagementStatus =
+  | "EMPTY"
+  | "READY"
+  | "IN_PROGRESS"
+  | "STABLE"
+  | "ARCHIVED";
 
 export interface PoolAnimeEntry {
   id: string;
@@ -381,13 +396,15 @@ export function bulkImportAnime(input: string) {
 
 export function listPools(params: {
   q?: string;
-  status?: "ACTIVE" | "ARCHIVED";
+  status?: "ACTIVE" | PoolManagementStatus;
   includeArchived?: boolean;
+  sort?: "UPDATED" | "ANIME_COUNT" | "COMPARISON_COUNT" | "NAME";
 } = {}) {
   const searchParams = new URLSearchParams();
   if (params.q) searchParams.set("q", params.q);
   if (params.status) searchParams.set("status", params.status);
   if (params.includeArchived) searchParams.set("includeArchived", "1");
+  if (params.sort) searchParams.set("sort", params.sort);
   const query = searchParams.toString();
 
   return fetchJson<{ items: PoolSummary[] }>(`/api/pools${query ? `?${query}` : ""}`);
@@ -423,6 +440,12 @@ export function updatePool(
 export function archivePool(poolId: string) {
   return fetchJson<{ ok: true }>(`/api/pools/${poolId}`, {
     method: "DELETE"
+  });
+}
+
+export function restorePool(poolId: string) {
+  return fetchJson<PoolSummary>(`/api/pools/${poolId}/restore`, {
+    method: "POST"
   });
 }
 

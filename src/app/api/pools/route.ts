@@ -2,9 +2,18 @@ import { PoolStatus, Prisma, Visibility } from "@prisma/client";
 import { badRequest, ok, serverError } from "@/lib/api-response";
 import { getOrCreateDevUser } from "@/lib/dev-user";
 import { prisma } from "@/lib/db";
+import { buildRankingProgress } from "@/lib/ranking-progress";
 
 const VISIBILITIES = new Set<string>(Object.values(Visibility));
-const LIST_STATUSES = new Set(["ACTIVE", "ARCHIVED"]);
+const LIST_STATUSES = new Set([
+  "ACTIVE",
+  "ARCHIVED",
+  "EMPTY",
+  "READY",
+  "IN_PROGRESS",
+  "STABLE"
+]);
+const LIST_SORTS = new Set(["UPDATED", "ANIME_COUNT", "COMPARISON_COUNT", "NAME"]);
 
 interface CreatePoolBody {
   name?: unknown;
@@ -20,9 +29,14 @@ export async function GET(request: Request) {
     const includeArchived = url.searchParams.get("includeArchived") === "1";
     const q = url.searchParams.get("q")?.trim() ?? "";
     const status = url.searchParams.get("status")?.trim().toUpperCase() ?? "";
+    const sort = url.searchParams.get("sort")?.trim().toUpperCase() || "UPDATED";
 
     if (status && !LIST_STATUSES.has(status)) {
-      return badRequest("status must be ACTIVE or ARCHIVED");
+      return badRequest("status is invalid");
+    }
+
+    if (!LIST_SORTS.has(sort)) {
+      return badRequest("sort is invalid");
     }
 
     const where: Prisma.CustomPoolWhereInput = {
@@ -49,17 +63,199 @@ export async function GET(request: Request) {
 
     const pools = await prisma.customPool.findMany({
       where,
+      include: {
+        _count: {
+          select: {
+            poolAnime: true,
+            poolComparisons: true
+          }
+        },
+        poolAnime: {
+          take: 20,
+          select: {
+            anime: {
+              select: {
+                source: true
+              }
+            }
+          }
+        },
+        personalRuns: {
+          where: {
+            userId: user.id,
+            isDefault: true,
+            status: {
+              not: "DELETED"
+            }
+          },
+          orderBy: {
+            updatedAt: "desc"
+          },
+          take: 1,
+          select: {
+            id: true,
+            status: true,
+            updatedAt: true
+          }
+        }
+      },
       orderBy: {
         updatedAt: "desc"
       }
     });
 
+    const items = pools
+      .map((pool) => serializePoolSummary(pool))
+      .filter((pool) => {
+        if (!status || status === "ACTIVE") {
+          return true;
+        }
+
+        return pool.uiStatus === status;
+      })
+      .sort((left, right) => comparePoolSummary(left, right, sort));
+
     return ok({
-      items: pools
+      items
     });
   } catch (error) {
     return serverError(error instanceof Error ? error.message : "Pool listing failed");
   }
+}
+
+function serializePoolSummary(pool: Prisma.CustomPoolGetPayload<{
+  include: {
+    _count: {
+      select: {
+        poolAnime: true;
+        poolComparisons: true;
+      };
+    };
+    poolAnime: {
+      take: 20;
+      select: {
+        anime: {
+          select: {
+            source: true;
+          };
+        };
+      };
+    };
+    personalRuns: {
+      where: {
+        userId: string;
+        isDefault: true;
+        status: {
+          not: "DELETED";
+        };
+      };
+      orderBy: {
+        updatedAt: "desc";
+      };
+      take: 1;
+      select: {
+        id: true;
+        status: true;
+        updatedAt: true;
+      };
+    };
+  };
+}>) {
+  const animeCount = pool._count.poolAnime;
+  const comparisonCount = pool._count.poolComparisons;
+  const progress = buildRankingProgress({
+    totalItems: animeCount,
+    effectiveComparisons: comparisonCount,
+    totalComparisons: comparisonCount
+  });
+  const archived = pool.status === PoolStatus.ARCHIVED || pool.deletedAt !== null;
+  const uiStatus = archived
+    ? "ARCHIVED"
+    : animeCount < 2
+      ? "EMPTY"
+      : comparisonCount === 0
+        ? "READY"
+        : progress.stage === "RELIABLE" || progress.stage === "HIGH_CONFIDENCE"
+          ? "STABLE"
+          : "IN_PROGRESS";
+
+  return {
+    id: pool.id,
+    creatorId: pool.creatorId,
+    name: pool.name,
+    description: pool.description,
+    coverUrl: pool.coverUrl,
+    visibility: pool.visibility,
+    status: pool.status,
+    tags: pool.tags,
+    createdAt: pool.createdAt,
+    updatedAt: pool.updatedAt,
+    deletedAt: pool.deletedAt,
+    archived,
+    animeCount,
+    comparisonCount,
+    confidenceScore: Math.round(progress.progressRatio * 1000) / 10,
+    uiStatus,
+    uiStatusLabel: labelForPoolStatus(uiStatus),
+    sourceType: deriveSourceType(pool.poolAnime.map((entry) => entry.anime.source)),
+    defaultRunId: pool.personalRuns[0]?.id ?? null
+  };
+}
+
+function labelForPoolStatus(status: string): string {
+  switch (status) {
+    case "ARCHIVED":
+      return "已归档";
+    case "EMPTY":
+      return "未添加动画";
+    case "READY":
+      return "可开始";
+    case "IN_PROGRESS":
+      return "对决中";
+    case "STABLE":
+      return "已稳定";
+    default:
+      return "进行中";
+  }
+}
+
+function deriveSourceType(sources: string[]): string {
+  const uniqueSources = [...new Set(sources.filter(Boolean))];
+
+  if (uniqueSources.length === 0) {
+    return "UNKNOWN";
+  }
+
+  if (uniqueSources.length > 1) {
+    return "MIXED";
+  }
+
+  return uniqueSources[0];
+}
+
+function comparePoolSummary(
+  left: ReturnType<typeof serializePoolSummary>,
+  right: ReturnType<typeof serializePoolSummary>,
+  sort: string
+): number {
+  switch (sort) {
+    case "ANIME_COUNT":
+      return right.animeCount - left.animeCount || compareUpdatedAt(left, right);
+    case "COMPARISON_COUNT":
+      return right.comparisonCount - left.comparisonCount || compareUpdatedAt(left, right);
+    case "NAME":
+      return left.name > right.name ? 1 : left.name < right.name ? -1 : compareUpdatedAt(left, right);
+    case "UPDATED":
+    default:
+      return compareUpdatedAt(left, right);
+  }
+}
+
+function compareUpdatedAt(
+  left: ReturnType<typeof serializePoolSummary>,
+  right: ReturnType<typeof serializePoolSummary>
+): number {
+  return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
 }
 
 export async function POST(request: Request) {

@@ -107,10 +107,6 @@ export async function PATCH(request: Request, context: RouteContext) {
       return forbidden("Pool does not belong to the current dev user");
     }
 
-    if (pool.deletedAt !== null || pool.status === PoolStatus.ARCHIVED) {
-      return badRequest("Archived pools cannot be edited");
-    }
-
     const updated = await prisma.customPool.update({
       where: {
         id: pool.id

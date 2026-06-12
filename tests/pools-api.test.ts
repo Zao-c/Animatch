@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PoolStatus, Visibility } from "@prisma/client";
 import { DELETE, GET as GET_POOL, PATCH } from "../src/app/api/pools/[poolId]/route";
+import { POST as RESTORE_POOL } from "../src/app/api/pools/[poolId]/restore/route";
 import { GET as LIST_POOLS } from "../src/app/api/pools/route";
 import { prisma } from "../src/lib/db";
 
@@ -15,10 +16,26 @@ vi.mock("../src/lib/db", () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
+    poolAnime: {
+      deleteMany: vi.fn()
+    },
+    personalRun: {
+      deleteMany: vi.fn()
+    },
+    userPoolScore: {
+      deleteMany: vi.fn()
+    },
+    poolComparison: {
+      deleteMany: vi.fn()
+    }
   },
 }));
 
 const mockedCustomPool = vi.mocked(prisma.customPool);
+const mockedPoolAnime = vi.mocked(prisma.poolAnime);
+const mockedPersonalRun = vi.mocked(prisma.personalRun);
+const mockedUserPoolScore = vi.mocked(prisma.userPoolScore);
+const mockedPoolComparison = vi.mocked(prisma.poolComparison);
 
 function pool(overrides: Record<string, unknown> = {}) {
   return {
@@ -40,6 +57,11 @@ function pool(overrides: Record<string, unknown> = {}) {
     updatedAt: new Date("2026-01-02T00:00:00.000Z"),
     deletedAt: null,
     poolAnime: [],
+    personalRuns: [],
+    _count: {
+      poolAnime: 0,
+      poolComparisons: 0
+    },
     ...overrides,
   };
 }
@@ -106,6 +128,35 @@ describe("pools API management", () => {
     expect(mockedCustomPool.update).not.toHaveBeenCalled();
   });
 
+  it("PATCH allows archived pools to edit metadata", async () => {
+    mockedCustomPool.findUnique.mockResolvedValue(
+      pool({ status: PoolStatus.ARCHIVED, deletedAt: new Date("2026-01-03T00:00:00.000Z") })
+    );
+    mockedCustomPool.update.mockResolvedValue(
+      pool({
+        name: "Archived display name",
+        status: PoolStatus.ARCHIVED,
+        deletedAt: new Date("2026-01-03T00:00:00.000Z")
+      })
+    );
+
+    const response = await PATCH(
+      new Request("http://test.local/api/pools/pool-1", {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: "Archived display name",
+          description: "Keep history",
+          visibility: "PRIVATE",
+          tags: []
+        })
+      }),
+      { params: { poolId: "pool-1" } }
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCustomPool.update).toHaveBeenCalled();
+  });
+
   it("DELETE archives the pool without deleting related data", async () => {
     mockedCustomPool.findUnique.mockResolvedValue(pool());
     mockedCustomPool.update.mockResolvedValue(
@@ -128,7 +179,34 @@ describe("pools API management", () => {
         }),
       })
     );
-    expect(prisma).not.toHaveProperty("poolAnime.delete");
+    expect(mockedPoolAnime.deleteMany).not.toHaveBeenCalled();
+    expect(mockedPersonalRun.deleteMany).not.toHaveBeenCalled();
+    expect(mockedUserPoolScore.deleteMany).not.toHaveBeenCalled();
+    expect(mockedPoolComparison.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("POST restore makes an archived pool visible again", async () => {
+    mockedCustomPool.findUnique.mockResolvedValue(
+      pool({ status: PoolStatus.ARCHIVED, deletedAt: new Date("2026-01-03T00:00:00.000Z") })
+    );
+    mockedCustomPool.update.mockResolvedValue(pool({ status: PoolStatus.DRAFT, deletedAt: null }));
+
+    const response = await RESTORE_POOL(
+      new Request("http://test.local/api/pools/pool-1/restore", { method: "POST" }),
+      { params: { poolId: "pool-1" } }
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data.deletedAt).toBeNull();
+    expect(mockedCustomPool.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          status: PoolStatus.DRAFT,
+          deletedAt: null
+        }
+      })
+    );
   });
 
   it("GET /api/pools hides archived pools by default", async () => {
@@ -166,6 +244,92 @@ describe("pools API management", () => {
         },
       })
     );
+  });
+
+  it("GET /api/pools applies q filtering and sort parameters", async () => {
+    mockedCustomPool.findMany.mockResolvedValue([
+      pool({
+        id: "pool-small",
+        name: "Beta",
+        _count: { poolAnime: 1, poolComparisons: 0 }
+      }),
+      pool({
+        id: "pool-large",
+        name: "Alpha",
+        _count: { poolAnime: 4, poolComparisons: 0 }
+      })
+    ]);
+
+    const response = await LIST_POOLS(
+      new Request("http://test.local/api/pools?q=test&sort=ANIME_COUNT")
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(mockedCustomPool.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: [
+            {
+              OR: [
+                { name: { contains: "test", mode: "insensitive" } },
+                { description: { contains: "test", mode: "insensitive" } }
+              ]
+            }
+          ]
+        })
+      })
+    );
+    expect(payload.data.items.map((item: { id: string }) => item.id)).toEqual([
+      "pool-large",
+      "pool-small"
+    ]);
+  });
+
+  it("GET /api/pools filters derived management statuses", async () => {
+    mockedCustomPool.findMany.mockResolvedValue([
+      pool({ id: "empty", _count: { poolAnime: 0, poolComparisons: 0 } }),
+      pool({ id: "ready", _count: { poolAnime: 3, poolComparisons: 0 } }),
+      pool({ id: "progress", _count: { poolAnime: 4, poolComparisons: 2 } }),
+      pool({ id: "stable", _count: { poolAnime: 3, poolComparisons: 9 } })
+    ]);
+
+    const response = await LIST_POOLS(new Request("http://test.local/api/pools?status=STABLE"));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data.items).toHaveLength(1);
+    expect(payload.data.items[0]).toMatchObject({
+      id: "stable",
+      uiStatus: "STABLE",
+      animeCount: 3,
+      comparisonCount: 9
+    });
+  });
+
+  it("GET /api/pools exposes UI statuses for pool cards", async () => {
+    mockedCustomPool.findMany.mockResolvedValue([
+      pool({ id: "empty", _count: { poolAnime: 0, poolComparisons: 0 } }),
+      pool({ id: "ready", _count: { poolAnime: 2, poolComparisons: 0 } }),
+      pool({ id: "progress", _count: { poolAnime: 4, poolComparisons: 1 } }),
+      pool({ id: "stable", _count: { poolAnime: 2, poolComparisons: 10 } }),
+      pool({
+        id: "archived",
+        status: PoolStatus.ARCHIVED,
+        deletedAt: new Date("2026-01-03T00:00:00.000Z"),
+        _count: { poolAnime: 2, poolComparisons: 10 }
+      })
+    ]);
+
+    const response = await LIST_POOLS(
+      new Request("http://test.local/api/pools?includeArchived=1")
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(
+      payload.data.items.map((item: { uiStatus: string }) => item.uiStatus).sort()
+    ).toEqual(["ARCHIVED", "EMPTY", "IN_PROGRESS", "READY", "STABLE"]);
   });
 
   it("GET pool detail still returns archived pools for history viewing", async () => {

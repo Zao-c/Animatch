@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, DragEvent, FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { AnimeCard } from "@/components/AnimeCard";
@@ -8,7 +9,7 @@ import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { AppBadge } from "@/components/ui/AppBadge";
-import { AppButton } from "@/components/ui/AppButton";
+import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
@@ -24,6 +25,7 @@ import {
   getPool,
   listRuns,
   removeAnimeFromPool,
+  restorePool,
   searchAnime,
   uploadCustomItemToPool,
   uploadPoolAnimeCover,
@@ -167,7 +169,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
   async function handleSavePool(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (pool === null || archived()) return;
+    if (pool === null) return;
     if (!editName.trim()) {
       setError("番组名称不能为空");
       return;
@@ -198,7 +200,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
   async function handleArchivePool() {
     if (pool === null || archived()) return;
-    if (!window.confirm("这会从列表中隐藏该番组，但不会删除对决历史。是否继续？")) {
+    if (
+      !window.confirm(
+        "确定归档这个番组吗？归档后它会从默认列表隐藏，历史对决和 Tier List 不会被删除。"
+      )
+    ) {
       return;
     }
 
@@ -207,9 +213,31 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
     try {
       await archivePool(pool.id);
-      router.push("/pools");
+      await refreshPool();
+      setNotice("番组已归档。这个番组现在只能查看，不能继续添加或对决。");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "归档失败");
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleRestorePool() {
+    if (pool === null || !archived()) return;
+    if (!window.confirm("恢复后你可以继续添加动画和对决。")) {
+      return;
+    }
+
+    clearMessage();
+    setIsMutating(true);
+
+    try {
+      await restorePool(pool.id);
+      await refreshPool();
+      setNotice("番组已恢复，可以继续添加动画和对决。");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "恢复失败");
+    } finally {
       setIsMutating(false);
     }
   }
@@ -620,11 +648,20 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             >
               更多番组操作
             </AppButton>
+            <Link href="/pools" className={appButtonClasses({ variant: "quiet", size: "sm" })}>
+              返回我的番组
+            </Link>
           </div>
         </AppCard>
       </section>
 
       <div className="mt-5 space-y-3">
+        {isArchived ? (
+          <ErrorAlert
+            message="这个番组已归档，只能查看，不能继续添加或对决。"
+            tone="warning"
+          />
+        ) : null}
         <StatusHint
           label={poolGuidance.label}
           title={poolGuidance.title}
@@ -647,23 +684,37 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             <div className="flex flex-wrap gap-2">
               <AppButton
                 onClick={() => setIsEditingPool((value) => !value)}
-                disabled={isArchived || isMutating}
+                disabled={isMutating}
                 variant="ghost"
                 size="sm"
               >
                 编辑番组
               </AppButton>
-              <AppButton
-                onClick={handleArchivePool}
-                disabled={isArchived || isMutating}
-                variant="danger"
-                size="sm"
-              >
-                归档/删除
-              </AppButton>
+              {isArchived ? (
+                <AppButton
+                  onClick={handleRestorePool}
+                  disabled={isMutating}
+                  variant="secondary"
+                  size="sm"
+                >
+                  恢复番组
+                </AppButton>
+              ) : (
+                <AppButton
+                  onClick={handleArchivePool}
+                  disabled={isMutating}
+                  variant="danger"
+                  size="sm"
+                >
+                  归档番组
+                </AppButton>
+              )}
+              <Link href="/pools" className={appButtonClasses({ variant: "quiet", size: "sm" })}>
+                返回我的番组
+              </Link>
             </div>
           </div>
-          {isEditingPool && !isArchived ? (
+          {isEditingPool ? (
             <form onSubmit={handleSavePool} className="mt-5 border-t border-anime-border pt-5">
               <div className="grid gap-3 md:grid-cols-[1fr_180px]">
                 <input value={editName} onChange={(event) => setEditName(event.target.value)} className="anime-field" />
@@ -742,7 +793,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           />
         ) : null}
 
-        <AppCard className="p-5">
+        <AppCard id="add-anime" className="p-5">
           <SectionHeader eyebrow="Add anime" title="添加动画" />
           {isArchived ? (
             <p className="mt-4 text-sm text-slate-400">归档番组不能继续添加动画。</p>
