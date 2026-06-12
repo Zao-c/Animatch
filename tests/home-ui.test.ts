@@ -6,6 +6,8 @@ import { AppBadge } from "../src/components/ui/AppBadge";
 import { AppButton } from "../src/components/ui/AppButton";
 import { AppCard } from "../src/components/ui/AppCard";
 
+(globalThis as typeof globalThis & { React: typeof React }).React = React;
+
 describe("home page UI refresh", () => {
   it("renders the value proposition, CTAs, mini match demo, and three-step flow", () => {
     const html = renderToStaticMarkup(React.createElement(Home));
@@ -13,6 +15,8 @@ describe("home page UI refresh", () => {
     expect(html).toContain("用左右选择，生成你的动画 Tier List");
     expect(html).toContain("创建第一个番组");
     expect(html).toContain("查看我的番组");
+    expect(html).toContain("体验示例番组");
+    expect(html).toContain("不用搜索和导入，直接体验二选一对决。");
     expect(html).toContain("Mini match demo");
     expect(html).toContain("VS");
     expect(html).toContain("添加动画");

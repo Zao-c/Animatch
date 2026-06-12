@@ -12,6 +12,7 @@ import { ErrorAlert } from "@/components/ui/ErrorAlert";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import {
   archivePool,
+  createDemoPool,
   getOrCreateDefaultRun,
   listPools,
   restorePool,
@@ -201,6 +202,20 @@ export default function PoolsPage() {
     }
   }
 
+  async function handleCreateDemoPool() {
+    setIsMutating(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const result = await createDemoPool();
+      router.push(result.redirectTo);
+    } catch {
+      setError("示例番组创建失败，请稍后重试。");
+      setIsMutating(false);
+    }
+  }
+
   const hasSearch = query.trim().length > 0;
   const activeCount = pools.filter((pool) => !isPoolArchived(pool)).length;
   const readyCount = pools.filter((pool) => pool.uiStatus === "READY").length;
@@ -290,9 +305,19 @@ export default function PoolsPage() {
             }
             action={
               !hasSearch && filter !== "ARCHIVED" ? (
-                <Link href="/pools/new" className={appButtonClasses({ variant: "primary" })}>
-                  创建番组
-                </Link>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Link href="/pools/new" className={appButtonClasses({ variant: "primary" })}>
+                    创建番组
+                  </Link>
+                  <AppButton
+                    type="button"
+                    variant="secondary"
+                    onClick={handleCreateDemoPool}
+                    disabled={isMutating}
+                  >
+                    {isMutating ? "正在准备体验池..." : "体验示例番组"}
+                  </AppButton>
+                </div>
               ) : null
             }
           />

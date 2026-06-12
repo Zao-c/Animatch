@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { appButtonClasses } from "@/components/ui/AppButton";
-import { getPool, listPools } from "@/lib/client-api";
+import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
+import { ErrorAlert } from "@/components/ui/ErrorAlert";
+import { createDemoPool, getPool, listPools } from "@/lib/client-api";
 
 type ReadyPool = {
   id: string;
@@ -14,6 +15,8 @@ type PoolDetailResult = Awaited<ReturnType<typeof getPool>>;
 
 export function HomeActions() {
   const [readyPool, setReadyPool] = useState<ReadyPool | null>(null);
+  const [isPreparingDemoPool, setIsPreparingDemoPool] = useState(false);
+  const [demoPoolError, setDemoPoolError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,29 +57,60 @@ export function HomeActions() {
   const primaryHref = readyPool === null ? "/pools/new" : `/pools/${readyPool.id}`;
   const primaryLabel = readyPool === null ? "创建第一个番组" : "继续对决";
 
+  async function handleCreateDemoPool() {
+    setIsPreparingDemoPool(true);
+    setDemoPoolError(null);
+
+    try {
+      const result = await createDemoPool();
+      window.location.assign(result.redirectTo);
+    } catch {
+      setDemoPoolError("示例番组创建失败，请稍后重试。");
+    } finally {
+      setIsPreparingDemoPool(false);
+    }
+  }
+
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-      <Link
-        href={primaryHref}
-        className={appButtonClasses({
-          variant: "primary",
-          size: "lg",
-          className: "w-full sm:w-auto"
-        })}
-        aria-label={readyPool === null ? primaryLabel : `${primaryLabel}：${readyPool.name}`}
-      >
-        {primaryLabel}
-      </Link>
-      <Link
-        href="/pools"
-        className={appButtonClasses({
-          variant: "ghost",
-          size: "lg",
-          className: "w-full sm:w-auto"
-        })}
-      >
-        查看我的番组
-      </Link>
+    <div className="space-y-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <Link
+          href={primaryHref}
+          className={appButtonClasses({
+            variant: "primary",
+            size: "lg",
+            className: "w-full sm:w-auto"
+          })}
+          aria-label={readyPool === null ? primaryLabel : `${primaryLabel}：${readyPool.name}`}
+        >
+          {primaryLabel}
+        </Link>
+        <Link
+          href="/pools"
+          className={appButtonClasses({
+            variant: "ghost",
+            size: "lg",
+            className: "w-full sm:w-auto"
+          })}
+        >
+          查看我的番组
+        </Link>
+        <AppButton
+          type="button"
+          variant="secondary"
+          size="lg"
+          className="w-full sm:w-auto"
+          onClick={handleCreateDemoPool}
+          disabled={isPreparingDemoPool}
+        >
+          {isPreparingDemoPool ? "正在准备体验池..." : "体验示例番组"}
+        </AppButton>
+      </div>
+      <p className="text-xs leading-5 text-slate-400">
+        不用搜索和导入，直接体验二选一对决。
+        {readyPool === null ? " 也可以先体验示例番组。" : ""}
+      </p>
+      {demoPoolError ? <ErrorAlert message={demoPoolError} /> : null}
     </div>
   );
 }

@@ -24,6 +24,12 @@ describe("pool management UI", () => {
     expect(poolsSource).toContain("复制番组 ID");
   });
 
+  it("offers demo pool onboarding from the empty state", () => {
+    expect(poolsSource).toContain("体验示例番组");
+    expect(poolsSource).toContain("正在准备体验池...");
+    expect(poolsSource).toContain("createDemoPool");
+  });
+
   it("shows archived pools as read-only on detail while keeping restore available", () => {
     expect(detailSource).toContain("这个番组已归档，只能查看，不能继续添加或对决。");
     expect(detailSource).toContain("恢复后你可以继续添加动画和对决。");

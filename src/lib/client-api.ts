@@ -57,6 +57,14 @@ export interface PoolSummary {
   defaultRunId?: string | null;
 }
 
+export interface DemoPoolResponse {
+  poolId: string;
+  runId: string;
+  created: boolean;
+  animeCount: number;
+  redirectTo: string;
+}
+
 export type PoolManagementStatus =
   | "EMPTY"
   | "READY"
@@ -419,6 +427,12 @@ export function createPool(data: {
   return fetchJson<PoolSummary>("/api/pools", {
     method: "POST",
     body: data
+  });
+}
+
+export function createDemoPool() {
+  return fetchJson<DemoPoolResponse>("/api/demo-pool", {
+    method: "POST"
   });
 }
 
