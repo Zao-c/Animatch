@@ -15,6 +15,7 @@ import {
   updatePool,
   type PoolSummary
 } from "@/lib/client-api";
+import { formatDateTimeStable } from "@/lib/date-format";
 
 type PoolFilter = "ALL" | "ACTIVE" | "ARCHIVED";
 
@@ -279,7 +280,7 @@ export default function PoolsPage() {
                       </div>
                     ) : null}
                     <p className="mt-5 text-xs text-slate-500">
-                      更新于 {new Date(pool.updatedAt).toLocaleString()}
+                      更新于 {formatDateTimeStable(pool.updatedAt)}
                     </p>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <AppButton

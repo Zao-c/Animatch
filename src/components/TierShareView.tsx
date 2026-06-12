@@ -6,6 +6,7 @@ import { AnimeCover } from "./AnimeCover";
 import { AppBadge } from "./ui/AppBadge";
 import { AppButton, appButtonClasses } from "./ui/AppButton";
 import type { PublicTierShare, TierShareSnapshotItem } from "@/lib/client-api";
+import { formatDateTimeStable } from "@/lib/date-format";
 
 export function TierShareView({ share }: { share: PublicTierShare }) {
   const [copied, setCopied] = useState(false);
@@ -33,7 +34,7 @@ export function TierShareView({ share }: { share: PublicTierShare }) {
               {share.title}
             </h1>
             <p className="mt-3 text-sm text-slate-400">
-              生成于 {formatShareTime(share.snapshot.generatedAt)}
+              生成于 {formatDateTimeStable(share.snapshot.generatedAt)}
             </p>
             {share.description ? (
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
@@ -118,19 +119,4 @@ function ShareItemCard({ item }: { item: TierShareSnapshotItem }) {
       </div>
     </article>
   );
-}
-
-function formatShareTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
 }

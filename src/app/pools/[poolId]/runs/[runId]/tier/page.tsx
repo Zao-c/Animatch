@@ -92,6 +92,7 @@ export default function TierPage({
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportedAt, setExportedAt] = useState<Date | null>(null);
+  const [exportPreviewedAt, setExportPreviewedAt] = useState<Date | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -131,6 +132,12 @@ export default function TierPage({
     setTierLabels(labels);
     setDraftTierLabels(labels);
   }, [params.poolId, params.runId]);
+
+  useEffect(() => {
+    if (tierList !== null && exportPreviewedAt === null) {
+      setExportPreviewedAt(new Date());
+    }
+  }, [exportPreviewedAt, tierList]);
 
   function startEditing() {
     if (tierList === null) {
@@ -356,6 +363,7 @@ export default function TierPage({
     [tierList]
   );
   const scoreDistribution = tierList?.scoreDistribution ?? fallbackScoreDistribution;
+  const displayedExportedAt = exportedAt ?? exportPreviewedAt;
 
   return (
     <PageShell>
@@ -623,7 +631,7 @@ export default function TierPage({
                 {poolName}
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-400">
-                生成时间 {formatTierExportTimestamp(exportedAt ?? new Date())}
+                生成时间 {displayedExportedAt ? formatTierExportTimestamp(displayedExportedAt) : "--"}
               </p>
             </div>
           </div>
