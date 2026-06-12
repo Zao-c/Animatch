@@ -132,43 +132,49 @@ export async function getMatchQueue(params: {
   const displayByAnimeId = new Map(
     poolAnimeEntries.map((entry) => [entry.animeId, getEffectiveAnimeDisplay(entry)])
   );
-  const visibleScores = scores.filter((score) => !score.isHidden);
+  const activeAnimeIds = new Set(poolAnimeEntries.map((entry) => entry.animeId));
+  const activeScores = scores.filter((score) => activeAnimeIds.has(score.animeId));
+  const visibleScores = activeScores.filter((score) => !score.isHidden);
 
   if (visibleScores.length < 2) {
+    const effectiveComparisons = Math.floor(
+      activeScores.reduce((sum, score) => sum + score.compareCount, 0) / 2
+    );
+
     return {
       pairs: [],
-      confidenceScore: calculateQueueConfidence(scores),
-      scoreDistribution: buildScoreDistribution(scores.map((score) => score.eloScore)),
+      confidenceScore: calculateQueueConfidence(activeScores),
+      scoreDistribution: buildScoreDistribution(activeScores.map((score) => score.eloScore)),
       progress: buildRankingProgress({
-        totalItems: scores.length,
-        effectiveComparisons: Math.floor(
-          scores.reduce((sum, score) => sum + score.compareCount, 0) / 2
-        ),
-        comparedItems: scores.filter((score) => score.compareCount > 0).length,
-        totalComparisons: Math.floor(
-          scores.reduce((sum, score) => sum + score.compareCount, 0) / 2
-        )
+        totalItems: activeScores.length,
+        effectiveComparisons,
+        comparedItems: activeScores.filter((score) => score.compareCount > 0).length,
+        totalComparisons: effectiveComparisons
       })
     };
   }
 
-  const recentComparisons = await prisma.poolComparison.findMany({
-    where: {
-      userId: params.userId,
-      poolId: params.poolId,
-      runId: params.runId
+  const activeComparisonWhere = {
+    userId: params.userId,
+    poolId: params.poolId,
+    runId: params.runId,
+    leftAnimeId: {
+      in: [...activeAnimeIds]
     },
+    rightAnimeId: {
+      in: [...activeAnimeIds]
+    }
+  };
+
+  const recentComparisons = await prisma.poolComparison.findMany({
+    where: activeComparisonWhere,
     orderBy: {
       createdAt: "desc"
     },
     take: 50
   });
   const allComparisons = await prisma.poolComparison.findMany({
-    where: {
-      userId: params.userId,
-      poolId: params.poolId,
-      runId: params.runId
-    },
+    where: activeComparisonWhere,
     select: {
       pairKey: true,
       isEffective: true
@@ -224,7 +230,7 @@ export async function getMatchQueue(params: {
 
   return {
     pairs,
-    confidenceScore: calculateQueueConfidence(scores),
+    confidenceScore: calculateQueueConfidence(activeScores),
     scoreDistribution: buildScoreDistribution(visibleScores.map((score) => score.eloScore)),
     progress
   };

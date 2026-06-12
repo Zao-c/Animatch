@@ -8,7 +8,6 @@ import { PageShell } from "@/components/PageShell";
 import { RankingProgressCard } from "@/components/RankingProgressCard";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
-import { AppCard } from "@/components/ui/AppCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
 import {
@@ -39,6 +38,7 @@ export default function MatchPage({
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRefilling, setIsRefilling] = useState(false);
+  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
   const [preloadProgress, setPreloadProgress] = useState<{ loaded: number; total: number } | null>(
     null
   );
@@ -227,6 +227,16 @@ export default function MatchPage({
         <div className="flex flex-wrap gap-3">
           <Stat label="信心指数" value={confidenceScore.toFixed(1)} />
           <Stat label="队列剩余" value={String(queue.length)} />
+          <AppButton
+            type="button"
+            onClick={() => setShowShortcutHelp((value) => !value)}
+            variant="quiet"
+            size="sm"
+            aria-expanded={showShortcutHelp}
+            className="self-end"
+          >
+            ? 快捷键
+          </AppButton>
           <Link
             href={`/pools/${params.poolId}/runs/${params.runId}/tier`}
             className={appButtonClasses({ variant: "ghost", className: "self-end" })}
@@ -250,6 +260,7 @@ export default function MatchPage({
           side="left"
           disabled={isSubmitting}
           actionLabel="选择左边"
+          shortcut="←"
           scoreDistribution={queueMeta?.scoreDistribution ?? fallbackScoreDistribution}
           onPick={() => handleSubmit("LEFT_WIN")}
           highlighted={feedbackResult === "LEFT_WIN"}
@@ -264,53 +275,71 @@ export default function MatchPage({
           side="right"
           disabled={isSubmitting}
           actionLabel="选择右边"
+          shortcut="→"
           scoreDistribution={queueMeta?.scoreDistribution ?? fallbackScoreDistribution}
           onPick={() => handleSubmit("RIGHT_WIN")}
           highlighted={feedbackResult === "RIGHT_WIN"}
         />
       </div>
 
-      <AppCard className="mt-6 p-4" variant="soft">
-        <MatchShortcutHint />
+      <div className="mt-5 space-y-3">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <AppButton disabled={isSubmitting} onClick={() => handleSubmit("DRAW")} variant="quiet">
-            差不多
+            <ShortcutKey>↑</ShortcutKey>
+            <span>差不多</span>
           </AppButton>
           <AppButton disabled={isSubmitting} onClick={() => handleSubmit("SKIP")} variant="quiet">
-            跳过
+            <ShortcutKey>↓</ShortcutKey>
+            <span>跳过</span>
           </AppButton>
           <AppButton disabled={isSubmitting} onClick={() => handleSubmit("LEFT_UNSEEN")} variant="quiet">
-            左边没看过
+            <ShortcutKey>1</ShortcutKey>
+            <span>左边没看过</span>
           </AppButton>
           <AppButton disabled={isSubmitting} onClick={() => handleSubmit("RIGHT_UNSEEN")} variant="quiet">
-            右边没看过
+            <ShortcutKey>2</ShortcutKey>
+            <span>右边没看过</span>
           </AppButton>
           <AppButton disabled={isSubmitting} onClick={() => handleSubmit("BOTH_UNSEEN")} variant="quiet">
-            两个都没看过
+            <ShortcutKey>0</ShortcutKey>
+            <span>两个都没看过</span>
           </AppButton>
         </div>
-      </AppCard>
+        {showShortcutHelp ? <MatchShortcutHint /> : null}
+      </div>
     </PageShell>
   );
 }
 
 function MatchShortcutHint() {
   return (
-    <div className="mb-3 flex flex-wrap gap-2 text-xs text-slate-400" aria-label="Match keyboard shortcuts">
+    <div
+      className="ml-auto flex w-fit max-w-full flex-wrap justify-end gap-2 rounded-full border border-anime-border bg-slate-950/42 px-3 py-2 text-xs text-slate-400"
+      aria-label="Match keyboard shortcuts"
+    >
       {[
-        "← 左胜",
-        "→ 右胜",
-        "↑ 差不多",
-        "↓ 跳过",
-        "1 左未看",
-        "2 右未看",
-        "0 都未看"
-      ].map((item) => (
-        <span key={item} className="rounded-full border border-anime-border bg-white/[0.03] px-2.5 py-1">
-          {item}
+        ["←", "选择左边"],
+        ["→", "选择右边"],
+        ["↑", "差不多"],
+        ["↓", "跳过"],
+        ["1", "左边没看过"],
+        ["2", "右边没看过"],
+        ["0", "都没看过"]
+      ].map(([keyName, label]) => (
+        <span key={keyName} className="inline-flex items-center gap-1.5">
+          <ShortcutKey>{keyName}</ShortcutKey>
+          <span>{label}</span>
         </span>
       ))}
     </div>
+  );
+}
+
+function ShortcutKey({ children }: { children: string }) {
+  return (
+    <kbd className="mr-1 inline-flex min-w-5 items-center justify-center rounded-md border border-anime-cyan/30 bg-slate-950/50 px-1.5 py-0.5 text-[11px] font-black leading-none text-cyan-100">
+      {children}
+    </kbd>
   );
 }
 

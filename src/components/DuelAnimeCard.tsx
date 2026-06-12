@@ -14,6 +14,7 @@ export function DuelAnimeCard({
   side,
   disabled,
   actionLabel,
+  shortcut,
   onPick,
   scoreDistribution,
   highlighted = false,
@@ -23,6 +24,7 @@ export function DuelAnimeCard({
   side: "left" | "right";
   disabled: boolean;
   actionLabel: string;
+  shortcut?: string;
   onPick: () => void;
   scoreDistribution: RankingScoreDistribution;
   highlighted?: boolean;
@@ -113,9 +115,18 @@ export function DuelAnimeCard({
         size="lg"
         className="mt-5 w-full"
       >
-        {actionLabel}
+        {shortcut ? <ShortcutKey>{shortcut}</ShortcutKey> : null}
+        <span>{actionLabel}</span>
       </AppButton>
     </AppCard>
+  );
+}
+
+function ShortcutKey({ children }: { children: string }) {
+  return (
+    <kbd className="mr-2 rounded-md border border-slate-950/20 bg-slate-950/20 px-1.5 py-0.5 text-[11px] font-black leading-none text-slate-950">
+      {children}
+    </kbd>
   );
 }
 

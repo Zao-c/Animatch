@@ -65,7 +65,7 @@ export async function getRunTierList(params: {
 }): Promise<RunTierListResult> {
   await assertRunAccess(params);
 
-  const [scores, totalComparisons, effectiveComparisons, poolAnimeEntries] = await Promise.all([
+  const [scores, poolAnimeEntries] = await Promise.all([
     prisma.userPoolScore.findMany({
       where: {
         userId: params.userId,
@@ -74,21 +74,6 @@ export async function getRunTierList(params: {
       },
       include: {
         anime: true
-      }
-    }),
-    prisma.poolComparison.count({
-      where: {
-        userId: params.userId,
-        poolId: params.poolId,
-        runId: params.runId
-      }
-    }),
-    prisma.poolComparison.count({
-      where: {
-        userId: params.userId,
-        poolId: params.poolId,
-        runId: params.runId,
-        isEffective: true
       }
     }),
     prisma.poolAnime.findMany({
@@ -100,10 +85,34 @@ export async function getRunTierList(params: {
       }
     })
   ]);
+  const activeAnimeIds = new Set(poolAnimeEntries.map((entry) => entry.animeId));
   const displayByAnimeId = new Map(
     poolAnimeEntries.map((entry) => [entry.animeId, getEffectiveAnimeDisplay(entry)])
   );
-  const items = scores.map((score) =>
+  const activeScores = scores.filter((score) => activeAnimeIds.has(score.animeId));
+  const activeComparisonsWhere = {
+    userId: params.userId,
+    poolId: params.poolId,
+    runId: params.runId,
+    leftAnimeId: {
+      in: [...activeAnimeIds]
+    },
+    rightAnimeId: {
+      in: [...activeAnimeIds]
+    }
+  };
+  const [activeTotalComparisons, activeEffectiveComparisons] = await Promise.all([
+    prisma.poolComparison.count({
+      where: activeComparisonsWhere
+    }),
+    prisma.poolComparison.count({
+      where: {
+        ...activeComparisonsWhere,
+        isEffective: true
+      }
+    })
+  ]);
+  const items = activeScores.map((score) =>
     toTierListItem(score, displayByAnimeId.get(score.animeId))
   );
   const tiers = buildTierList(items);
@@ -111,16 +120,16 @@ export async function getRunTierList(params: {
   return {
     tiers,
     confidenceScore: calculateRankingConfidence(items),
-    totalAnime: scores.length,
-    comparedAnime: scores.filter((score) => score.compareCount > 0).length,
-    totalComparisons,
-    effectiveComparisons,
+    totalAnime: activeAnimeIds.size,
+    comparedAnime: activeScores.filter((score) => score.compareCount > 0).length,
+    totalComparisons: activeTotalComparisons,
+    effectiveComparisons: activeEffectiveComparisons,
     scoreDistribution: buildScoreDistribution(items.map((item) => item.eloScore)),
     progress: buildRankingProgress({
-      totalItems: scores.length,
-      effectiveComparisons,
-      comparedItems: scores.filter((score) => score.compareCount > 0).length,
-      totalComparisons
+      totalItems: activeAnimeIds.size,
+      effectiveComparisons: activeEffectiveComparisons,
+      comparedItems: activeScores.filter((score) => score.compareCount > 0).length,
+      totalComparisons: activeTotalComparisons
     })
   };
 }
