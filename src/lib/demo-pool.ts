@@ -127,6 +127,10 @@ export async function getOrCreateDemoPool(userId: string): Promise<DemoPoolResul
     }
   });
 
+  if (existingPool !== null) {
+    return serializeExistingDemoPoolResult(existingPool, userId);
+  }
+
   const anime = await ensureDemoAnime();
   const pool =
     existingPool ??
@@ -146,7 +150,7 @@ export async function getOrCreateDemoPool(userId: string): Promise<DemoPoolResul
     userId,
     poolId: pool.id
   });
-  const scores = await initializeScoresForRun({
+  await initializeScoresForRun({
     userId,
     poolId: pool.id,
     runId: run.id
@@ -155,8 +159,39 @@ export async function getOrCreateDemoPool(userId: string): Promise<DemoPoolResul
   return serializeDemoPoolResult({
     pool,
     run,
-    created: existingPool === null,
-    animeCount: Math.max(anime.length, scores.length)
+    created: true,
+    animeCount: anime.length
+  });
+}
+
+async function serializeExistingDemoPoolResult(
+  pool: CustomPool,
+  userId: string
+): Promise<DemoPoolResult> {
+  const run = await getOrCreateDefaultRun({
+    userId,
+    poolId: pool.id
+  });
+  const existingEntries = await prisma.poolAnime.findMany({
+    where: {
+      poolId: pool.id
+    },
+    select: {
+      animeId: true
+    }
+  });
+
+  await initializeScoresForRun({
+    userId,
+    poolId: pool.id,
+    runId: run.id
+  });
+
+  return serializeDemoPoolResult({
+    pool,
+    run,
+    created: false,
+    animeCount: existingEntries.length
   });
 }
 
@@ -256,6 +291,9 @@ function serializeDemoPoolResult(input: {
     runId: input.run.id,
     created: input.created,
     animeCount: input.animeCount,
-    redirectTo: `/pools/${input.pool.id}/runs/${input.run.id}/match`
+    redirectTo:
+      input.animeCount >= 2
+        ? `/pools/${input.pool.id}/runs/${input.run.id}/match`
+        : `/pools/${input.pool.id}`
   };
 }

@@ -186,7 +186,71 @@ describe("POST /api/demo-pool", () => {
 
     expect(response.status).toBe(200);
     expect(payload.data.created).toBe(false);
+    expect(payload.data.animeCount).toBe(10);
     expect(mockedCustomPool.create).not.toHaveBeenCalled();
+    expect(mockedAnime.upsert).not.toHaveBeenCalled();
+    expect(mockedPoolAnime.create).not.toHaveBeenCalled();
+    expect(payload.data.redirectTo).toBe("/pools/pool-demo/runs/run-demo/match");
+  });
+
+  it("does not restore a removed default anime in an active demo pool", async () => {
+    mockedCustomPool.findFirst.mockResolvedValue(pool());
+    mockedPoolAnime.findMany.mockResolvedValue(
+      Array.from({ length: 9 }, (_, index) => ({
+        animeId: `anime-${900001 + index}`,
+        position: index + 1
+      })) as any
+    );
+
+    const response = await POST();
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data).toMatchObject({
+      created: false,
+      animeCount: 9,
+      redirectTo: "/pools/pool-demo/runs/run-demo/match"
+    });
+    expect(mockedAnime.upsert).not.toHaveBeenCalled();
+    expect(mockedPoolAnime.create).not.toHaveBeenCalled();
+  });
+
+  it("does not restore defaults when an active demo pool has been emptied", async () => {
+    mockedCustomPool.findFirst.mockResolvedValue(pool());
+    mockedPoolAnime.findMany.mockResolvedValue([]);
+
+    const response = await POST();
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data).toMatchObject({
+      created: false,
+      animeCount: 0,
+      redirectTo: "/pools/pool-demo"
+    });
+    expect(mockedAnime.upsert).not.toHaveBeenCalled();
+    expect(mockedPoolAnime.create).not.toHaveBeenCalled();
+  });
+
+  it("redirects existing active demo pools with fewer than 2 anime to pool detail", async () => {
+    mockedCustomPool.findFirst.mockResolvedValue(pool());
+    mockedPoolAnime.findMany.mockResolvedValue([
+      {
+        animeId: "anime-900001",
+        position: 1
+      }
+    ] as any);
+
+    const response = await POST();
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data).toMatchObject({
+      created: false,
+      animeCount: 1,
+      redirectTo: "/pools/pool-demo"
+    });
+    expect(mockedAnime.upsert).not.toHaveBeenCalled();
     expect(mockedPoolAnime.create).not.toHaveBeenCalled();
   });
 
@@ -201,7 +265,8 @@ describe("POST /api/demo-pool", () => {
     expect(response.status).toBe(201);
     expect(payload.data).toMatchObject({
       poolId: "pool-demo-next",
-      created: true
+      created: true,
+      redirectTo: "/pools/pool-demo-next/runs/run-demo/match"
     });
     expect(mockedCustomPool.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
