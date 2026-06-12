@@ -354,6 +354,46 @@ describe("pools API management", () => {
     });
   });
 
+  it("GET /api/pools returns cover preview images from active pool anime", async () => {
+    mockedCustomPool.findMany.mockResolvedValue([
+      pool({
+        id: "cover-pool",
+        _count: { poolAnime: 2, poolComparisons: 0 },
+        poolAnime: [
+          {
+            anime: {
+              source: "MANAMI",
+              imageUrl: "https://img.example.test/a.jpg",
+              thumbnailUrl: null,
+              imageSmallUrl: null,
+              imageMediumUrl: null,
+              imageLargeUrl: null
+            }
+          },
+          {
+            anime: {
+              source: "CUSTOM_UPLOAD",
+              imageUrl: null,
+              thumbnailUrl: "/uploads/custom-items/b.png",
+              imageSmallUrl: null,
+              imageMediumUrl: null,
+              imageLargeUrl: null
+            }
+          }
+        ]
+      })
+    ]);
+
+    const response = await LIST_POOLS(new Request("http://test.local/api/pools"));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data.items[0]).toMatchObject({
+      id: "cover-pool",
+      coverImages: ["https://img.example.test/a.jpg", "/uploads/custom-items/b.png"]
+    });
+  });
+
   it("GET pool detail still returns archived pools for history viewing", async () => {
     mockedCustomPool.findUnique.mockResolvedValue(
       pool({ status: PoolStatus.ARCHIVED, deletedAt: new Date() })

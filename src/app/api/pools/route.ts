@@ -73,10 +73,18 @@ export async function GET(request: Request) {
         },
         poolAnime: {
           take: 20,
+          orderBy: {
+            position: "asc"
+          },
           select: {
             anime: {
               select: {
-                source: true
+                source: true,
+                imageUrl: true,
+                thumbnailUrl: true,
+                imageSmallUrl: true,
+                imageMediumUrl: true,
+                imageLargeUrl: true
               }
             }
           }
@@ -134,10 +142,18 @@ function serializePoolSummary(pool: Prisma.CustomPoolGetPayload<{
     };
     poolAnime: {
       take: 20;
+      orderBy: {
+        position: "asc";
+      };
       select: {
         anime: {
           select: {
             source: true;
+            imageUrl: true;
+            thumbnailUrl: true;
+            imageSmallUrl: true;
+            imageMediumUrl: true;
+            imageLargeUrl: true;
           };
         };
       };
@@ -199,8 +215,33 @@ function serializePoolSummary(pool: Prisma.CustomPoolGetPayload<{
     uiStatus,
     uiStatusLabel: labelForPoolStatus(uiStatus),
     sourceType: deriveSourceType(pool.poolAnime.map((entry) => entry.anime.source)),
+    coverImages: deriveCoverImages(pool.poolAnime),
     defaultRunId: pool.personalRuns[0]?.id ?? null
   };
+}
+
+function deriveCoverImages(
+  entries: Array<{
+    anime: {
+      imageUrl: string | null;
+      thumbnailUrl: string | null;
+      imageSmallUrl: string | null;
+      imageMediumUrl: string | null;
+      imageLargeUrl: string | null;
+    };
+  }>
+): string[] {
+  return entries
+    .map(
+      (entry) =>
+        entry.anime.thumbnailUrl ??
+        entry.anime.imageUrl ??
+        entry.anime.imageMediumUrl ??
+        entry.anime.imageSmallUrl ??
+        entry.anime.imageLargeUrl
+    )
+    .filter((url): url is string => Boolean(url))
+    .slice(0, 5);
 }
 
 function labelForPoolStatus(status: string): string {

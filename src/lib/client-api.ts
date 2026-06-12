@@ -54,7 +54,28 @@ export interface PoolSummary {
   uiStatus?: PoolManagementStatus;
   uiStatusLabel?: string;
   sourceType?: string;
+  coverImages?: string[];
   defaultRunId?: string | null;
+}
+
+export interface MiniMatchPreviewAnime {
+  animeId: string;
+  title: string;
+  titleCn: string | null;
+  imageUrl: string | null;
+  meta: string | null;
+}
+
+export interface MiniMatchPreview {
+  source: "CONTINUE_RUN" | "DEMO_POOL" | "EMPTY";
+  poolId?: string;
+  runId?: string;
+  ctaHref?: string;
+  ctaLabel: string;
+  pairs: {
+    left: MiniMatchPreviewAnime;
+    right: MiniMatchPreviewAnime;
+  }[];
 }
 
 export interface DemoPoolResponse {
@@ -431,6 +452,10 @@ export function listPools(params: {
   const query = searchParams.toString();
 
   return fetchJson<{ items: PoolSummary[] }>(`/api/pools${query ? `?${query}` : ""}`);
+}
+
+export function getDashboard() {
+  return fetchJson<{ miniMatchPreview: MiniMatchPreview }>("/api/dashboard");
 }
 
 export function createPool(data: {

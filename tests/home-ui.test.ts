@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -9,19 +10,28 @@ import { AppCard } from "../src/components/ui/AppCard";
 (globalThis as typeof globalThis & { React: typeof React }).React = React;
 
 describe("home page UI refresh", () => {
-  it("renders the value proposition, CTAs, mini match demo, and three-step flow", () => {
+  it("renders the value proposition, CTAs, mini match preview, and three-step flow", () => {
     const html = renderToStaticMarkup(React.createElement(Home));
 
     expect(html).toContain("用左右选择，生成你的动画 Tier List");
-    expect(html).toContain("创建第一个番组");
-    expect(html).toContain("查看我的番组");
-    expect(html).toContain("体验示例番组");
-    expect(html).toContain("不用搜索和导入，直接体验二选一对决。");
-    expect(html).toContain("Mini match demo");
-    expect(html).toContain("VS");
+    expect(html).toContain("番剧擂台");
+    expect(html).toContain("正在准备真实对决预览");
     expect(html).toContain("添加动画");
     expect(html).toContain("开始对决");
     expect(html).toContain("生成榜单");
+  });
+});
+
+describe("home mini match demo source", () => {
+  const source = readFileSync("src/components/home/HomeMiniMatchDemo.tsx", "utf8");
+
+  it("keeps mini demo choices local and avoids formal comparison writes", () => {
+    expect(source).toContain("演示选择不会保存");
+    expect(source).toContain("choose(\"left\")");
+    expect(source).toContain("choose(\"draw\")");
+    expect(source).toContain("choose(\"right\")");
+    expect(source).toContain("createDemoPool");
+    expect(source).not.toContain("submitComparison");
   });
 });
 

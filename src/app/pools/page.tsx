@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { AnimeCover } from "@/components/AnimeCover";
 import { PageShell } from "@/components/PageShell";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
@@ -410,10 +411,12 @@ function PoolCard({
 
   return (
     <AppCard
-      className={`p-5 transition hover:border-cyan-300/25 ${
+      className={`overflow-hidden p-0 transition hover:border-cyan-300/25 ${
         isArchived ? "opacity-70 grayscale-[0.18]" : ""
       }`}
     >
+      <CoverStrip images={pool.coverImages ?? []} title={pool.name} />
+      <div className="p-5">
       {isEditing ? (
         <div className="space-y-3">
           <input
@@ -546,7 +549,47 @@ function PoolCard({
           </details>
         </>
       )}
+      </div>
     </AppCard>
+  );
+}
+
+function CoverStrip({ images, title }: { images: string[]; title: string }) {
+  const visibleImages = images.slice(0, 5);
+
+  if (visibleImages.length === 0) {
+    return (
+      <div className="grid h-24 grid-cols-5 gap-1 bg-slate-950/45 p-2">
+        {Array.from({ length: 5 }, (_, index) => (
+          <div
+            key={index}
+            className="flex items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br from-slate-800 via-slate-900 to-anime-purple/25 text-xs font-black text-slate-500"
+          >
+            {index === 2 ? title.slice(0, 1).toUpperCase() : ""}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid h-28 grid-cols-5 gap-1 bg-slate-950/45 p-2">
+      {visibleImages.map((image, index) => (
+        <AnimeCover
+          key={`${image}-${index}`}
+          src={image}
+          title={title}
+          size="sm"
+          className="h-full w-full rounded-xl"
+        />
+      ))}
+      {Array.from({ length: Math.max(0, 5 - visibleImages.length) }, (_, index) => (
+        <div
+          key={`fallback-${index}`}
+          className="rounded-xl border border-white/10 bg-gradient-to-br from-slate-800 to-slate-950"
+        />
+      ))}
+    </div>
   );
 }
 

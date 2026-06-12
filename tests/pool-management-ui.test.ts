@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 describe("pool management UI", () => {
   const poolsSource = readFileSync("src/app/pools/page.tsx", "utf8");
   const detailSource = readFileSync("src/app/pools/[poolId]/page.tsx", "utf8");
+  const newPoolSource = readFileSync("src/app/pools/new/page.tsx", "utf8");
 
   it("exposes management filters, sorting, and UI statuses", () => {
     expect(poolsSource).toContain("可开始");
@@ -28,6 +29,19 @@ describe("pool management UI", () => {
     expect(poolsSource).toContain("体验示例番组");
     expect(poolsSource).toContain("正在准备体验池...");
     expect(poolsSource).toContain("createDemoPool");
+  });
+
+  it("adds cover memory points to pool cards", () => {
+    expect(poolsSource).toContain("CoverStrip");
+    expect(poolsSource).toContain("coverImages");
+  });
+
+  it("turns pool creation into an onboarding flow", () => {
+    expect(newPoolSource).toContain("创建你的动画池");
+    expect(newPoolSource).toContain("创建并添加动画");
+    expect(newPoolSource).toContain("#add-anime");
+    expect(newPoolSource).toContain("四月新番");
+    expect(newPoolSource).toContain("添加 4-8 部动画");
   });
 
   it("shows archived pools as read-only on detail while keeping restore available", () => {
