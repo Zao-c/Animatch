@@ -65,6 +65,21 @@ export interface DemoPoolResponse {
   redirectTo: string;
 }
 
+export interface TierMakerImportItemInput {
+  title?: string;
+  titleCn?: string;
+  imageUrl: string;
+  index?: number;
+  tags?: string[];
+}
+
+export interface TierMakerImportResponse {
+  added: PoolAnimeEntry[];
+  skipped: PoolAnimeEntry[];
+  importedCount: number;
+  skippedCount: number;
+}
+
 export type PoolManagementStatus =
   | "EMPTY"
   | "READY"
@@ -485,6 +500,20 @@ export function bulkImportAnimeToPool(poolId: string, input: string) {
   }>(`/api/pools/${poolId}/anime/bulk-import`, {
     method: "POST",
     body: { input }
+  });
+}
+
+export function importTierMakerItemsToPool(
+  poolId: string,
+  input: {
+    templateUrl: string;
+    templateName?: string;
+    items: TierMakerImportItemInput[];
+  }
+) {
+  return fetchJson<TierMakerImportResponse>(`/api/pools/${poolId}/anime/tiermaker-import`, {
+    method: "POST",
+    body: input
   });
 }
 

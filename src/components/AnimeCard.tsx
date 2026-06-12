@@ -1,6 +1,7 @@
 "use client";
 
 import type { PublicAnime } from "@/lib/client-api";
+import { formatAnimeSource } from "@/lib/anime-source";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { AnimeCover } from "./AnimeCover";
 
@@ -47,7 +48,11 @@ export function AnimeCard({
           {anime.bangumiRank !== null ? <span>排名 #{anime.bangumiRank}</span> : null}
           {anime.year !== null ? <span>{anime.year}</span> : null}
           {anime.animeType !== null ? <span>{anime.animeType}</span> : null}
-          {anime.bgmId !== null ? <span>BGM {anime.bgmId}</span> : <span className="text-slate-500">{anime.source}</span>}
+          {anime.bgmId !== null ? (
+            <span>BGM {anime.bgmId}</span>
+          ) : (
+            <span className="text-slate-500">{formatAnimeSource(anime.source)}</span>
+          )}
         </div>
         {actionLabel ? (
           <div className="mt-4 text-sm font-medium text-cyan-300">{actionLabel}</div>

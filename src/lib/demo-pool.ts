@@ -1,5 +1,6 @@
 import { PoolStatus, Visibility, type Anime, type CustomPool, type PersonalRun } from "@prisma/client";
 import { prisma } from "./db";
+import { ANIME_SOURCE } from "./anime-source";
 import { getOrCreateDefaultRun, initializeScoresForRun } from "./run-service";
 
 export const DEMO_POOL_NAME = "AniMatch 入门体验池";
@@ -184,7 +185,7 @@ async function ensureDemoAnime(): Promise<Anime[]> {
           aliases: [item.titleCn],
           studios: [],
           externalLinks: [],
-          source: "DEMO",
+          source: ANIME_SOURCE.DEMO,
           sourceId: `demo/${Math.abs(item.bgmId)}`,
           imageStatus: "MISSING"
         },
@@ -203,7 +204,7 @@ async function ensureDemoAnime(): Promise<Anime[]> {
           aliases: [item.titleCn],
           studios: [],
           externalLinks: [],
-          source: "DEMO",
+          source: ANIME_SOURCE.DEMO,
           sourceId: `demo/${Math.abs(item.bgmId)}`,
           imageStatus: "MISSING"
         }

@@ -332,6 +332,28 @@ describe("pools API management", () => {
     ).toEqual(["ARCHIVED", "EMPTY", "IN_PROGRESS", "READY", "STABLE"]);
   });
 
+  it("GET /api/pools displays TierMaker source labels for pool cards", async () => {
+    mockedCustomPool.findMany.mockResolvedValue([
+      pool({
+        id: "tiermaker-pool",
+        _count: { poolAnime: 2, poolComparisons: 0 },
+        poolAnime: [
+          { anime: { source: "TIERMAKER_IMPORT" } },
+          { anime: { source: "TIERMAKER_IMPORT" } }
+        ]
+      })
+    ]);
+
+    const response = await LIST_POOLS(new Request("http://test.local/api/pools"));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data.items[0]).toMatchObject({
+      id: "tiermaker-pool",
+      sourceType: "TierMaker"
+    });
+  });
+
   it("GET pool detail still returns archived pools for history viewing", async () => {
     mockedCustomPool.findUnique.mockResolvedValue(
       pool({ status: PoolStatus.ARCHIVED, deletedAt: new Date() })

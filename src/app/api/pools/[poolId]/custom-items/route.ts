@@ -8,6 +8,7 @@ import {
 } from "@/lib/anime-cover-upload";
 import { getOrCreateDevUser } from "@/lib/dev-user";
 import { prisma } from "@/lib/db";
+import { ANIME_SOURCE } from "@/lib/anime-source";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
 
 interface RouteContext {
@@ -100,7 +101,7 @@ export async function POST(request: Request, context: RouteContext) {
         animeType: "IMAGE",
         studios: [],
         externalLinks: [],
-        source: "CUSTOM_UPLOAD",
+        source: ANIME_SOURCE.CUSTOM_UPLOAD,
         sourceId,
         rawJson: {
           customUpload: true,

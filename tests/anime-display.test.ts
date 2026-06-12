@@ -75,6 +75,19 @@ describe("getEffectiveAnimeDisplay", () => {
     expect(display.coverUrl).toBe("/uploads/custom-items/test.png");
   });
 
+  it("labels TIERMAKER_IMPORT as TierMaker", () => {
+    const display = getEffectiveAnimeDisplay(
+      entry({
+        anime: {
+          ...entry().anime,
+          source: "TIERMAKER_IMPORT"
+        }
+      })
+    );
+
+    expect(display.sourceLabel).toBe("TierMaker");
+  });
+
   it("prefers non-empty tagsOverride over anime tags", () => {
     const display = getEffectiveAnimeDisplay(
       entry({

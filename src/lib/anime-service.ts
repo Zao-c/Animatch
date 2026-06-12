@@ -1,5 +1,6 @@
 import { Prisma, type Anime } from "@prisma/client";
 import { prisma } from "./db";
+import { ANIME_SOURCE } from "./anime-source";
 import {
   getBangumiSubject,
   parseBangumiSubjectIds,
@@ -403,7 +404,7 @@ export async function searchLocalAnime(
     where: {
       AND: conditions,
       source: {
-        not: "CUSTOM_UPLOAD"
+        not: ANIME_SOURCE.CUSTOM_UPLOAD
       }
     },
     orderBy: { bgmId: { sort: "asc", nulls: "last" } },
@@ -545,7 +546,7 @@ export async function createManualAnime(input: ManualAnimeInput): Promise<Anime>
       summary: input.summary?.trim() || null,
       aliases: [],
       externalLinks: [],
-      source: "MANUAL",
+      source: ANIME_SOURCE.MANUAL,
       sourceId,
       imageStatus: input.imageUrl ? "OK" : "MISSING",
     },
@@ -592,7 +593,7 @@ export async function importManamiSubjects(
       }
 
       const existing = await prisma.anime.findFirst({
-        where: { source: "MANAMI", sourceId },
+        where: { source: ANIME_SOURCE.MANAMI, sourceId },
       });
 
       if (existing) {
@@ -622,7 +623,7 @@ export async function importManamiSubjects(
           aliases: item.synonyms || [],
           studios: item.studios || [],
           externalLinks: item.sources || [],
-          source: "MANAMI",
+          source: ANIME_SOURCE.MANAMI,
           sourceId,
           rawJson: item as unknown as Prisma.InputJsonValue,
           imageStatus: item.picture ? "OK" : "MISSING",

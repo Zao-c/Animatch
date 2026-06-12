@@ -2,6 +2,7 @@ import { ok, serverError } from "@/lib/api-response";
 import { toPublicAnime } from "@/lib/anime-service";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { ANIME_SOURCE } from "@/lib/anime-source";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
   try {
     const where: Prisma.AnimeWhereInput = {
       source: {
-        not: "CUSTOM_UPLOAD"
+        not: ANIME_SOURCE.CUSTOM_UPLOAD
       }
     };
 

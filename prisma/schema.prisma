@@ -20,6 +20,15 @@ enum PoolStatus {
   ARCHIVED
 }
 
+enum AnimeSourceType {
+  BANGUMI
+  MANAMI
+  CUSTOM_UPLOAD
+  MANUAL
+  DEMO
+  TIERMAKER_IMPORT
+}
+
 enum PersonalRunStatus {
   ACTIVE
   ARCHIVED
@@ -123,7 +132,7 @@ model Anime {
   status               String?
   studios              String[]               @default([])
   externalLinks        String[]               @default([])
-  source               String                 @default("BANGUMI")
+  source               AnimeSourceType        @default(BANGUMI)
   sourceId             String?
   rawJson              Json?
   fetchedAt            DateTime?

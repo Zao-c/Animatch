@@ -1,3 +1,5 @@
+import { formatAnimeSource } from "./anime-source";
+
 export interface EffectiveAnimeDisplay {
   title: string;
   subtitle: string | null;
@@ -59,7 +61,7 @@ export function getEffectiveAnimeDisplay(
       null,
     animeType: nonEmpty(entry.animeTypeOverride) ?? entry.anime.animeType,
     tags,
-    sourceLabel: entry.anime.source,
+    sourceLabel: formatAnimeSource(entry.anime.source),
     isOverridden:
       nonEmpty(entry.displayTitleOverride) !== null ||
       nonEmpty(entry.coverUrlOverride) !== null ||

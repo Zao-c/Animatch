@@ -8,6 +8,7 @@ import { AnimeCover } from "@/components/AnimeCover";
 import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { formatAnimeSource } from "@/lib/anime-source";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
@@ -580,6 +581,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const canStart = pool.anime.length >= 2 && !isArchived;
   const joinedAnimeIds = new Set(pool.anime.map((entry) => entry.animeId));
   const poolGuidance = getPoolGuidance(pool.anime.length, isArchived);
+  const sourceSummary = formatPoolSourceSummary(pool.anime.map((entry) => entry.anime.source));
   const selectedDisplayEntry =
     editingDisplayAnimeId === null
       ? null
@@ -596,6 +598,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
               {isArchived ? "已归档" : pool.visibility}
             </AppBadge>
             <AppBadge tone="source">{pool.anime.length} 部动画</AppBadge>
+            <AppBadge tone="source">{sourceSummary}</AppBadge>
             <AppBadge tone={canStart ? "success" : "warning"}>
               {canStart ? "Ready" : "准备中"}
             </AppBadge>
@@ -1085,6 +1088,20 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   );
 }
 
+function formatPoolSourceSummary(sources: string[]) {
+  const labels = [...new Set(sources.map(formatAnimeSource).filter(Boolean))];
+
+  if (labels.length === 0) {
+    return "Unknown";
+  }
+
+  if (labels.length === 1) {
+    return labels[0];
+  }
+
+  return `Mixed: ${labels.join(" / ")}`;
+}
+
 function getPoolGuidance(animeCount: number, isArchived: boolean) {
   if (isArchived) {
     return {
@@ -1194,6 +1211,7 @@ function PoolAnimeCard({
       <div className="p-3">
         <div className="flex min-h-14 items-start gap-2">
           <h3 className="line-clamp-2 flex-1 text-sm font-semibold text-white">{title}</h3>
+          <AppBadge tone="muted">{display.sourceLabel}</AppBadge>
           {display.isOverridden ? <AppBadge tone="source">已修正</AppBadge> : null}
         </div>
         {display.subtitle ? <p className="mt-1 line-clamp-1 text-xs text-slate-500">{display.subtitle}</p> : null}

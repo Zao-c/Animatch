@@ -2,6 +2,7 @@ import { PoolStatus, Prisma, Visibility } from "@prisma/client";
 import { badRequest, ok, serverError } from "@/lib/api-response";
 import { getOrCreateDevUser } from "@/lib/dev-user";
 import { prisma } from "@/lib/db";
+import { formatAnimeSource } from "@/lib/anime-source";
 import { buildRankingProgress } from "@/lib/ranking-progress";
 
 const VISIBILITIES = new Set<string>(Object.values(Visibility));
@@ -230,7 +231,7 @@ function deriveSourceType(sources: string[]): string {
     return "MIXED";
   }
 
-  return uniqueSources[0];
+  return formatAnimeSource(uniqueSources[0]);
 }
 
 function comparePoolSummary(
