@@ -195,6 +195,14 @@ export interface SubmitComparisonResponse {
   rightScore: ScoreSummary;
 }
 
+export interface UndoLastComparisonResponse {
+  undoneComparisonId: string;
+  runId: string;
+  poolId: string;
+  message: string;
+  redirectTo: string;
+}
+
 export interface ScoreSummary {
   animeId: string;
   eloScore: number;
@@ -724,6 +732,15 @@ export function submitComparison(
 export function resetRun(poolId: string, runId: string) {
   return fetchJson<{ runId: string; poolId: string; redirectTo: string }>(
     `/api/pools/${poolId}/runs/${runId}/reset`,
+    {
+      method: "POST"
+    }
+  );
+}
+
+export function undoLastComparison(poolId: string, runId: string) {
+  return fetchJson<UndoLastComparisonResponse>(
+    `/api/pools/${poolId}/runs/${runId}/undo-last`,
     {
       method: "POST"
     }

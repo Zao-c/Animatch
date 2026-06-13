@@ -22,6 +22,9 @@ export interface ComparisonHistoryItem {
   right: ComparisonHistoryAnime;
   winnerAnimeId: string | null;
   loserAnimeId: string | null;
+  isUndone: boolean;
+  undoneAt: string | null;
+  undoneByUserId: string | null;
 }
 
 export interface ComparisonHistoryResult {
@@ -138,7 +141,10 @@ export async function getComparisonHistory(params: {
         position: comparison.rightPosition
       }),
       winnerAnimeId: comparison.winnerAnimeId,
-      loserAnimeId: comparison.loserAnimeId
+      loserAnimeId: comparison.loserAnimeId,
+      isUndone: comparison.undoneAt !== null,
+      undoneAt: comparison.undoneAt?.toISOString() ?? null,
+      undoneByUserId: comparison.undoneByUserId
     }))
   };
 }

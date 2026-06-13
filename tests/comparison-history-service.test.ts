@@ -91,6 +91,9 @@ describe("comparison history service", () => {
       mode: PoolComparisonMode.NORMAL,
       winnerAnimeId: "left",
       loserAnimeId: "right",
+      isUndone: false,
+      undoneAt: null,
+      undoneByUserId: null,
       left: {
         animeId: "left",
         title: "Left Override",
@@ -221,6 +224,8 @@ function comparisonFixture(overrides: Record<string, unknown> = {}) {
     leftPosition: 2,
     rightPosition: 1,
     createdAt: new Date("2026-06-12T00:00:00.000Z"),
+    undoneAt: null,
+    undoneByUserId: null,
     leftAnime: animeFixture({ id: "left", title: "Left Anime" }),
     rightAnime: animeFixture({
       id: "right",

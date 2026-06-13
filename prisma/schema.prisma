@@ -320,6 +320,8 @@ model PoolComparison {
   pairingVersion     String               @default("active-v1")
   tierRuleVersion    String               @default("percentile-v1")
   clientMutationId   String
+  undoneAt          DateTime?
+  undoneByUserId    String?
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
   user               User                 @relation("UserPoolComparisons", fields: [userId], references: [id])
@@ -334,6 +336,7 @@ model PoolComparison {
   @@index([userId, poolId, runId])
   @@index([poolId, runId, createdAt])
   @@index([userId, poolId, runId, createdAt])
+  @@index([userId, poolId, runId, undoneAt, createdAt])
   @@index([leftAnimeId])
   @@index([rightAnimeId])
   @@index([pairKey])

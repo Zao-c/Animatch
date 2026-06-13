@@ -158,6 +158,7 @@ export async function getMatchQueue(params: {
     userId: params.userId,
     poolId: params.poolId,
     runId: params.runId,
+    undoneAt: null,
     leftAnimeId: {
       in: [...activeAnimeIds]
     },

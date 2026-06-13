@@ -16,6 +16,7 @@ import {
   getPool,
   resetRun,
   submitComparison,
+  undoLastComparison,
   type ComparisonResult,
   type MatchPair,
   type MatchQueueResponse
@@ -40,6 +41,7 @@ export default function MatchPage({
   > | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUndoing, setIsUndoing] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isRefilling, setIsRefilling] = useState(false);
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
@@ -47,6 +49,7 @@ export default function MatchPage({
     null
   );
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [feedbackResult, setFeedbackResult] = useState<ComparisonResult | null>(null);
   const isRefillingRef = useRef(false);
 
@@ -140,6 +143,7 @@ export default function MatchPage({
     }
 
     setError(null);
+    setNotice(null);
     setIsSubmitting(true);
 
     try {
@@ -160,6 +164,28 @@ export default function MatchPage({
     }
   }, [isSubmitting, params.poolId, params.runId, queue]);
 
+  const handleUndoLast = useCallback(async () => {
+    if (
+      !window.confirm("撤回后会重新计算本轮榜单。确定撤回上次选择吗？")
+    ) {
+      return;
+    }
+
+    setError(null);
+    setNotice(null);
+    setIsUndoing(true);
+
+    try {
+      const result = await undoLastComparison(params.poolId, params.runId);
+      await loadInitialQueue();
+      setNotice(result.message);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "没有可以撤回的选择。");
+    } finally {
+      setIsUndoing(false);
+    }
+  }, [loadInitialQueue, params.poolId, params.runId]);
+
   const handleResetRun = useCallback(async () => {
     if (
       !window.confirm(
@@ -170,6 +196,7 @@ export default function MatchPage({
     }
 
     setError(null);
+    setNotice(null);
     setIsResetting(true);
 
     try {
@@ -265,6 +292,16 @@ export default function MatchPage({
           </AppButton>
           <AppButton
             type="button"
+            onClick={handleUndoLast}
+            disabled={isSubmitting || isUndoing}
+            variant="quiet"
+            size="sm"
+            className="self-end"
+          >
+            {isUndoing ? "撤回中..." : "撤回上次选择"}
+          </AppButton>
+          <AppButton
+            type="button"
             onClick={handleResetRun}
             disabled={isSubmitting || isResetting}
             variant="quiet"
@@ -283,6 +320,7 @@ export default function MatchPage({
       </div>
 
       {isRefilling ? <ErrorAlert message="正在补充后续对局..." tone="notice" className="mb-5" /> : null}
+      {notice ? <ErrorAlert message={notice} tone="notice" className="mb-5" /> : null}
       {error ? <ErrorAlert message={error} className="mb-5" /> : null}
       {queueMeta ? (
         <div className="mb-6">

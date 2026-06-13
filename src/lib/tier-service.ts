@@ -94,6 +94,7 @@ export async function getRunTierList(params: {
     userId: params.userId,
     poolId: params.poolId,
     runId: params.runId,
+    undoneAt: null,
     leftAnimeId: {
       in: [...activeAnimeIds]
     },
