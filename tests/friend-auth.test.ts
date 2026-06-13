@@ -1,8 +1,12 @@
+import { NextResponse } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as FRIEND_LOGIN } from "../src/app/api/auth/friend-login/route";
 import { POST as LOGOUT } from "../src/app/api/auth/logout/route";
 import {
+  clearAuthCookie,
+  getAuthCookieSecure,
   loginWithFriendCode,
+  setAuthCookie,
   signSession,
   verifySession
 } from "../src/lib/auth-session";
@@ -23,8 +27,10 @@ const mockedUser = vi.mocked(prisma.user);
 describe("friend auth", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
     process.env.FRIEND_INVITE_CODE = "33989";
     process.env.AUTH_SECRET = "test-secret";
+    delete process.env.AUTH_COOKIE_SECURE;
   });
 
   it("creates a user when the invite code is correct", async () => {
@@ -128,6 +134,40 @@ describe("friend auth", () => {
     expect(cookie).toContain("Max-Age=0");
   });
 
+  it("uses secure cookies by default in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    delete process.env.AUTH_COOKIE_SECURE;
+
+    expect(getAuthCookieSecure()).toBe(true);
+    expect(cookieFromSet()).toContain("Secure");
+    expect(cookieFromClear()).toContain("Secure");
+  });
+
+  it("allows HTTP deployments to disable secure cookies explicitly", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.AUTH_COOKIE_SECURE = "false";
+
+    expect(getAuthCookieSecure()).toBe(false);
+    expect(cookieFromSet()).not.toContain("Secure");
+    expect(cookieFromClear()).not.toContain("Secure");
+  });
+
+  it("allows HTTPS deployments to enable secure cookies explicitly", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    process.env.AUTH_COOKIE_SECURE = "true";
+
+    expect(getAuthCookieSecure()).toBe(true);
+    expect(cookieFromSet()).toContain("Secure");
+    expect(cookieFromClear()).toContain("Secure");
+  });
+
+  it("rejects invalid AUTH_COOKIE_SECURE values", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.AUTH_COOKIE_SECURE = "maybe";
+
+    expect(() => getAuthCookieSecure()).toThrow("AUTH_COOKIE_SECURE must be true or false");
+  });
+
   it("verifies signed sessions and rejects tampered or expired sessions", () => {
     const session = signSession({
       userId: "user-1",
@@ -151,3 +191,22 @@ describe("friend auth", () => {
     ).toBeNull();
   });
 });
+
+function cookieFromSet() {
+  const response = NextResponse.json({ ok: true });
+  setAuthCookie(response, {
+    id: "user-1",
+    username: "akira",
+    name: "akira",
+    image: null
+  });
+
+  return response.headers.get("set-cookie") ?? "";
+}
+
+function cookieFromClear() {
+  const response = NextResponse.json({ ok: true });
+  clearAuthCookie(response);
+
+  return response.headers.get("set-cookie") ?? "";
+}

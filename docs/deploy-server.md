@@ -45,6 +45,7 @@ Change:
 - `DATABASE_URL` password segment
 - `FRIEND_INVITE_CODE` for the friend invite code
 - `AUTH_SECRET` for signing Friend Auth cookies
+- `AUTH_COOKIE_SECURE=false` for the current bare HTTP deployment. Set it to `true` when the site is served over HTTPS.
 
 `DATABASE_URL` must use host `postgres`, not `localhost`, because the app connects to the Compose service name inside Docker.
 

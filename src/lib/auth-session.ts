@@ -106,7 +106,7 @@ export function setAuthCookie(response: NextResponse, user: FriendAuthUser) {
     }),
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: getAuthCookieSecure(),
     path: "/",
     maxAge: SESSION_MAX_AGE_SECONDS
   });
@@ -118,10 +118,34 @@ export function clearAuthCookie(response: NextResponse) {
     value: "",
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: getAuthCookieSecure(),
     path: "/",
     maxAge: 0
   });
+}
+
+export function getAuthCookieSecure(): boolean {
+  const value = process.env.AUTH_COOKIE_SECURE;
+
+  if (value === undefined || value === "") {
+    return process.env.NODE_ENV === "production";
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized === "true") {
+    return true;
+  }
+
+  if (normalized === "false") {
+    return false;
+  }
+
+  throw new AppError(
+    "AUTH_COOKIE_SECURE must be true or false",
+    500,
+    "AUTH_COOKIE_SECURE_INVALID"
+  );
 }
 
 export function signSession(payload: FriendSessionPayload): string {

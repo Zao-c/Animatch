@@ -36,6 +36,7 @@ Friend Auth uses these local environment variables:
 
 - `FRIEND_INVITE_CODE=33989` for the friend invite code.
 - `AUTH_SECRET=replace-with-long-random-secret` for signing login cookies.
+- `AUTH_COOKIE_SECURE=false` for bare HTTP deployments. Set it to `true` after moving the site to HTTPS.
 
 For production, generate `AUTH_SECRET` with:
 
