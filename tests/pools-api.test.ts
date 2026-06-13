@@ -3,10 +3,13 @@ import { PoolStatus, Visibility } from "@prisma/client";
 import { DELETE, GET as GET_POOL, PATCH } from "../src/app/api/pools/[poolId]/route";
 import { POST as RESTORE_POOL } from "../src/app/api/pools/[poolId]/restore/route";
 import { GET as LIST_POOLS } from "../src/app/api/pools/route";
+import { AppError } from "../src/lib/app-error";
+import { requireCurrentUser } from "../src/lib/auth-session";
 import { prisma } from "../src/lib/db";
 
-vi.mock("../src/lib/dev-user", () => ({
-  getOrCreateDevUser: vi.fn(async () => ({ id: "user-1" })),
+vi.mock("../src/lib/auth-session", () => ({
+  requireCurrentUser: vi.fn(async () => ({ id: "user-1", username: "user-1", name: "User 1", image: null })),
+  getCurrentUser: vi.fn(async () => ({ id: "user-1", username: "user-1", name: "User 1", image: null }))
 }));
 
 vi.mock("../src/lib/db", () => ({
@@ -36,6 +39,7 @@ const mockedPoolAnime = vi.mocked(prisma.poolAnime);
 const mockedPersonalRun = vi.mocked(prisma.personalRun);
 const mockedUserPoolScore = vi.mocked(prisma.userPoolScore);
 const mockedPoolComparison = vi.mocked(prisma.poolComparison);
+const mockedRequireCurrentUser = vi.mocked(requireCurrentUser);
 
 function pool(overrides: Record<string, unknown> = {}) {
   return {
@@ -69,6 +73,25 @@ function pool(overrides: Record<string, unknown> = {}) {
 describe("pools API management", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedRequireCurrentUser.mockResolvedValue({
+      id: "user-1",
+      username: "user-1",
+      name: "User 1",
+      image: null
+    });
+  });
+
+  it("GET /api/pools returns 401 when the user is not logged in", async () => {
+    mockedRequireCurrentUser.mockRejectedValueOnce(
+      new AppError("Authentication required", 401, "AUTH_REQUIRED")
+    );
+
+    const response = await LIST_POOLS(new Request("http://test.local/api/pools"));
+    const payload = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(payload.error.message).toBe("Authentication required");
+    expect(mockedCustomPool.findMany).not.toHaveBeenCalled();
   });
 
   it("PATCH updates pool metadata", async () => {

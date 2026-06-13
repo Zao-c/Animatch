@@ -1,5 +1,5 @@
-import { badRequest, forbidden, notFound, ok, serverError } from "@/lib/api-response";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
+import { requireCurrentUser } from "@/lib/auth-session";
 import { importTierMakerItemsToPool, type TierMakerImportInput } from "@/lib/tiermaker-import";
 
 interface RouteContext {
@@ -16,7 +16,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const result = await importTierMakerItemsToPool({
       poolId: context.params.poolId,
       userId: user.id,
@@ -50,6 +50,6 @@ export async function POST(request: Request, context: RouteContext) {
       return badRequest(message);
     }
 
-    return serverError(message);
+    return fromError(error);
   }
 }

@@ -1,5 +1,5 @@
 import { fromError, ok } from "@/lib/api-response";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { requireCurrentUser } from "@/lib/auth-session";
 import { getMatchQueue } from "@/lib/match-service";
 
 interface RouteContext {
@@ -14,7 +14,7 @@ export async function GET(request: Request, context: RouteContext) {
   const limit = parseLimit(url.searchParams.get("limit"));
 
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const queue = await getMatchQueue({
       userId: user.id,
       poolId: context.params.poolId,

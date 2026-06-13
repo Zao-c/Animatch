@@ -1,6 +1,6 @@
 import { PoolStatus, Visibility } from "@prisma/client";
-import { badRequest, forbidden, notFound, ok, serverError } from "@/lib/api-response";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
+import { requireCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
 
@@ -21,7 +21,7 @@ interface UpdatePoolBody {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const pool = await prisma.customPool.findUnique({
       where: {
         id: context.params.poolId
@@ -61,7 +61,7 @@ export async function GET(_request: Request, context: RouteContext) {
       anime: pool.poolAnime.map(serializePoolAnime)
     });
   } catch (error) {
-    return serverError(error instanceof Error ? error.message : "Pool lookup failed");
+    return fromError(error);
   }
 }
 
@@ -92,7 +92,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const pool = await prisma.customPool.findUnique({
       where: {
         id: context.params.poolId
@@ -121,13 +121,13 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     return ok(updated);
   } catch (error) {
-    return serverError(error instanceof Error ? error.message : "Pool update failed");
+    return fromError(error);
   }
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const pool = await prisma.customPool.findUnique({
       where: {
         id: context.params.poolId
@@ -156,7 +156,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
     return ok({ ok: true });
   } catch (error) {
-    return serverError(error instanceof Error ? error.message : "Pool archive failed");
+    return fromError(error);
   }
 }
 

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { PoolStatus } from "@prisma/client";
-import { badRequest, forbidden, notFound, ok, serverError } from "@/lib/api-response";
+import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
 import {
   AnimeCoverUploadError,
   deleteLocalAnimeCoverIfPresent,
   saveAnimeCoverUpload
 } from "@/lib/anime-cover-upload";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { requireCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
 
@@ -19,7 +19,7 @@ interface RouteContext {
 
 export async function POST(request: Request, context: RouteContext) {
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const pool = await prisma.customPool.findUnique({
       where: {
         id: context.params.poolId
@@ -112,6 +112,6 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    return serverError(error instanceof Error ? error.message : "Uploading anime cover failed");
+    return fromError(error);
   }
 }

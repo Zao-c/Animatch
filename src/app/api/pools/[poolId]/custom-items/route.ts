@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { PoolStatus, Prisma } from "@prisma/client";
-import { badRequest, forbidden, notFound, ok, serverError } from "@/lib/api-response";
+import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
 import {
   AnimeCoverUploadError,
   deleteLocalCustomItemIfPresent,
   saveCustomItemUpload
 } from "@/lib/anime-cover-upload";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { requireCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
 import { ANIME_SOURCE } from "@/lib/anime-source";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
@@ -21,7 +21,7 @@ export async function POST(request: Request, context: RouteContext) {
   let uploadPath: string | null = null;
 
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const pool = await prisma.customPool.findUnique({
       where: {
         id: context.params.poolId
@@ -149,7 +149,7 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    return serverError(error instanceof Error ? error.message : "Uploading custom item failed");
+    return fromError(error);
   }
 }
 
@@ -160,7 +160,7 @@ function normalizeTitle(value: FormDataEntryValue | null, fileName: string): str
       : titleFromFileName(fileName);
 
   if (!title) {
-    return "未命名图片";
+    return "\u672a\u547d\u540d\u56fe\u7247";
   }
 
   if (title.length > 120) {
@@ -172,7 +172,7 @@ function normalizeTitle(value: FormDataEntryValue | null, fileName: string): str
 
 function titleFromFileName(fileName: string) {
   const withoutExtension = fileName.replace(/\.[^.]+$/, "").trim();
-  return withoutExtension || "未命名图片";
+  return withoutExtension || "\u672a\u547d\u540d\u56fe\u7247";
 }
 
 function normalizeOptionalString(

@@ -31,6 +31,17 @@ Windows PowerShell 下复制 `.env`：
 
 ```powershell
 Copy-Item .env.example .env
+
+Friend Auth uses these local environment variables:
+
+- `FRIEND_INVITE_CODE=33989` for the friend invite code.
+- `AUTH_SECRET=replace-with-long-random-secret` for signing login cookies.
+
+For production, generate `AUTH_SECRET` with:
+
+```bash
+openssl rand -base64 32
+```
 ```
 
 也可以使用脚本：

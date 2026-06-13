@@ -1,5 +1,5 @@
 import { fromError, ok } from "@/lib/api-response";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { requireCurrentUser } from "@/lib/auth-session";
 import {
   getRecalibrationSuggestions
 } from "@/lib/recalibration-service";
@@ -16,7 +16,7 @@ export async function GET(request: Request, context: RouteContext) {
   const url = new URL(request.url);
 
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const suggestions = await getRecalibrationSuggestions({
       userId: user.id,
       poolId: context.params.poolId,

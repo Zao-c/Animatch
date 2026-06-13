@@ -1,7 +1,7 @@
 import { PoolComparisonMode, PoolComparisonResult } from "@prisma/client";
 import { badRequest, fromError, ok } from "@/lib/api-response";
 import { getComparisonHistory } from "@/lib/comparison-history-service";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { requireCurrentUser } from "@/lib/auth-session";
 import { submitComparison } from "@/lib/match-service";
 
 interface RouteContext {
@@ -25,7 +25,7 @@ const MODES = new Set<string>(Object.values(PoolComparisonMode));
 
 export async function GET(request: Request, context: RouteContext) {
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const url = new URL(request.url);
     const limitParam = url.searchParams.get("limit");
     const history = await getComparisonHistory({
@@ -55,7 +55,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const comparison = await submitComparison({
       userId: user.id,
       poolId: context.params.poolId,

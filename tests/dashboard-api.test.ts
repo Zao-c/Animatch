@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+﻿import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PoolStatus, Visibility } from "@prisma/client";
 import { GET } from "../src/app/api/dashboard/route";
 import { prisma } from "../src/lib/db";
 
-vi.mock("../src/lib/dev-user", () => ({
-  getOrCreateDevUser: vi.fn(async () => ({ id: "user-1" }))
+vi.mock("../src/lib/auth-session", () => ({
+  requireCurrentUser: vi.fn(async () => ({ id: "user-1", username: "user-1", name: "User 1", image: null })),
+  getCurrentUser: vi.fn(async () => ({ id: "user-1", username: "user-1", name: "User 1", image: null }))
 }));
 
 vi.mock("../src/lib/db", () => ({
@@ -51,7 +52,7 @@ function entry(index: number, overrides: Record<string, unknown> = {}) {
     anime: {
       id: `anime-${index}`,
       title: `Anime ${index}`,
-      titleCn: `动画 ${index}`,
+      titleCn: `鍔ㄧ敾 ${index}`,
       imageUrl: `https://img.example.test/${index}.jpg`,
       thumbnailUrl: null,
       imageSmallUrl: null,
@@ -85,9 +86,7 @@ describe("GET /api/dashboard miniMatchPreview", () => {
       source: "CONTINUE_RUN",
       poolId: "pool-1",
       runId: "run-1",
-      ctaHref: "/pools/pool-1/runs/run-1/match",
-      ctaLabel: "开始真实对决"
-    });
+      ctaHref: "/pools/pool-1/runs/run-1/match",    });
     expect(payload.data.miniMatchPreview.pairs).toHaveLength(2);
     expect(payload.data.miniMatchPreview.pairs[0].left.title).toBe("Anime 1");
     expect(payload.data.miniMatchPreview.pairs[0].right.imageUrl).toBe("https://img.example.test/2.jpg");

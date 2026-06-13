@@ -43,10 +43,16 @@ Change:
 
 - `POSTGRES_PASSWORD`
 - `DATABASE_URL` password segment
-- `NEXTAUTH_SECRET`
-- `NEXTAUTH_URL`
+- `FRIEND_INVITE_CODE` for the friend invite code
+- `AUTH_SECRET` for signing Friend Auth cookies
 
 `DATABASE_URL` must use host `postgres`, not `localhost`, because the app connects to the Compose service name inside Docker.
+
+Generate a production `AUTH_SECRET` with:
+
+```bash
+openssl rand -base64 32
+```
 
 ## 4. First Deployment
 

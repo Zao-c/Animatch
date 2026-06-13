@@ -1,6 +1,6 @@
 import { PoolStatus } from "@prisma/client";
-import { forbidden, notFound, ok, serverError } from "@/lib/api-response";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { forbidden, notFound, ok, fromError } from "@/lib/api-response";
+import { requireCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
 
 interface RouteContext {
@@ -11,7 +11,7 @@ interface RouteContext {
 
 export async function POST(_request: Request, context: RouteContext) {
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const pool = await prisma.customPool.findUnique({
       where: {
         id: context.params.poolId
@@ -38,6 +38,6 @@ export async function POST(_request: Request, context: RouteContext) {
 
     return ok(restored);
   } catch (error) {
-    return serverError(error instanceof Error ? error.message : "Pool restore failed");
+    return fromError(error);
   }
 }

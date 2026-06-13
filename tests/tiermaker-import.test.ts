@@ -8,8 +8,9 @@ import {
 } from "../src/lib/tiermaker-import";
 import { prisma } from "../src/lib/db";
 
-vi.mock("../src/lib/dev-user", () => ({
-  getOrCreateDevUser: vi.fn(async () => ({ id: "user-1" }))
+vi.mock("../src/lib/auth-session", () => ({
+  requireCurrentUser: vi.fn(async () => ({ id: "user-1", username: "user-1", name: "User 1", image: null })),
+  getCurrentUser: vi.fn(async () => ({ id: "user-1", username: "user-1", name: "User 1", image: null }))
 }));
 
 vi.mock("../src/lib/db", () => ({

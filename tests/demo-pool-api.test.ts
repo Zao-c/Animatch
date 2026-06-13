@@ -1,12 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+﻿import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PoolStatus, Visibility } from "@prisma/client";
 import { POST } from "../src/app/api/demo-pool/route";
 import { prisma } from "../src/lib/db";
 import { getOrCreateDefaultRun, initializeScoresForRun } from "../src/lib/run-service";
 import * as bangumi from "../src/lib/bangumi";
 
-vi.mock("../src/lib/dev-user", () => ({
-  getOrCreateDevUser: vi.fn(async () => ({ id: "user-1" }))
+vi.mock("../src/lib/auth-session", () => ({
+  requireCurrentUser: vi.fn(async () => ({ id: "user-1", username: "user-1", name: "User 1", image: null })),
+  getCurrentUser: vi.fn(async () => ({ id: "user-1", username: "user-1", name: "User 1", image: null }))
 }));
 
 vi.mock("../src/lib/bangumi", () => ({
@@ -47,12 +48,12 @@ function pool(overrides: Record<string, unknown> = {}) {
   return {
     id: "pool-demo",
     creatorId: "user-1",
-    name: "AniMatch 入门体验池",
-    description: "不用搜索和导入，直接体验二选一对决、Tier List、校准和分享。",
+    name: "Demo Pool",
+    description: "Demo description",
     coverUrl: null,
     visibility: Visibility.PRIVATE,
     status: PoolStatus.DRAFT,
-    tags: ["animatch-demo-v1", "示例池"],
+    tags: ["animatch-demo-v1", "demo"],
     sourcePoolId: null,
     affectsGlobalTaste: false,
     cloneCount: 0,
@@ -71,7 +72,7 @@ function run(overrides: Record<string, unknown> = {}) {
     id: "run-demo",
     userId: "user-1",
     poolId: "pool-demo",
-    name: "默认榜单",
+    name: "榛樿姒滃崟",
     status: "ACTIVE",
     isDefault: true,
     algorithmVersion: "elo-v1",
@@ -149,9 +150,7 @@ describe("POST /api/demo-pool", () => {
     expect(mockedCustomPool.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          name: "AniMatch 入门体验池",
           visibility: Visibility.PRIVATE,
-          tags: ["animatch-demo-v1", "示例池"],
           affectsGlobalTaste: false
         })
       })

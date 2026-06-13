@@ -1,5 +1,5 @@
 import { fromError, ok } from "@/lib/api-response";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { requireCurrentUser } from "@/lib/auth-session";
 import { createTierShare } from "@/lib/tier-share-service";
 
 export async function POST(request: Request) {
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
       tierLabels?: unknown;
       description?: unknown;
     };
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const result = await createTierShare({
       userId: user.id,
       poolId: typeof body.poolId === "string" ? body.poolId : "",

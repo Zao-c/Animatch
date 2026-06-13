@@ -1,6 +1,6 @@
 import { AppError } from "@/lib/app-error";
 import { fromError, ok } from "@/lib/api-response";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { requireCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
 
 interface RouteContext {
@@ -11,7 +11,7 @@ interface RouteContext {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const pool = await prisma.customPool.findUnique({
       where: {
         id: context.params.poolId

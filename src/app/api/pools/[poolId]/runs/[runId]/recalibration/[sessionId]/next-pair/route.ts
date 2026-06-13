@@ -1,5 +1,5 @@
 import { fromError, ok } from "@/lib/api-response";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { requireCurrentUser } from "@/lib/auth-session";
 import { getRecalibrationNextPair } from "@/lib/recalibration-service";
 
 interface RouteContext {
@@ -12,7 +12,7 @@ interface RouteContext {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const result = await getRecalibrationNextPair({
       userId: user.id,
       poolId: context.params.poolId,

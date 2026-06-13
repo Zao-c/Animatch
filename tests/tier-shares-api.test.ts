@@ -4,8 +4,9 @@ import { GET } from "../src/app/api/tier-shares/[token]/route";
 import { POST } from "../src/app/api/tier-shares/route";
 import { createTierShare, getPublicTierShare } from "../src/lib/tier-share-service";
 
-vi.mock("../src/lib/dev-user", () => ({
-  getOrCreateDevUser: vi.fn(async () => ({ id: "user-1" }))
+vi.mock("../src/lib/auth-session", () => ({
+  requireCurrentUser: vi.fn(async () => ({ id: "user-1", username: "user-1", name: "User 1", image: null })),
+  getCurrentUser: vi.fn(async () => ({ id: "user-1", username: "user-1", name: "User 1", image: null }))
 }));
 
 vi.mock("../src/lib/tier-share-service", () => ({

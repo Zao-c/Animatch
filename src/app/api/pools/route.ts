@@ -1,6 +1,6 @@
 import { PoolStatus, Prisma, Visibility } from "@prisma/client";
-import { badRequest, ok, serverError } from "@/lib/api-response";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { badRequest, ok, fromError } from "@/lib/api-response";
+import { requireCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
 import { formatAnimeSource } from "@/lib/anime-source";
 import { buildRankingProgress } from "@/lib/ranking-progress";
@@ -25,7 +25,7 @@ interface CreatePoolBody {
 
 export async function GET(request: Request) {
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const url = new URL(request.url);
     const includeArchived = url.searchParams.get("includeArchived") === "1";
     const q = url.searchParams.get("q")?.trim() ?? "";
@@ -128,7 +128,7 @@ export async function GET(request: Request) {
       items
     });
   } catch (error) {
-    return serverError(error instanceof Error ? error.message : "Pool listing failed");
+    return fromError(error);
   }
 }
 
@@ -247,17 +247,17 @@ function deriveCoverImages(
 function labelForPoolStatus(status: string): string {
   switch (status) {
     case "ARCHIVED":
-      return "已归档";
+      return "???";
     case "EMPTY":
-      return "未添加动画";
+      return "?????";
     case "READY":
-      return "可开始";
+      return "???";
     case "IN_PROGRESS":
-      return "对决中";
+      return "???";
     case "STABLE":
-      return "已稳定";
+      return "???";
     default:
-      return "进行中";
+      return "???";
   }
 }
 
@@ -265,7 +265,7 @@ function deriveSourceType(sources: string[]): string {
   const uniqueSources = [...new Set(sources.filter(Boolean))];
 
   if (uniqueSources.length === 0) {
-    return "UNKNOWN";
+    return "\u8fdb\u884c\u4e2d";
   }
 
   if (uniqueSources.length > 1) {
@@ -326,7 +326,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const pool = await prisma.customPool.create({
       data: {
         creatorId: user.id,
@@ -339,7 +339,7 @@ export async function POST(request: Request) {
 
     return ok(pool, { status: 201 });
   } catch (error) {
-    return serverError(error instanceof Error ? error.message : "Pool creation failed");
+    return fromError(error);
   }
 }
 

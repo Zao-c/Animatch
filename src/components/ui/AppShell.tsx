@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AuthNav } from "@/components/AuthNav";
 
 export function AppShell({
   children,
@@ -31,6 +32,7 @@ export function AppShell({
             >
               我的番组
             </Link>
+            <AuthNav />
           </nav>
         </div>
       </header>

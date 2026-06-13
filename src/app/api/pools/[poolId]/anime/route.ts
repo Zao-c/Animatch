@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
-import { badRequest, forbidden, notFound, ok, serverError } from "@/lib/api-response";
+import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
 import { getOrImportAnimeByBgmId } from "@/lib/anime-service";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { requireCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
 
@@ -26,7 +26,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const pool = await prisma.customPool.findUnique({
       where: {
         id: context.params.poolId
@@ -101,6 +101,6 @@ export async function POST(request: Request, context: RouteContext) {
       return badRequest("Anime already exists in this pool");
     }
 
-    return serverError(error instanceof Error ? error.message : "Adding anime failed");
+    return fromError(error);
   }
 }

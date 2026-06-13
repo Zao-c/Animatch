@@ -1,3 +1,5 @@
+import { sanitizeNextPath } from "@/lib/safe-redirect";
+
 export interface PublicAnime {
   id: string;
   bgmId: number | null;
@@ -84,6 +86,13 @@ export interface DemoPoolResponse {
   created: boolean;
   animeCount: number;
   redirectTo: string;
+}
+
+export interface AuthUser {
+  id: string;
+  username: string | null;
+  name: string | null;
+  image: string | null;
 }
 
 export interface TierMakerImportItemInput {
@@ -476,6 +485,23 @@ export function createDemoPool() {
   });
 }
 
+export function getMe() {
+  return fetchJson<{ user: AuthUser | null }>("/api/auth/me");
+}
+
+export function friendLogin(data: { username: string; inviteCode: string }) {
+  return fetchJson<{ user: AuthUser }>("/api/auth/friend-login", {
+    method: "POST",
+    body: data
+  });
+}
+
+export function logout() {
+  return fetchJson<{ ok: true }>("/api/auth/logout", {
+    method: "POST"
+  });
+}
+
 export function updatePool(
   poolId: string,
   data: {
@@ -572,6 +598,18 @@ export async function uploadCustomItemToPool(
   if (!response.ok || payload.ok === false) {
     const message =
       payload.ok === false ? payload.error.message : `Request failed (${response.status})`;
+    if (
+      response.status === 401 &&
+      typeof window !== "undefined" &&
+      window.location.pathname !== "/" &&
+      window.location.pathname !== "/login" &&
+      !window.location.pathname.startsWith("/share/")
+    ) {
+      const next = sanitizeNextPath(
+        `${window.location.pathname}${window.location.search}${window.location.hash}`
+      );
+      window.location.assign(`/login?next=${encodeURIComponent(next)}`);
+    }
     throw new Error(message);
   }
 

@@ -1,14 +1,14 @@
 import { PoolStatus } from "@prisma/client";
-import { ok, serverError } from "@/lib/api-response";
+import { ok, fromError } from "@/lib/api-response";
 import { DEMO_POOL_TAG } from "@/lib/demo-pool";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { requireCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
 
 type PreviewSource = "CONTINUE_RUN" | "DEMO_POOL" | "EMPTY";
 
 export async function GET() {
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const pools = await prisma.customPool.findMany({
       where: {
         creatorId: user.id,
@@ -58,7 +58,7 @@ export async function GET() {
           poolId: continuePool.id,
           runId,
           ctaHref: `/pools/${continuePool.id}/runs/${runId}/match`,
-          ctaLabel: "开始真实对决",
+          ctaLabel: "\u5f00\u59cb\u771f\u5b9e\u5bf9\u51b3",
           entries: continuePool.poolAnime
         })
       });
@@ -73,7 +73,7 @@ export async function GET() {
         miniMatchPreview: buildPreview({
           source: "DEMO_POOL",
           poolId: demoPool.id,
-          ctaLabel: "体验示例番组",
+          ctaLabel: "\u4f53\u9a8c\u793a\u4f8b\u756a\u7ec4",
           entries: demoPool.poolAnime
         })
       });
@@ -82,12 +82,12 @@ export async function GET() {
     return ok({
       miniMatchPreview: {
         source: "EMPTY" satisfies PreviewSource,
-        ctaLabel: "体验示例番组",
+        ctaLabel: "\u4f53\u9a8c\u793a\u4f8b\u756a\u7ec4",
         pairs: []
       }
     });
   } catch (error) {
-    return serverError(error instanceof Error ? error.message : "Dashboard lookup failed");
+    return fromError(error);
   }
 }
 

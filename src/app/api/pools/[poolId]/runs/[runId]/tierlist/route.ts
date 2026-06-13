@@ -1,5 +1,5 @@
 import { fromError, ok } from "@/lib/api-response";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { requireCurrentUser } from "@/lib/auth-session";
 import { getRunTierList } from "@/lib/tier-service";
 
 interface RouteContext {
@@ -11,7 +11,7 @@ interface RouteContext {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const tierList = await getRunTierList({
       userId: user.id,
       poolId: context.params.poolId,
