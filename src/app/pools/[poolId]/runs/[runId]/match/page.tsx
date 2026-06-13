@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DuelAnimeCard } from "@/components/DuelAnimeCard";
 import { LoadingRoom } from "@/components/LoadingRoom";
@@ -13,6 +14,7 @@ import { ErrorAlert } from "@/components/ui/ErrorAlert";
 import {
   getMatchQueue,
   getPool,
+  resetRun,
   submitComparison,
   type ComparisonResult,
   type MatchPair,
@@ -27,6 +29,7 @@ export default function MatchPage({
 }: {
   params: { poolId: string; runId: string };
 }) {
+  const router = useRouter();
   const [poolName, setPoolName] = useState("当前番组");
   const [poolAnimeCount, setPoolAnimeCount] = useState<number | null>(null);
   const [queue, setQueue] = useState<MatchPair[]>([]);
@@ -37,6 +40,7 @@ export default function MatchPage({
   > | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [isRefilling, setIsRefilling] = useState(false);
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
   const [preloadProgress, setPreloadProgress] = useState<{ loaded: number; total: number } | null>(
@@ -156,6 +160,28 @@ export default function MatchPage({
     }
   }, [isSubmitting, params.poolId, params.runId, queue]);
 
+  const handleResetRun = useCallback(async () => {
+    if (
+      !window.confirm(
+        "这会开启一轮新的对决，旧榜单和历史记录仍会保留。确定重开吗？"
+      )
+    ) {
+      return;
+    }
+
+    setError(null);
+    setIsResetting(true);
+
+    try {
+      const result = await resetRun(params.poolId, params.runId);
+      router.push(result.redirectTo);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "重开本轮失败");
+    } finally {
+      setIsResetting(false);
+    }
+  }, [params.poolId, params.runId, router]);
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       const result = getComparisonResultForShortcut(event);
@@ -236,6 +262,16 @@ export default function MatchPage({
             className="self-end"
           >
             ? 快捷键
+          </AppButton>
+          <AppButton
+            type="button"
+            onClick={handleResetRun}
+            disabled={isSubmitting || isResetting}
+            variant="quiet"
+            size="sm"
+            className="self-end"
+          >
+            {isResetting ? "重开中..." : "重开本轮"}
           </AppButton>
           <Link
             href={`/pools/${params.poolId}/runs/${params.runId}/tier`}

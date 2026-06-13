@@ -721,6 +721,15 @@ export function submitComparison(
   );
 }
 
+export function resetRun(poolId: string, runId: string) {
+  return fetchJson<{ runId: string; poolId: string; redirectTo: string }>(
+    `/api/pools/${poolId}/runs/${runId}/reset`,
+    {
+      method: "POST"
+    }
+  );
+}
+
 export function getTierList(poolId: string, runId: string) {
   return fetchJson<TierListResponse>(`/api/pools/${poolId}/runs/${runId}/tierlist`);
 }
