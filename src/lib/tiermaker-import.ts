@@ -3,10 +3,11 @@ import { PoolStatus, Prisma } from "@prisma/client";
 import { ANIME_SOURCE } from "./anime-source";
 import { prisma } from "./db";
 import { serializePoolAnime } from "./pool-anime-serializer";
+import { fetchTierMakerTemplate, parseTierMakerTemplate } from "./tiermaker-fetch";
 
 const TIERMAKER_BGM_ID_BASE = -1_900_000_000;
 const TIERMAKER_BGM_ID_SPAN = 100_000_000;
-const MAX_TIERMAKER_ITEMS = 80;
+const MAX_TIERMAKER_ITEMS = 200;
 
 export interface TierMakerImportItemInput {
   title?: unknown;
@@ -20,6 +21,11 @@ export interface TierMakerImportInput {
   templateUrl?: unknown;
   templateName?: unknown;
   items?: unknown;
+}
+
+export interface TierMakerUrlImportInput {
+  url?: unknown;
+  selectedIndexes?: unknown;
 }
 
 export function normalizeTierMakerUrl(value: string): string {
@@ -84,6 +90,75 @@ export async function importTierMakerItemsToPool(params: {
   input: TierMakerImportInput;
 }) {
   const parsed = parseTierMakerImportInput(params.input);
+  return importTierMakerParsedItems({
+    poolId: params.poolId,
+    userId: params.userId,
+    templateUrl: parsed.templateUrl,
+    templateName: parsed.templateName,
+    items: parsed.items
+  });
+}
+
+export async function importTierMakerFromUrl(params: {
+  poolId: string;
+  userId: string;
+  input: TierMakerUrlImportInput;
+}) {
+  if (typeof params.input.url !== "string" || !params.input.url.trim()) {
+    throw new Error("url is required");
+  }
+
+  const selectedIndexes = normalizeSelectedIndexes(params.input.selectedIndexes);
+
+  const { html, finalUrl } = await fetchTierMakerTemplate(params.input.url);
+  const parsed = parseTierMakerTemplate(html, finalUrl);
+
+  let filteredItems = parsed.items;
+  if (selectedIndexes !== null) {
+    const indexSet = new Set(selectedIndexes);
+    filteredItems = parsed.items.filter((item) => indexSet.has(item.sourceIndex));
+    if (filteredItems.length === 0) {
+      throw new Error("No items match the selected indexes");
+    }
+  }
+
+  if (filteredItems.length > MAX_TIERMAKER_ITEMS) {
+    throw new Error(`items cannot contain more than ${MAX_TIERMAKER_ITEMS} entries`);
+  }
+
+  const templateName = parsed.title || "TierMaker";
+  const templateUrl = normalizeTierMakerUrl(finalUrl);
+
+  const normalizedItems = filteredItems.map((item) =>
+    normalizeTierMakerItem(
+      {
+        title: item.title,
+        imageUrl: item.imageUrl,
+        index: item.sourceIndex,
+        tags: ["tiermaker", "imported", templateName]
+      },
+      templateUrl,
+      templateName,
+      item.sourceIndex
+    )
+  );
+
+  return importTierMakerParsedItems({
+    poolId: params.poolId,
+    userId: params.userId,
+    templateUrl,
+    templateName,
+    items: normalizedItems
+  });
+}
+
+async function importTierMakerParsedItems(params: {
+  poolId: string;
+  userId: string;
+  templateUrl: string;
+  templateName: string;
+  items: ReturnType<typeof normalizeTierMakerItem>[];
+}) {
   const pool = await prisma.customPool.findUnique({
     where: {
       id: params.poolId
@@ -114,7 +189,7 @@ export async function importTierMakerItemsToPool(params: {
   const added = [];
   const skipped = [];
 
-  for (const item of parsed.items) {
+  for (const item of params.items) {
     const anime = await prisma.anime.upsert({
       where: {
         bgmId: item.bgmId
@@ -131,15 +206,15 @@ export async function importTierMakerItemsToPool(params: {
         tags: item.tags,
         aliases: item.titleCn ? [item.titleCn] : [],
         studios: [],
-        externalLinks: [parsed.templateUrl, item.imageUrl],
+        externalLinks: [params.templateUrl, item.imageUrl],
         source: ANIME_SOURCE.TIERMAKER_IMPORT,
         sourceId: item.sourceId,
         rawJson: {
           sourceType: ANIME_SOURCE.TIERMAKER_IMPORT,
-          sourceUrl: parsed.templateUrl,
+          sourceUrl: params.templateUrl,
           imageUrl: item.imageUrl,
           index: item.index,
-          templateName: parsed.templateName
+          templateName: params.templateName
         } satisfies Prisma.InputJsonObject,
         imageStatus: item.imageUrl ? "OK" : "MISSING"
       },
@@ -153,15 +228,15 @@ export async function importTierMakerItemsToPool(params: {
         imageLargeUrl: item.imageUrl,
         tags: item.tags,
         aliases: item.titleCn ? [item.titleCn] : [],
-        externalLinks: [parsed.templateUrl, item.imageUrl],
+        externalLinks: [params.templateUrl, item.imageUrl],
         source: ANIME_SOURCE.TIERMAKER_IMPORT,
         sourceId: item.sourceId,
         rawJson: {
           sourceType: ANIME_SOURCE.TIERMAKER_IMPORT,
-          sourceUrl: parsed.templateUrl,
+          sourceUrl: params.templateUrl,
           imageUrl: item.imageUrl,
           index: item.index,
-          templateName: parsed.templateName
+          templateName: params.templateName
         } satisfies Prisma.InputJsonObject,
         imageStatus: item.imageUrl ? "OK" : "MISSING"
       }
@@ -238,6 +313,16 @@ function normalizeTierMakerItem(
     tags,
     sourceId: `tiermaker/${Math.abs(bgmId)}`
   };
+}
+
+function normalizeSelectedIndexes(value: unknown): number[] | null {
+  if (!Array.isArray(value) || value.length === 0) return null;
+
+  const indexes = value
+    .filter((item): item is number => typeof item === "number" && Number.isSafeInteger(item) && item >= 0)
+    .slice(0, MAX_TIERMAKER_ITEMS);
+
+  return indexes.length > 0 ? indexes : null;
 }
 
 function normalizeIndex(value: unknown, fallback: number) {

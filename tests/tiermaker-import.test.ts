@@ -4,9 +4,15 @@ import { POST } from "../src/app/api/pools/[poolId]/anime/tiermaker-import/route
 import { ANIME_SOURCE } from "../src/lib/anime-source";
 import {
   makeTierMakerImportBgmId,
-  normalizeTierMakerUrl
+  normalizeTierMakerUrl,
+  importTierMakerFromUrl
 } from "../src/lib/tiermaker-import";
+import {
+  validateTierMakerTemplateUrl,
+  parseTierMakerTemplate
+} from "../src/lib/tiermaker-fetch";
 import { prisma } from "../src/lib/db";
+import { AppError } from "../src/lib/app-error";
 
 vi.mock("../src/lib/auth-session", () => ({
   requireCurrentUser: vi.fn(async () => ({ id: "user-1", username: "user-1", name: "User 1", image: null })),
@@ -28,6 +34,9 @@ vi.mock("../src/lib/db", () => ({
     }
   }
 }));
+
+const { requireCurrentUser } = await import("../src/lib/auth-session");
+const mockedRequireCurrentUser = vi.mocked(requireCurrentUser);
 
 const mockedCustomPool = vi.mocked(prisma.customPool);
 const mockedAnime = vi.mocked(prisma.anime);
@@ -136,9 +145,235 @@ const requestBody = {
   ]
 };
 
-describe("TierMaker import source type", () => {
+const tiermakerFixtureHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tier List Maker - Genshin Characters 2026</title>
+  <meta property="og:title" content="Genshin Characters 2026" />
+</head>
+<body>
+  <h1>TierMaker Template</h1>
+  <div class="template-items">
+    <div class="item">
+      <img src="https://cdn.tiermaker.com/item/render/1.png" alt="Zhongli" width="200" height="300" />
+      <span>Zhongli</span>
+    </div>
+    <div class="item">
+      <img src="https://cdn.tiermaker.com/item/render/2.png" alt="Raiden" width="200" height="300" />
+    </div>
+    <div class="item">
+      <img src="https://cdn.tiermaker.com/item/render/3.png" alt="Nahida" width="200" height="300" />
+    </div>
+    <img src="https://cdn.tiermaker.com/logo-small.png" class="logo" width="30" height="30" alt="logo" />
+    <img src="https://cdn.tiermaker.com/icon/avatar.png" class="avatar" width="16" height="16" />
+  </div>
+</body>
+</html>`;
+
+describe("TierMaker URL validation", () => {
+  it("accepts valid https://tiermaker.com/create/... URL", () => {
+    const result = validateTierMakerTemplateUrl("https://tiermaker.com/create/genshin-impact-13-792389");
+    expect(result).toBe("https://tiermaker.com/create/genshin-impact-13-792389");
+  });
+
+  it("accepts www.tiermaker.com", () => {
+    const result = validateTierMakerTemplateUrl("https://www.tiermaker.com/create/template-name");
+    expect(result).toBe("https://www.tiermaker.com/create/template-name");
+  });
+
+  it("rejects http URLs", () => {
+    expect(() =>
+      validateTierMakerTemplateUrl("http://tiermaker.com/create/template")
+    ).toThrow("Only HTTPS URLs are allowed");
+  });
+
+  it("rejects non-TierMaker host", () => {
+    expect(() =>
+      validateTierMakerTemplateUrl("https://example.com/create/template")
+    ).toThrow("must point to tiermaker.com");
+  });
+
+  it("rejects URLs not starting with /create/", () => {
+    expect(() =>
+      validateTierMakerTemplateUrl("https://tiermaker.com/template/123")
+    ).toThrow("must be a TierMaker template");
+  });
+
+  it("rejects javascript: protocol", () => {
+    expect(() =>
+      validateTierMakerTemplateUrl("javascript:alert(1)")
+    ).toThrow("URL protocol is not allowed");
+  });
+
+  it("rejects data: protocol", () => {
+    expect(() =>
+      validateTierMakerTemplateUrl("data:text/html,hello")
+    ).toThrow("URL protocol is not allowed");
+  });
+
+  it("rejects file: protocol", () => {
+    expect(() =>
+      validateTierMakerTemplateUrl("file:///etc/passwd")
+    ).toThrow("URL protocol is not allowed");
+  });
+
+  it("rejects localhost", () => {
+    expect(() =>
+      validateTierMakerTemplateUrl("https://localhost/create/template")
+    ).toThrow("Blocked hostname");
+  });
+
+  it("rejects private IP 127.0.0.1", () => {
+    expect(() =>
+      validateTierMakerTemplateUrl("https://127.0.0.1/create/template")
+    ).toThrow("Blocked hostname");
+  });
+
+  it("rejects private IP 192.168.1.1", () => {
+    expect(() =>
+      validateTierMakerTemplateUrl("https://192.168.1.1/create/template")
+    ).toThrow("Private IP addresses are not allowed");
+  });
+
+  it("normalizes URL by removing hash and sorting params", () => {
+    const result = validateTierMakerTemplateUrl("https://tiermaker.com/create/template?b=2&a=1#section");
+    expect(result).toBe("https://tiermaker.com/create/template?a=1&b=2");
+  });
+
+  it("rejects empty URL", () => {
+    expect(() =>
+      validateTierMakerTemplateUrl("")
+    ).toThrow("URL is required");
+  });
+});
+
+describe("TierMaker HTML parser", () => {
+  it("extracts title from og:title meta tag", () => {
+    const result = parseTierMakerTemplate(tiermakerFixtureHtml, "https://tiermaker.com/create/test");
+    expect(result.title).toBe("Genshin Characters 2026");
+  });
+
+  it("extracts images from HTML", () => {
+    const result = parseTierMakerTemplate(tiermakerFixtureHtml, "https://tiermaker.com/create/test");
+    expect(result.items.length).toBe(3);
+    expect(result.items[0].title).toBe("Zhongli");
+    expect(result.items[1].title).toBe("Raiden");
+    expect(result.items[2].title).toBe("Nahida");
+  });
+
+  it("extracts image URLs as absolute", () => {
+    const result = parseTierMakerTemplate(tiermakerFixtureHtml, "https://tiermaker.com/create/test");
+    for (const item of result.items) {
+      expect(item.imageUrl).toMatch(/^https?:\/\//);
+    }
+  });
+
+  it("deduplicates images by URL", () => {
+    const html = `
+      <html><body>
+      <img src="https://cdn.tiermaker.com/a.png" alt="A" width="200" height="300" />
+      <img src="https://cdn.tiermaker.com/a.png" alt="A dupe" width="200" height="300" />
+      <img src="https://cdn.tiermaker.com/b.png" alt="B" width="200" height="300" />
+      </body></html>`;
+    const result = parseTierMakerTemplate(html, "https://tiermaker.com/create/test");
+    expect(result.items.length).toBe(2);
+  });
+
+  it("filters out logo/small images", () => {
+    const result = parseTierMakerTemplate(tiermakerFixtureHtml, "https://tiermaker.com/create/test");
+    const titles = result.items.map((item) => item.title);
+    expect(titles).not.toContain("logo");
+  });
+
+  it("uses alt text as item title", () => {
+    const result = parseTierMakerTemplate(tiermakerFixtureHtml, "https://tiermaker.com/create/test");
+    expect(result.items[0].title).toBe("Zhongli");
+  });
+
+  it("returns sourceIndex for each item", () => {
+    const result = parseTierMakerTemplate(tiermakerFixtureHtml, "https://tiermaker.com/create/test");
+    expect(result.items[0].sourceIndex).toBe(0);
+    expect(result.items[1].sourceIndex).toBe(1);
+    expect(result.items[2].sourceIndex).toBe(2);
+  });
+
+  it("throws when no images found", () => {
+    expect(() =>
+      parseTierMakerTemplate("<html><body>No images here</body></html>", "https://tiermaker.com/create/test")
+    ).toThrow("No images found");
+  });
+});
+
+describe("TierMaker import API permissions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedRequireCurrentUser.mockResolvedValue({ id: "user-1", username: "user-1", name: "User 1", image: null });
+    mockedCustomPool.findUnique.mockResolvedValue(pool() as any);
+    mockedPoolAnime.aggregate.mockResolvedValue({ _max: { position: 2 } } as any);
+    mockedPoolAnime.findUnique.mockResolvedValue(null);
+    (mockedAnime.upsert as any).mockImplementation(async (args: any) =>
+      anime({
+        id: `anime-${Math.abs(args.where.bgmId)}`,
+        bgmId: args.where.bgmId,
+        title: args.create.title,
+        titleCn: args.create.titleCn,
+        imageUrl: args.create.imageUrl,
+        imageSmallUrl: args.create.imageSmallUrl,
+        imageMediumUrl: args.create.imageMediumUrl,
+        imageLargeUrl: args.create.imageLargeUrl,
+        thumbnailUrl: args.create.thumbnailUrl,
+        tags: args.create.tags,
+        aliases: args.create.aliases,
+        externalLinks: args.create.externalLinks,
+        source: args.create.source,
+        sourceId: args.create.sourceId,
+        imageStatus: args.create.imageStatus
+      })
+    );
+    (mockedPoolAnime.create as any).mockImplementation(async (args: any) =>
+      poolAnime({
+        animeId: args.data.animeId,
+        position: args.data.position,
+        anime: anime({
+          id: args.data.animeId,
+          title: args.data.animeId.includes("2") ? "Imported B" : "Imported A"
+        })
+      })
+    );
+  });
+
+  it("returns 401 when not logged in", async () => {
+    mockedRequireCurrentUser.mockRejectedValueOnce(new AppError("Authentication required", 401, "AUTH_REQUIRED"));
+
+    const response = await POST(
+      new Request("http://test.local/api/pools/pool-1/anime/tiermaker-import", {
+        method: "POST",
+        body: JSON.stringify(requestBody)
+      }),
+      { params: { poolId: "pool-1" } }
+    );
+    expect(response.status).toBe(401);
+  });
+
+  it("rejects userB importing userA pool", async () => {
+    mockedRequireCurrentUser.mockResolvedValue({ id: "user-2", username: "user-2", name: "User 2", image: null });
+
+    const response = await POST(
+      new Request("http://test.local/api/pools/pool-1/anime/tiermaker-import", {
+        method: "POST",
+        body: JSON.stringify(requestBody)
+      }),
+      { params: { poolId: "pool-1" } }
+    );
+    expect(response.status).toBe(403);
+  });
+});
+
+describe("TierMaker import source type (existing)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedRequireCurrentUser.mockResolvedValue({ id: "user-1", username: "user-1", name: "User 1", image: null });
     mockedCustomPool.findUnique.mockResolvedValue(pool() as any);
     mockedPoolAnime.aggregate.mockResolvedValue({ _max: { position: 2 } } as any);
     mockedPoolAnime.findUnique.mockResolvedValue(null);

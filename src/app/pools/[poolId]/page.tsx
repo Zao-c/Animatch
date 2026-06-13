@@ -24,7 +24,9 @@ import {
   discoverAnime,
   getOrCreateDefaultRun,
   getPool,
+  importTierMakerItemsToPool,
   listRuns,
+  previewTierMakerTemplate,
   removeAnimeFromPool,
   restorePool,
   searchAnime,
@@ -36,9 +38,10 @@ import {
   type PoolAnimeEntry,
   type PoolDetail,
   type PublicAnime,
+  type TierMakerPreviewItem,
 } from "@/lib/client-api";
 
-type AddTab = "search" | "browse" | "manual" | "custom" | "bangumi";
+type AddTab = "search" | "browse" | "manual" | "custom" | "bangumi" | "tiermaker";
 type DisplayOverrideForm = {
   displayTitleOverride: string;
   coverUrlOverride: string;
@@ -64,6 +67,7 @@ const TABS: { key: AddTab; label: string }[] = [
   { key: "manual", label: "手动添加" },
   { key: "custom", label: "上传图片" },
   { key: "bangumi", label: "外部导入" },
+  { key: "tiermaker", label: "TierMaker 导入" },
 ];
 
 export default function PoolDetailPage({ params }: { params: { poolId: string } }) {
@@ -121,6 +125,19 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [isUploadingCustomItems, setIsUploadingCustomItems] = useState(false);
   const customUploadInputRef = useRef<HTMLInputElement>(null);
   const customUploadDraftsRef = useRef<CustomUploadDraft[]>([]);
+
+  const [tiermakerUrl, setTiermakerUrl] = useState("");
+  const [tiermakerPreview, setTiermakerPreview] = useState<{
+    title: string;
+    sourceUrl: string;
+    items: TierMakerPreviewItem[];
+  } | null>(null);
+  const [tiermakerPreviewLoading, setTiermakerPreviewLoading] = useState(false);
+  const [tiermakerPreviewError, setTiermakerPreviewError] = useState<string | null>(null);
+  const [tiermakerSelectedIndexes, setTiermakerSelectedIndexes] = useState<Set<number>>(new Set());
+  const [tiermakerShowAll, setTiermakerShowAll] = useState(false);
+  const [tiermakerImporting, setTiermakerImporting] = useState(false);
+  const [tiermakerImportResult, setTiermakerImportResult] = useState<string | null>(null);
 
   const refreshRuns = useCallback(async () => {
     const data = await listRuns(params.poolId);
@@ -377,6 +394,73 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "批量导入失败");
     } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleTiermakerPreview() {
+    if (archived() || !tiermakerUrl.trim()) return;
+    clearMessage();
+    setTiermakerPreviewError(null);
+    setTiermakerPreviewLoading(true);
+    setTiermakerImportResult(null);
+
+    try {
+      const data = await previewTierMakerTemplate(tiermakerUrl);
+      setTiermakerPreview(data);
+      setTiermakerSelectedIndexes(new Set(data.items.map((item) => item.sourceIndex)));
+      setTiermakerShowAll(false);
+    } catch (reason) {
+      setTiermakerPreviewError(reason instanceof Error ? reason.message : "解析失败");
+      setTiermakerPreview(null);
+    } finally {
+      setTiermakerPreviewLoading(false);
+    }
+  }
+
+  function toggleTiermakerItem(sourceIndex: number) {
+    setTiermakerSelectedIndexes((current) => {
+      const next = new Set(current);
+      if (next.has(sourceIndex)) {
+        next.delete(sourceIndex);
+      } else {
+        next.add(sourceIndex);
+      }
+      return next;
+    });
+  }
+
+  function selectAllTiermakerItems() {
+    if (tiermakerPreview === null) return;
+    setTiermakerSelectedIndexes(new Set(tiermakerPreview.items.map((item) => item.sourceIndex)));
+  }
+
+  function deselectAllTiermakerItems() {
+    setTiermakerSelectedIndexes(new Set());
+  }
+
+  async function handleTiermakerImport() {
+    if (pool === null || archived() || tiermakerUrl.trim() === "" || tiermakerSelectedIndexes.size === 0) return;
+    clearMessage();
+    setTiermakerImporting(true);
+    setIsMutating(true);
+
+    try {
+      const result = await importTierMakerItemsToPool(pool.id, {
+        url: tiermakerUrl,
+        selectedIndexes: Array.from(tiermakerSelectedIndexes)
+      });
+      await refreshPool();
+      setTiermakerImportResult(
+        `导入完成：新增 ${result.importedCount} 部，跳过 ${result.skippedCount} 部`
+      );
+      setTiermakerUrl("");
+      setTiermakerPreview(null);
+      setTiermakerSelectedIndexes(new Set());
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "导入失败");
+    } finally {
+      setTiermakerImporting(false);
       setIsMutating(false);
     }
   }
@@ -1065,6 +1149,153 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                   <AppButton onClick={handleBulkImport} disabled={isMutating} variant="ghost" className="mt-3 w-full">
                     导入到番组
                   </AppButton>
+                </div>
+              ) : null}
+
+              {activeTab === "tiermaker" ? (
+                <div className="mt-4 space-y-4">
+                  <StatusHint
+                    label="TierMaker 导入"
+                    title="粘贴公开的 TierMaker 模板链接，解析后选择要导入的图片"
+                    description="图片来自用户提供的 TierMaker 公开模板，版权归原权利方所有，请仅用于个人非商业排序体验。"
+                    tone="guide"
+                  />
+                  <div className="flex gap-2">
+                    <input
+                      value={tiermakerUrl}
+                      onChange={(event) => setTiermakerUrl(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") handleTiermakerPreview();
+                      }}
+                      placeholder="https://tiermaker.com/create/..."
+                      className="anime-field min-w-0 flex-1"
+                    />
+                    <AppButton
+                      type="button"
+                      onClick={handleTiermakerPreview}
+                      disabled={tiermakerPreviewLoading || isMutating || !tiermakerUrl.trim()}
+                      variant="primary"
+                    >
+                      {tiermakerPreviewLoading ? "解析中..." : "解析模板"}
+                    </AppButton>
+                  </div>
+
+                  {tiermakerPreviewError ? (
+                    <ErrorAlert message={tiermakerPreviewError} />
+                  ) : null}
+
+                  {tiermakerImportResult ? (
+                    <ErrorAlert message={tiermakerImportResult} tone="notice" />
+                  ) : null}
+
+                  {tiermakerPreview !== null ? (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-white">{tiermakerPreview.title}</p>
+                          <p className="text-xs text-slate-400">
+                            共 {tiermakerPreview.items.length} 项，已选 {tiermakerSelectedIndexes.size} 项
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <AppButton
+                            type="button"
+                            onClick={selectAllTiermakerItems}
+                            disabled={isMutating}
+                            variant="ghost"
+                            size="sm"
+                          >
+                            全选
+                          </AppButton>
+                          <AppButton
+                            type="button"
+                            onClick={deselectAllTiermakerItems}
+                            disabled={isMutating}
+                            variant="ghost"
+                            size="sm"
+                          >
+                            取消全选
+                          </AppButton>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                        {tiermakerPreview.items
+                          .slice(0, tiermakerShowAll ? tiermakerPreview.items.length : Math.min(50, tiermakerPreview.items.length))
+                          .map((item) => {
+                            const isSelected = tiermakerSelectedIndexes.has(item.sourceIndex);
+                            return (
+                              <div
+                                key={item.sourceIndex}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => toggleTiermakerItem(item.sourceIndex)}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    toggleTiermakerItem(item.sourceIndex);
+                                  }
+                                }}
+                                className={`overflow-hidden rounded-xl border transition duration-anime ${
+                                  isSelected
+                                    ? "border-anime-cyan/60 bg-anime-cyan/[0.08] ring-1 ring-anime-cyan/30"
+                                    : "border-anime-border bg-white/[0.03] hover:border-anime-cyan/25"
+                                }`}
+                              >
+                                <AnimeCover
+                                  src={item.imageUrl}
+                                  secondarySrc={null}
+                                  title={item.title}
+                                  size="sm"
+                                  className="aspect-[3/4] w-full rounded-none border-0"
+                                />
+                                <div className="flex items-center gap-2 p-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => toggleTiermakerItem(item.sourceIndex)}
+                                    className="h-4 w-4 accent-cyan-400"
+                                  />
+                                  <p className="line-clamp-1 min-w-0 text-xs text-slate-300">
+                                    {item.title}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+
+                      {tiermakerPreview.items.length > 50 ? (
+                        <AppButton
+                          type="button"
+                          onClick={() => setTiermakerShowAll((value) => !value)}
+                          variant="quiet"
+                          size="sm"
+                          className="w-full"
+                        >
+                          {tiermakerShowAll
+                            ? "收起"
+                            : `显示全部 ${tiermakerPreview.items.length} 项`}
+                        </AppButton>
+                      ) : null}
+
+                      <AppButton
+                        type="button"
+                        onClick={handleTiermakerImport}
+                        disabled={
+                          tiermakerImporting ||
+                          isMutating ||
+                          tiermakerSelectedIndexes.size === 0
+                        }
+                        variant="primary"
+                        className="w-full"
+                      >
+                        {tiermakerImporting
+                          ? "导入中..."
+                          : `导入选中 (${tiermakerSelectedIndexes.size})`}
+                      </AppButton>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </>

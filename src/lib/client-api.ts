@@ -103,7 +103,27 @@ export interface TierMakerImportItemInput {
   tags?: string[];
 }
 
+export interface TierMakerPreviewItem {
+  title: string;
+  imageUrl: string;
+  sourceIndex: number;
+}
+
+export interface TierMakerPreviewResponse {
+  title: string;
+  sourceUrl: string;
+  total: number;
+  items: TierMakerPreviewItem[];
+}
+
 export interface TierMakerImportResponse {
+  added: PoolAnimeEntry[];
+  skipped: PoolAnimeEntry[];
+  importedCount: number;
+  skippedCount: number;
+}
+
+export interface TierMakerUrlImportResponse {
   added: PoolAnimeEntry[];
   skipped: PoolAnimeEntry[];
   importedCount: number;
@@ -562,6 +582,13 @@ export function bulkImportAnimeToPool(poolId: string, input: string) {
   });
 }
 
+export function previewTierMakerTemplate(url: string) {
+  return fetchJson<TierMakerPreviewResponse>("/api/import/tiermaker/preview", {
+    method: "POST",
+    body: { url }
+  });
+}
+
 export function importTierMakerItemsToPool(
   poolId: string,
   input: {
@@ -569,11 +596,27 @@ export function importTierMakerItemsToPool(
     templateName?: string;
     items: TierMakerImportItemInput[];
   }
-) {
-  return fetchJson<TierMakerImportResponse>(`/api/pools/${poolId}/anime/tiermaker-import`, {
-    method: "POST",
-    body: input
-  });
+): Promise<TierMakerImportResponse>;
+export function importTierMakerItemsToPool(
+  poolId: string,
+  input: {
+    url: string;
+    selectedIndexes?: number[];
+  }
+): Promise<TierMakerUrlImportResponse>;
+export function importTierMakerItemsToPool(
+  poolId: string,
+  input:
+    | { templateUrl: string; templateName?: string; items: TierMakerImportItemInput[] }
+    | { url: string; selectedIndexes?: number[] }
+): Promise<TierMakerImportResponse | TierMakerUrlImportResponse> {
+  return fetchJson<TierMakerImportResponse | TierMakerUrlImportResponse>(
+    `/api/pools/${poolId}/anime/tiermaker-import`,
+    {
+      method: "POST",
+      body: input
+    }
+  );
 }
 
 export async function uploadCustomItemToPool(
