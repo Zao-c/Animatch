@@ -556,7 +556,10 @@ describe("pools API management", () => {
       params: { poolId: "pool-1" }
     });
 
-    expect(anonymousResponse.status).toBe(403);
+    expect(anonymousResponse.status).toBe(401);
+    const anonymousPayload = await anonymousResponse.json();
+    expect(anonymousPayload.error.message).toBe("请先登录。");
+
     expect(userBResponse.status).toBe(403);
   });
 });

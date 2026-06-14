@@ -21,6 +21,10 @@ export function badRequest(message: string): NextResponse<ApiFailure> {
   return errorResponse(message, 400);
 }
 
+export function unauthorized(message: string): NextResponse<ApiFailure> {
+  return errorResponse(message, 401);
+}
+
 export function forbidden(message: string): NextResponse<ApiFailure> {
   return errorResponse(message, 403);
 }

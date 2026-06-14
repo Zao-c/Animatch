@@ -1,5 +1,5 @@
 import { PoolStatus, Visibility } from "@prisma/client";
-import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
+import { badRequest, forbidden, notFound, ok, unauthorized, fromError } from "@/lib/api-response";
 import { getCurrentUser, requireCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
 import { canManagePool, getPoolPermissions } from "@/lib/pool-permissions";
@@ -46,6 +46,9 @@ export async function GET(_request: Request, context: RouteContext) {
     const permissions = getPoolPermissions(pool, user);
 
     if (!permissions.canRead) {
+      if (user === null) {
+        return unauthorized("请先登录。");
+      }
       return forbidden("你没有权限访问这个番组。");
     }
 
