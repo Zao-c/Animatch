@@ -14,6 +14,11 @@ describe("P1 pool detail UI", () => {
     expect(source).toContain("可开始");
   });
 
+  it("shows personal hint only to logged-in non-owner on public/unlisted pools", () => {
+    expect(source).toContain("!canManagePool && canPlayPool");
+    expect(source).toContain("你的对决和榜单只属于你，不会影响创建者");
+  });
+
   it("keeps additional import methods folded behind a secondary control", () => {
     expect(source).toContain("更多导入方式");
     expect(source).toContain("showMoreImportMethods");

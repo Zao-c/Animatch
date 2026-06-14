@@ -23,7 +23,7 @@ export function HomeActions() {
     let cancelled = false;
 
     getMe()
-      .then(() => { if (!cancelled) setIsLoggedIn(true); })
+      .then((data) => { if (!cancelled) setIsLoggedIn(data.user !== null); })
       .catch(() => { if (!cancelled) setIsLoggedIn(false); });
 
     return () => { cancelled = true; };

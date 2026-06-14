@@ -833,7 +833,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             <Link href="/pools" className={appButtonClasses({ variant: "quiet", size: "sm" })}>
               返回我的番组
             </Link>
-            {!canManagePool ? (
+            {!canManagePool && canPlayPool ? (
               <p className="mt-2 text-center text-xs leading-5 text-slate-500">
                 你的对决和榜单只属于你，不会影响创建者。
               </p>

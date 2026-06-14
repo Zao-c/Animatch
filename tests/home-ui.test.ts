@@ -35,6 +35,26 @@ describe("home mini match demo source", () => {
   });
 });
 
+describe("HomeActions anonymous state", () => {
+  const source = readFileSync("src/components/HomeActions.tsx", "utf8");
+
+  it("shows anonymous CTA when not logged in", () => {
+    expect(source).toContain("浏览公开番组");
+    expect(source).toContain("立即登录");
+    expect(source).toContain("不用登录也能浏览公开番组");
+    expect(source).toContain("登录后可以创建自己的番组");
+  });
+
+  it("distinguishes null user from logged-in user in getMe response", () => {
+    expect(source).toContain("data.user !== null");
+  });
+
+  it("shows logged-in CTA when authenticated", () => {
+    expect(source).toContain("继续对决");
+    expect(source).toContain("查看我的番组");
+  });
+});
+
 describe("shared UI primitives", () => {
   it("renders AppButton variants without breaking existing output", () => {
     const html = renderToStaticMarkup(
