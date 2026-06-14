@@ -578,7 +578,7 @@ function PoolCard({
             </summary>
             <div className="mt-3 flex flex-wrap gap-2">
               <AppButton onClick={onBeginEdit} disabled={isMutating} variant="quiet" size="sm">
-                编辑信息
+                番组设置
               </AppButton>
               {isArchived ? (
                 <AppButton onClick={onRestore} disabled={isMutating} variant="secondary" size="sm">

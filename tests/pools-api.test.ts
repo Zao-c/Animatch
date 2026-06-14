@@ -150,6 +150,45 @@ describe("pools API management", () => {
     );
   });
 
+  it("PATCH ignores reserved public permission fields", async () => {
+    mockedCustomPool.findUnique.mockResolvedValue(pool());
+    mockedCustomPool.update.mockResolvedValue(
+      pool({
+        name: "Updated",
+        visibility: Visibility.UNLISTED,
+        allowPublicEdit: false,
+        allowCommunityMatch: false
+      })
+    );
+
+    const response = await PATCH(
+      new Request("http://test.local/api/pools/pool-1", {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: "Updated",
+          description: "Next description",
+          visibility: "UNLISTED",
+          tags: ["test"],
+          allowPublicEdit: true,
+          allowCommunityMatch: true
+        })
+      }),
+      { params: { poolId: "pool-1" } }
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCustomPool.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          name: "Updated",
+          description: "Next description",
+          visibility: "UNLISTED",
+          tags: ["test"]
+        }
+      })
+    );
+  });
+
   it("PATCH returns 400 for empty name", async () => {
     const response = await PATCH(
       new Request("http://test.local/api/pools/pool-1", {
@@ -534,6 +573,46 @@ describe("pools API management", () => {
 
     expect(response.status).toBe(200);
     expect(payload.data.visibility).toBe("PUBLIC");
+  });
+
+  it("GET pool detail exposes manage permission only to the owner", async () => {
+    mockedGetCurrentUser.mockResolvedValueOnce({
+      id: "user-1",
+      username: "user-1",
+      name: "User 1",
+      image: null
+    });
+    mockedCustomPool.findUnique.mockResolvedValueOnce(pool({ visibility: Visibility.PUBLIC }));
+
+    const ownerResponse = await GET_POOL(new Request("http://test.local/api/pools/pool-1"), {
+      params: { poolId: "pool-1" }
+    });
+    const ownerPayload = await ownerResponse.json();
+
+    mockedGetCurrentUser.mockResolvedValueOnce({
+      id: "user-2",
+      username: "user-2",
+      name: "User 2",
+      image: null
+    });
+    mockedCustomPool.findUnique.mockResolvedValueOnce(pool({ visibility: Visibility.PUBLIC }));
+
+    const nonOwnerResponse = await GET_POOL(new Request("http://test.local/api/pools/pool-1"), {
+      params: { poolId: "pool-1" }
+    });
+    const nonOwnerPayload = await nonOwnerResponse.json();
+
+    mockedGetCurrentUser.mockResolvedValueOnce(null);
+    mockedCustomPool.findUnique.mockResolvedValueOnce(pool({ visibility: Visibility.PUBLIC }));
+
+    const anonymousResponse = await GET_POOL(new Request("http://test.local/api/pools/pool-1"), {
+      params: { poolId: "pool-1" }
+    });
+    const anonymousPayload = await anonymousResponse.json();
+
+    expect(ownerPayload.data.permissions.canManage).toBe(true);
+    expect(nonOwnerPayload.data.permissions.canManage).toBe(false);
+    expect(anonymousPayload.data.permissions.canManage).toBe(false);
   });
 
   it("GET pool detail rejects anonymous and userB reads after a pool is made private", async () => {

@@ -20,7 +20,7 @@ describe("pool management UI", () => {
 
   it("keeps archive management folded behind more actions", () => {
     expect(poolsSource).toContain("更多操作");
-    expect(poolsSource).toContain("编辑信息");
+    expect(poolsSource).toContain("番组设置");
     expect(poolsSource).toContain("归档番组");
     expect(poolsSource).toContain("恢复番组");
     expect(poolsSource).toContain("复制番组 ID");
@@ -49,9 +49,41 @@ describe("pool management UI", () => {
   it("offers owner visibility editing from the pool detail settings panel", () => {
     expect(detailSource).toContain("可见性");
     expect(detailSource).toContain("POOL_VISIBILITY_OPTIONS");
-    expect(poolLabelsSource).toContain("只有创建者可以查看和对决");
-    expect(poolLabelsSource).toContain("有链接的人可以浏览，登录后可以开始自己的个人对决");
-    expect(poolLabelsSource).toContain("所有人可以在公开番组列表中看到，登录后可以开始自己的个人对决");
+    expect(poolLabelsSource).toContain("只有你能查看和对决");
+    expect(poolLabelsSource).toContain("知道链接的人可以浏览，登录后可以开始自己的个人对决");
+    expect(poolLabelsSource).toContain("会出现在公开番组页，登录后任何人都可以开始自己的个人对决");
+  });
+
+  it("keeps the pool detail settings entry owner-only", () => {
+    expect(detailSource).toContain("const canManagePool = permissions?.canManage ?? false");
+    expect(detailSource).toContain("{canManagePool ? (");
+    expect(detailSource).toContain("{showMorePoolActions && canManagePool ? (");
+    expect(detailSource).toContain("更多番组操作");
+    expect(detailSource).toContain("番组设置");
+    expect(detailSource).not.toContain("编辑番组");
+  });
+
+  it("renders disabled reserved public permission controls", () => {
+    expect(detailSource).toContain("公开权限，暂未开放");
+    expect(detailSource).toContain("允许其他人添加动画");
+    expect(detailSource).toContain("启用大乱斗公共榜单");
+    expect(detailSource).toContain("这些功能还在设计中，当前公开番组只支持他人浏览并进行个人对决。");
+    expect(detailSource).toContain('type="checkbox" disabled');
+  });
+
+  it("does not submit reserved public permission fields from the settings panel", () => {
+    const updateStart = detailSource.indexOf("const updated = await updatePool");
+    const updateEnd = detailSource.indexOf("});", updateStart);
+    const updatePayload = detailSource.slice(updateStart, updateEnd);
+
+    expect(updatePayload).toContain("visibility: editVisibility");
+    expect(updatePayload).not.toContain("allowPublicEdit");
+    expect(updatePayload).not.toContain("allowCommunityMatch");
+  });
+
+  it("updates the detail badge from the saved pool visibility", () => {
+    expect(detailSource).toContain("{isArchived ? \"已归档\" : formatPoolVisibility(pool.visibility)}");
+    expect(detailSource).toContain("setPool((current) => (current === null ? current : { ...current, ...updated }))");
   });
 
   it("turns pool creation into an onboarding flow", () => {

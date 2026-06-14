@@ -101,7 +101,6 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [showMorePoolActions, setShowMorePoolActions] = useState(false);
   const [showMoreImportMethods, setShowMoreImportMethods] = useState(false);
 
-  const [isEditingPool, setIsEditingPool] = useState(false);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editVisibility, setEditVisibility] = useState<PoolVisibilityValue>("PRIVATE");
@@ -206,6 +205,14 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     return pool === null || pool.status === "ARCHIVED" || pool.deletedAt !== null;
   }
 
+  function resetPoolSettingsDraft() {
+    if (pool === null) return;
+    setEditName(pool.name);
+    setEditDescription(pool.description ?? "");
+    setEditVisibility(pool.visibility);
+    setEditTags(pool.tags.join(", "));
+  }
+
   async function handleSavePool(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pool === null) return;
@@ -228,7 +235,6 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           .filter(Boolean),
       });
       setPool((current) => (current === null ? current : { ...current, ...updated }));
-      setIsEditingPool(false);
       setNotice("番组信息已保存");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "保存失败");
@@ -738,7 +744,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const isArchived = archived();
   const latestRun = runs[0];
   const permissions = pool.permissions;
-  const canManagePool = permissions?.canManage ?? true;
+  const canManagePool = permissions?.canManage ?? false;
   const canAddAnimeToPool = permissions?.canAddAnime ?? canManagePool;
   const canPlayPool = permissions?.canPlay ?? canManagePool;
   const canReadCommunityMatch = permissions?.canCommunityMatch ?? false;
@@ -865,49 +871,59 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             <div>
               <h2 className="text-lg font-semibold text-white">番组设置</h2>
               <p className="mt-1 text-sm text-slate-400">
-                编辑信息和归档是低频操作，默认收起避免干扰开始对决。
+                管理基本信息、可见性和归档状态。编辑、导入和归档仍只有创建者可以操作。
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <AppButton
-                onClick={() => setIsEditingPool((value) => !value)}
-                disabled={isMutating}
-                variant="ghost"
-                size="sm"
-              >
-                编辑番组
-              </AppButton>
-              {isArchived ? (
-                <AppButton
-                  onClick={handleRestorePool}
-                  disabled={isMutating}
-                  variant="secondary"
-                  size="sm"
-                >
-                  恢复番组
-                </AppButton>
-              ) : (
-                <AppButton
-                  onClick={handleArchivePool}
-                  disabled={isMutating}
-                  variant="danger"
-                  size="sm"
-                >
-                  归档番组
-                </AppButton>
-              )}
-              <Link href="/pools" className={appButtonClasses({ variant: "quiet", size: "sm" })}>
-                返回我的番组
-              </Link>
-            </div>
           </div>
-          {isEditingPool ? (
-            <form onSubmit={handleSavePool} className="mt-5 border-t border-anime-border pt-5">
-              <div className="grid gap-3 md:grid-cols-[1fr_280px]">
-                <input value={editName} onChange={(event) => setEditName(event.target.value)} className="anime-field" />
+          <form onSubmit={handleSavePool} className="mt-5 space-y-5 border-t border-anime-border pt-5">
+            <section className="space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold text-white">基本信息</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  名称、描述和标签会显示在番组详情与番组列表。
+                </p>
+              </div>
+              <label className="block text-xs font-semibold text-slate-300" htmlFor="pool-name">
+                名称
+              </label>
+              <input
+                id="pool-name"
+                value={editName}
+                onChange={(event) => setEditName(event.target.value)}
+                className="anime-field"
+              />
+              <label className="block text-xs font-semibold text-slate-300" htmlFor="pool-description">
+                描述
+              </label>
+              <textarea
+                id="pool-description"
+                value={editDescription}
+                onChange={(event) => setEditDescription(event.target.value)}
+                className="anime-field min-h-24"
+              />
+              <label className="block text-xs font-semibold text-slate-300" htmlFor="pool-tags">
+                标签
+              </label>
+              <input
+                id="pool-tags"
+                value={editTags}
+                onChange={(event) => setEditTags(event.target.value)}
+                placeholder="标签，逗号分隔"
+                className="anime-field"
+              />
+            </section>
+
+            <section className="space-y-3 border-t border-anime-border pt-5">
+              <div className="grid gap-3 md:grid-cols-[1fr_260px]">
+                <div>
+                  <h3 className="text-sm font-semibold text-white">可见性</h3>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    可见性只影响谁能浏览和开始个人对决，不开放编辑权限。
+                  </p>
+                </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-300" htmlFor="pool-visibility">
-                    可见性
+                    当前可见性
                   </label>
                   <select
                     id="pool-visibility"
@@ -925,33 +941,96 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                   </select>
                 </div>
               </div>
-              <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-400 md:grid-cols-3">
+              <div className="grid gap-2 text-xs leading-5 text-slate-400 md:grid-cols-3">
                 {POOL_VISIBILITY_OPTIONS.map((option) => (
-                  <div key={option.value} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <div
+                    key={option.value}
+                    className={`rounded-lg border p-3 ${
+                      editVisibility === option.value
+                        ? "border-cyan-300/50 bg-cyan-300/[0.08]"
+                        : "border-white/10 bg-white/[0.03]"
+                    }`}
+                  >
                     <p className="font-semibold text-slate-200">{option.label}</p>
                     <p className="mt-1">{option.description}</p>
                   </div>
                 ))}
               </div>
-              <textarea
-                value={editDescription}
-                onChange={(event) => setEditDescription(event.target.value)}
-                className="anime-field mt-3 min-h-24"
-              />
-              <input
-                value={editTags}
-                onChange={(event) => setEditTags(event.target.value)}
-                placeholder="标签，逗号分隔"
-                className="anime-field mt-3"
-              />
-              <div className="mt-3 flex gap-2">
-                <AppButton type="submit" disabled={isMutating} variant="primary">保存</AppButton>
-                <AppButton type="button" onClick={() => setIsEditingPool(false)} disabled={isMutating} variant="ghost">
-                  取消
-                </AppButton>
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                <p className="text-xs font-semibold text-slate-300">公开说明文案</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  公开番组会出现在公开番组页，登录后任何人都可以开始自己的个人对决。管理操作仍只有创建者可以使用。
+                </p>
               </div>
-            </form>
-          ) : null}
+            </section>
+
+            <section className="space-y-3 border-t border-anime-border pt-5">
+              <div>
+                <h3 className="text-sm font-semibold text-white">公开权限，暂未开放</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  这些功能还在设计中，当前公开番组只支持他人浏览并进行个人对决。
+                </p>
+              </div>
+              <label className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm text-slate-500">
+                <input type="checkbox" disabled className="h-4 w-4 accent-cyan-400" />
+                允许其他人添加动画
+              </label>
+              <label className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm text-slate-500">
+                <input type="checkbox" disabled className="h-4 w-4 accent-cyan-400" />
+                启用大乱斗公共榜单
+              </label>
+            </section>
+
+            <section className="space-y-3 border-t border-anime-border pt-5">
+              <div>
+                <h3 className="text-sm font-semibold text-white">危险操作</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  归档会隐藏默认列表入口，但不会删除历史对决和 Tier List。
+                </p>
+              </div>
+              {isArchived ? (
+                <AppButton
+                  type="button"
+                  onClick={handleRestorePool}
+                  disabled={isMutating}
+                  variant="secondary"
+                  size="sm"
+                >
+                  恢复番组
+                </AppButton>
+              ) : (
+                <AppButton
+                  type="button"
+                  onClick={handleArchivePool}
+                  disabled={isMutating}
+                  variant="danger"
+                  size="sm"
+                >
+                  归档番组
+                </AppButton>
+              )}
+            </section>
+
+            <div className="flex flex-wrap gap-2 border-t border-anime-border pt-5">
+              <AppButton type="submit" disabled={isMutating} variant="primary">
+                保存设置
+              </AppButton>
+              <AppButton
+                type="button"
+                onClick={() => {
+                  resetPoolSettingsDraft();
+                  setShowMorePoolActions(false);
+                }}
+                disabled={isMutating}
+                variant="ghost"
+              >
+                取消
+              </AppButton>
+              <Link href="/pools" className={appButtonClasses({ variant: "quiet", size: "sm" })}>
+                返回我的番组
+              </Link>
+            </div>
+          </form>
         </AppCard>
       ) : null}
 

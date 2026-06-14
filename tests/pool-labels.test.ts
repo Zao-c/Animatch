@@ -19,17 +19,17 @@ describe("pool labels", () => {
       {
         value: "PRIVATE",
         label: "私有",
-        description: "只有创建者可以查看和对决"
+        description: "只有你能查看和对决"
       },
       {
         value: "UNLISTED",
         label: "未列出",
-        description: "有链接的人可以浏览，登录后可以开始自己的个人对决"
+        description: "知道链接的人可以浏览，登录后可以开始自己的个人对决"
       },
       {
         value: "PUBLIC",
         label: "公开",
-        description: "所有人可以在公开番组列表中看到，登录后可以开始自己的个人对决"
+        description: "会出现在公开番组页，登录后任何人都可以开始自己的个人对决"
       }
     ]);
   });
