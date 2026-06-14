@@ -763,17 +763,13 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             <AppBadge tone={isArchived ? "danger" : "status"}>
               {isArchived ? "已归档" : formatPoolVisibility(pool.visibility)}
             </AppBadge>
-            <AppBadge tone="source">{pool.anime.length} 部动画</AppBadge>
-            <AppBadge tone="source">{sourceSummary}</AppBadge>
             {formatOfficialDemo(pool.isOfficialDemo) ? (
               <AppBadge tone="source">{formatOfficialDemo(pool.isOfficialDemo)}</AppBadge>
             ) : null}
-            {canPlayPool ? <AppBadge tone="success">支持个人对决</AppBadge> : null}
-            <AppBadge tone={canReadCommunityMatch ? "tier" : "muted"}>
-              {canReadCommunityMatch ? "大乱斗" : "大乱斗未开放"}
-            </AppBadge>
+            <AppBadge tone="muted">{pool.anime.length} 部动画</AppBadge>
+            <AppBadge tone="source">{sourceSummary}</AppBadge>
             <AppBadge tone={canStart ? "success" : "warning"}>
-              {canStart ? "Ready" : "准备中"}
+              {canStart ? "可开始" : "待添加"}
             </AppBadge>
           </div>
           <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
@@ -837,6 +833,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             <Link href="/pools" className={appButtonClasses({ variant: "quiet", size: "sm" })}>
               返回我的番组
             </Link>
+            {!canManagePool ? (
+              <p className="mt-2 text-center text-xs leading-5 text-slate-500">
+                你的对决和榜单只属于你，不会影响创建者。
+              </p>
+            ) : null}
           </div>
         </AppCard>
       </section>

@@ -11,7 +11,7 @@ describe("P1 pool detail UI", () => {
     expect(source).toContain("开始我的对决");
     expect(source).toContain('variant="primary"');
     expect(source).toContain("开始对决");
-    expect(source).toContain("Ready");
+    expect(source).toContain("可开始");
   });
 
   it("keeps additional import methods folded behind a secondary control", () => {

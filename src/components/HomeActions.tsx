@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
-import { createDemoPool, getPool, listPools } from "@/lib/client-api";
+import { createDemoPool, getMe, getPool, listPools } from "@/lib/client-api";
 
 type ReadyPool = {
   id: string;
@@ -17,6 +17,17 @@ export function HomeActions() {
   const [readyPool, setReadyPool] = useState<ReadyPool | null>(null);
   const [isPreparingDemoPool, setIsPreparingDemoPool] = useState(false);
   const [demoPoolError, setDemoPoolError] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getMe()
+      .then(() => { if (!cancelled) setIsLoggedIn(true); })
+      .catch(() => { if (!cancelled) setIsLoggedIn(false); });
+
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,6 +82,51 @@ export function HomeActions() {
     }
   }
 
+  if (isLoggedIn === null) {
+    return (
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <Link href="/pools" className={appButtonClasses({ variant: "primary", size: "lg", className: "w-full sm:w-auto" })}>
+          浏览番组
+        </Link>
+      </div>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <div className="space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <Link
+            href="/pools?view=public"
+            className={appButtonClasses({ variant: "primary", size: "lg", className: "w-full sm:w-auto" })}
+          >
+            浏览公开番组
+          </Link>
+          <Link
+            href="/login"
+            className={appButtonClasses({ variant: "secondary", size: "lg", className: "w-full sm:w-auto" })}
+          >
+            立即登录
+          </Link>
+          <AppButton
+            type="button"
+            variant="ghost"
+            size="lg"
+            className="w-full sm:w-auto"
+            onClick={handleCreateDemoPool}
+            disabled={isPreparingDemoPool}
+          >
+            {isPreparingDemoPool ? "正在准备体验池..." : "体验示例番组"}
+          </AppButton>
+        </div>
+        <p className="text-xs leading-5 text-slate-400">
+          不用登录也能浏览公开番组。登录后可以创建自己的番组、开始两两对决、生成个人 Tier List。
+        </p>
+        {demoPoolError ? <ErrorAlert message={demoPoolError} /> : null}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -114,3 +170,4 @@ export function HomeActions() {
     </div>
   );
 }
+

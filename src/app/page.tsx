@@ -3,6 +3,8 @@ import { HomeMiniMatchDemo } from "@/components/home/HomeMiniMatchDemo";
 import { PageShell } from "@/components/PageShell";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppCard } from "@/components/ui/AppCard";
+import Link from "next/link";
+import { appButtonClasses } from "@/components/ui/AppButton";
 
 const STEPS = [
   {
@@ -58,6 +60,28 @@ export default function Home() {
             </AppCard>
           ))}
         </div>
+      </section>
+
+      <section className="mt-7">
+        <AppCard className="p-5" variant="focus">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
+                <AppBadge tone="source">官方 Demo</AppBadge>
+                先看看别人怎么做
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                访问 AniMatch 入门体验池，不用登录就能看到所有人的公开番组和 Demo 作品墙。
+              </p>
+            </div>
+            <Link
+              href="/pools?view=public"
+              className={appButtonClasses({ variant: "primary", size: "md", className: "shrink-0" })}
+            >
+              浏览公开番组
+            </Link>
+          </div>
+        </AppCard>
       </section>
 
       <section className="mt-7 grid gap-4 lg:grid-cols-[1fr_1fr]">

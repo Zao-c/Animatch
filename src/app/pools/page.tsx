@@ -432,8 +432,6 @@ function PoolCard({
   const canPromptLoginToMatch = !isArchived && animeCount >= 2 && !canPlay;
   const canViewTier = pool.defaultRunId != null || !isArchived;
   const officialDemoLabel = formatOfficialDemo(pool.isOfficialDemo);
-  const primaryBadgeLabel = officialDemoLabel ?? formatPoolVisibility(pool.visibility);
-  const primaryBadgeTone = officialDemoLabel ? "source" : visibilityTone(pool.visibility);
 
   return (
     <AppCard
@@ -498,18 +496,31 @@ function PoolCard({
             >
               {pool.name}
             </Link>
-            <AppBadge tone={primaryBadgeTone}>{primaryBadgeLabel}</AppBadge>
+            {officialDemoLabel ? <AppBadge tone="source">{officialDemoLabel}</AppBadge> : null}
           </div>
+          {officialDemoLabel ? (
+            <div className="flex flex-wrap gap-2">
+              <AppBadge tone="source">{officialDemoLabel}</AppBadge>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <AppBadge tone={visibilityTone(pool.visibility)}>
+                {formatPoolVisibility(pool.visibility)}
+              </AppBadge>
+            </div>
+          )}
           <p className="mt-3 line-clamp-2 min-h-10 text-sm leading-5 text-slate-400">
             {pool.description ?? "暂无描述"}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <AppBadge tone={visibilityTone(pool.visibility)}>
-              {formatPoolVisibility(pool.visibility)}
-            </AppBadge>
             <AppBadge tone={toneForStatus(uiStatus)}>{statusLabel}</AppBadge>
-            <AppBadge tone="source">{pool.sourceType ?? "UNKNOWN"}</AppBadge>
-            {isArchived ? <AppBadge tone="danger">ARCHIVED</AppBadge> : null}
+            {animeCount > 0 ? (
+              <AppBadge tone="muted">{animeCount} 部动画</AppBadge>
+            ) : null}
+            {comparisonCount > 0 ? (
+              <AppBadge tone="muted">{comparisonCount} 次对决</AppBadge>
+            ) : null}
+            {isArchived ? <AppBadge tone="danger">已归档</AppBadge> : null}
           </div>
           {pool.tags.length > 0 ? (
             <div className="mt-3 flex flex-wrap gap-2">
