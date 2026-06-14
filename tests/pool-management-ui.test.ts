@@ -50,4 +50,11 @@ describe("pool management UI", () => {
     expect(detailSource).toContain("恢复番组");
     expect(detailSource).toContain("归档番组不能继续添加动画。");
   });
+
+  it("shows the TierMaker import assistant in the TierMaker tab", () => {
+    expect(detailSource).toContain("复制导入助手脚本");
+    expect(detailSource).toContain("TierMaker 导入助手");
+    expect(detailSource).toContain("图片 URL 列表");
+    expect(detailSource).toContain("可选：自动解析模板链接");
+  });
 });

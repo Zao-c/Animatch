@@ -4,6 +4,7 @@ import { ANIME_SOURCE } from "./anime-source";
 import { prisma } from "./db";
 import { serializePoolAnime } from "./pool-anime-serializer";
 import { fetchTierMakerTemplate, parseTierMakerTemplate } from "./tiermaker-fetch";
+import { TIERMAKER_URL_LIST_SOURCE } from "./tiermaker-url-list";
 
 const TIERMAKER_BGM_ID_BASE = -1_900_000_000;
 const TIERMAKER_BGM_ID_SPAN = 100_000_000;
@@ -29,6 +30,10 @@ export interface TierMakerUrlImportInput {
 }
 
 export function normalizeTierMakerUrl(value: string): string {
+  if (value.trim() === TIERMAKER_URL_LIST_SOURCE) {
+    return TIERMAKER_URL_LIST_SOURCE;
+  }
+
   const url = new URL(value.trim());
   url.hash = "";
   url.pathname = url.pathname.replace(/\/+$/, "") || "/";
@@ -41,8 +46,12 @@ export function makeTierMakerImportBgmId(params: {
   imageUrl?: string | null;
   index: number;
 }): number {
+  const templateUrl =
+    params.templateUrl === TIERMAKER_URL_LIST_SOURCE
+      ? TIERMAKER_URL_LIST_SOURCE
+      : normalizeTierMakerUrl(params.templateUrl);
   const key = [
-    normalizeTierMakerUrl(params.templateUrl),
+    templateUrl,
     params.imageUrl ? normalizeTierMakerUrl(params.imageUrl) : `index:${params.index}`
   ].join("|");
   const hash = createHash("sha256").update(key).digest();
@@ -170,7 +179,7 @@ async function importTierMakerParsedItems(params: {
   }
 
   if (pool.creatorId !== params.userId) {
-    throw new Error("Pool does not belong to the current dev user");
+    throw new Error("你没有权限访问这个番组。");
   }
 
   if (pool.deletedAt !== null || pool.status === PoolStatus.ARCHIVED) {

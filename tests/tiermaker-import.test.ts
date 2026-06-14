@@ -13,6 +13,14 @@ import {
 } from "../src/lib/tiermaker-fetch";
 import { prisma } from "../src/lib/db";
 import { AppError } from "../src/lib/app-error";
+import {
+  formatTierMakerAutoParseError,
+  parseTierMakerUrlList,
+  TIERMAKER_AUTO_PARSE_LIMITED_MESSAGE,
+  TIERMAKER_IMPORT_ASSISTANT_SCRIPT,
+  TIERMAKER_URL_LIST_SOURCE,
+  TIERMAKER_URL_LIST_TEMPLATE_NAME
+} from "../src/lib/tiermaker-url-list";
 
 vi.mock("../src/lib/auth-session", () => ({
   requireCurrentUser: vi.fn(async () => ({ id: "user-1", username: "user-1", name: "User 1", image: null })),
@@ -140,6 +148,23 @@ const requestBody = {
     {
       title: "Imported B",
       imageUrl: "https://img.example.test/item-b.png",
+      index: 1
+    }
+  ]
+};
+
+const urlListRequestBody = {
+  templateUrl: TIERMAKER_URL_LIST_SOURCE,
+  templateName: TIERMAKER_URL_LIST_TEMPLATE_NAME,
+  items: [
+    {
+      title: "URL List A",
+      imageUrl: "https://tiermaker.com/images/item-a.png",
+      index: 0
+    },
+    {
+      title: "URL List B",
+      imageUrl: "https://tiermaker.com/images/item-b.png",
       index: 1
     }
   ]
@@ -302,6 +327,75 @@ describe("TierMaker HTML parser", () => {
     expect(() =>
       parseTierMakerTemplate("<html><body>No images here</body></html>", "https://tiermaker.com/create/test")
     ).toThrow("No images found");
+  });
+});
+
+describe("TierMaker import assistant", () => {
+  it("copies a script that reads document.images", () => {
+    expect(TIERMAKER_IMPORT_ASSISTANT_SCRIPT).toContain("document.images");
+    expect(TIERMAKER_IMPORT_ASSISTANT_SCRIPT).toContain("navigator.clipboard.writeText");
+  });
+
+  it("does not fetch AniMatch APIs or read cookies", () => {
+    expect(TIERMAKER_IMPORT_ASSISTANT_SCRIPT).not.toMatch(/fetch\s*\(/);
+    expect(TIERMAKER_IMPORT_ASSISTANT_SCRIPT).not.toContain("/api/");
+    expect(TIERMAKER_IMPORT_ASSISTANT_SCRIPT).not.toContain("document.cookie");
+    expect(TIERMAKER_IMPORT_ASSISTANT_SCRIPT).not.toContain("cookie");
+  });
+
+  it("maps automatic preview 403 and 502 errors to a friendly helper message", () => {
+    expect(formatTierMakerAutoParseError("TierMaker returned status 403")).toBe(
+      TIERMAKER_AUTO_PARSE_LIMITED_MESSAGE
+    );
+    expect(formatTierMakerAutoParseError("TierMaker returned status 502")).toBe(
+      TIERMAKER_AUTO_PARSE_LIMITED_MESSAGE
+    );
+  });
+});
+
+describe("TierMaker URL list parser", () => {
+  it("supports one URL per line", () => {
+    const items = parseTierMakerUrlList("https://tiermaker.com/images/item-a.png");
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      title: "item a",
+      imageUrl: "https://tiermaker.com/images/item-a.png",
+      sourceUrl: TIERMAKER_URL_LIST_SOURCE,
+      sourceIndex: 0
+    });
+  });
+
+  it("supports title pipe URL lines", () => {
+    const items = parseTierMakerUrlList("Custom Title | https://tiermaker.com/images/item-a.png");
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      title: "Custom Title",
+      imageUrl: "https://tiermaker.com/images/item-a.png"
+    });
+  });
+
+  it("deduplicates URL list imports by normalized image URL", () => {
+    const items = parseTierMakerUrlList(`
+https://tiermaker.com/images/item-a.png#top
+Duplicate | https://tiermaker.com/images/item-a.png
+https://tiermaker.com/images/item-b.png
+`);
+
+    expect(items.map((item) => item.imageUrl)).toEqual([
+      "https://tiermaker.com/images/item-a.png#top",
+      "https://tiermaker.com/images/item-b.png"
+    ]);
+  });
+
+  it("limits URL list imports to 200 items", () => {
+    const input = Array.from(
+      { length: 205 },
+      (_, index) => `https://tiermaker.com/images/item-${index}.png`
+    ).join("\n");
+
+    expect(parseTierMakerUrlList(input)).toHaveLength(200);
   });
 });
 
@@ -487,6 +581,56 @@ describe("TierMaker import source type (existing)", () => {
     expect(payload.data.importedCount).toBe(0);
     expect(payload.data.skippedCount).toBe(2);
     expect(mockedPoolAnime.create).toHaveBeenCalledTimes(2);
+  });
+
+  it("imports URL list items with TIERMAKER_IMPORT source type", async () => {
+    const response = await POST(
+      new Request("http://test.local/api/pools/pool-1/anime/tiermaker-import", {
+        method: "POST",
+        body: JSON.stringify(urlListRequestBody)
+      }),
+      { params: { poolId: "pool-1" } }
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(payload.data.importedCount).toBe(2);
+    expect(mockedAnime.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          source: ANIME_SOURCE.TIERMAKER_IMPORT,
+          rawJson: expect.objectContaining({
+            sourceType: ANIME_SOURCE.TIERMAKER_IMPORT,
+            sourceUrl: TIERMAKER_URL_LIST_SOURCE
+          })
+        })
+      })
+    );
+  });
+
+  it("skips repeated URL list imports", async () => {
+    await POST(
+      new Request("http://test.local/api/pools/pool-1/anime/tiermaker-import", {
+        method: "POST",
+        body: JSON.stringify(urlListRequestBody)
+      }),
+      { params: { poolId: "pool-1" } }
+    );
+
+    mockedPoolAnime.findUnique.mockResolvedValue(poolAnime() as any);
+
+    const response = await POST(
+      new Request("http://test.local/api/pools/pool-1/anime/tiermaker-import", {
+        method: "POST",
+        body: JSON.stringify(urlListRequestBody)
+      }),
+      { params: { poolId: "pool-1" } }
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data.importedCount).toBe(0);
+    expect(payload.data.skippedCount).toBe(2);
   });
 
   it("rejects archived pools", async () => {

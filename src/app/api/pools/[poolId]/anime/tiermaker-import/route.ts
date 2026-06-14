@@ -6,6 +6,7 @@ import {
   type TierMakerImportInput,
   type TierMakerUrlImportInput
 } from "@/lib/tiermaker-import";
+import { formatTierMakerAutoParseError } from "@/lib/tiermaker-url-list";
 
 interface RouteContext {
   params: {
@@ -52,7 +53,7 @@ export async function POST(request: Request, context: RouteContext) {
       return notFound(message);
     }
 
-    if (message === "Pool does not belong to the current dev user") {
+    if (message === "你没有权限访问这个番组。") {
       return forbidden(message);
     }
 
@@ -94,6 +95,11 @@ export async function POST(request: Request, context: RouteContext) {
       message.includes("TierMaker returned status") ||
       message.includes("TierMaker redirect")
     ) {
+      const friendlyMessage = formatTierMakerAutoParseError(message);
+      if (friendlyMessage !== message) {
+        return badRequest(friendlyMessage);
+      }
+
       return badRequest(message);
     }
 

@@ -31,7 +31,7 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     if (pool.creatorId !== user.id) {
-      return forbidden("Pool does not belong to the current dev user");
+      return forbidden("你没有权限访问这个番组。");
     }
 
     if (pool.deletedAt !== null || pool.status === PoolStatus.ARCHIVED) {

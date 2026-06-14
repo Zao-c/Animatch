@@ -115,7 +115,8 @@ describe("friend auth user isolation", () => {
     const payload = await response.json();
 
     expect(response.status).toBe(403);
-    expect(payload.error.message).toContain("does not belong");
+    expect(payload.error.message).toBe("你没有权限访问这个番组。");
+    expect(payload.error.message).not.toContain("current dev user");
   });
 
   it("passes userB identity to comparison submission for run ownership enforcement", async () => {

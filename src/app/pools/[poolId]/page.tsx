@@ -40,6 +40,13 @@ import {
   type PublicAnime,
   type TierMakerPreviewItem,
 } from "@/lib/client-api";
+import {
+  formatTierMakerAutoParseError,
+  parseTierMakerUrlList,
+  TIERMAKER_IMPORT_ASSISTANT_SCRIPT,
+  TIERMAKER_URL_LIST_SOURCE,
+  TIERMAKER_URL_LIST_TEMPLATE_NAME
+} from "@/lib/tiermaker-url-list";
 
 type AddTab = "search" | "browse" | "manual" | "custom" | "bangumi" | "tiermaker";
 type DisplayOverrideForm = {
@@ -127,6 +134,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const customUploadDraftsRef = useRef<CustomUploadDraft[]>([]);
 
   const [tiermakerUrl, setTiermakerUrl] = useState("");
+  const [tiermakerUrlListInput, setTiermakerUrlListInput] = useState("");
+  const [tiermakerAssistantCopied, setTiermakerAssistantCopied] = useState(false);
   const [tiermakerPreview, setTiermakerPreview] = useState<{
     title: string;
     sourceUrl: string;
@@ -411,11 +420,49 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       setTiermakerSelectedIndexes(new Set(data.items.map((item) => item.sourceIndex)));
       setTiermakerShowAll(false);
     } catch (reason) {
-      setTiermakerPreviewError(reason instanceof Error ? reason.message : "解析失败");
+      const message = reason instanceof Error ? reason.message : "解析失败";
+      setTiermakerPreviewError(formatTierMakerAutoParseError(message));
       setTiermakerPreview(null);
     } finally {
       setTiermakerPreviewLoading(false);
     }
+  }
+
+  async function copyTiermakerAssistantScript() {
+    clearMessage();
+    setTiermakerPreviewError(null);
+    setTiermakerImportResult(null);
+
+    try {
+      await navigator.clipboard.writeText(TIERMAKER_IMPORT_ASSISTANT_SCRIPT);
+      setTiermakerAssistantCopied(true);
+    } catch {
+      setTiermakerPreviewError("复制失败，请手动复制导入助手脚本。");
+    }
+  }
+
+  function handleTiermakerUrlListPreview() {
+    if (archived() || !tiermakerUrlListInput.trim()) return;
+    clearMessage();
+    setTiermakerPreviewError(null);
+    setTiermakerImportResult(null);
+
+    const items = parseTierMakerUrlList(tiermakerUrlListInput);
+
+    if (items.length === 0) {
+      setTiermakerPreview(null);
+      setTiermakerSelectedIndexes(new Set());
+      setTiermakerPreviewError("没有找到可导入的图片链接。请粘贴每行一个 URL，或使用「标题 | URL」。");
+      return;
+    }
+
+    setTiermakerPreview({
+      title: TIERMAKER_URL_LIST_TEMPLATE_NAME,
+      sourceUrl: TIERMAKER_URL_LIST_SOURCE,
+      items
+    });
+    setTiermakerSelectedIndexes(new Set(items.map((item) => item.sourceIndex)));
+    setTiermakerShowAll(false);
   }
 
   function toggleTiermakerItem(sourceIndex: number) {
@@ -440,21 +487,37 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   }
 
   async function handleTiermakerImport() {
-    if (pool === null || archived() || tiermakerUrl.trim() === "" || tiermakerSelectedIndexes.size === 0) return;
+    if (pool === null || archived() || tiermakerPreview === null || tiermakerSelectedIndexes.size === 0) return;
     clearMessage();
     setTiermakerImporting(true);
     setIsMutating(true);
 
     try {
-      const result = await importTierMakerItemsToPool(pool.id, {
-        url: tiermakerUrl,
-        selectedIndexes: Array.from(tiermakerSelectedIndexes)
-      });
+      const selectedIndexes = Array.from(tiermakerSelectedIndexes);
+      const result =
+        tiermakerPreview.sourceUrl === TIERMAKER_URL_LIST_SOURCE
+          ? await importTierMakerItemsToPool(pool.id, {
+              templateUrl: TIERMAKER_URL_LIST_SOURCE,
+              templateName: TIERMAKER_URL_LIST_TEMPLATE_NAME,
+              items: tiermakerPreview.items
+                .filter((item) => tiermakerSelectedIndexes.has(item.sourceIndex))
+                .map((item) => ({
+                  title: item.title,
+                  imageUrl: item.imageUrl,
+                  index: item.sourceIndex,
+                  tags: ["tiermaker", "imported", "url-list"]
+                }))
+            })
+          : await importTierMakerItemsToPool(pool.id, {
+              url: tiermakerUrl,
+              selectedIndexes
+            });
       await refreshPool();
       setTiermakerImportResult(
         `导入完成：新增 ${result.importedCount} 部，跳过 ${result.skippedCount} 部`
       );
       setTiermakerUrl("");
+      setTiermakerUrlListInput("");
       setTiermakerPreview(null);
       setTiermakerSelectedIndexes(new Set());
     } catch (reason) {
@@ -1156,11 +1219,63 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 <div className="mt-4 space-y-4">
                   <StatusHint
                     label="TierMaker 导入"
-                    title="粘贴公开的 TierMaker 模板链接，解析后选择要导入的图片"
-                    description="图片来自用户提供的 TierMaker 公开模板，版权归原权利方所有，请仅用于个人非商业排序体验。"
+                    title="TierMaker 导入助手"
+                    description="自动解析链接可能被 TierMaker 限制。你可以在 TierMaker 页面运行导入助手脚本，它会从当前页面复制已加载的图片链接。"
                     tone="guide"
                   />
-                  <div className="flex gap-2">
+
+                  <div className="rounded-2xl border border-anime-border bg-white/[0.03] p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-white">TierMaker 导入助手</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-400">
+                          脚本只读取当前页面 document.images，复制去重后的图片链接，不下载图片、不上传数据、不读取 cookie。
+                        </p>
+                      </div>
+                      <AppButton type="button" onClick={copyTiermakerAssistantScript} variant="primary" size="sm">
+                        复制导入助手脚本
+                      </AppButton>
+                    </div>
+                    {tiermakerAssistantCopied ? (
+                      <p className="mt-2 text-xs text-cyan-200">导入助手脚本已复制。</p>
+                    ) : null}
+                    <ol className="mt-3 list-decimal space-y-1 pl-5 text-xs leading-5 text-slate-300">
+                      <li>打开 TierMaker 模板页面</li>
+                      <li>按 F12 打开 Console</li>
+                      <li>粘贴脚本并回车</li>
+                      <li>回到 AniMatch 粘贴图片链接</li>
+                    </ol>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      图片 URL 列表
+                    </label>
+                    <textarea
+                      value={tiermakerUrlListInput}
+                      onChange={(event) => setTiermakerUrlListInput(event.target.value)}
+                      placeholder={"每行一个 URL\n标题 | https://tiermaker.com/images/example.png"}
+                      className="anime-field min-h-36"
+                    />
+                    <AppButton
+                      type="button"
+                      onClick={handleTiermakerUrlListPreview}
+                      disabled={isMutating || !tiermakerUrlListInput.trim()}
+                      variant="primary"
+                      className="w-full"
+                    >
+                      解析图片链接
+                    </AppButton>
+                  </div>
+
+                  <div className="space-y-2 rounded-2xl border border-anime-border bg-slate-950/35 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      可选：自动解析模板链接
+                    </p>
+                    <p className="text-xs leading-5 text-slate-400">
+                      如果目标网站允许服务器访问，可以直接粘贴公开模板链接；失败时请使用上方导入助手脚本。
+                    </p>
+                    <div className="flex gap-2">
                     <input
                       value={tiermakerUrl}
                       onChange={(event) => setTiermakerUrl(event.target.value)}
@@ -1178,6 +1293,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                     >
                       {tiermakerPreviewLoading ? "解析中..." : "解析模板"}
                     </AppButton>
+                    </div>
                   </div>
 
                   {tiermakerPreviewError ? (

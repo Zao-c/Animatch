@@ -428,4 +428,23 @@ describe("pools API management", () => {
 
     expect(response.status).toBe(200);
   });
+
+  it("GET pool detail returns a user-facing forbidden message for another user's pool", async () => {
+    mockedRequireCurrentUser.mockResolvedValue({
+      id: "user-2",
+      username: "user-2",
+      name: "User 2",
+      image: null
+    });
+    mockedCustomPool.findUnique.mockResolvedValue(pool());
+
+    const response = await GET_POOL(new Request("http://test.local/api/pools/pool-1"), {
+      params: { poolId: "pool-1" },
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(payload.error.message).toBe("你没有权限访问这个番组。");
+    expect(payload.error.message).not.toContain("current dev user");
+  });
 });

@@ -23,7 +23,7 @@ export async function POST(_request: Request, context: RouteContext) {
     }
 
     if (pool.creatorId !== user.id) {
-      return forbidden("Pool does not belong to the current dev user");
+      return forbidden("你没有权限访问这个番组。");
     }
 
     const restored = await prisma.customPool.update({

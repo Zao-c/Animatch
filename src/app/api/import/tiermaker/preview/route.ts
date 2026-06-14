@@ -4,6 +4,7 @@ import {
   fetchTierMakerTemplate,
   parseTierMakerTemplate
 } from "@/lib/tiermaker-fetch";
+import { formatTierMakerAutoParseError } from "@/lib/tiermaker-url-list";
 
 export async function POST(request: Request) {
   let body: { url?: unknown } | null = null;
@@ -51,6 +52,11 @@ export async function POST(request: Request) {
 
     if (message === "No images found in the TierMaker template") {
       return badRequest(message);
+    }
+
+    const friendlyMessage = formatTierMakerAutoParseError(message);
+    if (friendlyMessage !== message) {
+      return badRequest(friendlyMessage);
     }
 
     return fromError(error);
