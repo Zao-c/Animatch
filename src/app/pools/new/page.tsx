@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
@@ -102,17 +102,20 @@ export default function NewPoolPage() {
 
             <label className="block">
               <span className="text-sm font-semibold text-slate-200">可见性</span>
-              <select
-                value={visibility}
-                onChange={(event) =>
-                  setVisibility(event.target.value as "PRIVATE" | "UNLISTED" | "PUBLIC")
-                }
-                className="anime-field mt-2"
-              >
-                <option value="PRIVATE">PRIVATE</option>
-                <option value="UNLISTED">UNLISTED</option>
-                <option value="PUBLIC">PUBLIC</option>
-              </select>
+              <span className="mt-2 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                <input
+                  type="checkbox"
+                  checked={visibility === "PUBLIC"}
+                  onChange={(event) => setVisibility(event.target.checked ? "PUBLIC" : "PRIVATE")}
+                  className="mt-1 h-4 w-4 accent-cyan-400"
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-slate-200">公开展示</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-400">
+                    公开后别人可以浏览并开始自己的个人对决，但不能编辑你的番组。
+                  </span>
+                </span>
+              </span>
             </label>
 
             {error ? <ErrorAlert message={error} /> : null}

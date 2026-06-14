@@ -2,6 +2,7 @@ import { AppError } from "@/lib/app-error";
 import { fromError, ok } from "@/lib/api-response";
 import { requireCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
+import { canPlayPool } from "@/lib/pool-permissions";
 
 interface RouteContext {
   params: {
@@ -22,8 +23,8 @@ export async function GET(_request: Request, context: RouteContext) {
       throw new AppError("Pool not found", 404, "POOL_NOT_FOUND");
     }
 
-    if (pool.creatorId !== user.id) {
-      throw new AppError("Pool does not belong to the current user", 403, "POOL_FORBIDDEN");
+    if (!canPlayPool(pool, user)) {
+      throw new AppError("你没有权限访问这个番组。", 403, "POOL_FORBIDDEN");
     }
 
     const runs = await prisma.personalRun.findMany({

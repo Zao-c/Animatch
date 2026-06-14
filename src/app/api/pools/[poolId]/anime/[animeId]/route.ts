@@ -1,4 +1,4 @@
-import { PoolStatus, Prisma } from "@prisma/client";
+﻿import { PoolStatus, Prisma } from "@prisma/client";
 import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
 import { deleteLocalAnimeCoverIfPresent, isAllowedCoverOverrideUrl } from "@/lib/anime-cover-upload";
 import { requireCurrentUser } from "@/lib/auth-session";
@@ -57,7 +57,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     if (pool.creatorId !== user.id) {
-      return forbidden("你没有权限访问这个番组。");
+      return forbidden("你没有权限管理这个番组。");
     }
 
     if (pool.deletedAt !== null || pool.status === PoolStatus.ARCHIVED) {
@@ -122,7 +122,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     }
 
     if (pool.creatorId !== user.id) {
-      return forbidden("你没有权限访问这个番组。");
+      return forbidden("你没有权限管理这个番组。");
     }
 
     const existingEntry = await prisma.poolAnime.findUnique({
@@ -237,3 +237,4 @@ function normalizeTags(value: unknown): string[] | Error {
 
   return tags;
 }
+

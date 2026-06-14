@@ -45,6 +45,9 @@ export interface PoolSummary {
   coverUrl: string | null;
   visibility: "PRIVATE" | "UNLISTED" | "PUBLIC";
   status: string;
+  allowPublicEdit?: boolean;
+  allowCommunityMatch?: boolean;
+  isOfficialDemo?: boolean;
   tags: string[];
   createdAt: string;
   updatedAt: string;
@@ -58,6 +61,7 @@ export interface PoolSummary {
   sourceType?: string;
   coverImages?: string[];
   defaultRunId?: string | null;
+  permissions?: PoolPermissions;
 }
 
 export interface MiniMatchPreviewAnime {
@@ -82,10 +86,18 @@ export interface MiniMatchPreview {
 
 export interface DemoPoolResponse {
   poolId: string;
-  runId: string;
   created: boolean;
   animeCount: number;
   redirectTo: string;
+  isOfficialDemo: boolean;
+}
+
+export interface PoolPermissions {
+  canRead: boolean;
+  canPlay: boolean;
+  canManage: boolean;
+  canAddAnime: boolean;
+  canCommunityMatch: boolean;
 }
 
 export interface AuthUser {
@@ -476,12 +488,14 @@ export function bulkImportAnime(input: string) {
 }
 
 export function listPools(params: {
+  view?: "public" | "mine" | "all";
   q?: string;
   status?: "ACTIVE" | PoolManagementStatus;
   includeArchived?: boolean;
   sort?: "UPDATED" | "ANIME_COUNT" | "COMPARISON_COUNT" | "NAME";
 } = {}) {
   const searchParams = new URLSearchParams();
+  if (params.view) searchParams.set("view", params.view);
   if (params.q) searchParams.set("q", params.q);
   if (params.status) searchParams.set("status", params.status);
   if (params.includeArchived) searchParams.set("includeArchived", "1");

@@ -1,21 +1,86 @@
 import { PoolStatus } from "@prisma/client";
 import { ok, fromError } from "@/lib/api-response";
-import { DEMO_POOL_TAG } from "@/lib/demo-pool";
-import { requireCurrentUser } from "@/lib/auth-session";
+import { getOrCreateOfficialDemoPool } from "@/lib/demo-pool";
+import { getCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
 
 type PreviewSource = "CONTINUE_RUN" | "DEMO_POOL" | "EMPTY";
 
 export async function GET() {
   try {
-    const user = await requireCurrentUser();
-    const pools = await prisma.customPool.findMany({
-      where: {
-        creatorId: user.id,
-        status: {
-          not: PoolStatus.ARCHIVED
+    const user = await getCurrentUser();
+
+    if (user !== null) {
+      const pools = await prisma.customPool.findMany({
+        where: {
+          personalRuns: {
+            some: {
+              userId: user.id,
+              isDefault: true,
+              status: {
+                not: "DELETED"
+              },
+              deletedAt: null
+            }
+          },
+          status: {
+            not: PoolStatus.ARCHIVED
+          },
+          deletedAt: null
         },
-        deletedAt: null
+        include: {
+          poolAnime: {
+            orderBy: {
+              position: "asc"
+            },
+            include: {
+              anime: true
+            }
+          },
+          personalRuns: {
+            where: {
+              userId: user.id,
+              isDefault: true,
+              status: {
+                not: "DELETED"
+              },
+              deletedAt: null
+            },
+            orderBy: {
+              updatedAt: "desc"
+            },
+            take: 1
+          }
+        },
+        orderBy: {
+          updatedAt: "desc"
+        },
+        take: 8
+      });
+
+      const continuePool = pools.find(
+        (pool) => pool.poolAnime.length >= 2 && pool.personalRuns[0] !== undefined
+      );
+
+      if (continuePool !== undefined) {
+        const runId = continuePool.personalRuns[0].id;
+        return ok({
+          miniMatchPreview: buildPreview({
+            source: "CONTINUE_RUN",
+            poolId: continuePool.id,
+            runId,
+            ctaHref: `/pools/${continuePool.id}/runs/${runId}/match`,
+            ctaLabel: "\u5f00\u59cb\u771f\u5b9e\u5bf9\u51b3",
+            entries: continuePool.poolAnime
+          })
+        });
+      }
+    }
+
+    const officialDemo = await getOrCreateOfficialDemoPool();
+    const demoPool = await prisma.customPool.findUnique({
+      where: {
+        id: officialDemo.poolId
       },
       include: {
         poolAnime: {
@@ -25,54 +90,16 @@ export async function GET() {
           include: {
             anime: true
           }
-        },
-        personalRuns: {
-          where: {
-            userId: user.id,
-            isDefault: true,
-            status: {
-              not: "DELETED"
-            }
-          },
-          orderBy: {
-            updatedAt: "desc"
-          },
-          take: 1
         }
-      },
-      orderBy: {
-        updatedAt: "desc"
-      },
-      take: 8
+      }
     });
 
-    const continuePool = pools.find(
-      (pool) => pool.poolAnime.length >= 2 && pool.personalRuns[0] !== undefined
-    );
-
-    if (continuePool !== undefined) {
-      const runId = continuePool.personalRuns[0].id;
-      return ok({
-        miniMatchPreview: buildPreview({
-          source: "CONTINUE_RUN",
-          poolId: continuePool.id,
-          runId,
-          ctaHref: `/pools/${continuePool.id}/runs/${runId}/match`,
-          ctaLabel: "\u5f00\u59cb\u771f\u5b9e\u5bf9\u51b3",
-          entries: continuePool.poolAnime
-        })
-      });
-    }
-
-    const demoPool = pools.find(
-      (pool) => pool.tags.includes(DEMO_POOL_TAG) && pool.poolAnime.length >= 2
-    );
-
-    if (demoPool !== undefined) {
+    if (demoPool !== null) {
       return ok({
         miniMatchPreview: buildPreview({
           source: "DEMO_POOL",
           poolId: demoPool.id,
+          ctaHref: `/pools/${demoPool.id}`,
           ctaLabel: "\u4f53\u9a8c\u793a\u4f8b\u756a\u7ec4",
           entries: demoPool.poolAnime
         })

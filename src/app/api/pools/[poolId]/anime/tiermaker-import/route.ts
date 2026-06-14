@@ -53,7 +53,7 @@ export async function POST(request: Request, context: RouteContext) {
       return notFound(message);
     }
 
-    if (message === "你没有权限访问这个番组。") {
+    if (message === "你没有权限管理这个番组。") {
       return forbidden(message);
     }
 

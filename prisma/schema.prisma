@@ -163,6 +163,9 @@ model CustomPool {
   tags               String[]
   sourcePoolId       String?
   affectsGlobalTaste Boolean                @default(true)
+  allowPublicEdit    Boolean                @default(false)
+  allowCommunityMatch Boolean               @default(false)
+  isOfficialDemo     Boolean                @default(false)
   cloneCount         Int                    @default(0)
   useCount           Int                    @default(0)
   likeCount          Int                    @default(0)
@@ -184,6 +187,8 @@ model CustomPool {
   @@index([creatorId])
   @@index([status])
   @@index([visibility])
+  @@index([isOfficialDemo])
+  @@index([visibility, status])
 }
 
 model TierShare {

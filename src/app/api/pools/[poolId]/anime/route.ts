@@ -3,6 +3,7 @@ import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-respon
 import { getOrImportAnimeByBgmId } from "@/lib/anime-service";
 import { requireCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
+import { canAddAnime } from "@/lib/pool-permissions";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
 
 interface RouteContext {
@@ -37,8 +38,8 @@ export async function POST(request: Request, context: RouteContext) {
       return notFound("Pool not found");
     }
 
-    if (pool.creatorId !== user.id) {
-      return forbidden("你没有权限访问这个番组。");
+    if (!canAddAnime(pool, user)) {
+      return forbidden("你没有权限管理这个番组。");
     }
 
     const anime = animeId

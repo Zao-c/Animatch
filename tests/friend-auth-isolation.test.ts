@@ -6,14 +6,15 @@ import { POST as POST_COMPARISON } from "../src/app/api/pools/[poolId]/runs/[run
 import { GET as GET_TIERLIST } from "../src/app/api/pools/[poolId]/runs/[runId]/tierlist/route";
 import { POST as POST_DEMO_POOL } from "../src/app/api/demo-pool/route";
 import { AppError } from "../src/lib/app-error";
-import { requireCurrentUser } from "../src/lib/auth-session";
+import { getCurrentUser, requireCurrentUser } from "../src/lib/auth-session";
 import { prisma } from "../src/lib/db";
-import { getOrCreateDemoPool } from "../src/lib/demo-pool";
+import { getOrCreateOfficialDemoPool } from "../src/lib/demo-pool";
 import { submitComparison } from "../src/lib/match-service";
 import { getRunTierList } from "../src/lib/tier-service";
 
 vi.mock("../src/lib/auth-session", () => ({
-  requireCurrentUser: vi.fn()
+  requireCurrentUser: vi.fn(),
+  getCurrentUser: vi.fn()
 }));
 
 vi.mock("../src/lib/db", () => ({
@@ -34,22 +35,25 @@ vi.mock("../src/lib/tier-service", () => ({
 }));
 
 vi.mock("../src/lib/demo-pool", () => ({
-  getOrCreateDemoPool: vi.fn()
+  getOrCreateOfficialDemoPool: vi.fn()
 }));
 
 const mockedRequireCurrentUser = vi.mocked(requireCurrentUser);
+const mockedGetCurrentUser = vi.mocked(getCurrentUser);
 const mockedCustomPool = vi.mocked(prisma.customPool);
 const mockedSubmitComparison = vi.mocked(submitComparison);
 const mockedGetRunTierList = vi.mocked(getRunTierList);
-const mockedGetOrCreateDemoPool = vi.mocked(getOrCreateDemoPool);
+const mockedGetOrCreateOfficialDemoPool = vi.mocked(getOrCreateOfficialDemoPool);
 
 function setCurrentUser(id: string) {
-  mockedRequireCurrentUser.mockResolvedValue({
+  const user = {
     id,
     username: id,
     name: id,
     image: null
-  });
+  };
+  mockedRequireCurrentUser.mockResolvedValue(user);
+  mockedGetCurrentUser.mockResolvedValue(user);
 }
 
 function poolFixture(creatorId: string) {
@@ -178,36 +182,35 @@ describe("friend auth user isolation", () => {
     });
   });
 
-  it("creates independent demo pools for userA and userB", async () => {
+  it("returns the same official demo pool for userA and userB", async () => {
     setCurrentUser("user-a");
-    mockedGetOrCreateDemoPool.mockResolvedValueOnce({
-      poolId: "demo-a",
-      runId: "run-a",
+    mockedGetOrCreateOfficialDemoPool.mockResolvedValueOnce({
+      poolId: "official-demo",
       created: true,
       animeCount: 9,
-      redirectTo: "/pools/demo-a/runs/run-a/match"
+      redirectTo: "/pools/official-demo",
+      isOfficialDemo: true
     });
 
     const userAResponse = await POST_DEMO_POOL();
     const userAPayload = await userAResponse.json();
 
     setCurrentUser("user-b");
-    mockedGetOrCreateDemoPool.mockResolvedValueOnce({
-      poolId: "demo-b",
-      runId: "run-b",
-      created: true,
+    mockedGetOrCreateOfficialDemoPool.mockResolvedValueOnce({
+      poolId: "official-demo",
+      created: false,
       animeCount: 10,
-      redirectTo: "/pools/demo-b/runs/run-b/match"
+      redirectTo: "/pools/official-demo",
+      isOfficialDemo: true
     });
 
     const userBResponse = await POST_DEMO_POOL();
     const userBPayload = await userBResponse.json();
 
-    expect(userAPayload.data.poolId).toBe("demo-a");
-    expect(userBPayload.data.poolId).toBe("demo-b");
+    expect(userAPayload.data.poolId).toBe("official-demo");
+    expect(userBPayload.data.poolId).toBe("official-demo");
     expect(userAPayload.data.animeCount).toBe(9);
     expect(userBPayload.data.animeCount).toBe(10);
-    expect(mockedGetOrCreateDemoPool).toHaveBeenNthCalledWith(1, "user-a");
-    expect(mockedGetOrCreateDemoPool).toHaveBeenNthCalledWith(2, "user-b");
+    expect(mockedGetOrCreateOfficialDemoPool).toHaveBeenCalledTimes(2);
   });
 });

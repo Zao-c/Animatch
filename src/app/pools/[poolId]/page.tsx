@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -725,7 +725,14 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
   const isArchived = archived();
   const latestRun = runs[0];
-  const canStart = pool.anime.length >= 2 && !isArchived;
+  const permissions = pool.permissions;
+  const canManagePool = permissions?.canManage ?? true;
+  const canAddAnimeToPool = permissions?.canAddAnime ?? canManagePool;
+  const canPlayPool = permissions?.canPlay ?? canManagePool;
+  const canReadCommunityMatch = permissions?.canCommunityMatch ?? false;
+  const canStart = pool.anime.length >= 2 && !isArchived && canPlayPool;
+  const canPromptLoginToMatch =
+    pool.anime.length >= 2 && !isArchived && !canPlayPool && (permissions?.canRead ?? false);
   const joinedAnimeIds = new Set(pool.anime.map((entry) => entry.animeId));
   const poolGuidance = getPoolGuidance(pool.anime.length, isArchived);
   const sourceSummary = formatPoolSourceSummary(pool.anime.map((entry) => entry.anime.source));
@@ -746,6 +753,12 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             </AppBadge>
             <AppBadge tone="source">{pool.anime.length} 部动画</AppBadge>
             <AppBadge tone="source">{sourceSummary}</AppBadge>
+            {pool.visibility === "PUBLIC" ? <AppBadge tone="status">公开</AppBadge> : null}
+            {pool.isOfficialDemo ? <AppBadge tone="source">官方 Demo</AppBadge> : null}
+            {canPlayPool ? <AppBadge tone="success">支持个人对决</AppBadge> : null}
+            <AppBadge tone={canReadCommunityMatch ? "tier" : "muted"}>
+              {canReadCommunityMatch ? "大乱斗" : "大乱斗未开放"}
+            </AppBadge>
             <AppBadge tone={canStart ? "success" : "warning"}>
               {canStart ? "Ready" : "准备中"}
             </AppBadge>
@@ -772,12 +785,20 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         <AppCard className="p-5" variant="focus">
           <div className="grid gap-3">
             <AppButton
-              onClick={() => enterRun("match")}
-              disabled={!canStart || isMutating}
+              onClick={() =>
+                canPromptLoginToMatch
+                  ? router.push(`/login?next=${encodeURIComponent(`/pools/${params.poolId}`)}`)
+                  : enterRun("match")
+              }
+              disabled={(!canStart && !canPromptLoginToMatch) || isMutating}
               variant="primary"
               size="lg"
             >
-              开始对决
+              {canPromptLoginToMatch
+                ? "登录后开始个人对决"
+                : canManagePool
+                  ? "开始对决"
+                  : "开始我的对决"}
             </AppButton>
             <AppButton
               onClick={() =>
@@ -790,14 +811,16 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             >
               查看 Tier List
             </AppButton>
-            <AppButton
-              onClick={() => setShowMorePoolActions((value) => !value)}
-              variant="quiet"
-              size="sm"
-              aria-expanded={showMorePoolActions}
-            >
-              更多番组操作
-            </AppButton>
+            {canManagePool ? (
+              <AppButton
+                onClick={() => setShowMorePoolActions((value) => !value)}
+                variant="quiet"
+                size="sm"
+                aria-expanded={showMorePoolActions}
+              >
+                更多番组操作
+              </AppButton>
+            ) : null}
             <Link href="/pools" className={appButtonClasses({ variant: "quiet", size: "sm" })}>
               返回我的番组
             </Link>
@@ -822,7 +845,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         {notice ? <ErrorAlert message={notice} tone="notice" /> : null}
       </div>
 
-      {showMorePoolActions ? (
+      {showMorePoolActions && canManagePool ? (
         <AppCard className="mt-6 p-5" variant="soft">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -920,6 +943,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                   key={entry.id}
                   entry={entry}
                   isArchived={isArchived}
+                  canManage={canManagePool}
                   isMutating={isMutating}
                   onEdit={() => startEditingDisplay(entry)}
                   onRemove={() => handleRemove(entry.animeId)}
@@ -930,7 +954,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         </AppCard>
 
         <div className="space-y-5">
-        {selectedDisplayEntry !== null ? (
+        {selectedDisplayEntry !== null && canManagePool ? (
           <PoolAnimeDisplayPanel
             entry={selectedDisplayEntry}
             isMutating={isMutating}
@@ -943,6 +967,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           />
         ) : null}
 
+        {canAddAnimeToPool ? (
         <AppCard id="add-anime" className="p-5">
           <SectionHeader eyebrow="Add anime" title="添加动画" />
           {isArchived ? (
@@ -1417,6 +1442,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             </>
           )}
         </AppCard>
+        ) : null}
         </div>
       </section>
 
@@ -1529,12 +1555,14 @@ function formatFileSize(size: number) {
 function PoolAnimeCard({
   entry,
   isArchived,
+  canManage,
   isMutating,
   onEdit,
   onRemove
 }: {
   entry: PoolAnimeEntry;
   isArchived: boolean;
+  canManage: boolean;
   isMutating: boolean;
   onEdit: () => void;
   onRemove: () => void;
@@ -1571,6 +1599,7 @@ function PoolAnimeCard({
             {display.tags.slice(0, 4).join(" / ")}
           </p>
         ) : null}
+        {canManage ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {!isArchived ? (
             <AppButton onClick={onEdit} disabled={isMutating} variant="quiet" size="sm">
@@ -1581,6 +1610,7 @@ function PoolAnimeCard({
             移除
           </AppButton>
         </div>
+        ) : null}
       </div>
     </div>
   );

@@ -47,6 +47,9 @@ function pool(overrides: Record<string, unknown> = {}) {
     tags: [],
     sourcePoolId: null,
     affectsGlobalTaste: true,
+    allowPublicEdit: false,
+    allowCommunityMatch: false,
+    isOfficialDemo: false,
     cloneCount: 0,
     useCount: 0,
     likeCount: 0,
@@ -335,3 +338,4 @@ describe("custom image pool items API", () => {
     );
   });
 });
+

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { PoolStatus, Prisma } from "@prisma/client";
 import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
 import {
@@ -33,7 +33,7 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     if (pool.creatorId !== user.id) {
-      return forbidden("你没有权限访问这个番组。");
+      return forbidden("你没有权限管理这个番组。");
     }
 
     if (pool.deletedAt !== null || pool.status === PoolStatus.ARCHIVED) {
@@ -226,3 +226,4 @@ function normalizeTags(value: FormDataEntryValue | null): string[] | Error {
 
   return tags;
 }
+

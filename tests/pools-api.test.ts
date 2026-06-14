@@ -3,8 +3,7 @@ import { PoolStatus, Visibility } from "@prisma/client";
 import { DELETE, GET as GET_POOL, PATCH } from "../src/app/api/pools/[poolId]/route";
 import { POST as RESTORE_POOL } from "../src/app/api/pools/[poolId]/restore/route";
 import { GET as LIST_POOLS } from "../src/app/api/pools/route";
-import { AppError } from "../src/lib/app-error";
-import { requireCurrentUser } from "../src/lib/auth-session";
+import { getCurrentUser, requireCurrentUser } from "../src/lib/auth-session";
 import { prisma } from "../src/lib/db";
 
 vi.mock("../src/lib/auth-session", () => ({
@@ -40,6 +39,7 @@ const mockedPersonalRun = vi.mocked(prisma.personalRun);
 const mockedUserPoolScore = vi.mocked(prisma.userPoolScore);
 const mockedPoolComparison = vi.mocked(prisma.poolComparison);
 const mockedRequireCurrentUser = vi.mocked(requireCurrentUser);
+const mockedGetCurrentUser = vi.mocked(getCurrentUser);
 
 function pool(overrides: Record<string, unknown> = {}) {
   return {
@@ -53,6 +53,9 @@ function pool(overrides: Record<string, unknown> = {}) {
     tags: [],
     sourcePoolId: null,
     affectsGlobalTaste: true,
+    allowPublicEdit: false,
+    allowCommunityMatch: false,
+    isOfficialDemo: false,
     cloneCount: 0,
     useCount: 0,
     likeCount: 0,
@@ -79,19 +82,32 @@ describe("pools API management", () => {
       name: "User 1",
       image: null
     });
+    mockedGetCurrentUser.mockResolvedValue({
+      id: "user-1",
+      username: "user-1",
+      name: "User 1",
+      image: null
+    });
   });
 
-  it("GET /api/pools returns 401 when the user is not logged in", async () => {
-    mockedRequireCurrentUser.mockRejectedValueOnce(
-      new AppError("Authentication required", 401, "AUTH_REQUIRED")
-    );
+  it("GET /api/pools defaults to public pools when the user is not logged in", async () => {
+    mockedGetCurrentUser.mockResolvedValueOnce(null);
+    mockedCustomPool.findMany.mockResolvedValue([]);
 
     const response = await LIST_POOLS(new Request("http://test.local/api/pools"));
     const payload = await response.json();
 
-    expect(response.status).toBe(401);
-    expect(payload.error.message).toBe("Authentication required");
-    expect(mockedCustomPool.findMany).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(payload.data.items).toEqual([]);
+    expect(mockedCustomPool.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          visibility: Visibility.PUBLIC,
+          deletedAt: null,
+          status: { not: PoolStatus.ARCHIVED }
+        })
+      })
+    );
   });
 
   it("PATCH updates pool metadata", async () => {
@@ -430,7 +446,7 @@ describe("pools API management", () => {
   });
 
   it("GET pool detail returns a user-facing forbidden message for another user's pool", async () => {
-    mockedRequireCurrentUser.mockResolvedValue({
+    mockedGetCurrentUser.mockResolvedValue({
       id: "user-2",
       username: "user-2",
       name: "User 2",
@@ -448,3 +464,4 @@ describe("pools API management", () => {
     expect(payload.error.message).not.toContain("current dev user");
   });
 });
+

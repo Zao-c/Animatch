@@ -41,6 +41,9 @@ function pool(overrides: Record<string, unknown> = {}) {
     tags: [],
     sourcePoolId: null,
     affectsGlobalTaste: true,
+    allowPublicEdit: false,
+    allowCommunityMatch: false,
+    isOfficialDemo: false,
     cloneCount: 0,
     useCount: 0,
     likeCount: 0,
@@ -437,3 +440,4 @@ describe("pool anime display override API", () => {
     expect(mockedPoolAnime.update).not.toHaveBeenCalled();
   });
 });
+

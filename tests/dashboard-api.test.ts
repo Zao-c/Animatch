@@ -1,7 +1,8 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PoolStatus, Visibility } from "@prisma/client";
 import { GET } from "../src/app/api/dashboard/route";
 import { prisma } from "../src/lib/db";
+import { getOrCreateOfficialDemoPool } from "../src/lib/demo-pool";
 
 vi.mock("../src/lib/auth-session", () => ({
   requireCurrentUser: vi.fn(async () => ({ id: "user-1", username: "user-1", name: "User 1", image: null })),
@@ -11,12 +12,18 @@ vi.mock("../src/lib/auth-session", () => ({
 vi.mock("../src/lib/db", () => ({
   prisma: {
     customPool: {
-      findMany: vi.fn()
+      findMany: vi.fn(),
+      findUnique: vi.fn()
     }
   }
 }));
 
+vi.mock("../src/lib/demo-pool", () => ({
+  getOrCreateOfficialDemoPool: vi.fn()
+}));
+
 const mockedCustomPool = vi.mocked(prisma.customPool);
+const mockedGetOrCreateOfficialDemoPool = vi.mocked(getOrCreateOfficialDemoPool);
 
 function pool(overrides: Record<string, unknown> = {}) {
   return {
@@ -68,6 +75,13 @@ function entry(index: number, overrides: Record<string, unknown> = {}) {
 describe("GET /api/dashboard miniMatchPreview", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedGetOrCreateOfficialDemoPool.mockResolvedValue({
+      poolId: "official-demo",
+      created: false,
+      animeCount: 4,
+      redirectTo: "/pools/official-demo",
+      isOfficialDemo: true
+    });
   });
 
   it("returns real preview pairs for a continue run", async () => {
@@ -107,17 +121,26 @@ describe("GET /api/dashboard miniMatchPreview", () => {
     expect(JSON.stringify(payload.data.miniMatchPreview)).not.toContain("anime-2");
   });
 
-  it("returns EMPTY when no real preview data exists", async () => {
+  it("falls back to the official demo preview when no continue run exists", async () => {
     mockedCustomPool.findMany.mockResolvedValue([]);
+    mockedCustomPool.findUnique.mockResolvedValue(
+      pool({
+        id: "official-demo",
+        visibility: Visibility.PUBLIC,
+        poolAnime: [entry(1), entry(2), entry(3), entry(4)]
+      }) as any
+    );
 
     const response = await GET();
     const payload = await response.json();
 
     expect(response.status).toBe(200);
-    expect(payload.data.miniMatchPreview).toEqual({
-      source: "EMPTY",
-      ctaLabel: "体验示例番组",
-      pairs: []
+    expect(payload.data.miniMatchPreview).toMatchObject({
+      source: "DEMO_POOL",
+      poolId: "official-demo",
+      ctaHref: "/pools/official-demo",
+      ctaLabel: "体验示例番组"
     });
+    expect(payload.data.miniMatchPreview.pairs).toHaveLength(2);
   });
 });

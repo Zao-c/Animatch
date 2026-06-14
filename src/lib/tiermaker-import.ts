@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { PoolStatus, Prisma } from "@prisma/client";
 import { ANIME_SOURCE } from "./anime-source";
 import { prisma } from "./db";
+import { canAddAnime } from "./pool-permissions";
 import { serializePoolAnime } from "./pool-anime-serializer";
 import { fetchTierMakerTemplate, parseTierMakerTemplate } from "./tiermaker-fetch";
 import { TIERMAKER_URL_LIST_SOURCE } from "./tiermaker-url-list";
@@ -178,8 +179,8 @@ async function importTierMakerParsedItems(params: {
     throw new Error("Pool not found");
   }
 
-  if (pool.creatorId !== params.userId) {
-    throw new Error("你没有权限访问这个番组。");
+  if (!canAddAnime(pool, { id: params.userId })) {
+    throw new Error("你没有权限管理这个番组。");
   }
 
   if (pool.deletedAt !== null || pool.status === PoolStatus.ARCHIVED) {

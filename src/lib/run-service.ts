@@ -8,6 +8,7 @@ import {
 } from "@prisma/client";
 import { AppError } from "./app-error";
 import { prisma } from "./db";
+import { canPlayPool } from "./pool-permissions";
 
 export interface RunAccessParams {
   userId: string;
@@ -47,8 +48,8 @@ export async function getOrCreateDefaultRun(params: {
     throw new AppError("Pool not found", 404, "POOL_NOT_FOUND");
   }
 
-  if (pool.creatorId !== params.userId) {
-    throw new AppError("Pool does not belong to the current user", 403, "POOL_FORBIDDEN");
+  if (!canPlayPool(pool, { id: params.userId })) {
+    throw new AppError("你没有权限访问这个番组。", 403, "POOL_FORBIDDEN");
   }
 
   const existingRun = await prisma.personalRun.findFirst({
@@ -109,6 +110,8 @@ export async function resetRunForUser(params: RunAccessParams): Promise<{
       select: {
         id: true,
         creatorId: true,
+        visibility: true,
+        allowCommunityMatch: true,
         status: true,
         deletedAt: true
       }
@@ -118,8 +121,8 @@ export async function resetRunForUser(params: RunAccessParams): Promise<{
       throw new AppError("Pool not found", 404, "POOL_NOT_FOUND");
     }
 
-    if (pool.creatorId !== params.userId) {
-      throw new AppError("Pool does not belong to the current user", 403, "POOL_FORBIDDEN");
+    if (!canPlayPool(pool, { id: params.userId })) {
+      throw new AppError("你没有权限访问这个番组。", 403, "POOL_FORBIDDEN");
     }
 
     if (pool.status === PoolStatus.ARCHIVED) {
@@ -241,11 +244,26 @@ async function createScoresForPoolAnime(
 export async function assertRunAccess(params: RunAccessParams): Promise<PersonalRun> {
   validateRunAccessParams(params);
 
-  const run = await prisma.personalRun.findUnique({
-    where: {
-      id: params.runId
-    }
-  });
+  const [pool, run] = await Promise.all([
+    prisma.customPool.findUnique({
+      where: {
+        id: params.poolId
+      }
+    }),
+    prisma.personalRun.findUnique({
+      where: {
+        id: params.runId
+      }
+    })
+  ]);
+
+  if (pool === null || pool.deletedAt !== null) {
+    throw new AppError("Pool not found", 404, "POOL_NOT_FOUND");
+  }
+
+  if (!canPlayPool(pool, { id: params.userId })) {
+    throw new AppError("你没有权限访问这个番组。", 403, "POOL_FORBIDDEN");
+  }
 
   if (run === null || run.deletedAt !== null) {
     throw new AppError("Run not found", 404, "RUN_NOT_FOUND");

@@ -1,7 +1,8 @@
 import { PoolStatus, Visibility } from "@prisma/client";
 import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
-import { requireCurrentUser } from "@/lib/auth-session";
+import { getCurrentUser, requireCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
+import { canManagePool, getPoolPermissions } from "@/lib/pool-permissions";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
 
 interface RouteContext {
@@ -21,7 +22,7 @@ interface UpdatePoolBody {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    const user = await requireCurrentUser();
+    const user = await getCurrentUser();
     const pool = await prisma.customPool.findUnique({
       where: {
         id: context.params.poolId
@@ -42,7 +43,9 @@ export async function GET(_request: Request, context: RouteContext) {
       return notFound("Pool not found");
     }
 
-    if (pool.creatorId !== user.id) {
+    const permissions = getPoolPermissions(pool, user);
+
+    if (!permissions.canRead) {
       return forbidden("你没有权限访问这个番组。");
     }
 
@@ -54,10 +57,14 @@ export async function GET(_request: Request, context: RouteContext) {
       coverUrl: pool.coverUrl,
       visibility: pool.visibility,
       status: pool.status,
+      allowPublicEdit: pool.allowPublicEdit,
+      allowCommunityMatch: pool.allowCommunityMatch,
+      isOfficialDemo: pool.isOfficialDemo,
       tags: pool.tags,
       createdAt: pool.createdAt,
       updatedAt: pool.updatedAt,
       deletedAt: pool.deletedAt,
+      permissions,
       anime: pool.poolAnime.map(serializePoolAnime)
     });
   } catch (error) {
@@ -103,8 +110,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       return notFound("Pool not found");
     }
 
-    if (pool.creatorId !== user.id) {
-      return forbidden("你没有权限访问这个番组。");
+    if (!canManagePool(pool, user)) {
+      return forbidden("你没有权限管理这个番组。");
     }
 
     const updated = await prisma.customPool.update({
@@ -138,8 +145,8 @@ export async function DELETE(_request: Request, context: RouteContext) {
       return notFound("Pool not found");
     }
 
-    if (pool.creatorId !== user.id) {
-      return forbidden("你没有权限访问这个番组。");
+    if (!canManagePool(pool, user)) {
+      return forbidden("你没有权限管理这个番组。");
     }
 
     if (pool.deletedAt === null || pool.status !== PoolStatus.ARCHIVED) {

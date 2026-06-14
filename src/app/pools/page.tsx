@@ -25,6 +25,7 @@ import { formatDateTimeStable } from "@/lib/date-format";
 
 type PoolFilter = "ALL" | PoolManagementStatus;
 type PoolSort = "UPDATED" | "ANIME_COUNT" | "COMPARISON_COUNT" | "NAME";
+type PoolView = "DEFAULT" | "MINE" | "PUBLIC" | "ALL";
 
 const FILTERS: { value: PoolFilter; label: string }[] = [
   { value: "ALL", label: "全部" },
@@ -48,6 +49,7 @@ export default function PoolsPage() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<PoolFilter>("ALL");
   const [sort, setSort] = useState<PoolSort>("UPDATED");
+  const [view, setView] = useState<PoolView>("DEFAULT");
   const [editingPoolId, setEditingPoolId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -66,6 +68,7 @@ export default function PoolsPage() {
 
     try {
       const data = await listPools({
+        view: view === "DEFAULT" ? undefined : view.toLowerCase() as "mine" | "public" | "all",
         q: query.trim() || undefined,
         status: filter === "ALL" ? undefined : filter,
         includeArchived: filter === "ARCHIVED",
@@ -77,7 +80,7 @@ export default function PoolsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [filter, query, sort]);
+  }, [filter, query, sort, view]);
 
   useEffect(() => {
     void loadPools();
@@ -250,13 +253,24 @@ export default function PoolsPage() {
       </section>
 
       <AppCard className="mt-7 p-4">
-        <form onSubmit={handleSearch} className="grid gap-3 lg:grid-cols-[1fr_180px_180px_auto]">
+        <form onSubmit={handleSearch} className="grid gap-3 lg:grid-cols-[1fr_160px_180px_180px_auto]">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="搜索番组名称或描述"
             className="anime-field"
           />
+          <select
+            value={view}
+            onChange={(event) => setView(event.target.value as PoolView)}
+            className="anime-field"
+            aria-label="番组视图"
+          >
+            <option value="DEFAULT">默认</option>
+            <option value="MINE">我的番组</option>
+            <option value="PUBLIC">公开番组</option>
+            <option value="ALL">全部可见</option>
+          </select>
           <select
             value={filter}
             onChange={(event) => setFilter(event.target.value as PoolFilter)}
@@ -406,7 +420,11 @@ function PoolCard({
   const confidenceScore = pool.confidenceScore ?? 0;
   const uiStatus = pool.uiStatus ?? (isArchived ? "ARCHIVED" : "EMPTY");
   const statusLabel = pool.uiStatusLabel ?? labelForStatus(uiStatus);
-  const canMatch = !isArchived && animeCount >= 2;
+  const canManage = pool.permissions?.canManage ?? true;
+  const canAddAnime = pool.permissions?.canAddAnime ?? canManage;
+  const canPlay = pool.permissions?.canPlay ?? canManage;
+  const canMatch = !isArchived && animeCount >= 2 && canPlay;
+  const canPromptLoginToMatch = !isArchived && animeCount >= 2 && !canPlay;
   const canViewTier = pool.defaultRunId != null || !isArchived;
 
   return (
@@ -501,14 +519,18 @@ function PoolCard({
             <Link href={`/pools/${pool.id}`} className={appButtonClasses({ variant: "secondary", size: "sm" })}>
               进入
             </Link>
-            {!isArchived ? (
+            {!isArchived && canAddAnime ? (
               <Link href={`/pools/${pool.id}#add-anime`} className={appButtonClasses({ variant: "ghost", size: "sm" })}>
                 添加动画
               </Link>
             ) : null}
-            {canMatch ? (
+            {canMatch || canPromptLoginToMatch ? (
               <AppButton
-                onClick={() => onOpenRun(pool, "match")}
+                onClick={() =>
+                  canPromptLoginToMatch
+                    ? window.location.assign(`/login?next=${encodeURIComponent(`/pools/${pool.id}`)}`)
+                    : onOpenRun(pool, "match")
+                }
                 disabled={isMutating}
                 variant={uiStatus === "READY" ? "primary" : "secondary"}
                 size="sm"
@@ -525,6 +547,7 @@ function PoolCard({
               查看 Tier
             </AppButton>
           </div>
+          {canManage ? (
           <details className="mt-4 rounded-2xl border border-white/10 bg-slate-950/35 px-3 py-2">
             <summary className="cursor-pointer select-none text-sm font-semibold text-slate-300">
               更多操作
@@ -547,6 +570,7 @@ function PoolCard({
               </AppButton>
             </div>
           </details>
+          ) : null}
         </>
       )}
       </div>

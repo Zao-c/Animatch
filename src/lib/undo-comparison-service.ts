@@ -10,6 +10,7 @@ import { AppError } from "./app-error";
 import { prisma } from "./db";
 import { updateElo, type EloResult } from "./elo";
 import { shouldHideAfterUnseen } from "./match-rules";
+import { canPlayPool } from "./pool-permissions";
 
 export interface UndoLastComparisonResult {
   undoneComparisonId: string;
@@ -147,6 +148,8 @@ async function assertPoolAndRunAccess(
       select: {
         id: true,
         creatorId: true,
+        visibility: true,
+        allowCommunityMatch: true,
         deletedAt: true
       }
     }),
@@ -161,8 +164,8 @@ async function assertPoolAndRunAccess(
     throw new AppError("Pool not found", 404, "POOL_NOT_FOUND");
   }
 
-  if (pool.creatorId !== params.userId) {
-    throw new AppError("Pool does not belong to the current user", 403, "POOL_FORBIDDEN");
+  if (!canPlayPool(pool, { id: params.userId })) {
+    throw new AppError("你没有权限访问这个番组。", 403, "POOL_FORBIDDEN");
   }
 
   if (run === null || run.deletedAt !== null) {

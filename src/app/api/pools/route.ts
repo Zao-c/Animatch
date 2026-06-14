@@ -1,8 +1,10 @@
 import { PoolStatus, Prisma, Visibility } from "@prisma/client";
 import { badRequest, ok, fromError } from "@/lib/api-response";
-import { requireCurrentUser } from "@/lib/auth-session";
+import { AppError } from "@/lib/app-error";
+import { getCurrentUser, requireCurrentUser, type FriendAuthUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
 import { formatAnimeSource } from "@/lib/anime-source";
+import { getPoolPermissions } from "@/lib/pool-permissions";
 import { buildRankingProgress } from "@/lib/ranking-progress";
 
 const VISIBILITIES = new Set<string>(Object.values(Visibility));
@@ -25,8 +27,9 @@ interface CreatePoolBody {
 
 export async function GET(request: Request) {
   try {
-    const user = await requireCurrentUser();
+    const user = await getCurrentUser();
     const url = new URL(request.url);
+    const view = url.searchParams.get("view")?.trim().toLowerCase() ?? (user === null ? "public" : "mine");
     const includeArchived = url.searchParams.get("includeArchived") === "1";
     const q = url.searchParams.get("q")?.trim() ?? "";
     const status = url.searchParams.get("status")?.trim().toUpperCase() ?? "";
@@ -40,9 +43,26 @@ export async function GET(request: Request) {
       return badRequest("sort is invalid");
     }
 
-    const where: Prisma.CustomPoolWhereInput = {
-      creatorId: user.id,
-    };
+    if (!["public", "mine", "all"].includes(view)) {
+      return badRequest("view is invalid");
+    }
+
+    if ((view === "mine" || view === "all") && user === null) {
+      throw new AppError("Authentication required", 401, "AUTH_REQUIRED");
+    }
+
+    const where: Prisma.CustomPoolWhereInput =
+      view === "public"
+        ? {
+            visibility: Visibility.PUBLIC
+          }
+        : view === "all" && user !== null
+          ? {
+              OR: [{ creatorId: user.id }, { visibility: Visibility.PUBLIC }]
+            }
+          : {
+              creatorId: user!.id
+            };
 
     if (status === "ARCHIVED") {
       where.OR = [{ status: PoolStatus.ARCHIVED }, { deletedAt: { not: null } }];
@@ -91,7 +111,7 @@ export async function GET(request: Request) {
         },
         personalRuns: {
           where: {
-            userId: user.id,
+            userId: user?.id ?? "__anonymous__",
             isDefault: true,
             status: {
               not: "DELETED"
@@ -114,7 +134,7 @@ export async function GET(request: Request) {
     });
 
     const items = pools
-      .map((pool) => serializePoolSummary(pool))
+      .map((pool) => serializePoolSummary(pool, user))
       .filter((pool) => {
         if (!status || status === "ACTIVE") {
           return true;
@@ -177,7 +197,7 @@ function serializePoolSummary(pool: Prisma.CustomPoolGetPayload<{
       };
     };
   };
-}>) {
+}>, user: FriendAuthUser | null) {
   const animeCount = pool._count.poolAnime;
   const comparisonCount = pool._count.poolComparisons;
   const progress = buildRankingProgress({
@@ -204,6 +224,9 @@ function serializePoolSummary(pool: Prisma.CustomPoolGetPayload<{
     coverUrl: pool.coverUrl,
     visibility: pool.visibility,
     status: pool.status,
+    allowPublicEdit: pool.allowPublicEdit,
+    allowCommunityMatch: pool.allowCommunityMatch,
+    isOfficialDemo: pool.isOfficialDemo,
     tags: pool.tags,
     createdAt: pool.createdAt,
     updatedAt: pool.updatedAt,
@@ -216,7 +239,8 @@ function serializePoolSummary(pool: Prisma.CustomPoolGetPayload<{
     uiStatusLabel: labelForPoolStatus(uiStatus),
     sourceType: deriveSourceType(pool.poolAnime.map((entry) => entry.anime.source)),
     coverImages: deriveCoverImages(pool.poolAnime),
-    defaultRunId: pool.personalRuns[0]?.id ?? null
+    defaultRunId: pool.personalRuns[0]?.id ?? null,
+    permissions: getPoolPermissions(pool, user)
   };
 }
 

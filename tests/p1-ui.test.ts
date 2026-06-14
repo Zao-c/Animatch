@@ -6,7 +6,9 @@ describe("P1 pool detail UI", () => {
   const source = readFileSync("src/app/pools/[poolId]/page.tsx", "utf8");
 
   it("keeps start match as the ready primary CTA", () => {
-    expect(source).toContain('onClick={() => enterRun("match")}');
+    expect(source).toContain('enterRun("match")');
+    expect(source).toContain("登录后开始个人对决");
+    expect(source).toContain("开始我的对决");
     expect(source).toContain('variant="primary"');
     expect(source).toContain("开始对决");
     expect(source).toContain("Ready");

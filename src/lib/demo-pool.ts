@@ -1,12 +1,12 @@
-import { PoolStatus, Visibility, type Anime, type CustomPool, type PersonalRun } from "@prisma/client";
+import { PoolStatus, Visibility, type Anime, type CustomPool } from "@prisma/client";
 import { prisma } from "./db";
 import { ANIME_SOURCE } from "./anime-source";
-import { getOrCreateDefaultRun, initializeScoresForRun } from "./run-service";
 
 export const DEMO_POOL_NAME = "AniMatch 入门体验池";
 export const DEMO_POOL_DESCRIPTION =
   "不用搜索和导入，直接体验二选一对决、Tier List、校准和分享。";
 export const DEMO_POOL_TAG = "animatch-demo-v1";
+export const OFFICIAL_DEMO_USERNAME = "animatch-official-demo";
 
 const DEMO_ANIME = [
   {
@@ -103,20 +103,20 @@ const DEMO_ANIME = [
 
 export interface DemoPoolResult {
   poolId: string;
-  runId: string;
   created: boolean;
   animeCount: number;
   redirectTo: string;
+  isOfficialDemo: boolean;
 }
 
-export async function getOrCreateDemoPool(userId: string): Promise<DemoPoolResult> {
+export async function getOrCreateDemoPool(_userId: string): Promise<DemoPoolResult> {
+  return getOrCreateOfficialDemoPool();
+}
+
+export async function getOrCreateOfficialDemoPool(): Promise<DemoPoolResult> {
   const existingPool = await prisma.customPool.findFirst({
     where: {
-      creatorId: userId,
-      name: DEMO_POOL_NAME,
-      tags: {
-        has: DEMO_POOL_TAG
-      },
+      isOfficialDemo: true,
       status: {
         not: PoolStatus.ARCHIVED
       },
@@ -128,50 +128,50 @@ export async function getOrCreateDemoPool(userId: string): Promise<DemoPoolResul
   });
 
   if (existingPool !== null) {
-    return serializeExistingDemoPoolResult(existingPool, userId);
+    return serializeExistingDemoPoolResult(existingPool);
   }
 
   const anime = await ensureDemoAnime();
+  const owner = await prisma.user.upsert({
+    where: {
+      username: OFFICIAL_DEMO_USERNAME
+    },
+    create: {
+      username: OFFICIAL_DEMO_USERNAME,
+      name: "AniMatch Official Demo"
+    },
+    update: {
+      name: "AniMatch Official Demo"
+    }
+  });
   const pool =
     existingPool ??
     (await prisma.customPool.create({
       data: {
-        creatorId: userId,
+        creatorId: owner.id,
         name: DEMO_POOL_NAME,
         description: DEMO_POOL_DESCRIPTION,
-        visibility: Visibility.PRIVATE,
+        visibility: Visibility.PUBLIC,
         tags: [DEMO_POOL_TAG, "示例池"],
-        affectsGlobalTaste: false
+        affectsGlobalTaste: false,
+        allowPublicEdit: false,
+        allowCommunityMatch: false,
+        isOfficialDemo: true
       }
     }));
 
   await ensurePoolAnime(pool, anime);
-  const run = await getOrCreateDefaultRun({
-    userId,
-    poolId: pool.id
-  });
-  await initializeScoresForRun({
-    userId,
-    poolId: pool.id,
-    runId: run.id
-  });
 
   return serializeDemoPoolResult({
     pool,
-    run,
     created: true,
     animeCount: anime.length
   });
 }
 
 async function serializeExistingDemoPoolResult(
-  pool: CustomPool,
-  userId: string
+  pool: CustomPool
 ): Promise<DemoPoolResult> {
-  const run = await getOrCreateDefaultRun({
-    userId,
-    poolId: pool.id
-  });
   const existingEntries = await prisma.poolAnime.findMany({
     where: {
       poolId: pool.id
@@ -181,15 +181,8 @@ async function serializeExistingDemoPoolResult(
     }
   });
 
-  await initializeScoresForRun({
-    userId,
-    poolId: pool.id,
-    runId: run.id
-  });
-
   return serializeDemoPoolResult({
     pool,
-    run,
     created: false,
     animeCount: existingEntries.length
   });
@@ -282,18 +275,14 @@ async function ensurePoolAnime(pool: CustomPool, anime: Anime[]) {
 
 function serializeDemoPoolResult(input: {
   pool: CustomPool;
-  run: PersonalRun;
   created: boolean;
   animeCount: number;
 }): DemoPoolResult {
   return {
     poolId: input.pool.id,
-    runId: input.run.id,
     created: input.created,
     animeCount: input.animeCount,
-    redirectTo:
-      input.animeCount >= 2
-        ? `/pools/${input.pool.id}/runs/${input.run.id}/match`
-        : `/pools/${input.pool.id}`
+    redirectTo: `/pools/${input.pool.id}`,
+    isOfficialDemo: true
   };
 }
