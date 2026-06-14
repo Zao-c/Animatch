@@ -16,6 +16,11 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import {
+  getPoolAccessStateCopy,
+  getPoolAccessStateFromError,
+  type PoolAccessState
+} from "@/lib/pool-access-state";
+import {
   addAnimeToPool,
   archivePool,
   bulkImportAnimeToPool,
@@ -84,6 +89,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accessState, setAccessState] = useState<PoolAccessState | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AddTab>("search");
   const [showMorePoolActions, setShowMorePoolActions] = useState(false);
@@ -156,6 +162,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const refreshPool = useCallback(async () => {
     const data = await getPool(params.poolId);
     setPool(data);
+    setAccessState(null);
     setEditName(data.name);
     setEditDescription(data.description ?? "");
     setEditVisibility(data.visibility);
@@ -164,9 +171,10 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
   useEffect(() => {
     refreshPool()
-      .catch((reason: unknown) =>
-        setError(reason instanceof Error ? reason.message : "加载番组详情失败")
-      )
+      .catch((reason: unknown) => {
+        setAccessState(getPoolAccessStateFromError(reason));
+        setError(reason instanceof Error ? reason.message : "加载番组详情失败");
+      })
       .finally(() => setIsLoading(false));
   }, [refreshPool]);
 
@@ -718,7 +726,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   if (pool === null) {
     return (
       <PageShell>
-        <ErrorAlert message={error ?? "番组不存在"} />
+        <PoolAccessStateCard state={accessState ?? "not-found"} fallbackMessage={error} />
       </PageShell>
     );
   }
@@ -1458,6 +1466,44 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         . License: ODbL-1.0 + DbCL-1.0.
       </p>
     </PageShell>
+  );
+}
+
+function PoolAccessStateCard({
+  state,
+  fallbackMessage
+}: {
+  state: PoolAccessState;
+  fallbackMessage?: string | null;
+}) {
+  const copy = getPoolAccessStateCopy(state);
+  const shouldShowFallback = state === "not-found" && fallbackMessage;
+
+  return (
+    <div className="mx-auto max-w-2xl">
+      <EmptyState
+        title={copy.title}
+        description={copy.description}
+        action={
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
+            {copy.actions.map((action) => (
+              <Link
+                key={action.href}
+                className={appButtonClasses({ variant: action.variant, size: "md" })}
+                href={action.href}
+              >
+                {action.label}
+              </Link>
+            ))}
+          </div>
+        }
+      />
+      {shouldShowFallback ? (
+        <div className="mt-4">
+          <ErrorAlert message={fallbackMessage} />
+        </div>
+      ) : null}
+    </div>
   );
 }
 

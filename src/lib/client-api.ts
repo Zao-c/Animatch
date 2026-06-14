@@ -395,6 +395,16 @@ interface FetchJsonOptions {
   body?: unknown;
 }
 
+export class ApiClientError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiClientError";
+    this.status = status;
+  }
+}
+
 export async function fetchJson<T>(
   path: string,
   options: FetchJsonOptions = {}
@@ -412,13 +422,16 @@ export async function fetchJson<T>(
   const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null;
 
   if (payload === null) {
-    throw new Error(response.ok ? "Invalid API response" : `Request failed (${response.status})`);
+    throw new ApiClientError(
+      response.ok ? "Invalid API response" : `Request failed (${response.status})`,
+      response.status
+    );
   }
 
   if (!response.ok || payload.ok === false) {
     const message =
       payload.ok === false ? payload.error.message : `Request failed (${response.status})`;
-    throw new Error(message);
+    throw new ApiClientError(message, response.status);
   }
 
   return payload.data;
