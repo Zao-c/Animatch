@@ -4,6 +4,7 @@ import { AppError } from "@/lib/app-error";
 import { getCurrentUser, requireCurrentUser, type FriendAuthUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
 import { formatAnimeSource } from "@/lib/anime-source";
+import { formatPoolManagementStatus } from "@/lib/pool-labels";
 import { getPoolPermissions } from "@/lib/pool-permissions";
 import { buildRankingProgress } from "@/lib/ranking-progress";
 
@@ -269,20 +270,7 @@ function deriveCoverImages(
 }
 
 function labelForPoolStatus(status: string): string {
-  switch (status) {
-    case "ARCHIVED":
-      return "???";
-    case "EMPTY":
-      return "?????";
-    case "READY":
-      return "???";
-    case "IN_PROGRESS":
-      return "???";
-    case "STABLE":
-      return "???";
-    default:
-      return "???";
-  }
+  return formatPoolManagementStatus(status);
 }
 
 function deriveSourceType(sources: string[]): string {

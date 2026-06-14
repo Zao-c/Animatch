@@ -5,6 +5,7 @@ describe("pool management UI", () => {
   const poolsSource = readFileSync("src/app/pools/page.tsx", "utf8");
   const detailSource = readFileSync("src/app/pools/[poolId]/page.tsx", "utf8");
   const newPoolSource = readFileSync("src/app/pools/new/page.tsx", "utf8");
+  const poolLabelsSource = readFileSync("src/lib/pool-labels.ts", "utf8");
 
   it("exposes management filters, sorting, and UI statuses", () => {
     expect(poolsSource).toContain("可开始");
@@ -34,6 +35,23 @@ describe("pool management UI", () => {
   it("adds cover memory points to pool cards", () => {
     expect(poolsSource).toContain("CoverStrip");
     expect(poolsSource).toContain("coverImages");
+  });
+
+  it("renders pool card visibility labels without question-mark placeholders", () => {
+    const apiSource = readFileSync("src/app/api/pools/route.ts", "utf8");
+
+    expect(poolsSource).toContain("formatPoolVisibility(pool.visibility)");
+    expect(poolsSource).toContain("formatOfficialDemo(pool.isOfficialDemo)");
+    expect(apiSource).not.toContain('return "???"');
+    expect(apiSource).not.toContain('return "?????"');
+  });
+
+  it("offers owner visibility editing from the pool detail settings panel", () => {
+    expect(detailSource).toContain("可见性");
+    expect(detailSource).toContain("POOL_VISIBILITY_OPTIONS");
+    expect(poolLabelsSource).toContain("只有创建者可以查看和对决");
+    expect(poolLabelsSource).toContain("有链接的人可以浏览，登录后可以开始自己的个人对决");
+    expect(poolLabelsSource).toContain("所有人可以在公开番组列表中看到，登录后可以开始自己的个人对决");
   });
 
   it("turns pool creation into an onboarding flow", () => {

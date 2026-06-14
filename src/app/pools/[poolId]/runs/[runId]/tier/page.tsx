@@ -249,7 +249,7 @@ export default function TierPage({
     setExportedAt(generatedAt);
 
     try {
-      await waitForExportReady();
+      await waitForExportReady(exportRef.current);
       const exportSize = getTierExportDimensions(exportRef.current);
       const dataUrl = await toPng(exportRef.current, {
         backgroundColor: EXPORT_BACKGROUND,
@@ -741,9 +741,10 @@ const fallbackScoreDistribution = {
   std: 120
 };
 
-async function waitForExportReady(): Promise<void> {
+async function waitForExportReady(container: HTMLElement): Promise<void> {
   await waitForPaint();
   await document.fonts?.ready;
+  await waitForTierExportImages(container);
   await waitForPaint();
 }
 
@@ -751,6 +752,44 @@ function waitForPaint(): Promise<void> {
   return new Promise((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   });
+}
+
+async function waitForTierExportImages(container: HTMLElement): Promise<void> {
+  const images = Array.from(
+    container.querySelectorAll<HTMLImageElement>("img[data-tier-export-image='true']")
+  );
+
+  await Promise.all(
+    images.map(
+      (image) =>
+        new Promise<void>((resolve) => {
+          if (image.complete) {
+            resolve();
+            return;
+          }
+
+          const cleanup = () => {
+            image.removeEventListener("load", handleLoad);
+            image.removeEventListener("error", handleError);
+          };
+          const handleLoad = () => {
+            cleanup();
+            resolve();
+          };
+          const handleError = () => {
+            cleanup();
+            console.warn("Tier export cover failed before capture", {
+              animeId: image.dataset.animeId,
+              coverUrl: image.currentSrc || image.src
+            });
+            resolve();
+          };
+
+          image.addEventListener("load", handleLoad, { once: true });
+          image.addEventListener("error", handleError, { once: true });
+        })
+    )
+  );
 }
 
 async function copyText(value: string): Promise<void> {

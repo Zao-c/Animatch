@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
-import React from "react";
+import React, { useState } from "react";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import type { TierListItem } from "@/lib/client-api";
 import { DEFAULT_TIER_LABELS, type TierLabels } from "@/lib/tier-labels";
@@ -19,10 +19,12 @@ export type TierExportCanvasTiers = Record<ExportTier, TierListItem[]>;
 
 export function TierExportCanvas({
   tiers,
-  labels = DEFAULT_TIER_LABELS
+  labels = DEFAULT_TIER_LABELS,
+  failedImageIds = new Set<string>()
 }: {
   tiers: TierExportCanvasTiers;
   labels?: TierLabels;
+  failedImageIds?: ReadonlySet<string>;
 }) {
   return (
     <div data-testid="tier-export-canvas" className="tiermaker-export-canvas">
@@ -41,7 +43,11 @@ export function TierExportCanvas({
             </div>
             <div className="tiermaker-export-items">
               {tiers[tier].map((item) => (
-                <TierExportItem key={item.animeId} item={item} />
+                <TierExportItem
+                  key={item.animeId}
+                  item={item}
+                  initiallyFailed={failedImageIds.has(item.animeId)}
+                />
               ))}
             </div>
           </div>
@@ -52,15 +58,35 @@ export function TierExportCanvas({
   );
 }
 
-function TierExportItem({ item }: { item: TierListItem }) {
+function TierExportItem({
+  item,
+  initiallyFailed
+}: {
+  item: TierListItem;
+  initiallyFailed: boolean;
+}) {
+  const [imageFailed, setImageFailed] = useState(initiallyFailed);
   const title = item.display?.title ?? item.titleCn ?? item.title;
   const coverUrl = getAnimeCoverUrl(item, { intent: "export" });
   const fallback = title.trim().slice(0, 1).toUpperCase() || "A";
 
   return (
     <div className="tiermaker-export-item" aria-label={title}>
-      {coverUrl ? (
-        <img className="tiermaker-export-image" src={coverUrl} alt="" />
+      {coverUrl && !imageFailed ? (
+        <img
+          className="tiermaker-export-image"
+          src={coverUrl}
+          alt=""
+          data-tier-export-image="true"
+          data-anime-id={item.animeId}
+          onError={() => {
+            console.warn("Tier export cover failed to load", {
+              animeId: item.animeId,
+              coverUrl
+            });
+            setImageFailed(true);
+          }}
+        />
       ) : (
         <div className="tiermaker-export-fallback">{fallback}</div>
       )}

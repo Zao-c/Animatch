@@ -137,6 +137,7 @@ describe("pools API management", () => {
 
     expect(response.status).toBe(200);
     expect(payload.data.name).toBe("Updated");
+    expect(payload.data.visibility).toBe("PUBLIC");
     expect(mockedCustomPool.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -164,6 +165,34 @@ describe("pools API management", () => {
     );
 
     expect(response.status).toBe(400);
+    expect(mockedCustomPool.update).not.toHaveBeenCalled();
+  });
+
+  it("PATCH rejects visibility updates from a non-owner", async () => {
+    mockedRequireCurrentUser.mockResolvedValue({
+      id: "user-2",
+      username: "user-2",
+      name: "User 2",
+      image: null
+    });
+    mockedCustomPool.findUnique.mockResolvedValue(pool({ creatorId: "user-1" }));
+
+    const response = await PATCH(
+      new Request("http://test.local/api/pools/pool-1", {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: "Updated",
+          description: "Next description",
+          visibility: "PUBLIC",
+          tags: []
+        })
+      }),
+      { params: { poolId: "pool-1" } }
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(payload.error.message).toBe("你没有权限管理这个番组。");
     expect(mockedCustomPool.update).not.toHaveBeenCalled();
   });
 
@@ -369,6 +398,36 @@ describe("pools API management", () => {
     expect(
       payload.data.items.map((item: { uiStatus: string }) => item.uiStatus).sort()
     ).toEqual(["ARCHIVED", "EMPTY", "IN_PROGRESS", "READY", "STABLE"]);
+    expect(
+      payload.data.items.map((item: { uiStatusLabel: string }) => item.uiStatusLabel)
+    ).not.toContain("???");
+    expect(
+      payload.data.items.map((item: { uiStatusLabel: string }) => item.uiStatusLabel)
+    ).not.toContain("?????");
+  });
+
+  it("GET /api/pools returns the current visibility value for pool cards", async () => {
+    mockedCustomPool.findMany.mockResolvedValue([
+      pool({
+        id: "public-pool",
+        visibility: Visibility.PUBLIC,
+        _count: { poolAnime: 2, poolComparisons: 0 }
+      }),
+      pool({
+        id: "unlisted-pool",
+        visibility: Visibility.UNLISTED,
+        _count: { poolAnime: 2, poolComparisons: 0 }
+      })
+    ]);
+
+    const response = await LIST_POOLS(new Request("http://test.local/api/pools"));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data.items.map((item: { visibility: string }) => item.visibility)).toEqual([
+      "PUBLIC",
+      "UNLISTED"
+    ]);
   });
 
   it("GET /api/pools displays TierMaker source labels for pool cards", async () => {
@@ -462,6 +521,43 @@ describe("pools API management", () => {
     expect(response.status).toBe(403);
     expect(payload.error.message).toBe("你没有权限访问这个番组。");
     expect(payload.error.message).not.toContain("current dev user");
+  });
+
+  it("GET pool detail allows anonymous public reads after a pool is made public", async () => {
+    mockedGetCurrentUser.mockResolvedValue(null);
+    mockedCustomPool.findUnique.mockResolvedValue(pool({ visibility: Visibility.PUBLIC }));
+
+    const response = await GET_POOL(new Request("http://test.local/api/pools/pool-1"), {
+      params: { poolId: "pool-1" }
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data.visibility).toBe("PUBLIC");
+  });
+
+  it("GET pool detail rejects anonymous and userB reads after a pool is made private", async () => {
+    mockedGetCurrentUser.mockResolvedValueOnce(null);
+    mockedCustomPool.findUnique.mockResolvedValue(pool({ visibility: Visibility.PRIVATE }));
+
+    const anonymousResponse = await GET_POOL(new Request("http://test.local/api/pools/pool-1"), {
+      params: { poolId: "pool-1" }
+    });
+
+    mockedGetCurrentUser.mockResolvedValueOnce({
+      id: "user-2",
+      username: "user-2",
+      name: "User 2",
+      image: null
+    });
+    mockedCustomPool.findUnique.mockResolvedValue(pool({ visibility: Visibility.PRIVATE }));
+
+    const userBResponse = await GET_POOL(new Request("http://test.local/api/pools/pool-1"), {
+      params: { poolId: "pool-1" }
+    });
+
+    expect(anonymousResponse.status).toBe(403);
+    expect(userBResponse.status).toBe(403);
   });
 });
 

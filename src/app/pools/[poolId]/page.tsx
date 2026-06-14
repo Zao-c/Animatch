@@ -21,6 +21,12 @@ import {
   type PoolAccessState
 } from "@/lib/pool-access-state";
 import {
+  formatOfficialDemo,
+  formatPoolVisibility,
+  POOL_VISIBILITY_OPTIONS,
+  type PoolVisibilityValue
+} from "@/lib/pool-labels";
+import {
   addAnimeToPool,
   archivePool,
   bulkImportAnimeToPool,
@@ -98,9 +104,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [isEditingPool, setIsEditingPool] = useState(false);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
-  const [editVisibility, setEditVisibility] = useState<"PRIVATE" | "UNLISTED" | "PUBLIC">(
-    "PRIVATE"
-  );
+  const [editVisibility, setEditVisibility] = useState<PoolVisibilityValue>("PRIVATE");
   const [editTags, setEditTags] = useState("");
   const [editingDisplayAnimeId, setEditingDisplayAnimeId] = useState<string | null>(null);
   const [displayForm, setDisplayForm] = useState<DisplayOverrideForm>({
@@ -757,12 +761,13 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         <div>
           <div className="flex flex-wrap gap-2">
             <AppBadge tone={isArchived ? "danger" : "status"}>
-              {isArchived ? "已归档" : pool.visibility}
+              {isArchived ? "已归档" : formatPoolVisibility(pool.visibility)}
             </AppBadge>
             <AppBadge tone="source">{pool.anime.length} 部动画</AppBadge>
             <AppBadge tone="source">{sourceSummary}</AppBadge>
-            {pool.visibility === "PUBLIC" ? <AppBadge tone="status">公开</AppBadge> : null}
-            {pool.isOfficialDemo ? <AppBadge tone="source">官方 Demo</AppBadge> : null}
+            {formatOfficialDemo(pool.isOfficialDemo) ? (
+              <AppBadge tone="source">{formatOfficialDemo(pool.isOfficialDemo)}</AppBadge>
+            ) : null}
             {canPlayPool ? <AppBadge tone="success">支持个人对决</AppBadge> : null}
             <AppBadge tone={canReadCommunityMatch ? "tier" : "muted"}>
               {canReadCommunityMatch ? "大乱斗" : "大乱斗未开放"}
@@ -897,19 +902,35 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           </div>
           {isEditingPool ? (
             <form onSubmit={handleSavePool} className="mt-5 border-t border-anime-border pt-5">
-              <div className="grid gap-3 md:grid-cols-[1fr_180px]">
+              <div className="grid gap-3 md:grid-cols-[1fr_280px]">
                 <input value={editName} onChange={(event) => setEditName(event.target.value)} className="anime-field" />
-                <select
-                  value={editVisibility}
-                  onChange={(event) =>
-                    setEditVisibility(event.target.value as "PRIVATE" | "UNLISTED" | "PUBLIC")
-                  }
-                  className="anime-field"
-                >
-                  <option value="PRIVATE">PRIVATE</option>
-                  <option value="UNLISTED">UNLISTED</option>
-                  <option value="PUBLIC">PUBLIC</option>
-                </select>
+                <div>
+                  <label className="text-xs font-semibold text-slate-300" htmlFor="pool-visibility">
+                    可见性
+                  </label>
+                  <select
+                    id="pool-visibility"
+                    value={editVisibility}
+                    onChange={(event) =>
+                      setEditVisibility(event.target.value as PoolVisibilityValue)
+                    }
+                    className="anime-field mt-2"
+                  >
+                    {POOL_VISIBILITY_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-400 md:grid-cols-3">
+                {POOL_VISIBILITY_OPTIONS.map((option) => (
+                  <div key={option.value} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                    <p className="font-semibold text-slate-200">{option.label}</p>
+                    <p className="mt-1">{option.description}</p>
+                  </div>
+                ))}
               </div>
               <textarea
                 value={editDescription}

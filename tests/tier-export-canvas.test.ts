@@ -110,8 +110,84 @@ describe("TierExportCanvas", () => {
     expect(html).toContain("普通");
     expect(html).toContain("待定");
     expect(html).toContain("跳过");
-    expect(html).toContain('src="https://example.com/large.jpg"');
+    expect(html).toContain('src="https://example.com/high.jpg"');
+    expect(html).not.toContain('src="https://example.com/large.jpg"');
     expect(html).not.toContain('src="https://example.com/thumb.jpg"');
+  });
+
+  it("uses real imageUrl covers for tier wall items with images", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(TierExportCanvas, {
+        tiers: {
+          S: [
+            tierItem({
+              animeId: "anime-1",
+              id: "anime-1",
+              title: "One Piece",
+              imageUrl: "https://img.example.test/one-piece.jpg",
+              imageLargeUrl: "https://img.example.test/one-piece-large.jpg",
+              coverUrl: null,
+              thumbnailUrl: null
+            }),
+            tierItem({
+              animeId: "anime-2",
+              id: "anime-2",
+              title: "Chainsaw Man",
+              imageUrl: "https://img.example.test/chainsaw-man.jpg",
+              imageLargeUrl: "https://img.example.test/chainsaw-man-large.jpg",
+              coverUrl: null,
+              thumbnailUrl: null
+            })
+          ],
+          A: [],
+          B: [],
+          C: [],
+          D: []
+        }
+      })
+    );
+
+    expect(html).toContain('src="https://img.example.test/one-piece.jpg"');
+    expect(html).toContain('src="https://img.example.test/chainsaw-man.jpg"');
+    expect(html).not.toContain("tiermaker-export-fallback");
+    expect(html).not.toContain("one-piece-large.jpg");
+    expect(html).not.toContain("chainsaw-man-large.jpg");
+  });
+
+  it("falls back only the failed tier wall item", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(TierExportCanvas, {
+        failedImageIds: new Set(["anime-2"]),
+        tiers: {
+          S: [
+            tierItem({
+              animeId: "anime-1",
+              id: "anime-1",
+              title: "One Piece",
+              imageUrl: "https://img.example.test/one-piece.jpg",
+              coverUrl: null,
+              thumbnailUrl: null
+            }),
+            tierItem({
+              animeId: "anime-2",
+              id: "anime-2",
+              title: "Chainsaw Man",
+              imageUrl: "https://img.example.test/chainsaw-man.jpg",
+              coverUrl: null,
+              thumbnailUrl: null
+            })
+          ],
+          A: [],
+          B: [],
+          C: [],
+          D: []
+        }
+      })
+    );
+
+    expect(html).toContain('src="https://img.example.test/one-piece.jpg"');
+    expect(html).not.toContain('src="https://img.example.test/chainsaw-man.jpg"');
+    expect(html.match(/tiermaker-export-fallback/g)).toHaveLength(1);
   });
 
   it("does not render page chrome, stats, explanatory text, or item scores", () => {

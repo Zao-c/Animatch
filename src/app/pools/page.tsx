@@ -22,6 +22,13 @@ import {
   type PoolSummary
 } from "@/lib/client-api";
 import { formatDateTimeStable } from "@/lib/date-format";
+import {
+  formatOfficialDemo,
+  formatPoolManagementStatus,
+  formatPoolVisibility,
+  POOL_VISIBILITY_OPTIONS,
+  type PoolVisibilityValue
+} from "@/lib/pool-labels";
 
 type PoolFilter = "ALL" | PoolManagementStatus;
 type PoolSort = "UPDATED" | "ANIME_COUNT" | "COMPARISON_COUNT" | "NAME";
@@ -53,9 +60,7 @@ export default function PoolsPage() {
   const [editingPoolId, setEditingPoolId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
-  const [editVisibility, setEditVisibility] = useState<"PRIVATE" | "UNLISTED" | "PUBLIC">(
-    "PRIVATE"
-  );
+  const [editVisibility, setEditVisibility] = useState<PoolVisibilityValue>("PRIVATE");
   const [editTags, setEditTags] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
@@ -399,7 +404,7 @@ function PoolCard({
   isEditing: boolean;
   editName: string;
   editDescription: string;
-  editVisibility: "PRIVATE" | "UNLISTED" | "PUBLIC";
+  editVisibility: PoolVisibilityValue;
   editTags: string;
   isMutating: boolean;
   onBeginEdit: () => void;
@@ -411,7 +416,7 @@ function PoolCard({
   onOpenRun: (pool: PoolSummary, target: "match" | "tier") => void;
   setEditName: (value: string) => void;
   setEditDescription: (value: string) => void;
-  setEditVisibility: (value: "PRIVATE" | "UNLISTED" | "PUBLIC") => void;
+  setEditVisibility: (value: PoolVisibilityValue) => void;
   setEditTags: (value: string) => void;
 }) {
   const isArchived = isPoolArchived(pool);
@@ -426,6 +431,9 @@ function PoolCard({
   const canMatch = !isArchived && animeCount >= 2 && canPlay;
   const canPromptLoginToMatch = !isArchived && animeCount >= 2 && !canPlay;
   const canViewTier = pool.defaultRunId != null || !isArchived;
+  const officialDemoLabel = formatOfficialDemo(pool.isOfficialDemo);
+  const primaryBadgeLabel = officialDemoLabel ?? formatPoolVisibility(pool.visibility);
+  const primaryBadgeTone = officialDemoLabel ? "source" : visibilityTone(pool.visibility);
 
   return (
     <AppCard
@@ -453,14 +461,16 @@ function PoolCard({
             <select
               value={editVisibility}
               onChange={(event) =>
-                setEditVisibility(event.target.value as "PRIVATE" | "UNLISTED" | "PUBLIC")
+                setEditVisibility(event.target.value as PoolVisibilityValue)
               }
               className="anime-field"
               aria-label="番组可见性"
             >
-              <option value="PRIVATE">PRIVATE</option>
-              <option value="UNLISTED">UNLISTED</option>
-              <option value="PUBLIC">PUBLIC</option>
+              {POOL_VISIBILITY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
             <input
               value={editTags}
@@ -488,13 +498,16 @@ function PoolCard({
             >
               {pool.name}
             </Link>
-            <AppBadge tone={toneForStatus(uiStatus)}>{statusLabel}</AppBadge>
+            <AppBadge tone={primaryBadgeTone}>{primaryBadgeLabel}</AppBadge>
           </div>
           <p className="mt-3 line-clamp-2 min-h-10 text-sm leading-5 text-slate-400">
             {pool.description ?? "暂无描述"}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <AppBadge tone="muted">{pool.visibility}</AppBadge>
+            <AppBadge tone={visibilityTone(pool.visibility)}>
+              {formatPoolVisibility(pool.visibility)}
+            </AppBadge>
+            <AppBadge tone={toneForStatus(uiStatus)}>{statusLabel}</AppBadge>
             <AppBadge tone="source">{pool.sourceType ?? "UNKNOWN"}</AppBadge>
             {isArchived ? <AppBadge tone="danger">ARCHIVED</AppBadge> : null}
           </div>
@@ -619,6 +632,19 @@ function CoverStrip({ images, title }: { images: string[]; title: string }) {
 
 function isPoolArchived(pool: PoolSummary): boolean {
   return pool.archived === true || pool.status === "ARCHIVED" || pool.deletedAt != null;
+}
+
+function visibilityTone(
+  visibility: PoolVisibilityValue
+): "status" | "success" | "muted" {
+  switch (visibility) {
+    case "PUBLIC":
+      return "success";
+    case "UNLISTED":
+      return "status";
+    case "PRIVATE":
+      return "muted";
+  }
 }
 
 function labelForStatus(status: PoolManagementStatus): string {
