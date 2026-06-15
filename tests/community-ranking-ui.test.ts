@@ -79,7 +79,7 @@ describe("community ranking UI wiring", () => {
 
   it("adds a low-emphasis Tier page entry to the pool community ranking anchor", () => {
     expect(tierSource).toContain("canShowCommunityRanking");
-    expect(tierSource).toContain('pool.visibility === "PUBLIC"');
+    expect(tierSource).toContain("isCommunityBattleVisiblePool(pool)");
     expect(tierSource).toContain("#community-ranking");
     expect(tierSource).toContain("查看社区榜单");
     expect(tierSource).toContain('variant: "quiet"');

@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { isCommunityBattleVisiblePool } from "../src/lib/community-battle-visibility";
 
 describe("community battle entry UI wiring", () => {
   const detailSource = readFileSync("src/app/pools/[poolId]/page.tsx", "utf8");
@@ -11,9 +12,59 @@ describe("community battle entry UI wiring", () => {
     "src/app/pools/[poolId]/runs/[runId]/tier/page.tsx",
     "utf8"
   );
+  const helperSource = readFileSync("src/lib/community-battle-visibility.ts", "utf8");
+
+  it("treats public draft and active pools as visible community battle pools", () => {
+    expect(
+      isCommunityBattleVisiblePool({
+        visibility: "PUBLIC",
+        status: "DRAFT",
+        deletedAt: null
+      })
+    ).toBe(true);
+    expect(
+      isCommunityBattleVisiblePool({
+        visibility: "PUBLIC",
+        status: "ACTIVE",
+        deletedAt: null
+      })
+    ).toBe(true);
+  });
+
+  it("hides private, unlisted, archived, and deleted community battle pools", () => {
+    expect(
+      isCommunityBattleVisiblePool({
+        visibility: "PRIVATE",
+        status: "DRAFT",
+        deletedAt: null
+      })
+    ).toBe(false);
+    expect(
+      isCommunityBattleVisiblePool({
+        visibility: "UNLISTED",
+        status: "DRAFT",
+        deletedAt: null
+      })
+    ).toBe(false);
+    expect(
+      isCommunityBattleVisiblePool({
+        visibility: "PUBLIC",
+        status: "ARCHIVED",
+        deletedAt: null
+      })
+    ).toBe(false);
+    expect(
+      isCommunityBattleVisiblePool({
+        visibility: "PUBLIC",
+        status: "DRAFT",
+        deletedAt: "2026-06-16T00:00:00.000Z"
+      })
+    ).toBe(false);
+  });
 
   it("shows public pool community battle entry with anonymous and logged-in copy", () => {
     expect(detailSource).toContain("const canShowCommunityBattle");
+    expect(detailSource).toContain("isCommunityBattleVisiblePool(pool)");
     expect(detailSource).toContain("登录后参与大乱斗");
     expect(detailSource).toContain("加入社区大乱斗");
     expect(detailSource).toContain("每个人都有自己的对决和榜单");
@@ -23,13 +74,10 @@ describe("community battle entry UI wiring", () => {
   });
 
   it("hides the community battle entry for non-public, archived, and deleted pools", () => {
-    const expressionStart = detailSource.indexOf("const canShowCommunityBattle");
-    const expressionEnd = detailSource.indexOf("const canPromptLoginToBattle", expressionStart);
-    const expression = detailSource.slice(expressionStart, expressionEnd);
-
-    expect(expression).toContain('pool.visibility === "PUBLIC"');
-    expect(expression).toContain('pool.status === "ACTIVE"');
-    expect(expression).toContain("pool.deletedAt === null");
+    expect(helperSource).toContain('pool.visibility === "PUBLIC"');
+    expect(helperSource).toContain('pool.status !== "ARCHIVED"');
+    expect(helperSource).toContain("pool.deletedAt == null");
+    expect(helperSource).not.toContain('pool.status === "ACTIVE"');
     expect(detailSource).toContain('pool.status === "ARCHIVED"');
     expect(detailSource).toContain('pool.status === "DELETED"');
     expect(detailSource).toContain("pool.deletedAt !== null");
@@ -62,11 +110,9 @@ describe("community battle entry UI wiring", () => {
     expect(detailSource).toContain("返回我的番组");
   });
 
-  it("shows a public community battle hint on the Match page only when the pool is active public", () => {
+  it("shows a public community battle hint on the Match page through the shared visibility helper", () => {
     expect(matchSource).toContain("const [canShowCommunityBattle");
-    expect(matchSource).toContain('pool.visibility === "PUBLIC"');
-    expect(matchSource).toContain('pool.status === "ACTIVE"');
-    expect(matchSource).toContain("pool.deletedAt == null");
+    expect(matchSource).toContain("isCommunityBattleVisiblePool(pool)");
     expect(matchSource).toContain("CommunityBattleMatchHint");
     expect(matchSource).toContain("你正在参与这个公开番组的社区大乱斗");
     expect(matchSource).toContain("你的选择只会更新你的个人榜单");
@@ -75,9 +121,7 @@ describe("community battle entry UI wiring", () => {
 
   it("shows a public community contribution hint on the Tier page while preserving the ranking link", () => {
     expect(tierSource).toContain("canShowCommunityRanking");
-    expect(tierSource).toContain('pool.visibility === "PUBLIC"');
-    expect(tierSource).toContain('pool.status === "ACTIVE"');
-    expect(tierSource).toContain("pool.deletedAt == null");
+    expect(tierSource).toContain("isCommunityBattleVisiblePool(pool)");
     expect(tierSource).toContain("这是你的个人榜单；它会以匿名聚合方式参与社区榜单。");
     expect(tierSource).toContain("查看社区榜单");
     expect(tierSource).toContain("#community-ranking");

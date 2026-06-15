@@ -9,6 +9,7 @@ import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { formatAnimeSource } from "@/lib/anime-source";
+import { isCommunityBattleVisiblePool } from "@/lib/community-battle-visibility";
 import {
   ANIME_TAG_DICTIONARY,
   getTagGroupLabel,
@@ -935,8 +936,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       .map((entry) => entry.anime.bgmId)
       .filter((bgmId): bgmId is number => bgmId !== null)
   );
-  const canShowCommunityBattle =
-    pool.visibility === "PUBLIC" && pool.status === "ACTIVE" && pool.deletedAt === null;
+  const canShowCommunityBattle = isCommunityBattleVisiblePool(pool);
   const canPromptLoginToBattle =
     canShowCommunityBattle && !canPlayPool && (permissions?.canRead ?? false);
   const loginToPoolPath = `/login?next=${encodeURIComponent(`/pools/${params.poolId}`)}`;

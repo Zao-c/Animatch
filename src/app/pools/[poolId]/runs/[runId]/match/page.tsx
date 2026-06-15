@@ -23,6 +23,7 @@ import {
   type MatchQueueResponse
 } from "@/lib/client-api";
 import { createClientMutationId } from "@/lib/client-id";
+import { isCommunityBattleVisiblePool } from "@/lib/community-battle-visibility";
 import { getComparisonResultForShortcut } from "@/lib/match-shortcuts";
 import { preloadPairs } from "@/lib/preload-images";
 
@@ -84,9 +85,7 @@ export default function MatchPage({
       ]);
       setPoolName(pool.name);
       setPoolAnimeCount(pool.anime.length);
-      setCanShowCommunityBattle(
-        pool.visibility === "PUBLIC" && pool.status === "ACTIVE" && pool.deletedAt == null
-      );
+      setCanShowCommunityBattle(isCommunityBattleVisiblePool(pool));
       setConfidenceScore(data.confidenceScore);
       setQueueMeta({
         scoreDistribution: data.scoreDistribution,

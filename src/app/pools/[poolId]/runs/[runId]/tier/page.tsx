@@ -26,6 +26,7 @@ import {
   type TierListItem,
   type TierListResponse
 } from "@/lib/client-api";
+import { isCommunityBattleVisiblePool } from "@/lib/community-battle-visibility";
 import {
   buildTierExportFilename,
   formatTierExportTimestamp,
@@ -113,9 +114,7 @@ export default function TierPage({
         getTierList(params.poolId, params.runId)
       ]);
       setPoolName(pool.name);
-      setCanShowCommunityRanking(
-        pool.visibility === "PUBLIC" && pool.status === "ACTIVE" && pool.deletedAt == null
-      );
+      setCanShowCommunityRanking(isCommunityBattleVisiblePool(pool));
       setTierList(data);
       if (!isEditing) {
         setEditableTiers(cloneTiers(data.tiers));
