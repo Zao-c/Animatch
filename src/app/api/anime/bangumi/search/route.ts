@@ -31,9 +31,7 @@ export async function GET(request: Request) {
       return fromError(error);
     }
 
-    console.error("Bangumi search failed", {
-      message: toSafeBangumiSearchLogMessage(error)
-    });
+    console.error("[Bangumi search route]", sanitizeBangumiRouteError(error));
 
     return NextResponse.json(
       {
@@ -47,20 +45,48 @@ export async function GET(request: Request) {
   }
 }
 
-function toSafeBangumiSearchLogMessage(error: unknown): string {
+function sanitizeBangumiRouteError(error: unknown): Record<string, unknown> {
   if (!(error instanceof Error)) {
-    return "Unknown Bangumi search error";
+    return { name: "Unknown", message: String(error) };
   }
 
-  if (/^Bangumi search failed: HTTP \d+; body=/.test(error.message)) {
-    return error.message;
+  const sanitized: Record<string, unknown> = {
+    name: error.name,
+    message: sanitizeErrorMessage(error.message),
+  };
+
+  if ("code" in error && typeof (error as NodeJS.ErrnoException).code === "string") {
+    sanitized.code = (error as NodeJS.ErrnoException).code;
   }
 
-  if (error.message.includes("timed out")) {
-    return "Bangumi search timed out";
+  if ("statusCode" in error && typeof (error as Record<string, unknown>).statusCode === "number") {
+    sanitized.statusCode = (error as Record<string, unknown>).statusCode;
   }
 
-  return "Bangumi search failed";
+  if ("bodySnippet" in error && typeof (error as Record<string, unknown>).bodySnippet === "string") {
+    sanitized.bodySnippet = sanitizeErrorMessage(
+      (error as Record<string, unknown>).bodySnippet as string
+    );
+  }
+
+  if (error.cause instanceof Error) {
+    (sanitized as Record<string, unknown>).cause = {
+      name: error.cause.name,
+      message: sanitizeErrorMessage(error.cause.message),
+    };
+    if ("code" in error.cause && typeof (error.cause as NodeJS.ErrnoException).code === "string") {
+      ((sanitized as Record<string, unknown>).cause as Record<string, unknown>).code = (error.cause as NodeJS.ErrnoException).code;
+    }
+  }
+
+  return sanitized;
+}
+
+function sanitizeErrorMessage(value: string): string {
+  return value
+    .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [redacted]")
+    .replace(/(authorization["'\s:=]+)([^"',\s}]+)/gi, "$1[redacted]")
+    .replace(/https?:\/\/[^/\s:@]+:[^/\s@]+@/gi, "http://[redacted]@");
 }
 
 function parseLimit(value: string | null): number {

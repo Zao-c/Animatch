@@ -18,6 +18,15 @@ vi.mock("undici", () => ({
   request: vi.fn()
 }));
 
+vi.mock("../src/lib/auth-session", () => ({
+  requireCurrentUser: vi.fn(async () => ({
+    id: "user-1",
+    username: "user-1",
+    name: "User 1",
+    image: null
+  }))
+}));
+
 import * as http from "node:http";
 import * as https from "node:https";
 import * as tls from "node:tls";
@@ -28,6 +37,9 @@ import {
   parseBangumiSubjectIds,
   searchBangumiAnime
 } from "../src/lib/bangumi";
+import { GET as BANGUMI_DEBUG_GET } from "../src/app/api/anime/bangumi/debug/route";
+import { requireCurrentUser } from "../src/lib/auth-session";
+import { AppError } from "../src/lib/app-error";
 
 type MockRequest = ClientRequest & {
   writes: string[];
@@ -414,5 +426,349 @@ describe("Bangumi request via node http", () => {
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toContain("Unable to connect to Bangumi API");
     expect((error as Error).message).toContain("ECONNREFUSED");
+  });
+});
+
+describe("Bangumi diagnostic sanitize", () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    clearProxyEnv();
+    clearBangumiTokenEnv();
+    httpRequestOptions.length = 0;
+    httpsRequestOptions.length = 0;
+    httpRequests.length = 0;
+    httpsRequests.length = 0;
+    nextHttpsStatus = 200;
+    nextHttpsError = null;
+    nextConnectStatus = 200;
+    nextHttpsBody = JSON.stringify({
+      data: [{ id: 1, name: "Test" }]
+    });
+    installRequestMocks();
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    restoreProxyEnv();
+    restoreBangumiTokenEnv();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("hides token from diagnostic logs", async () => {
+    process.env.BANGUMI_ACCESS_TOKEN = "secret-token-abc";
+    process.env.BANGUMI_DEBUG = "1";
+
+    await searchBangumiAnime("hyouka");
+
+    const joined = JSON.stringify(consoleErrorSpy.mock.calls);
+    expect(joined).not.toContain("secret-token-abc");
+    expect(joined).not.toContain("Bearer secret-token-abc");
+  });
+
+  it("hides proxy URL from diagnostic logs", async () => {
+    process.env.HTTPS_PROXY = "http://secret:pass@127.0.0.1:7890";
+    process.env.BANGUMI_ACCESS_TOKEN = "test-token";
+    process.env.BANGUMI_DEBUG = "1";
+
+    await searchBangumiAnime("hyouka");
+
+    const joined = JSON.stringify(consoleErrorSpy.mock.calls);
+    expect(joined).not.toContain("secret:pass");
+    expect(joined).not.toContain("127.0.0.1:7890");
+  });
+
+  it("preserves safe status/code/message fields in diagnostic logs", async () => {
+    process.env.BANGUMI_ACCESS_TOKEN = "test-token";
+    process.env.BANGUMI_DEBUG = "1";
+    nextHttpsStatus = 400;
+    nextHttpsBody = JSON.stringify({ error: "bad request" });
+
+    try {
+      await searchBangumiAnime("hyouka");
+    } catch {
+      // expected
+    }
+
+    const joined = JSON.stringify(consoleErrorSpy.mock.calls);
+    expect(joined).toContain("400");
+    expect(joined).toContain("bad request");
+  });
+
+  it("does not log diagnostic when BANGUMI_DEBUG is not set", async () => {
+    process.env.BANGUMI_ACCESS_TOKEN = "test-token";
+    delete process.env.BANGUMI_DEBUG;
+
+    await searchBangumiAnime("hyouka");
+
+    const joined = JSON.stringify(consoleErrorSpy.mock.calls);
+    expect(joined).not.toContain("[Bangumi diagnostic]");
+  });
+
+  it("logs diagnostic when BANGUMI_DEBUG is set to 1", async () => {
+    process.env.BANGUMI_ACCESS_TOKEN = "test-token";
+    process.env.BANGUMI_DEBUG = "1";
+
+    await searchBangumiAnime("hyouka");
+
+    const joined = JSON.stringify(consoleErrorSpy.mock.calls);
+    expect(joined).toContain("[Bangumi diagnostic]");
+    expect(joined).toContain("request-start");
+  });
+
+  it("logs error diagnostic with name code and cause", async () => {
+    process.env.BANGUMI_ACCESS_TOKEN = "test-token";
+    process.env.BANGUMI_DEBUG = "1";
+    nextHttpsError = Object.assign(
+      new Error("test error"),
+      { code: "ETIMEDOUT" }
+    );
+
+    try {
+      await searchBangumiAnime("hyouka");
+    } catch {
+      // expected
+    }
+
+    const joined = JSON.stringify(consoleErrorSpy.mock.calls);
+    expect(joined).toContain("[Bangumi diagnostic]");
+    expect(joined).toContain("request-error");
+    expect(joined).toContain("Error");
+    expect(joined).toContain("test error");
+  });
+
+  it("records requestPath as missing-token when token is absent", async () => {
+    process.env.BANGUMI_DEBUG = "1";
+
+    await searchBangumiAnime("hyouka");
+
+    const joined = JSON.stringify(consoleErrorSpy.mock.calls);
+    expect(joined).toContain("missing-token");
+  });
+
+  it("records requestPath as node-https-direct when token present and no proxy", async () => {
+    process.env.BANGUMI_ACCESS_TOKEN = "test-token";
+    process.env.BANGUMI_DEBUG = "1";
+
+    await searchBangumiAnime("hyouka");
+
+    const joined = JSON.stringify(consoleErrorSpy.mock.calls);
+    expect(joined).toContain("node-https-direct");
+  });
+
+  it("records requestPath as node-http-connect-proxy when token and proxy present", async () => {
+    process.env.HTTPS_PROXY = "http://127.0.0.1:7890";
+    process.env.BANGUMI_ACCESS_TOKEN = "test-token";
+    process.env.BANGUMI_DEBUG = "1";
+
+    await searchBangumiAnime("hyouka");
+
+    const joined = JSON.stringify(consoleErrorSpy.mock.calls);
+    expect(joined).toContain("node-http-connect-proxy");
+  });
+});
+
+describe("Bangumi debug endpoint", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    clearProxyEnv();
+    clearBangumiTokenEnv();
+  });
+
+  afterEach(() => {
+    restoreProxyEnv();
+    restoreBangumiTokenEnv();
+  });
+
+  it("returns 401 when not logged in", async () => {
+    vi.mocked(requireCurrentUser).mockRejectedValueOnce(
+      new AppError("Authentication required", 401, "AUTH_REQUIRED")
+    );
+
+    const response = await BANGUMI_DEBUG_GET();
+    const body = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(body.ok).toBe(false);
+  });
+
+  it("returns hasBangumiAccessToken true when token is set", async () => {
+    process.env.BANGUMI_ACCESS_TOKEN = "test-token";
+    vi.mocked(requireCurrentUser).mockResolvedValueOnce({
+      id: "user-1",
+      username: "user-1",
+      name: "User 1",
+      image: null
+    });
+
+    const response = await BANGUMI_DEBUG_GET();
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toMatchObject({
+      hasBangumiAccessToken: true,
+      hasHttpProxy: false,
+      hasHttpsProxy: false,
+    });
+    expect(body.data.envHttpsProxyRedacted).toBe("<missing>");
+    expect(body.data.envHttpProxyRedacted).toBe("<missing>");
+  });
+
+  it("returns hasBangumiAccessToken false when token is missing", async () => {
+    vi.mocked(requireCurrentUser).mockResolvedValueOnce({
+      id: "user-1",
+      username: "user-1",
+      name: "User 1",
+      image: null
+    });
+
+    const response = await BANGUMI_DEBUG_GET();
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toMatchObject({
+      hasBangumiAccessToken: false,
+      hasHttpProxy: false,
+      hasHttpsProxy: false,
+    });
+  });
+
+  it("does not include real token in response", async () => {
+    process.env.BANGUMI_ACCESS_TOKEN = "secret-real-token";
+    vi.mocked(requireCurrentUser).mockResolvedValueOnce({
+      id: "user-1",
+      username: "user-1",
+      name: "User 1",
+      image: null
+    });
+
+    const response = await BANGUMI_DEBUG_GET();
+    const body = await response.json();
+    const bodyStr = JSON.stringify(body);
+
+    expect(bodyStr).not.toContain("secret-real-token");
+    expect(body.data.hasBangumiAccessToken).toBe(true);
+  });
+
+  it("does not include real proxy URL in response", async () => {
+    process.env.HTTPS_PROXY = "http://secret-proxy:7890";
+    vi.mocked(requireCurrentUser).mockResolvedValueOnce({
+      id: "user-1",
+      username: "user-1",
+      name: "User 1",
+      image: null
+    });
+
+    const response = await BANGUMI_DEBUG_GET();
+    const body = await response.json();
+    const bodyStr = JSON.stringify(body);
+
+    expect(bodyStr).not.toContain("secret-proxy");
+    expect(bodyStr).not.toContain("7890");
+  });
+
+  it("returns env redacted as <set> when proxy env is configured", async () => {
+    process.env.HTTPS_PROXY = "http://127.0.0.1:7890";
+    process.env.HTTP_PROXY = "http://127.0.0.1:7891";
+    vi.mocked(requireCurrentUser).mockResolvedValueOnce({
+      id: "user-1",
+      username: "user-1",
+      name: "User 1",
+      image: null
+    });
+
+    const response = await BANGUMI_DEBUG_GET();
+    const body = await response.json();
+
+    expect(body.data.envHttpsProxyRedacted).toBe("<set>");
+    expect(body.data.envHttpProxyRedacted).toBe("<set>");
+  });
+
+  it("returns nodeVersion runtime and platform", async () => {
+    vi.mocked(requireCurrentUser).mockResolvedValueOnce({
+      id: "user-1",
+      username: "user-1",
+      name: "User 1",
+      image: null
+    });
+
+    const response = await BANGUMI_DEBUG_GET();
+    const body = await response.json();
+
+    expect(body.data).toMatchObject({
+      runtime: "nodejs",
+      platform: process.platform,
+    });
+    expect(typeof body.data.nodeVersion).toBe("string");
+  });
+});
+
+describe("Bangumi search route error logging", () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    process.env.BANGUMI_ACCESS_TOKEN = "test-token";
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+    vi.restoreAllMocks();
+  });
+
+  it("logs safe error shape without leaking token", async () => {
+    const { GET: SEARCH_ROUTE } = await import("../src/app/api/anime/bangumi/search/route");
+    const bangumiModule = await import("../src/lib/bangumi");
+    const authModule = await import("../src/lib/auth-session");
+
+    vi.spyOn(bangumiModule, "searchBangumiAnime").mockRejectedValue(
+      Object.assign(
+        new Error("Bangumi search failed: HTTP 500; body={\"auth\":\"Bearer secret-token\"}"),
+        { code: "ERR_BAD_RESPONSE", cause: new Error("upstream error") }
+      )
+    );
+    vi.spyOn(authModule, "requireCurrentUser").mockResolvedValue({
+      id: "user-1",
+      username: "user-1",
+      name: "User 1",
+      image: null
+    });
+
+    const req = new Request("http://localhost/api/anime/bangumi/search?q=冰菓");
+    const response = await SEARCH_ROUTE(req);
+    const body = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    const logStr = JSON.stringify(consoleErrorSpy.mock.calls);
+    expect(logStr).not.toContain("secret-token");
+    expect(body.error.message).toContain("暂时不可用");
+    expect(body.error.message).not.toContain("secret-token");
+  });
+
+  it("preserves statusCode in route error log when available", async () => {
+    const { GET: SEARCH_ROUTE } = await import("../src/app/api/anime/bangumi/search/route");
+    const bangumiModule = await import("../src/lib/bangumi");
+    const authModule = await import("../src/lib/auth-session");
+
+    vi.spyOn(bangumiModule, "searchBangumiAnime").mockRejectedValue(
+      Object.assign(
+        new Error("Bangumi search failed: HTTP 429; body=rate limit"),
+        { code: "ERR_BAD_RESPONSE" }
+      )
+    );
+    vi.spyOn(authModule, "requireCurrentUser").mockResolvedValue({
+      id: "user-1",
+      username: "user-1",
+      name: "User 1",
+      image: null
+    });
+
+    const req = new Request("http://localhost/api/anime/bangumi/search?q=冰菓");
+    const response = await SEARCH_ROUTE(req);
+
+    expect(response.status).toBe(502);
   });
 });

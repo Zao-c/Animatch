@@ -50,11 +50,122 @@ export function getBangumiProxyUrl(): string | null {
   return proxyUrl?.trim() || null;
 }
 
+function sanitizeDiagnostic(value: unknown): unknown {
+  if (typeof value === "string") {
+    return sanitizeBangumiErrorText(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map(sanitizeDiagnostic);
+  }
+  if (isRecord(value)) {
+    const out: Record<string, unknown> = {};
+    for (const [key, v] of Object.entries(value)) {
+      const lower = key.toLowerCase();
+      if (
+        lower === "authorization" ||
+        lower === "bearer" ||
+        lower.includes("token") ||
+        lower.includes("proxy") ||
+        lower.includes("secret")
+      ) {
+        out[key] = "[redacted]";
+      } else {
+        out[key] = sanitizeDiagnostic(v);
+      }
+    }
+    return out;
+  }
+  return value;
+}
+
+function logBangumiDiagnostic(event: string, details: Record<string, unknown>): void {
+  if (process.env.BANGUMI_DEBUG !== "1") return;
+  console.error(
+    "[Bangumi diagnostic]",
+    event,
+    sanitizeDiagnostic(details)
+  );
+}
+
+function deriveRequestPath(
+  proxyUrl: string | null,
+  hasToken: boolean
+): string {
+  if (!hasToken) return "missing-token";
+  if (!proxyUrl) return "node-https-direct";
+  try {
+    const p = new URL(proxyUrl);
+    if (p.protocol === "http:") return "node-http-connect-proxy";
+  } catch { /* ignore parse error */ }
+  return "unsupported-proxy";
+}
+
+function safeErrorShape(error: unknown): Record<string, unknown> {
+  if (!(error instanceof Error)) {
+    return { name: "Unknown", message: String(error) };
+  }
+  const shape: Record<string, unknown> = {
+    name: error.name,
+    message: sanitizeBangumiErrorText(error.message),
+  };
+  if ("code" in error && typeof (error as NodeJS.ErrnoException).code === "string") {
+    shape.code = (error as NodeJS.ErrnoException).code;
+  }
+  if (error.cause instanceof Error) {
+    (shape as Record<string, unknown>).cause = {
+      name: error.cause.name,
+      message: sanitizeBangumiErrorText(error.cause.message),
+    };
+    if ("code" in error.cause && typeof (error.cause as NodeJS.ErrnoException).code === "string") {
+      ((shape as Record<string, unknown>).cause as Record<string, unknown>).code = (error.cause as NodeJS.ErrnoException).code;
+    }
+  }
+  return shape;
+}
+
+function proxyDiagnostic(proxyUrl: string | null): Record<string, unknown> {
+  if (!proxyUrl) {
+    return {
+      hasProxy: false,
+      proxyProtocol: null,
+      proxyHostPresent: false,
+      proxyPortPresent: false,
+    };
+  }
+  try {
+    const p = new URL(proxyUrl);
+    return {
+      hasProxy: true,
+      proxyProtocol: p.protocol,
+      proxyHostPresent: Boolean(p.hostname),
+      proxyPortPresent: Boolean(p.port),
+    };
+  } catch {
+    return { hasProxy: true, proxyProtocol: null, proxyHostPresent: false, proxyPortPresent: false };
+  }
+}
+
 async function bangumiRequest(
   url: string,
   init: BangumiRequestInit
 ): Promise<BangumiResponse> {
   try {
+    const target = new URL(url);
+    const proxyUrl = getBangumiProxyUrl();
+    const hasToken = Boolean(getBangumiAccessToken());
+    const requestPath = deriveRequestPath(proxyUrl, hasToken);
+
+    logBangumiDiagnostic("request-start", {
+      runtime: "nodejs",
+      method: init.method ?? "GET",
+      targetHost: target.hostname,
+      path: getUrlPath(target),
+      requestPath,
+      ...proxyDiagnostic(proxyUrl),
+      hasToken,
+      bodyLength: init.body?.length ?? 0,
+    });
+
     const response = await bangumiRequestText(url, init);
 
     return {
@@ -64,6 +175,8 @@ async function bangumiRequest(
       json: async <T>() => JSON.parse(response.bodyText) as T,
     };
   } catch (error: unknown) {
+    logBangumiDiagnostic("request-error", safeErrorShape(error));
+
     if (isTimeoutError(error)) {
       throw new Error("Bangumi API request timed out after 30 seconds");
     }
@@ -581,6 +694,13 @@ async function createBangumiResponseError(
 ): Promise<Error> {
   const body = await response.text();
   const bodySummary = sanitizeBangumiErrorText(body).slice(0, ERROR_BODY_SUMMARY_LENGTH);
+
+  logBangumiDiagnostic("response-received", {
+    statusCode: response.statusCode,
+    bodyLength: body.length,
+    bodySnippet: bodySummary || "<empty>",
+  });
+
   return new Error(
     `Bangumi ${endpoint} failed: HTTP ${response.statusCode}; body=${bodySummary || "<empty>"}`
   );
