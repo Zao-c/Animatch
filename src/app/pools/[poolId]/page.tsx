@@ -1006,6 +1006,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 </AppButton>
                 <p className="text-xs leading-5 text-slate-500">
                   每个人都有自己的对决和榜单，你的选择会以匿名聚合的方式贡献到社区榜单。不会影响创建者的作品墙，也不会覆盖你的个人 Tier List。
+                  不会公开你的单次选择或个人身份，只展示匿名聚合结果。
                 </p>
               </>
             ) : (
@@ -1082,7 +1083,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           <StatusHint
             label="社区大乱斗"
             title="公开番组的共同榜单玩法"
-            description="每个人都有自己的对决和榜单，你的选择会以匿名聚合的方式贡献到社区榜单。不会影响创建者的作品墙，也不会覆盖你的个人 Tier List。"
+            description="每个人都有自己的对决和榜单，你的选择会以匿名聚合的方式贡献到社区榜单。不会影响创建者的作品墙，也不会覆盖你的个人 Tier List。不会公开你的单次选择或个人身份，只展示匿名聚合结果。"
             tone="guide"
           />
         ) : null}

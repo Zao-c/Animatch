@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { NextResponse } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as FRIEND_LOGIN } from "../src/app/api/auth/friend-login/route";
@@ -11,6 +12,7 @@ import {
   verifySession
 } from "../src/lib/auth-session";
 import { prisma } from "../src/lib/db";
+import { resetFriendLoginRateLimitForTests } from "../src/lib/friend-login-rate-limit";
 
 vi.mock("../src/lib/db", () => ({
   prisma: {
@@ -31,6 +33,13 @@ describe("friend auth", () => {
     process.env.FRIEND_INVITE_CODE = "33989";
     process.env.AUTH_SECRET = "test-secret";
     delete process.env.AUTH_COOKIE_SECURE;
+    resetFriendLoginRateLimitForTests();
+  });
+
+  it("shows the invite-code help copy on the login page", () => {
+    const loginSource = readFileSync("src/app/login/page.tsx", "utf8");
+
+    expect(loginSource).toContain("没有好友暗号？请向邀请你的人索取。");
   });
 
   it("creates a user when the invite code is correct", async () => {
@@ -125,6 +134,42 @@ describe("friend auth", () => {
     expect(cookie.toLowerCase()).toContain("samesite=lax");
   });
 
+  it("rate limits repeated friend-login failures", async () => {
+    for (let index = 0; index < 7; index += 1) {
+      const response = await FRIEND_LOGIN(friendLoginRequest("192.0.2.10", "akira", "wrong"));
+      expect(response.status).toBe(401);
+    }
+
+    const blockedResponse = await FRIEND_LOGIN(friendLoginRequest("192.0.2.10", "akira", "wrong"));
+    const payload = await blockedResponse.json();
+
+    expect(blockedResponse.status).toBe(429);
+    expect(blockedResponse.headers.get("Retry-After")).toBeTruthy();
+    expect(payload.error.message).toBe("尝试次数过多，请稍后再试。");
+  });
+
+  it("clears friend-login failures after a successful login", async () => {
+    for (let index = 0; index < 7; index += 1) {
+      const response = await FRIEND_LOGIN(friendLoginRequest("192.0.2.11", "akira", "wrong"));
+      expect(response.status).toBe(401);
+    }
+
+    mockedUser.findUnique.mockResolvedValue({
+      id: "user-1",
+      username: "akira",
+      name: "akira",
+      image: null
+    } as any);
+
+    const successResponse = await FRIEND_LOGIN(friendLoginRequest("192.0.2.11", "akira", "33989"));
+    expect(successResponse.status).toBe(200);
+
+    for (let index = 0; index < 7; index += 1) {
+      const response = await FRIEND_LOGIN(friendLoginRequest("192.0.2.11", "akira", "wrong"));
+      expect(response.status).toBe(401);
+    }
+  });
+
   it("clears the session cookie on logout", async () => {
     const response = await LOGOUT();
     const cookie = response.headers.get("set-cookie") ?? "";
@@ -209,4 +254,18 @@ function cookieFromClear() {
   clearAuthCookie(response);
 
   return response.headers.get("set-cookie") ?? "";
+}
+
+function friendLoginRequest(ip: string, username: string, inviteCode: string) {
+  return new Request("http://test.local/api/auth/friend-login", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-forwarded-for": ip
+    },
+    body: JSON.stringify({
+      username,
+      inviteCode
+    })
+  });
 }

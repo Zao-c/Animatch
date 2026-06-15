@@ -23,6 +23,16 @@ describe("home page UI refresh", () => {
   });
 });
 
+describe("home page playtest readiness copy", () => {
+  it("explains public community battle and anonymous aggregate ranking", () => {
+    const source = readFileSync("src/app/page.tsx", "utf8");
+
+    expect(source).toContain("选择公开番组，加入社区大乱斗");
+    expect(source).toContain("个人 Tier List");
+    expect(source).toContain("匿名聚合方式贡献到社区榜单");
+  });
+});
+
 describe("home mini match demo source", () => {
   const source = readFileSync("src/components/home/HomeMiniMatchDemo.tsx", "utf8");
 

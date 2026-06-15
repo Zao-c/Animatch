@@ -575,6 +575,49 @@ describe("pools API management", () => {
     expect(payload.data.visibility).toBe("PUBLIC");
   });
 
+  it("GET pool detail hides deleted public pools from non-owners", async () => {
+    mockedGetCurrentUser.mockResolvedValue({
+      id: "user-2",
+      username: "user-2",
+      name: "User 2",
+      image: null
+    });
+    mockedCustomPool.findUnique.mockResolvedValue(
+      pool({
+        visibility: Visibility.PUBLIC,
+        deletedAt: new Date("2026-06-16T00:00:00.000Z")
+      })
+    );
+
+    const response = await GET_POOL(new Request("http://test.local/api/pools/pool-1"), {
+      params: { poolId: "pool-1" }
+    });
+
+    expect(response.status).toBe(404);
+  });
+
+  it("GET pool detail keeps deleted pools readable for the owner", async () => {
+    mockedGetCurrentUser.mockResolvedValue({
+      id: "user-1",
+      username: "user-1",
+      name: "User 1",
+      image: null
+    });
+    mockedCustomPool.findUnique.mockResolvedValue(
+      pool({
+        visibility: Visibility.PUBLIC,
+        status: PoolStatus.ARCHIVED,
+        deletedAt: new Date("2026-06-16T00:00:00.000Z")
+      })
+    );
+
+    const response = await GET_POOL(new Request("http://test.local/api/pools/pool-1"), {
+      params: { poolId: "pool-1" }
+    });
+
+    expect(response.status).toBe(200);
+  });
+
   it("GET pool detail exposes manage permission only to the owner", async () => {
     mockedGetCurrentUser.mockResolvedValueOnce({
       id: "user-1",

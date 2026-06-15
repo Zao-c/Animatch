@@ -45,6 +45,9 @@ export default function Home() {
           <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
             添加几部动画，通过两两对决快速排出你的个人榜单。可以导出图片，也可以生成公开分享链接。
           </p>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+            选择公开番组，加入社区大乱斗：你的左右选择会生成个人 Tier List，并以匿名聚合方式贡献到社区榜单。
+          </p>
           <div className="mt-7">
             <HomeActions />
           </div>

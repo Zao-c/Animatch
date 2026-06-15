@@ -73,6 +73,10 @@ describe("community battle entry UI wiring", () => {
     expect(detailSource).toContain("不会覆盖你的个人 Tier List");
   });
 
+  it("shows the public pool privacy copy for community battle", () => {
+    expect(detailSource).toContain("不会公开你的单次选择或个人身份，只展示匿名聚合结果。");
+  });
+
   it("hides the community battle entry for non-public, archived, and deleted pools", () => {
     expect(helperSource).toContain('pool.visibility === "PUBLIC"');
     expect(helperSource).toContain('pool.status !== "ARCHIVED"');

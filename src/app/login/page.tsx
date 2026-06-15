@@ -98,6 +98,9 @@ function LoginContent() {
                 inputMode="numeric"
                 placeholder="输入好友暗号"
               />
+              <span className="mt-2 block text-xs leading-5 text-slate-400">
+                没有好友暗号？请向邀请你的人索取。
+              </span>
             </label>
 
             {error ? <ErrorAlert message={error} /> : null}

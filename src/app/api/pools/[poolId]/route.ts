@@ -43,6 +43,10 @@ export async function GET(_request: Request, context: RouteContext) {
       return notFound("Pool not found");
     }
 
+    if (pool.deletedAt !== null && !canManagePool(pool, user)) {
+      return notFound("Pool not found");
+    }
+
     const permissions = getPoolPermissions(pool, user);
 
     if (!permissions.canRead) {
