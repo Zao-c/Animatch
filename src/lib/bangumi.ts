@@ -1,4 +1,4 @@
-import { ProxyAgent, type Dispatcher } from "undici";
+import { ProxyAgent, request, type Dispatcher } from "undici";
 
 const BANGUMI_BASE_URL = process.env.BANGUMI_PROXY_URL ?? "https://api.bgm.tv/v0";
 const DEFAULT_USER_AGENT = "AniMatch/0.1 (https://github.com/Zao-c/Animatch)";
@@ -13,9 +13,18 @@ let proxyAgentCache:
     }
   | undefined;
 
-type BangumiFetchInit = RequestInit & {
-  dispatcher?: Dispatcher;
-};
+interface BangumiRequestInit {
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
+}
+
+interface BangumiResponse {
+  statusCode: number;
+  ok: boolean;
+  text(): Promise<string>;
+  json<T>(): Promise<T>;
+}
 
 function buildHeaders(extra: Record<string, string> = {}): Record<string, string> {
   const accessToken = getBangumiAccessToken();
@@ -61,28 +70,55 @@ export function getBangumiProxyDispatcher(): Dispatcher | undefined {
   return proxyAgentCache.dispatcher;
 }
 
-async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+async function bangumiRequest(
+  url: string,
+  init: BangumiRequestInit
+): Promise<BangumiResponse> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
     const dispatcher = getBangumiProxyDispatcher();
-    const requestInit: BangumiFetchInit = {
-      ...init,
-      signal: controller.signal
+    const undiciOpts: Record<string, unknown> = {
+      method: init.method ?? "GET",
+      headers: init.headers,
+      body: init.body ?? undefined,
+      signal: controller.signal,
     };
 
-    if (dispatcher !== undefined) {
-      requestInit.dispatcher = dispatcher;
+    if (dispatcher) {
+      undiciOpts.dispatcher = dispatcher;
     }
 
-    const response = await fetch(url, requestInit);
-    return response;
+    const response = await request(url, undiciOpts as Parameters<typeof request>[1]);
+    const bodyText = await response.body.text();
+
+    return {
+      statusCode: response.statusCode,
+      ok: response.statusCode >= 200 && response.statusCode < 300,
+      text: async () => bodyText,
+      json: async <T>() => JSON.parse(bodyText) as T,
+    };
   } catch (error: unknown) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new Error("Bangumi API request timed out after 30 seconds");
     }
-    if (error instanceof TypeError && error.message === "fetch failed") {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Bangumi API request timed out after 30 seconds");
+    }
+    if (
+      error instanceof TypeError &&
+      (error.message === "fetch failed" || error.message.includes("fetch failed"))
+    ) {
+      throw new Error("无法连接 Bangumi API，请确认网络环境或配置代理后重试");
+    }
+    if (
+      error instanceof Error &&
+      (error.message.includes("ECONNREFUSED") ||
+       error.message.includes("ENOTFOUND") ||
+       error.message.includes("ETIMEDOUT") ||
+       error.message.includes("UND_ERR_CONNECT_TIMEOUT"))
+    ) {
       throw new Error("无法连接 Bangumi API，请确认网络环境或配置代理后重试");
     }
     throw error;
@@ -170,7 +206,7 @@ export async function searchBangumiAnime(
   const limit = clampInteger(options.limit ?? 20, 1, 30);
   const offset = Math.max(0, Math.trunc(options.offset ?? 0));
   const url = `${BANGUMI_BASE_URL}/search/subjects?limit=${limit}&offset=${offset}`;
-  const response = await fetchWithTimeout(url, {
+  const response = await bangumiRequest(url, {
     method: "POST",
     headers: buildHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
@@ -198,7 +234,7 @@ export async function getBangumiSubject(
     throw new Error("subjectId must be a positive integer");
   }
 
-  const response = await fetchWithTimeout(`${BANGUMI_BASE_URL}/subjects/${subjectId}`, {
+  const response = await bangumiRequest(`${BANGUMI_BASE_URL}/subjects/${subjectId}`, {
     method: "GET",
     headers: buildHeaders(),
   });
@@ -364,12 +400,12 @@ function clampInteger(value: number, min: number, max: number): number {
 
 async function createBangumiResponseError(
   endpoint: string,
-  response: Response
+  response: BangumiResponse
 ): Promise<Error> {
-  const body = await response.text().catch(() => "");
+  const body = await response.text();
   const bodySummary = sanitizeBangumiErrorText(body).slice(0, ERROR_BODY_SUMMARY_LENGTH);
   return new Error(
-    `Bangumi ${endpoint} failed: HTTP ${response.status}; body=${bodySummary || "<empty>"}`
+    `Bangumi ${endpoint} failed: HTTP ${response.statusCode}; body=${bodySummary || "<empty>"}`
   );
 }
 

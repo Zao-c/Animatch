@@ -7,6 +7,18 @@ import {
   searchBangumiAnime
 } from "../src/lib/bangumi";
 
+vi.mock("undici", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("undici")>();
+  return {
+    ...actual,
+    request: vi.fn()
+  };
+});
+
+import { request } from "undici";
+
+const mockedRequest = vi.mocked(request);
+
 const originalProxyEnv = {
   HTTPS_PROXY: process.env.HTTPS_PROXY,
   HTTP_PROXY: process.env.HTTP_PROXY,
@@ -135,34 +147,44 @@ describe("normalizeBangumiSubject", () => {
   });
 });
 
-describe("Bangumi fetch proxy support", () => {
+describe("Bangumi request via undici", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     clearProxyEnv();
     clearBangumiTokenEnv();
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        Response.json({
-          data: [
-            {
-              id: 258,
-              name: "Hyouka",
-              name_cn: "冰菓",
-              images: {
-                common: "https://img.example/hyouka.jpg"
-              },
-              tags: [{ name: "mystery" }]
-            }
-          ]
-        })
-      )
-    );
+    mockedRequest.mockResolvedValue({
+      statusCode: 200,
+      headers: {},
+      body: {
+        text: async () =>
+          JSON.stringify({
+            data: [
+              {
+                id: 258,
+                name: "Hyouka",
+                name_cn: "冰菓",
+                images: { common: "https://img.example/hyouka.jpg" },
+                tags: [{ name: "mystery" }]
+              }
+            ]
+          })
+      }
+    } as any);
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
     restoreProxyEnv();
     restoreBangumiTokenEnv();
+  });
+
+  it("does not use global fetch", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("should not call"));
+
+    await searchBangumiAnime("hyouka");
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+    expect(mockedRequest).toHaveBeenCalled();
   });
 
   it("posts a valid search body and Bangumi headers", async () => {
@@ -170,14 +192,15 @@ describe("Bangumi fetch proxy support", () => {
 
     await searchBangumiAnime("hyouka");
 
-    const [, init] = vi.mocked(fetch).mock.calls[0];
-    const headers = init?.headers as Record<string, string>;
-    const body = JSON.parse(String(init?.body)) as {
+    const [url, options] = mockedRequest.mock.calls[0]!;
+    const headers = options!.headers as Record<string, string>;
+    const body = JSON.parse(String(options!.body)) as {
       keyword: string;
       filter: { type: number[]; nsfw?: boolean };
     };
 
-    expect(init?.method).toBe("POST");
+    expect(url).toContain("/search/subjects?limit=20");
+    expect(options!.method).toBe("POST");
     expect(headers["User-Agent"]).toContain("AniMatch");
     expect(headers["Accept"]).toBe("application/json");
     expect(headers["Content-Type"]).toBe("application/json");
@@ -190,18 +213,18 @@ describe("Bangumi fetch proxy support", () => {
   it("keeps Authorization absent when the Bangumi token is not configured", async () => {
     await searchBangumiAnime("hyouka");
 
-    const [, init] = vi.mocked(fetch).mock.calls[0];
-    const headers = init?.headers as Record<string, string>;
+    const [, options] = mockedRequest.mock.calls[0]!;
+    const headers = options!.headers as Record<string, string>;
     expect(headers["Authorization"]).toBeUndefined();
   });
 
   it("does not pass a dispatcher when HTTP_PROXY and HTTPS_PROXY are absent", async () => {
     await searchBangumiAnime("冰菓");
 
-    const [, init] = vi.mocked(fetch).mock.calls[0];
+    const [, options] = mockedRequest.mock.calls[0]!;
     expect(getBangumiProxyUrl()).toBeNull();
     expect(getBangumiProxyDispatcher()).toBeUndefined();
-    expect(init).not.toHaveProperty("dispatcher");
+    expect(options!).not.toHaveProperty("dispatcher");
   });
 
   it("passes a dispatcher when HTTPS_PROXY is configured", async () => {
@@ -209,9 +232,9 @@ describe("Bangumi fetch proxy support", () => {
 
     await searchBangumiAnime("冰菓");
 
-    const [, init] = vi.mocked(fetch).mock.calls[0];
+    const [, options] = mockedRequest.mock.calls[0]!;
     expect(getBangumiProxyUrl()).toBe("http://127.0.0.1:7890");
-    expect(init).toHaveProperty("dispatcher");
+    expect(options!).toHaveProperty("dispatcher");
   });
 
   it("prefers HTTPS_PROXY over HTTP_PROXY", async () => {
@@ -220,27 +243,26 @@ describe("Bangumi fetch proxy support", () => {
 
     await searchBangumiAnime("hyouka");
 
-    const [, init] = vi.mocked(fetch).mock.calls[0];
+    const [, options] = mockedRequest.mock.calls[0]!;
     expect(getBangumiProxyUrl()).toBe("http://127.0.0.1:7890");
-    expect(init).toHaveProperty("dispatcher");
+    expect(options!).toHaveProperty("dispatcher");
   });
 
   it("includes upstream status and body summary without leaking proxy URLs or tokens", async () => {
     process.env.HTTPS_PROXY = "http://user:secret-proxy@127.0.0.1:7890";
     process.env.BANGUMI_ACCESS_TOKEN = "token-secret";
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        Response.json(
-          {
+    mockedRequest.mockResolvedValue({
+      statusCode: 400,
+      headers: {},
+      body: {
+        text: async () =>
+          JSON.stringify({
             error: "bad request",
             authorization: "Bearer token-secret",
             proxy: "http://user:secret-proxy@127.0.0.1:7890"
-          },
-          { status: 400 }
-        )
-      )
-    );
+          })
+      }
+    } as any);
 
     let error: unknown;
     try {
@@ -256,5 +278,19 @@ describe("Bangumi fetch proxy support", () => {
     expect(message).not.toContain("secret-proxy");
     expect(message).not.toContain("token-secret");
     expect(message).not.toContain("Bearer token-secret");
+  });
+
+  it("fails with network error when undici throws ECONNREFUSED", async () => {
+    mockedRequest.mockRejectedValueOnce(new Error("ECONNREFUSED"));
+
+    let error: unknown;
+    try {
+      await searchBangumiAnime("hyouka");
+    } catch (reason) {
+      error = reason;
+    }
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain("无法连接 Bangumi API");
   });
 });
