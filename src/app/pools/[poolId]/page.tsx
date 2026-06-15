@@ -839,6 +839,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       : pool.anime.find((entry) => entry.animeId === editingDisplayAnimeId) ?? null;
   const searchHadNoResults =
     (lastSearchKeyword.length > 0 || lastSearchTags.length > 0) && !isSearching && searchResults.length === 0;
+  const poolOnboardingHint = canManagePool
+    ? "你可以在番组设置里切换公开/私有，并继续维护作品墙。"
+    : canPlayPool
+      ? "你的对决和榜单只属于你，不会影响创建者。"
+      : "你可以先浏览作品墙，登录后开始自己的个人对决。";
 
   return (
     <PageShell>
@@ -934,6 +939,12 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             tone="warning"
           />
         ) : null}
+        <StatusHint
+          label="新手提示"
+          title="这个番组可以这样玩"
+          description={poolOnboardingHint}
+          tone="guide"
+        />
         <StatusHint
           label={poolGuidance.label}
           title={poolGuidance.title}
@@ -1215,7 +1226,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                   <StatusHint
                     label="本地搜索"
                     title="先选标签，再搜关键词"
-                    description="标签和关键词会一起过滤，例如先选“恋爱”“校园”，再输入作品名、制作社或别名。"
+                    description="可以先选“恋爱 / 校园 / 异世界”等标签，再输入关键词二次检索。"
                     tone="guide"
                     className="mb-4"
                   />
@@ -1533,7 +1544,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                   <StatusHint
                     label="TierMaker 导入"
                     title="TierMaker 导入助手"
-                    description="自动解析链接可能被 TierMaker 限制。你可以在 TierMaker 页面运行导入助手脚本，它会从当前页面复制已加载的图片链接。"
+                    description="如果自动解析失败，可以复制导入助手脚本，在 TierMaker 页面运行后粘贴图片链接。"
                     tone="guide"
                   />
 

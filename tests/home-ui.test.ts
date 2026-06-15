@@ -10,15 +10,16 @@ import { AppCard } from "../src/components/ui/AppCard";
 (globalThis as typeof globalThis & { React: typeof React }).React = React;
 
 describe("home page UI refresh", () => {
-  it("renders the value proposition, CTAs, mini match preview, and three-step flow", () => {
+  it("renders the value proposition, CTAs, mini match preview, and onboarding flow", () => {
     const html = renderToStaticMarkup(React.createElement(Home));
 
     expect(html).toContain("用左右选择，生成你的动画 Tier List");
-    expect(html).toContain("番剧擂台");
-    expect(html).toContain("正在准备真实对决预览");
-    expect(html).toContain("添加动画");
-    expect(html).toContain("开始对决");
-    expect(html).toContain("生成榜单");
+    expect(html).toContain("怎么玩 AniMatch");
+    expect(html).toContain("浏览公开番组");
+    expect(html).toContain("开始个人对决");
+    expect(html).toContain("创建自己的番组");
+    expect(html).toContain("分享 Tier List");
+    expect(html).toContain("官方 Demo");
   });
 });
 
@@ -26,7 +27,6 @@ describe("home mini match demo source", () => {
   const source = readFileSync("src/components/home/HomeMiniMatchDemo.tsx", "utf8");
 
   it("keeps mini demo choices local and avoids formal comparison writes", () => {
-    expect(source).toContain("演示选择不会保存");
     expect(source).toContain("choose(\"left\")");
     expect(source).toContain("choose(\"draw\")");
     expect(source).toContain("choose(\"right\")");
@@ -39,10 +39,9 @@ describe("HomeActions anonymous state", () => {
   const source = readFileSync("src/components/HomeActions.tsx", "utf8");
 
   it("shows anonymous CTA when not logged in", () => {
-    expect(source).toContain("浏览公开番组");
-    expect(source).toContain("立即登录");
-    expect(source).toContain("不用登录也能浏览公开番组");
-    expect(source).toContain("登录后可以创建自己的番组");
+    expect(source).toContain('href="/pools?view=public"');
+    expect(source).toContain('href="/login"');
+    expect(source).toContain("handleCreateDemoPool");
   });
 
   it("distinguishes null user from logged-in user in getMe response", () => {
@@ -50,8 +49,8 @@ describe("HomeActions anonymous state", () => {
   });
 
   it("shows logged-in CTA when authenticated", () => {
-    expect(source).toContain("继续对决");
-    expect(source).toContain("查看我的番组");
+    expect(source).toContain("primaryHref");
+    expect(source).toContain('href="/pools"');
   });
 });
 

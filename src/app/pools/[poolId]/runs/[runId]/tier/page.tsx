@@ -390,6 +390,9 @@ export default function TierPage({
               自定义 Tier 标签会同步用于页面展示、导出画布和公开分享。
             </p>
           </div>
+          <p className="max-w-2xl text-xs leading-5 text-slate-500 lg:col-span-2">
+            Tier List 根据你的对决结果生成，可以分享榜单，也可以导出图片。手动调整只影响榜单展示和当前手动排序，不会改写对决历史。
+          </p>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <AppButton
             onClick={handleExportImage}

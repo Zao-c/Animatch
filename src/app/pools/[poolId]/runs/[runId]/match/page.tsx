@@ -9,6 +9,7 @@ import { PageShell } from "@/components/PageShell";
 import { RankingProgressCard } from "@/components/RankingProgressCard";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
+import { AppCard } from "@/components/ui/AppCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
 import {
@@ -327,6 +328,16 @@ export default function MatchPage({
           <RankingProgressCard progress={queueMeta.progress} compact />
         </div>
       ) : null}
+
+      <AppCard className="mb-5 p-4" variant="soft">
+        <div className="flex flex-wrap gap-2 text-xs leading-5 text-slate-400">
+          <span className="font-semibold text-cyan-100">怎么对决：</span>
+          <span>左右选择你更喜欢的作品。</span>
+          <span>可以跳过，或标记没看过。</span>
+          <span>点错可以撤回上次选择。</span>
+          <span>想重来可以重开本轮。</span>
+        </div>
+      </AppCard>
 
       <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)]">
         <DuelAnimeCard
