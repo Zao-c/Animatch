@@ -1,23 +1,43 @@
+import { EventEmitter } from "node:events";
+import type { ClientRequest, IncomingMessage, RequestOptions } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("node:http", () => ({
+  request: vi.fn()
+}));
+
+vi.mock("node:https", () => ({
+  request: vi.fn()
+}));
+
+vi.mock("node:tls", () => ({
+  connect: vi.fn((options: { socket: unknown }) => options.socket)
+}));
+
+vi.mock("undici", () => ({
+  request: vi.fn()
+}));
+
+import * as http from "node:http";
+import * as https from "node:https";
+import * as tls from "node:tls";
+import { request as undiciRequest } from "undici";
 import {
-  getBangumiProxyDispatcher,
   getBangumiProxyUrl,
   normalizeBangumiSubject,
   parseBangumiSubjectIds,
   searchBangumiAnime
 } from "../src/lib/bangumi";
 
-vi.mock("undici", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("undici")>();
-  return {
-    ...actual,
-    request: vi.fn()
-  };
-});
+type MockRequest = ClientRequest & {
+  writes: string[];
+  timeoutHandler?: () => void;
+};
 
-import { request } from "undici";
-
-const mockedRequest = vi.mocked(request);
+const mockedHttpRequest = vi.mocked(http.request);
+const mockedHttpsRequest = vi.mocked(https.request);
+const mockedTlsConnect = vi.mocked(tls.connect);
+const mockedUndiciRequest = vi.mocked(undiciRequest);
 
 const originalProxyEnv = {
   HTTPS_PROXY: process.env.HTTPS_PROXY,
@@ -29,6 +49,26 @@ const originalBangumiTokenEnv = {
   BANGUMI_ACCESS_TOKEN: process.env.BANGUMI_ACCESS_TOKEN,
   BANGUMI_TOKEN: process.env.BANGUMI_TOKEN
 };
+
+const httpRequestOptions: RequestOptions[] = [];
+const httpsRequestOptions: RequestOptions[] = [];
+const httpRequests: MockRequest[] = [];
+const httpsRequests: MockRequest[] = [];
+
+let nextHttpsStatus = 200;
+let nextHttpsBody = JSON.stringify({
+  data: [
+    {
+      id: 258,
+      name: "Hyouka",
+      name_cn: "冰菓",
+      images: { common: "https://img.example/hyouka.jpg" },
+      tags: [{ name: "mystery" }]
+    }
+  ]
+});
+let nextHttpsError: Error | null = null;
+let nextConnectStatus = 200;
 
 function clearProxyEnv() {
   delete process.env.HTTPS_PROXY;
@@ -58,6 +98,78 @@ function restoreBangumiTokenEnv() {
       process.env[key] = value;
     }
   }
+}
+
+function createMockRequest(onEnd: (request: MockRequest) => void): MockRequest {
+  const request = new EventEmitter() as MockRequest;
+  request.writes = [];
+  request.write = vi.fn((chunk: string | Buffer) => {
+    request.writes.push(Buffer.isBuffer(chunk) ? chunk.toString("utf8") : String(chunk));
+    return true;
+  }) as MockRequest["write"];
+  request.end = vi.fn(() => {
+    queueMicrotask(() => onEnd(request));
+    return request;
+  }) as MockRequest["end"];
+  request.setTimeout = vi.fn((_timeout: number, callback?: () => void) => {
+    request.timeoutHandler = callback;
+    return request;
+  }) as MockRequest["setTimeout"];
+  request.destroy = vi.fn((error?: Error) => {
+    if (error) {
+      queueMicrotask(() => request.emit("error", error));
+    }
+    return request;
+  }) as MockRequest["destroy"];
+  return request;
+}
+
+function createMockResponse(statusCode: number, body: string): IncomingMessage {
+  const response = new EventEmitter() as IncomingMessage;
+  response.statusCode = statusCode;
+  queueMicrotask(() => {
+    response.emit("data", body);
+    response.emit("end");
+  });
+  return response;
+}
+
+function createMockSocket() {
+  const socket = new EventEmitter() as unknown as import("node:net").Socket;
+  socket.unshift = vi.fn();
+  socket.destroy = vi.fn();
+  return socket;
+}
+
+function installRequestMocks() {
+  mockedHttpRequest.mockImplementation(((options: RequestOptions) => {
+    httpRequestOptions.push(options);
+    const request = createMockRequest((req) => {
+      const response = { statusCode: nextConnectStatus } as IncomingMessage;
+      const socket = createMockSocket();
+      req.emit("connect", response, socket, Buffer.alloc(0));
+    });
+    httpRequests.push(request);
+    return request;
+  }) as unknown as typeof http.request);
+
+  mockedHttpsRequest.mockImplementation(((options: RequestOptions, callback?: (res: IncomingMessage) => void) => {
+    httpsRequestOptions.push(options);
+    const request = createMockRequest(() => {
+      if (nextHttpsError) {
+        request.emit("error", nextHttpsError);
+        return;
+      }
+
+      if (typeof options.createConnection === "function") {
+        (options.createConnection as () => unknown)();
+      }
+
+      callback?.(createMockResponse(nextHttpsStatus, nextHttpsBody));
+    });
+    httpsRequests.push(request);
+    return request;
+  }) as unknown as typeof https.request);
 }
 
 describe("parseBangumiSubjectIds", () => {
@@ -147,29 +259,30 @@ describe("normalizeBangumiSubject", () => {
   });
 });
 
-describe("Bangumi request via undici", () => {
+describe("Bangumi request via node http", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clearProxyEnv();
     clearBangumiTokenEnv();
-    mockedRequest.mockResolvedValue({
-      statusCode: 200,
-      headers: {},
-      body: {
-        text: async () =>
-          JSON.stringify({
-            data: [
-              {
-                id: 258,
-                name: "Hyouka",
-                name_cn: "冰菓",
-                images: { common: "https://img.example/hyouka.jpg" },
-                tags: [{ name: "mystery" }]
-              }
-            ]
-          })
-      }
-    } as any);
+    httpRequestOptions.length = 0;
+    httpsRequestOptions.length = 0;
+    httpRequests.length = 0;
+    httpsRequests.length = 0;
+    nextHttpsStatus = 200;
+    nextHttpsError = null;
+    nextConnectStatus = 200;
+    nextHttpsBody = JSON.stringify({
+      data: [
+        {
+          id: 258,
+          name: "Hyouka",
+          name_cn: "冰菓",
+          images: { common: "https://img.example/hyouka.jpg" },
+          tags: [{ name: "mystery" }]
+        }
+      ]
+    });
+    installRequestMocks();
   });
 
   afterEach(() => {
@@ -177,14 +290,14 @@ describe("Bangumi request via undici", () => {
     restoreBangumiTokenEnv();
   });
 
-  it("does not use global fetch", async () => {
+  it("does not use global fetch or undici request", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("should not call"));
 
     await searchBangumiAnime("hyouka");
 
     expect(fetchSpy).not.toHaveBeenCalled();
+    expect(mockedUndiciRequest).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
-    expect(mockedRequest).toHaveBeenCalled();
   });
 
   it("posts a valid search body and Bangumi headers", async () => {
@@ -192,15 +305,16 @@ describe("Bangumi request via undici", () => {
 
     await searchBangumiAnime("hyouka");
 
-    const [url, options] = mockedRequest.mock.calls[0]!;
-    const headers = options!.headers as Record<string, string>;
-    const body = JSON.parse(String(options!.body)) as {
+    const options = httpsRequestOptions[0]!;
+    const headers = options.headers as Record<string, string>;
+    const body = JSON.parse(httpsRequests[0]!.writes[0]!) as {
       keyword: string;
       filter: { type: number[]; nsfw?: boolean };
     };
 
-    expect(url).toContain("/search/subjects?limit=20");
-    expect(options!.method).toBe("POST");
+    expect(options.hostname).toBe("api.bgm.tv");
+    expect(options.path).toContain("/search/subjects?limit=20");
+    expect(options.method).toBe("POST");
     expect(headers["User-Agent"]).toContain("AniMatch");
     expect(headers["Accept"]).toBe("application/json");
     expect(headers["Content-Type"]).toBe("application/json");
@@ -213,28 +327,37 @@ describe("Bangumi request via undici", () => {
   it("keeps Authorization absent when the Bangumi token is not configured", async () => {
     await searchBangumiAnime("hyouka");
 
-    const [, options] = mockedRequest.mock.calls[0]!;
-    const headers = options!.headers as Record<string, string>;
+    const headers = httpsRequestOptions[0]!.headers as Record<string, string>;
     expect(headers["Authorization"]).toBeUndefined();
   });
 
-  it("does not pass a dispatcher when HTTP_PROXY and HTTPS_PROXY are absent", async () => {
+  it("uses direct https when HTTP_PROXY and HTTPS_PROXY are absent", async () => {
     await searchBangumiAnime("冰菓");
 
-    const [, options] = mockedRequest.mock.calls[0]!;
     expect(getBangumiProxyUrl()).toBeNull();
-    expect(getBangumiProxyDispatcher()).toBeUndefined();
-    expect(options!).not.toHaveProperty("dispatcher");
+    expect(mockedHttpRequest).not.toHaveBeenCalled();
+    expect(mockedHttpsRequest).toHaveBeenCalledTimes(1);
+    expect(httpsRequestOptions[0]).not.toHaveProperty("createConnection");
   });
 
-  it("passes a dispatcher when HTTPS_PROXY is configured", async () => {
+  it("uses HTTP CONNECT when HTTPS_PROXY is configured", async () => {
     process.env.HTTPS_PROXY = "http://127.0.0.1:7890";
 
     await searchBangumiAnime("冰菓");
 
-    const [, options] = mockedRequest.mock.calls[0]!;
     expect(getBangumiProxyUrl()).toBe("http://127.0.0.1:7890");
-    expect(options!).toHaveProperty("dispatcher");
+    expect(httpRequestOptions[0]).toMatchObject({
+      hostname: "127.0.0.1",
+      port: 7890,
+      method: "CONNECT",
+      path: "api.bgm.tv:443"
+    });
+    expect(httpsRequestOptions[0]).toHaveProperty("createConnection");
+    expect(mockedTlsConnect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        servername: "api.bgm.tv"
+      })
+    );
   });
 
   it("prefers HTTPS_PROXY over HTTP_PROXY", async () => {
@@ -243,26 +366,22 @@ describe("Bangumi request via undici", () => {
 
     await searchBangumiAnime("hyouka");
 
-    const [, options] = mockedRequest.mock.calls[0]!;
     expect(getBangumiProxyUrl()).toBe("http://127.0.0.1:7890");
-    expect(options!).toHaveProperty("dispatcher");
+    expect(httpRequestOptions[0]).toMatchObject({
+      hostname: "127.0.0.1",
+      port: 7890
+    });
   });
 
   it("includes upstream status and body summary without leaking proxy URLs or tokens", async () => {
     process.env.HTTPS_PROXY = "http://user:secret-proxy@127.0.0.1:7890";
     process.env.BANGUMI_ACCESS_TOKEN = "token-secret";
-    mockedRequest.mockResolvedValue({
-      statusCode: 400,
-      headers: {},
-      body: {
-        text: async () =>
-          JSON.stringify({
-            error: "bad request",
-            authorization: "Bearer token-secret",
-            proxy: "http://user:secret-proxy@127.0.0.1:7890"
-          })
-      }
-    } as any);
+    nextHttpsStatus = 400;
+    nextHttpsBody = JSON.stringify({
+      error: "bad request",
+      authorization: "Bearer token-secret",
+      proxy: "http://user:secret-proxy@127.0.0.1:7890"
+    });
 
     let error: unknown;
     try {
@@ -280,8 +399,10 @@ describe("Bangumi request via undici", () => {
     expect(message).not.toContain("Bearer token-secret");
   });
 
-  it("fails with network error when undici throws ECONNREFUSED", async () => {
-    mockedRequest.mockRejectedValueOnce(new Error("ECONNREFUSED"));
+  it("fails with a readable network error when node https throws ECONNREFUSED", async () => {
+    nextHttpsError = Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:443"), {
+      code: "ECONNREFUSED"
+    });
 
     let error: unknown;
     try {
@@ -291,6 +412,7 @@ describe("Bangumi request via undici", () => {
     }
 
     expect(error).toBeInstanceOf(Error);
-    expect((error as Error).message).toContain("无法连接 Bangumi API");
+    expect((error as Error).message).toContain("Unable to connect to Bangumi API");
+    expect((error as Error).message).toContain("ECONNREFUSED");
   });
 });

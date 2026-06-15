@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PoolStatus, Visibility } from "@prisma/client";
-import { GET as SEARCH_BANGUMI } from "../src/app/api/anime/bangumi/search/route";
+import {
+  GET as SEARCH_BANGUMI,
+  runtime as BANGUMI_SEARCH_RUNTIME
+} from "../src/app/api/anime/bangumi/search/route";
 import { POST as IMPORT_TO_POOL } from "../src/app/api/pools/[poolId]/anime/bulk-import/route";
 import { upsertAnimeFromBangumiSubject } from "../src/lib/anime-service";
 import { ANIME_SOURCE } from "../src/lib/anime-source";
@@ -202,6 +205,10 @@ describe("Bangumi search API", () => {
       image: null
     });
     mockedBangumi.searchBangumiAnime.mockResolvedValue([subject()]);
+  });
+
+  it("runs in the Node.js runtime", () => {
+    expect(BANGUMI_SEARCH_RUNTIME).toBe("nodejs");
   });
 
   it("returns 401 when the user is not logged in", async () => {

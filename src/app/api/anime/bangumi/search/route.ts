@@ -4,6 +4,8 @@ import { isAppError } from "@/lib/app-error";
 import { requireCurrentUser } from "@/lib/auth-session";
 import { searchBangumiAnime, toBangumiSearchItem } from "@/lib/bangumi";
 
+export const runtime = "nodejs";
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const query = url.searchParams.get("q")?.trim() ?? "";

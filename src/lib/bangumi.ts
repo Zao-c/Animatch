@@ -1,17 +1,14 @@
-import { ProxyAgent, request, type Dispatcher } from "undici";
+import { Buffer } from "node:buffer";
+import * as http from "node:http";
+import * as https from "node:https";
+import * as tls from "node:tls";
+import type { Socket } from "node:net";
 
 const BANGUMI_BASE_URL = process.env.BANGUMI_PROXY_URL ?? "https://api.bgm.tv/v0";
 const DEFAULT_USER_AGENT = "AniMatch/0.1 (https://github.com/Zao-c/Animatch)";
 const FETCH_TIMEOUT_MS = 30_000;
 const BANGUMI_SUBJECT_PAGE_BASE_URL = "https://bgm.tv/subject";
 const ERROR_BODY_SUMMARY_LENGTH = 500;
-
-let proxyAgentCache:
-  | {
-      proxyUrl: string;
-      dispatcher: Dispatcher;
-    }
-  | undefined;
 
 interface BangumiRequestInit {
   method?: string;
@@ -53,78 +50,258 @@ export function getBangumiProxyUrl(): string | null {
   return proxyUrl?.trim() || null;
 }
 
-export function getBangumiProxyDispatcher(): Dispatcher | undefined {
-  const proxyUrl = getBangumiProxyUrl();
-
-  if (proxyUrl === null) {
-    return undefined;
-  }
-
-  if (proxyAgentCache === undefined || proxyAgentCache.proxyUrl !== proxyUrl) {
-    proxyAgentCache = {
-      proxyUrl,
-      dispatcher: new ProxyAgent(proxyUrl)
-    };
-  }
-
-  return proxyAgentCache.dispatcher;
-}
-
 async function bangumiRequest(
   url: string,
   init: BangumiRequestInit
 ): Promise<BangumiResponse> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
   try {
-    const dispatcher = getBangumiProxyDispatcher();
-    const undiciOpts: Record<string, unknown> = {
-      method: init.method ?? "GET",
-      headers: init.headers,
-      body: init.body ?? undefined,
-      signal: controller.signal,
-    };
-
-    if (dispatcher) {
-      undiciOpts.dispatcher = dispatcher;
-    }
-
-    const response = await request(url, undiciOpts as Parameters<typeof request>[1]);
-    const bodyText = await response.body.text();
+    const response = await bangumiRequestText(url, init);
 
     return {
       statusCode: response.statusCode,
       ok: response.statusCode >= 200 && response.statusCode < 300,
-      text: async () => bodyText,
-      json: async <T>() => JSON.parse(bodyText) as T,
+      text: async () => response.bodyText,
+      json: async <T>() => JSON.parse(response.bodyText) as T,
     };
   } catch (error: unknown) {
-    if (error instanceof DOMException && error.name === "AbortError") {
+    if (isTimeoutError(error)) {
       throw new Error("Bangumi API request timed out after 30 seconds");
     }
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("Bangumi API request timed out after 30 seconds");
+
+    const errorCode = getNodeErrorCode(error);
+    if (errorCode !== null) {
+      throw new Error(`Unable to connect to Bangumi API (${errorCode})`);
     }
-    if (
-      error instanceof TypeError &&
-      (error.message === "fetch failed" || error.message.includes("fetch failed"))
-    ) {
-      throw new Error("无法连接 Bangumi API，请确认网络环境或配置代理后重试");
-    }
-    if (
-      error instanceof Error &&
-      (error.message.includes("ECONNREFUSED") ||
-       error.message.includes("ENOTFOUND") ||
-       error.message.includes("ETIMEDOUT") ||
-       error.message.includes("UND_ERR_CONNECT_TIMEOUT"))
-    ) {
-      throw new Error("无法连接 Bangumi API，请确认网络环境或配置代理后重试");
-    }
+
     throw error;
-  } finally {
-    clearTimeout(timer);
   }
+}
+
+interface BangumiTextResponse {
+  statusCode: number;
+  bodyText: string;
+}
+
+async function bangumiRequestText(
+  url: string,
+  init: BangumiRequestInit
+): Promise<BangumiTextResponse> {
+  const target = new URL(url);
+  const proxyUrl = getBangumiProxyUrl();
+  const requestInit = normalizeBangumiRequestInit(init);
+
+  if (target.protocol !== "https:") {
+    throw new Error("Bangumi API URL must use HTTPS");
+  }
+
+  if (proxyUrl) {
+    return requestHttpsViaConnectProxy(target, new URL(proxyUrl), requestInit);
+  }
+
+  return requestHttps(target, requestInit);
+}
+
+interface NormalizedBangumiRequestInit {
+  method: string;
+  headers: Record<string, string>;
+  body?: string;
+}
+
+function normalizeBangumiRequestInit(
+  init: BangumiRequestInit
+): NormalizedBangumiRequestInit {
+  const headers = { ...(init.headers ?? {}) };
+
+  if (init.body !== undefined && !hasHeader(headers, "Content-Length")) {
+    headers["Content-Length"] = String(Buffer.byteLength(init.body));
+  }
+
+  return {
+    method: init.method ?? "GET",
+    headers,
+    body: init.body,
+  };
+}
+
+function requestHttps(
+  target: URL,
+  init: NormalizedBangumiRequestInit
+): Promise<BangumiTextResponse> {
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        hostname: target.hostname,
+        port: target.port ? Number(target.port) : 443,
+        path: getUrlPath(target),
+        method: init.method,
+        headers: init.headers,
+        servername: target.hostname,
+      },
+      (res) => collectResponse(res, resolve, reject)
+    );
+
+    attachRequestHandlers(req, reject);
+    writeRequestBody(req, init.body);
+  });
+}
+
+function requestHttpsViaConnectProxy(
+  target: URL,
+  proxy: URL,
+  init: NormalizedBangumiRequestInit
+): Promise<BangumiTextResponse> {
+  if (proxy.protocol !== "http:") {
+    return Promise.reject(new Error("Unsupported Bangumi proxy protocol"));
+  }
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const targetPort = target.port ? Number(target.port) : 443;
+    const connectReq = http.request({
+      hostname: proxy.hostname,
+      port: proxy.port ? Number(proxy.port) : 80,
+      method: "CONNECT",
+      path: `${target.hostname}:${targetPort}`,
+      headers: {
+        Host: `${target.hostname}:${targetPort}`,
+      },
+    });
+
+    const rejectOnce = (error: Error) => {
+      if (!settled) {
+        settled = true;
+        reject(error);
+      }
+    };
+
+    connectReq.setTimeout(FETCH_TIMEOUT_MS, () => {
+      connectReq.destroy(new Error("Bangumi API request timed out after 30 seconds"));
+    });
+    connectReq.once("error", rejectOnce);
+    connectReq.once("connect", (res, socket, head) => {
+      if (settled) return;
+
+      if ((res.statusCode ?? 0) < 200 || (res.statusCode ?? 0) >= 300) {
+        settled = true;
+        socket.destroy();
+        reject(new Error(`Bangumi proxy CONNECT failed: HTTP ${res.statusCode ?? "unknown"}`));
+        return;
+      }
+
+      if (head.length > 0) {
+        socket.unshift(head);
+      }
+
+      requestHttpsOverSocket(target, init, socket)
+        .then((response) => {
+          if (!settled) {
+            settled = true;
+            resolve(response);
+          }
+        })
+        .catch(rejectOnce);
+    });
+
+    connectReq.end();
+  });
+}
+
+function requestHttpsOverSocket(
+  target: URL,
+  init: NormalizedBangumiRequestInit,
+  socket: Socket
+): Promise<BangumiTextResponse> {
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        hostname: target.hostname,
+        port: target.port ? Number(target.port) : 443,
+        path: getUrlPath(target),
+        method: init.method,
+        headers: init.headers,
+        servername: target.hostname,
+        createConnection: () =>
+          tls.connect({
+            socket,
+            servername: target.hostname,
+          }),
+      },
+      (res) => collectResponse(res, resolve, reject)
+    );
+
+    attachRequestHandlers(req, reject);
+    writeRequestBody(req, init.body);
+  });
+}
+
+function collectResponse(
+  res: http.IncomingMessage,
+  resolve: (response: BangumiTextResponse) => void,
+  reject: (error: Error) => void
+): void {
+  const chunks: Buffer[] = [];
+
+  res.on("data", (chunk: Buffer | string) => {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  });
+  res.once("error", reject);
+  res.once("end", () => {
+    resolve({
+      statusCode: res.statusCode ?? 0,
+      bodyText: Buffer.concat(chunks).toString("utf8"),
+    });
+  });
+}
+
+function attachRequestHandlers(
+  req: http.ClientRequest,
+  reject: (error: Error) => void
+): void {
+  req.setTimeout(FETCH_TIMEOUT_MS, () => {
+    req.destroy(new Error("Bangumi API request timed out after 30 seconds"));
+  });
+  req.once("error", reject);
+}
+
+function writeRequestBody(req: http.ClientRequest, body: string | undefined): void {
+  if (body !== undefined) {
+    req.write(body);
+  }
+  req.end();
+}
+
+function getUrlPath(url: URL): string {
+  return `${url.pathname || "/"}${url.search}`;
+}
+
+function hasHeader(headers: Record<string, string>, name: string): boolean {
+  const lowerName = name.toLowerCase();
+  return Object.keys(headers).some((key) => key.toLowerCase() === lowerName);
+}
+
+function isTimeoutError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("timed out");
+}
+
+function getNodeErrorCode(error: unknown): string | null {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof error.code === "string"
+  ) {
+    return error.code;
+  }
+
+  if (error instanceof Error) {
+    for (const code of ["ECONNREFUSED", "ENOTFOUND", "ETIMEDOUT", "ECONNRESET"]) {
+      if (error.message.includes(code)) {
+        return code;
+      }
+    }
+  }
+
+  return null;
 }
 
 export type JsonValue =
@@ -411,13 +588,22 @@ async function createBangumiResponseError(
 
 function sanitizeBangumiErrorText(value: string): string {
   const accessToken = getBangumiAccessToken();
-  const sanitized = value
+  const proxyUrl = getBangumiProxyUrl();
+  let sanitized = value
     .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [redacted]")
     .replace(/(authorization["'\s:=]+)([^"',\s}]+)/gi, "$1[redacted]")
     .replace(/(access[_-]?token["'\s:=]+)([^"',\s}]+)/gi, "$1[redacted]")
     .replace(/https?:\/\/[^/\s:@]+:[^/\s@]+@/gi, "http://[redacted]@");
 
-  return accessToken ? sanitized.replaceAll(accessToken, "[redacted]") : sanitized;
+  if (accessToken) {
+    sanitized = sanitized.replaceAll(accessToken, "[redacted]");
+  }
+
+  if (proxyUrl) {
+    sanitized = sanitized.replaceAll(proxyUrl, "[redacted]");
+  }
+
+  return sanitized;
 }
 
 function toJsonValue(value: unknown): JsonValue {
