@@ -101,6 +101,7 @@ export default function TierPage({
   const [draftTierLabels, setDraftTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
   const [showTierLabelEditor, setShowTierLabelEditor] = useState(false);
   const [showAdvancedActions, setShowAdvancedActions] = useState(false);
+  const [canShowCommunityRanking, setCanShowCommunityRanking] = useState(false);
 
   const loadTierList = useCallback(async () => {
     setIsLoading(true);
@@ -112,6 +113,9 @@ export default function TierPage({
         getTierList(params.poolId, params.runId)
       ]);
       setPoolName(pool.name);
+      setCanShowCommunityRanking(
+        pool.visibility === "PUBLIC" && pool.status !== "ARCHIVED" && pool.deletedAt == null
+      );
       setTierList(data);
       if (!isEditing) {
         setEditableTiers(cloneTiers(data.tiers));
@@ -417,6 +421,14 @@ export default function TierPage({
           <Link href={`/pools/${params.poolId}`} className={appButtonClasses({ variant: "ghost" })}>
             返回番组
           </Link>
+          {canShowCommunityRanking ? (
+            <Link
+              href={`/pools/${params.poolId}#community-ranking`}
+              className={appButtonClasses({ variant: "quiet" })}
+            >
+              查看社区榜单
+            </Link>
+          ) : null}
           <AppButton
             onClick={() => setShowAdvancedActions((value) => !value)}
             variant="quiet"

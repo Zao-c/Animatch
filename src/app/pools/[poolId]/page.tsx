@@ -42,6 +42,7 @@ import {
   clearPoolAnimeDisplayOverrides,
   createManualAnime,
   discoverAnime,
+  getCommunityRanking,
   getOrCreateDefaultRun,
   getPool,
   importTierMakerItemsToPool,
@@ -54,7 +55,9 @@ import {
   uploadPoolAnimeCover,
   updatePoolAnimeDisplay,
   updatePool,
+  ApiClientError,
   type BangumiSearchItem,
+  type CommunityRankingResponse,
   type PersonalRun,
   type PoolAnimeEntry,
   type PoolDetail,
@@ -129,6 +132,10 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [error, setError] = useState<string | null>(null);
   const [accessState, setAccessState] = useState<PoolAccessState | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [communityRanking, setCommunityRanking] = useState<CommunityRankingResponse | null>(null);
+  const [isCommunityRankingLoading, setIsCommunityRankingLoading] = useState(false);
+  const [communityRankingError, setCommunityRankingError] = useState<string | null>(null);
+  const [communityRankingUnavailable, setCommunityRankingUnavailable] = useState(false);
   const [activeTab, setActiveTab] = useState<AddTab>("search");
   const [showMorePoolActions, setShowMorePoolActions] = useState(false);
   const [showMoreImportMethods, setShowMoreImportMethods] = useState(false);
@@ -224,6 +231,57 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     if (pool === null) return;
     void refreshRuns().catch(() => setRuns([]));
   }, [pool, refreshRuns]);
+
+  useEffect(() => {
+    if (
+      pool === null ||
+      pool.visibility !== "PUBLIC" ||
+      pool.status === "ARCHIVED" ||
+      pool.deletedAt !== null
+    ) {
+      setCommunityRanking(null);
+      setCommunityRankingError(null);
+      setCommunityRankingUnavailable(false);
+      setIsCommunityRankingLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    setIsCommunityRankingLoading(true);
+    setCommunityRanking(null);
+    setCommunityRankingError(null);
+    setCommunityRankingUnavailable(false);
+
+    getCommunityRanking(params.poolId)
+      .then((data) => {
+        if (cancelled) return;
+        setCommunityRanking(data);
+      })
+      .catch((reason: unknown) => {
+        if (cancelled) return;
+
+        setCommunityRanking(null);
+        if (
+          reason instanceof ApiClientError &&
+          (reason.status === 403 || reason.status === 404)
+        ) {
+          setCommunityRankingUnavailable(true);
+          return;
+        }
+
+        setCommunityRankingError("社区榜单暂时加载失败。");
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsCommunityRankingLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [params.poolId, pool]);
 
   useEffect(() => {
     customUploadDraftsRef.current = customUploadDrafts;
@@ -864,6 +922,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const canStart = pool.anime.length >= 2 && !isArchived && canPlayPool;
   const canPromptLoginToMatch =
     pool.anime.length >= 2 && !isArchived && !canPlayPool && (permissions?.canRead ?? false);
+  const canShowCommunityRanking =
+    pool.visibility === "PUBLIC" && !isArchived && !communityRankingUnavailable;
   const joinedAnimeIds = new Set(pool.anime.map((entry) => entry.animeId));
   const joinedBangumiIds = new Set(
     pool.anime
@@ -949,6 +1009,14 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             >
               查看 Tier List
             </AppButton>
+            {canShowCommunityRanking ? (
+              <Link
+                href="#community-ranking"
+                className={appButtonClasses({ variant: "ghost" })}
+              >
+                查看社区榜单
+              </Link>
+            ) : null}
             {canManagePool ? (
               <AppButton
                 onClick={() => setShowMorePoolActions((value) => !value)}
@@ -1823,6 +1891,14 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         </div>
       </section>
 
+      {canShowCommunityRanking ? (
+        <CommunityRankingSection
+          ranking={communityRanking}
+          isLoading={isCommunityRankingLoading}
+          error={communityRankingError}
+        />
+      ) : null}
+
       <p className="mt-10 text-center text-xs text-slate-600">
         Anime metadata powered by{" "}
         <a
@@ -1836,6 +1912,200 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       </p>
     </PageShell>
   );
+}
+
+function CommunityRankingSection({
+  ranking,
+  isLoading,
+  error
+}: {
+  ranking: CommunityRankingResponse | null;
+  isLoading: boolean;
+  error: string | null;
+}) {
+  const hasItems = (ranking?.items.length ?? 0) > 0;
+
+  return (
+    <section id="community-ranking" className="mt-8 scroll-mt-24">
+      <AppCard className="p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <SectionHeader
+            eyebrow="Community"
+            title="社区榜单"
+            description="基于所有用户在这个公开番组中的个人对决结果实时聚合；不会影响你的个人榜单。"
+          />
+          <AppBadge tone="source" className="w-fit">
+            实时聚合
+          </AppBadge>
+        </div>
+
+        {ranking ? (
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <CommunityRankingMetric
+              label="参与人数"
+              value={String(ranking.totalParticipants)}
+            />
+            <CommunityRankingMetric label="活跃轮次" value={String(ranking.totalRuns)} />
+            <CommunityRankingMetric label="作品数" value={String(ranking.totalAnime)} />
+            <CommunityRankingMetric
+              label="样本阈值"
+              value={`至少 ${ranking.minSampleThreshold.minUsers} 人 / ${ranking.minSampleThreshold.minComparisons} 次`}
+              compact
+            />
+          </div>
+        ) : null}
+
+        <div className="mt-5 rounded-xl border border-cyan-300/18 bg-cyan-300/[0.07] p-4">
+          <AppBadge tone="source">样本说明</AppBadge>
+          <h3 className="mt-3 text-sm font-semibold text-white">
+            参与人数或有效比较次数还不够时，排名仅供参考
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-slate-300">
+            样本不足的作品会保留在列表中，但不会获得正式排名。登录后开始对决，也可以帮助这个番组生成社区榜单。
+          </p>
+        </div>
+
+        {isLoading ? (
+          <ErrorAlert message="正在加载社区榜单..." tone="notice" className="mt-5" />
+        ) : null}
+        {error ? <ErrorAlert message={error} className="mt-5" /> : null}
+
+        {!isLoading && error === null && ranking === null ? (
+          <div className="mt-5">
+            <EmptyState
+              title="这个番组暂时没有社区榜单"
+              description="公开番组积累更多个人对决后，会在这里展示社区聚合结果。"
+            />
+          </div>
+        ) : null}
+
+        {!isLoading && error === null && ranking !== null && !hasItems ? (
+          <div className="mt-5">
+            <EmptyState
+              title="还没有足够的社区对决数据。"
+              description="登录后开始对决，也可以帮助这个番组生成社区榜单。"
+            />
+          </div>
+        ) : null}
+
+        {ranking !== null && hasItems ? (
+          <div className="mt-5 grid gap-3">
+            {ranking.items.map((item) => (
+              <CommunityRankingCard key={item.animeId} item={item} />
+            ))}
+          </div>
+        ) : null}
+      </AppCard>
+    </section>
+  );
+}
+
+function CommunityRankingMetric({
+  label,
+  value,
+  compact = false
+}: {
+  label: string;
+  value: string;
+  compact?: boolean;
+}) {
+  return (
+    <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-3">
+      <p className="text-xs text-slate-500">{label}</p>
+      <p
+        className={`mt-1 font-black leading-tight text-white [overflow-wrap:anywhere] ${
+          compact ? "text-sm" : "text-2xl"
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function CommunityRankingCard({
+  item
+}: {
+  item: CommunityRankingResponse["items"][number];
+}) {
+  const scoreText =
+    item.communityScore === null ? "--" : formatCommunityRating(item.communityScore);
+  const averageText =
+    item.averageRating === null ? "--" : formatCommunityRating(item.averageRating);
+
+  return (
+    <div className="grid min-w-0 gap-3 rounded-xl border border-white/10 bg-slate-950/45 p-3 sm:grid-cols-[72px_minmax(0,1fr)_minmax(120px,auto)] sm:items-center">
+      <div className="flex items-center gap-3 sm:block">
+        <AnimeCover
+          src={item.imageUrl}
+          title={item.title}
+          size="sm"
+          className="h-24 w-16 shrink-0 rounded-lg sm:h-24 sm:w-full"
+        />
+        <div className="sm:hidden">
+          <CommunityRankingRank item={item} />
+        </div>
+      </div>
+
+      <div className="min-w-0">
+        <div className="hidden sm:block">
+          <CommunityRankingRank item={item} />
+        </div>
+        <h3 className="mt-2 line-clamp-2 break-words text-base font-semibold text-white sm:mt-1">
+          {item.title}
+        </h3>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {item.insufficientSample ? <AppBadge tone="warning">样本不足</AppBadge> : null}
+          <AppBadge tone="muted">{item.participantCount} 人参与</AppBadge>
+          <AppBadge tone="muted">{item.comparisonCount} 次有效比较</AppBadge>
+        </div>
+      </div>
+
+      <div className="grid min-w-0 grid-cols-2 gap-2 sm:w-36 sm:grid-cols-1">
+        <CommunityScoreCell label="社区分" value={scoreText} strong />
+        <CommunityScoreCell label="平均 Elo" value={averageText} />
+      </div>
+    </div>
+  );
+}
+
+function CommunityRankingRank({
+  item
+}: {
+  item: CommunityRankingResponse["items"][number];
+}) {
+  return item.rank !== null ? (
+    <AppBadge tone="success">#{item.rank}</AppBadge>
+  ) : (
+    <AppBadge tone="warning">样本不足</AppBadge>
+  );
+}
+
+function CommunityScoreCell({
+  label,
+  value,
+  strong = false
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2">
+      <p className="text-[11px] text-slate-500">{label}</p>
+      <p
+        className={`mt-1 leading-tight [overflow-wrap:anywhere] ${
+          strong ? "text-lg font-black text-cyan-100" : "text-sm font-semibold text-slate-300"
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function formatCommunityRating(value: number) {
+  return value.toFixed(1);
 }
 
 function PoolAccessStateCard({
