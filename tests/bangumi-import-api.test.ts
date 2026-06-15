@@ -248,9 +248,30 @@ describe("Bangumi search API", () => {
     });
   });
 
+  it("supports Chinese Bangumi search queries", async () => {
+    await SEARCH_BANGUMI(
+      new Request("http://test.local/api/anime/bangumi/search?q=%E5%86%B0%E8%8F%93")
+    );
+
+    expect(mockedBangumi.searchBangumiAnime).toHaveBeenCalledWith("冰菓", {
+      limit: 20
+    });
+  });
+
+  it("supports English Bangumi search queries", async () => {
+    await SEARCH_BANGUMI(
+      new Request("http://test.local/api/anime/bangumi/search?q=hyouka")
+    );
+
+    expect(mockedBangumi.searchBangumiAnime).toHaveBeenCalledWith("hyouka", {
+      limit: 20
+    });
+  });
+
   it("returns a readable error without leaking token-like internals", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     mockedBangumi.searchBangumiAnime.mockRejectedValueOnce(
-      new Error("Bangumi failed with Authorization Bearer secret-token")
+      new Error("Bangumi failed with Authorization Bearer secret-token via http://user:proxy-secret@127.0.0.1:7890")
     );
 
     const response = await SEARCH_BANGUMI(
@@ -261,7 +282,11 @@ describe("Bangumi search API", () => {
     expect(response.status).toBe(500);
     expect(payload.error.message).toBe("Bangumi search failed. Please try again later.");
     expect(payload.error.message).not.toContain("secret-token");
+    expect(payload.error.message).not.toContain("proxy-secret");
     expect(payload.error.message).not.toContain("Bearer");
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain("secret-token");
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain("proxy-secret");
+    consoleError.mockRestore();
   });
 });
 

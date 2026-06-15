@@ -1,8 +1,21 @@
+import { ProxyAgent, type Dispatcher } from "undici";
+
 const BANGUMI_BASE_URL = process.env.BANGUMI_PROXY_URL ?? "https://api.bgm.tv/v0";
 const BANGUMI_ACCESS_TOKEN = process.env.BANGUMI_ACCESS_TOKEN ?? process.env.BANGUMI_TOKEN ?? "";
 const DEFAULT_USER_AGENT = "AniMatch/0.1 (https://github.com/Zao-c/Animatch)";
 const FETCH_TIMEOUT_MS = 30_000;
 const BANGUMI_SUBJECT_PAGE_BASE_URL = "https://bgm.tv/subject";
+
+let proxyAgentCache:
+  | {
+      proxyUrl: string;
+      dispatcher: Dispatcher;
+    }
+  | undefined;
+
+type BangumiFetchInit = RequestInit & {
+  dispatcher?: Dispatcher;
+};
 
 function buildHeaders(extra: Record<string, string> = {}): Record<string, string> {
   const headers: Record<string, string> = {
@@ -16,12 +29,49 @@ function buildHeaders(extra: Record<string, string> = {}): Record<string, string
   return headers;
 }
 
+export function getBangumiProxyUrl(): string | null {
+  const proxyUrl =
+    process.env.HTTPS_PROXY ||
+    process.env.HTTP_PROXY ||
+    process.env.https_proxy ||
+    process.env.http_proxy;
+
+  return proxyUrl?.trim() || null;
+}
+
+export function getBangumiProxyDispatcher(): Dispatcher | undefined {
+  const proxyUrl = getBangumiProxyUrl();
+
+  if (proxyUrl === null) {
+    return undefined;
+  }
+
+  if (proxyAgentCache === undefined || proxyAgentCache.proxyUrl !== proxyUrl) {
+    proxyAgentCache = {
+      proxyUrl,
+      dispatcher: new ProxyAgent(proxyUrl)
+    };
+  }
+
+  return proxyAgentCache.dispatcher;
+}
+
 async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
-    const response = await fetch(url, { ...init, signal: controller.signal });
+    const dispatcher = getBangumiProxyDispatcher();
+    const requestInit: BangumiFetchInit = {
+      ...init,
+      signal: controller.signal
+    };
+
+    if (dispatcher !== undefined) {
+      requestInit.dispatcher = dispatcher;
+    }
+
+    const response = await fetch(url, requestInit);
     return response;
   } catch (error: unknown) {
     if (error instanceof DOMException && error.name === "AbortError") {

@@ -28,8 +28,28 @@ export async function GET(request: Request) {
       return fromError(error);
     }
 
+    console.error("Bangumi search failed", {
+      message: toSafeBangumiSearchLogMessage(error)
+    });
+
     return serverError("Bangumi search failed. Please try again later.");
   }
+}
+
+function toSafeBangumiSearchLogMessage(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return "Unknown Bangumi search error";
+  }
+
+  if (/^Bangumi search failed with status \d+$/.test(error.message)) {
+    return error.message;
+  }
+
+  if (error.message.includes("timed out")) {
+    return "Bangumi search timed out";
+  }
+
+  return "Bangumi search failed";
 }
 
 function parseLimit(value: string | null): number {

@@ -1,8 +1,34 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  getBangumiProxyDispatcher,
+  getBangumiProxyUrl,
   normalizeBangumiSubject,
-  parseBangumiSubjectIds
+  parseBangumiSubjectIds,
+  searchBangumiAnime
 } from "../src/lib/bangumi";
+
+const originalProxyEnv = {
+  HTTPS_PROXY: process.env.HTTPS_PROXY,
+  HTTP_PROXY: process.env.HTTP_PROXY,
+  https_proxy: process.env.https_proxy,
+  http_proxy: process.env.http_proxy
+};
+
+function clearProxyEnv() {
+  delete process.env.HTTPS_PROXY;
+  delete process.env.HTTP_PROXY;
+  delete process.env.https_proxy;
+  delete process.env.http_proxy;
+}
+
+function restoreProxyEnv() {
+  clearProxyEnv();
+  for (const [key, value] of Object.entries(originalProxyEnv)) {
+    if (value !== undefined) {
+      process.env[key] = value;
+    }
+  }
+}
 
 describe("parseBangumiSubjectIds", () => {
   it("parses single ids, comma lists, urls, subject paths, and multiline input", () => {
@@ -88,5 +114,85 @@ describe("normalizeBangumiSubject", () => {
     );
     expect(() => normalizeBangumiSubject({ name: "No id" })).toThrow();
     expect(() => normalizeBangumiSubject({ id: 1 })).toThrow();
+  });
+});
+
+describe("Bangumi fetch proxy support", () => {
+  beforeEach(() => {
+    clearProxyEnv();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          data: [
+            {
+              id: 258,
+              name: "Hyouka",
+              name_cn: "冰菓",
+              images: {
+                common: "https://img.example/hyouka.jpg"
+              },
+              tags: [{ name: "mystery" }]
+            }
+          ]
+        })
+      )
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    restoreProxyEnv();
+  });
+
+  it("does not pass a dispatcher when HTTP_PROXY and HTTPS_PROXY are absent", async () => {
+    await searchBangumiAnime("冰菓");
+
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    expect(getBangumiProxyUrl()).toBeNull();
+    expect(getBangumiProxyDispatcher()).toBeUndefined();
+    expect(init).not.toHaveProperty("dispatcher");
+  });
+
+  it("passes a dispatcher when HTTPS_PROXY is configured", async () => {
+    process.env.HTTPS_PROXY = "http://127.0.0.1:7890";
+
+    await searchBangumiAnime("冰菓");
+
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    expect(getBangumiProxyUrl()).toBe("http://127.0.0.1:7890");
+    expect(init).toHaveProperty("dispatcher");
+  });
+
+  it("prefers HTTPS_PROXY over HTTP_PROXY", async () => {
+    process.env.HTTP_PROXY = "http://127.0.0.1:7891";
+    process.env.HTTPS_PROXY = "http://127.0.0.1:7890";
+
+    await searchBangumiAnime("hyouka");
+
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    expect(getBangumiProxyUrl()).toBe("http://127.0.0.1:7890");
+    expect(init).toHaveProperty("dispatcher");
+  });
+
+  it("does not leak proxy URLs or tokens in Bangumi status errors", async () => {
+    process.env.HTTPS_PROXY = "http://user:secret-proxy@127.0.0.1:7890";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            error: "token-secret"
+          },
+          { status: 502 }
+        )
+      )
+    );
+
+    await expect(searchBangumiAnime("冰菓")).rejects.toThrow(
+      "Bangumi search failed with status 502"
+    );
+    await expect(searchBangumiAnime("冰菓")).rejects.not.toThrow("secret-proxy");
+    await expect(searchBangumiAnime("冰菓")).rejects.not.toThrow("token-secret");
   });
 });
