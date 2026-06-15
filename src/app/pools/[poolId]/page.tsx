@@ -9,6 +9,7 @@ import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { formatAnimeSource } from "@/lib/anime-source";
+import { getPopularTagOptions, labelAnimeTag } from "@/lib/anime-tag-dictionary";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
@@ -40,7 +41,6 @@ import {
   previewTierMakerTemplate,
   removeAnimeFromPool,
   restorePool,
-  searchAnime,
   uploadCustomItemToPool,
   uploadPoolAnimeCover,
   updatePoolAnimeDisplay,
@@ -87,6 +87,7 @@ const TABS: { key: AddTab; label: string }[] = [
   { key: "bangumi", label: "外部导入" },
   { key: "tiermaker", label: "TierMaker 导入" },
 ];
+const QUICK_SEARCH_TAGS = getPopularTagOptions(12);
 
 export default function PoolDetailPage({ params }: { params: { poolId: string } }) {
   const router = useRouter();
@@ -116,6 +117,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
   const [searchKeyword, setSearchKeyword] = useState("");
   const [lastSearchKeyword, setLastSearchKeyword] = useState("");
+  const [lastSearchTags, setLastSearchTags] = useState<string[]>([]);
+  const [selectedSearchTags, setSelectedSearchTags] = useState<string[]>([]);
   const [searchResults, setSearchResults] = useState<PublicAnime[]>([]);
   const [searchMessage, setSearchMessage] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -289,20 +292,43 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
   async function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (archived() || !searchKeyword.trim()) return;
+    if (archived() || (!searchKeyword.trim() && selectedSearchTags.length === 0)) return;
     clearMessage();
     setIsSearching(true);
 
     try {
       setLastSearchKeyword(searchKeyword.trim());
-      const data = await searchAnime(searchKeyword, 12);
+      setLastSearchTags(selectedSearchTags);
+      const data = await discoverAnime({
+        q: searchKeyword.trim() || undefined,
+        tags: selectedSearchTags,
+        limit: 12,
+        offset: 0,
+      });
       setSearchResults(data.items);
-      setSearchMessage(data.message ?? null);
+      setSearchMessage(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "搜索失败");
     } finally {
       setIsSearching(false);
     }
+  }
+
+  function toggleSearchTag(tagKey: string) {
+    setSelectedSearchTags((current) =>
+      current.includes(tagKey)
+        ? current.filter((tag) => tag !== tagKey)
+        : [...current, tagKey]
+    );
+  }
+
+  function clearSearchFilters() {
+    setSearchKeyword("");
+    setSelectedSearchTags([]);
+    setLastSearchKeyword("");
+    setLastSearchTags([]);
+    setSearchResults([]);
+    setSearchMessage(null);
   }
 
   async function handleBrowse(event: FormEvent<HTMLFormElement>) {
@@ -759,7 +785,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       ? null
       : pool.anime.find((entry) => entry.animeId === editingDisplayAnimeId) ?? null;
   const searchHadNoResults =
-    lastSearchKeyword.length > 0 && !isSearching && searchResults.length === 0;
+    (lastSearchKeyword.length > 0 || lastSearchTags.length > 0) && !isSearching && searchResults.length === 0;
 
   return (
     <PageShell>
@@ -791,7 +817,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             <div className="mt-4 flex flex-wrap gap-2">
               {pool.tags.map((tag) => (
                 <AppBadge key={tag} tone="muted">
-                  {tag}
+                  {labelAnimeTag(tag)}
                 </AppBadge>
               ))}
             </div>
@@ -1135,16 +1161,52 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 <div className="mt-4">
                   <StatusHint
                     label="本地搜索"
-                    title="支持中文、英文、日文关键词"
-                    description="如果标题或封面不理想，可以先加入番组，再点击“编辑显示”修正。Bangumi 导入是可选备用，不是主流程。"
+                    title="先选标签，再搜关键词"
+                    description="标签和关键词会一起过滤，例如先选“恋爱”“校园”，再输入作品名、制作社或别名。"
                     tone="guide"
                     className="mb-4"
                   />
-                  <form onSubmit={handleSearch} className="flex gap-2">
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {QUICK_SEARCH_TAGS.map((tag) => {
+                      const selected = selectedSearchTags.includes(tag.key);
+                      return (
+                        <button
+                          key={tag.key}
+                          type="button"
+                          onClick={() => toggleSearchTag(tag.key)}
+                          className={`min-h-9 rounded-full border px-3 py-1.5 text-xs font-semibold transition duration-anime ${
+                            selected
+                              ? "border-cyan-300/60 bg-cyan-300/12 text-cyan-100"
+                              : "border-anime-border bg-white/[0.03] text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          {tag.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {selectedSearchTags.length > 0 ? (
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      {selectedSearchTags.map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => toggleSearchTag(tag)}
+                          className="min-h-8 rounded-full border border-cyan-300/35 bg-cyan-300/[0.08] px-3 py-1 text-xs font-semibold text-cyan-100"
+                        >
+                          {labelAnimeTag(tag)}
+                        </button>
+                      ))}
+                      <AppButton type="button" onClick={clearSearchFilters} variant="quiet" size="sm">
+                        清空筛选
+                      </AppButton>
+                    </div>
+                  ) : null}
+                  <form onSubmit={handleSearch} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                     <input
                       value={searchKeyword}
                       onChange={(event) => setSearchKeyword(event.target.value)}
-                      placeholder="输入动画名搜索本地库"
+                      placeholder="输入动画名、别名或制作社"
                       className="anime-field min-w-0 flex-1"
                     />
                     <AppButton type="submit" disabled={isSearching} variant="primary">
@@ -1743,7 +1805,7 @@ function PoolAnimeCard({
         </p>
         {display.tags.length > 0 ? (
           <p className="mt-1 line-clamp-1 text-xs text-slate-500">
-            {display.tags.slice(0, 4).join(" / ")}
+            {display.tags.slice(0, 4).map(labelAnimeTag).join(" / ")}
           </p>
         ) : null}
         {canManage ? (
@@ -1903,7 +1965,7 @@ function PoolAnimeDisplayPanel({
           </p>
           {display.tags.length > 0 ? (
             <p className="mt-1 line-clamp-1 text-xs text-slate-500">
-              {display.tags.slice(0, 4).join(" / ")}
+              {display.tags.slice(0, 4).map(labelAnimeTag).join(" / ")}
             </p>
           ) : null}
         </div>

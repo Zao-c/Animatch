@@ -1,13 +1,13 @@
 import { ok, serverError } from "@/lib/api-response";
-import { toPublicAnime } from "@/lib/anime-service";
+import { GLOBAL_SEARCH_EXCLUDED_SOURCES, toPublicAnime } from "@/lib/anime-service";
+import { expandTagQuery, matchTagAliases, normalizeTagKey } from "@/lib/anime-tag-dictionary";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { ANIME_SOURCE } from "@/lib/anime-source";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const query = url.searchParams.get("q")?.trim() ?? "";
-  const tag = url.searchParams.get("tag")?.trim() ?? "";
+  const selectedTags = parseSelectedTags(url);
   const studio = url.searchParams.get("studio")?.trim() ?? "";
   const yearFrom = parseOptionalInt(url.searchParams.get("yearFrom"));
   const yearTo = parseOptionalInt(url.searchParams.get("yearTo"));
@@ -19,29 +19,37 @@ export async function GET(request: Request) {
   try {
     const where: Prisma.AnimeWhereInput = {
       source: {
-        not: ANIME_SOURCE.CUSTOM_UPLOAD
+        notIn: GLOBAL_SEARCH_EXCLUDED_SOURCES
       }
     };
+    const andConditions: Prisma.AnimeWhereInput[] = [];
 
     if (query) {
-      const terms = query.split(/\s+/).filter(Boolean).map((t) => t.toLowerCase());
+      const terms = query.split(/\s+/).filter(Boolean);
       if (terms.length > 0) {
-        where.AND = terms.map((term) => ({
-          OR: [
-            { title: { contains: term, mode: "insensitive" } },
-            { titleCn: { contains: term, mode: "insensitive" } },
-            { titleJa: { contains: term, mode: "insensitive" } },
-            { titleEn: { contains: term, mode: "insensitive" } },
-            { aliases: { hasSome: [term] } },
-            { tags: { hasSome: [term] } },
-            { studios: { hasSome: [term] } },
-          ],
-        }));
+        andConditions.push(
+          ...terms.map((term) => {
+            const variants = expandDiscoverQueryTerm(term);
+            const orConditions: Prisma.AnimeWhereInput[] = variants.flatMap((variant) => [
+              { title: { contains: variant, mode: "insensitive" } },
+              { titleCn: { contains: variant, mode: "insensitive" } },
+              { titleJa: { contains: variant, mode: "insensitive" } },
+              { titleEn: { contains: variant, mode: "insensitive" } },
+              { aliases: { has: variant } },
+              { tags: { has: variant } },
+              { studios: { has: variant } },
+            ]);
+
+            return {
+              OR: orConditions,
+            };
+          })
+        );
       }
     }
 
-    if (tag) {
-      where.tags = { has: tag.toLowerCase() };
+    if (selectedTags.length > 0) {
+      andConditions.push(...selectedTags.map((tag) => ({ tags: { has: tag } })));
     }
 
     if (studio) {
@@ -56,6 +64,10 @@ export async function GET(request: Request) {
 
     if (type) {
       where.animeType = type.toUpperCase();
+    }
+
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
     }
 
     const orderBy: Prisma.AnimeOrderByWithRelationInput =
@@ -80,6 +92,29 @@ export async function GET(request: Request) {
   } catch (error) {
     return serverError(error instanceof Error ? error.message : "Discover failed");
   }
+}
+
+function parseSelectedTags(url: URL): string[] {
+  const values = [
+    url.searchParams.get("tag") ?? "",
+    ...url.searchParams
+      .getAll("tags")
+      .flatMap((value) => value.split(",")),
+  ];
+
+  return Array.from(
+    new Set(
+      values
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .map((value) => matchTagAliases(value) ?? normalizeTagKey(value))
+        .filter(Boolean)
+    )
+  );
+}
+
+function expandDiscoverQueryTerm(term: string): string[] {
+  return Array.from(new Set([term.trim(), normalizeTagKey(term), ...expandTagQuery(term)].filter(Boolean)));
 }
 
 function parseOptionalInt(value: string | null): number | null {

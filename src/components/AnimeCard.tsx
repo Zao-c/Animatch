@@ -1,8 +1,10 @@
 "use client";
 
+import React from "react";
 import type { PublicAnime } from "@/lib/client-api";
 import { formatAnimeSource } from "@/lib/anime-source";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { labelAnimeTag } from "@/lib/anime-tag-dictionary";
 import { AnimeCover } from "./AnimeCover";
 
 export function AnimeCard({
@@ -54,6 +56,18 @@ export function AnimeCard({
             <span className="text-slate-500">{formatAnimeSource(anime.source)}</span>
           )}
         </div>
+        {anime.tags.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {anime.tags.slice(0, 4).map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] font-medium text-slate-300"
+              >
+                {labelAnimeTag(tag)}
+              </span>
+            ))}
+          </div>
+        ) : null}
         {actionLabel ? (
           <div className="mt-4 text-sm font-medium text-cyan-300">{actionLabel}</div>
         ) : null}

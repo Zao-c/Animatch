@@ -29,6 +29,7 @@ import {
   POOL_VISIBILITY_OPTIONS,
   type PoolVisibilityValue
 } from "@/lib/pool-labels";
+import { labelAnimeTag } from "@/lib/anime-tag-dictionary";
 
 type PoolFilter = "ALL" | PoolManagementStatus;
 type PoolSort = "UPDATED" | "ANIME_COUNT" | "COMPARISON_COUNT" | "NAME";
@@ -526,7 +527,7 @@ function PoolCard({
             <div className="mt-3 flex flex-wrap gap-2">
               {pool.tags.slice(0, 4).map((tag) => (
                 <AppBadge key={tag} tone="muted">
-                  {tag}
+                  {labelAnimeTag(tag)}
                 </AppBadge>
               ))}
             </div>

@@ -296,7 +296,7 @@ describe("custom image pool items API", () => {
     expect(mockedAnime.create).not.toHaveBeenCalled();
   });
 
-  it("anime search excludes CUSTOM_UPLOAD entries", async () => {
+  it("anime search excludes user-generated entries", async () => {
     mockedAnime.findMany.mockResolvedValue([]);
 
     await SEARCH_ANIME(new Request("http://test.local/api/anime/search?q=角色&limit=5"));
@@ -305,14 +305,14 @@ describe("custom image pool items API", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           source: {
-            not: "CUSTOM_UPLOAD",
+            notIn: expect.arrayContaining(["CUSTOM_UPLOAD", "MANUAL", "TIERMAKER_IMPORT"]),
           },
         }),
       })
     );
   });
 
-  it("anime discover excludes CUSTOM_UPLOAD entries", async () => {
+  it("anime discover excludes user-generated entries", async () => {
     mockedAnime.findMany.mockResolvedValue([]);
     vi.mocked(prisma.anime.count).mockResolvedValue(0);
 
@@ -322,7 +322,7 @@ describe("custom image pool items API", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           source: {
-            not: "CUSTOM_UPLOAD",
+            notIn: expect.arrayContaining(["CUSTOM_UPLOAD", "MANUAL", "TIERMAKER_IMPORT"]),
           },
         }),
       })
@@ -331,7 +331,7 @@ describe("custom image pool items API", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           source: {
-            not: "CUSTOM_UPLOAD",
+            notIn: expect.arrayContaining(["CUSTOM_UPLOAD", "MANUAL", "TIERMAKER_IMPORT"]),
           },
         }),
       })

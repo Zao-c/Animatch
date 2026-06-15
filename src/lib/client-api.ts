@@ -449,6 +449,7 @@ export function searchAnime(q: string, limit = 20) {
 export function discoverAnime(params: {
   q?: string;
   tag?: string;
+  tags?: string[];
   studio?: string;
   yearFrom?: number;
   yearTo?: number;
@@ -460,6 +461,9 @@ export function discoverAnime(params: {
   const searchParams = new URLSearchParams();
   if (params.q) searchParams.set("q", params.q);
   if (params.tag) searchParams.set("tag", params.tag);
+  if (params.tags !== undefined && params.tags.length > 0) {
+    searchParams.set("tags", params.tags.join(","));
+  }
   if (params.studio) searchParams.set("studio", params.studio);
   if (params.yearFrom) searchParams.set("yearFrom", String(params.yearFrom));
   if (params.yearTo) searchParams.set("yearTo", String(params.yearTo));

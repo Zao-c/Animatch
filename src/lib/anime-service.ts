@@ -1,6 +1,7 @@
 import { Prisma, type Anime } from "@prisma/client";
 import { prisma } from "./db";
 import { ANIME_SOURCE } from "./anime-source";
+import { expandTagQuery } from "./anime-tag-dictionary";
 import {
   getBangumiSubject,
   parseBangumiSubjectIds,
@@ -184,6 +185,12 @@ export function toPublicAnime(anime: Anime): PublicAnime {
     source: anime.source,
   };
 }
+
+export const GLOBAL_SEARCH_EXCLUDED_SOURCES = [
+  ANIME_SOURCE.CUSTOM_UPLOAD,
+  ANIME_SOURCE.MANUAL,
+  ANIME_SOURCE.TIERMAKER_IMPORT,
+];
 
 export type AnimeSearchScoringFields = Pick<
   Anime,
@@ -404,7 +411,7 @@ export async function searchLocalAnime(
     where: {
       AND: conditions,
       source: {
-        not: ANIME_SOURCE.CUSTOM_UPLOAD
+        notIn: GLOBAL_SEARCH_EXCLUDED_SOURCES
       }
     },
     orderBy: { bgmId: { sort: "asc", nulls: "last" } },
@@ -419,7 +426,7 @@ function expandSearchTerm(term: string): string[] {
   if (!trimmed) return [];
 
   const aliases = SEARCH_ALIAS_OVERRIDES[trimmed] ?? [];
-  return Array.from(new Set([trimmed, ...aliases]));
+  return Array.from(new Set([trimmed, ...aliases, ...expandTagQuery(trimmed)]));
 }
 
 function normalizeAnimeType(type: string | null): string {
