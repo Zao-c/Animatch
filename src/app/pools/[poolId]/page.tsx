@@ -9,6 +9,7 @@ import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { formatAnimeSource } from "@/lib/anime-source";
+import { copyTextWithFallback } from "@/lib/browser-copy";
 import { isCommunityBattleVisiblePool } from "@/lib/community-battle-visibility";
 import {
   ANIME_TAG_DICTIONARY,
@@ -188,10 +189,13 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [isUploadingCustomItems, setIsUploadingCustomItems] = useState(false);
   const customUploadInputRef = useRef<HTMLInputElement>(null);
   const customUploadDraftsRef = useRef<CustomUploadDraft[]>([]);
+  const tiermakerAssistantTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [tiermakerUrl, setTiermakerUrl] = useState("");
   const [tiermakerUrlListInput, setTiermakerUrlListInput] = useState("");
   const [tiermakerAssistantCopied, setTiermakerAssistantCopied] = useState(false);
+  const [tiermakerAssistantManualCopy, setTiermakerAssistantManualCopy] = useState(false);
+  const [tiermakerAssistantCopyMessage, setTiermakerAssistantCopyMessage] = useState<string | null>(null);
   const [tiermakerPreview, setTiermakerPreview] = useState<{
     title: string;
     sourceUrl: string;
@@ -627,13 +631,30 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     clearMessage();
     setTiermakerPreviewError(null);
     setTiermakerImportResult(null);
+    setTiermakerAssistantCopied(false);
+    setTiermakerAssistantManualCopy(false);
+    setTiermakerAssistantCopyMessage(null);
 
-    try {
-      await navigator.clipboard.writeText(TIERMAKER_IMPORT_ASSISTANT_SCRIPT);
+    const result = await copyTextWithFallback(TIERMAKER_IMPORT_ASSISTANT_SCRIPT);
+    if (result === "copied") {
       setTiermakerAssistantCopied(true);
-    } catch {
-      setTiermakerPreviewError("复制失败，请手动复制导入助手脚本。");
+      setTiermakerAssistantCopyMessage("已复制脚本。请打开 TierMaker 模板页面，在 Console 粘贴并回车。");
+      return;
     }
+
+    setTiermakerAssistantManualCopy(true);
+    setTiermakerAssistantCopyMessage("自动复制失败，请手动选中脚本复制。");
+  }
+
+  function selectTiermakerAssistantScript() {
+    tiermakerAssistantTextareaRef.current?.focus();
+    tiermakerAssistantTextareaRef.current?.select();
+  }
+
+  function confirmTiermakerAssistantCopied() {
+    setTiermakerAssistantCopied(true);
+    setTiermakerAssistantManualCopy(false);
+    setTiermakerAssistantCopyMessage("已复制脚本。请打开 TierMaker 模板页面，在 Console 粘贴并回车。");
   }
 
   function handleTiermakerUrlListPreview() {
@@ -1741,8 +1762,32 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                         复制导入助手脚本
                       </AppButton>
                     </div>
-                    {tiermakerAssistantCopied ? (
-                      <p className="mt-2 text-xs text-cyan-200">导入助手脚本已复制。</p>
+                    {tiermakerAssistantCopyMessage ? (
+                      <p className={`mt-2 text-xs leading-5 ${tiermakerAssistantCopied ? "text-cyan-200" : "text-amber-200"}`}>
+                        {tiermakerAssistantCopyMessage}
+                      </p>
+                    ) : null}
+                    {tiermakerAssistantManualCopy ? (
+                      <div className="mt-3 space-y-3 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] p-3">
+                        <p className="text-xs leading-5 text-amber-100">
+                          浏览器禁止自动复制。请手动复制下面的脚本，然后到 TierMaker 页面 Console 粘贴运行。
+                        </p>
+                        <textarea
+                          ref={tiermakerAssistantTextareaRef}
+                          value={TIERMAKER_IMPORT_ASSISTANT_SCRIPT}
+                          readOnly
+                          className="anime-field min-h-48 w-full max-w-full overflow-auto whitespace-pre font-mono text-xs leading-5"
+                          aria-label="TierMaker 导入助手脚本"
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          <AppButton type="button" onClick={selectTiermakerAssistantScript} variant="secondary" size="sm">
+                            选中脚本
+                          </AppButton>
+                          <AppButton type="button" onClick={confirmTiermakerAssistantCopied} variant="quiet" size="sm">
+                            我已复制
+                          </AppButton>
+                        </div>
+                      </div>
                     ) : null}
                     <ol className="mt-3 list-decimal space-y-1 pl-5 text-xs leading-5 text-slate-300">
                       <li>打开 TierMaker 模板页面</li>
