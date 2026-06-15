@@ -26,6 +26,19 @@ export interface PublicAnime {
   display?: EffectiveAnimeDisplay;
 }
 
+export interface BangumiSearchItem {
+  bangumiId: number;
+  sourceId: string;
+  title: string;
+  titleCn: string | null;
+  imageUrl: string | null;
+  sourceUrl: string;
+  summary: string | null;
+  tags: string[];
+  airDate: string | null;
+  year: number | null;
+}
+
 export interface EffectiveAnimeDisplay {
   title: string;
   subtitle: string | null;
@@ -473,6 +486,17 @@ export function discoverAnime(params: {
   if (params.offset) searchParams.set("offset", String(params.offset));
 
   return fetchJson<{ items: PublicAnime[]; total: number }>(`/api/anime/discover?${searchParams.toString()}`);
+}
+
+export function searchBangumiAnime(q: string, limit = 20) {
+  const params = new URLSearchParams({
+    q,
+    limit: String(limit)
+  });
+
+  return fetchJson<{ items: BangumiSearchItem[] }>(
+    `/api/anime/bangumi/search?${params.toString()}`
+  );
 }
 
 export function createManualAnime(data: {

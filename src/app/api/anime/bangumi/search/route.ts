@@ -1,0 +1,39 @@
+import { badRequest, fromError, ok, serverError } from "@/lib/api-response";
+import { isAppError } from "@/lib/app-error";
+import { requireCurrentUser } from "@/lib/auth-session";
+import { searchBangumiAnime, toBangumiSearchItem } from "@/lib/bangumi";
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const query = url.searchParams.get("q")?.trim() ?? "";
+  const limit = parseLimit(url.searchParams.get("limit"));
+
+  if (!query) {
+    return badRequest("q is required");
+  }
+
+  if (query.length < 2) {
+    return badRequest("q must be at least 2 characters");
+  }
+
+  try {
+    await requireCurrentUser();
+    const subjects = await searchBangumiAnime(query, { limit });
+
+    return ok({
+      items: subjects.map(toBangumiSearchItem)
+    });
+  } catch (error) {
+    if (isAppError(error)) {
+      return fromError(error);
+    }
+
+    return serverError("Bangumi search failed. Please try again later.");
+  }
+}
+
+function parseLimit(value: string | null): number {
+  const parsed = value === null ? 20 : Number(value);
+  if (!Number.isFinite(parsed)) return 20;
+  return Math.min(20, Math.max(1, Math.trunc(parsed)));
+}

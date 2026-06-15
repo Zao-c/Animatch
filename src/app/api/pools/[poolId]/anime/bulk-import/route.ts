@@ -1,3 +1,5 @@
+import { PoolStatus } from "@prisma/client";
+import { NextResponse } from "next/server";
 import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
 import {
   importBangumiSubjects,
@@ -35,8 +37,20 @@ export async function POST(request: Request, context: RouteContext) {
       }
     });
 
-    if (pool === null || pool.deletedAt !== null) {
+    if (pool === null) {
       return notFound("Pool not found");
+    }
+
+    if (pool.deletedAt !== null || pool.status === PoolStatus.ARCHIVED) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            message: "Archived pools cannot import anime"
+          }
+        },
+        { status: 409 }
+      );
     }
 
     if (!canAddAnime(pool, user)) {

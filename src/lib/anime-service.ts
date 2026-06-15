@@ -3,6 +3,7 @@ import { prisma } from "./db";
 import { ANIME_SOURCE } from "./anime-source";
 import { expandTagQuery } from "./anime-tag-dictionary";
 import {
+  buildBangumiSubjectUrl,
   getBangumiSubject,
   parseBangumiSubjectIds,
   searchBangumiAnime,
@@ -44,6 +45,8 @@ export async function upsertAnimeFromBangumiSubject(
   subject: NormalizedBangumiSubject
 ): Promise<Anime> {
   const rawJson = toPrismaJson(subject.rawJson);
+  const sourceId = String(subject.bgmId);
+  const sourceUrl = buildBangumiSubjectUrl(subject.bgmId);
 
   return prisma.anime.upsert({
     where: {
@@ -63,6 +66,9 @@ export async function upsertAnimeFromBangumiSubject(
       bangumiScore: subject.bangumiScore,
       bangumiVotes: subject.bangumiVotes,
       tags: subject.tags,
+      externalLinks: [sourceUrl],
+      source: ANIME_SOURCE.BANGUMI,
+      sourceId,
       rawJson,
       fetchedAt: new Date(),
       imageStatus: subject.imageUrl === null ? "MISSING" : "OK"
@@ -80,6 +86,9 @@ export async function upsertAnimeFromBangumiSubject(
       bangumiScore: subject.bangumiScore,
       bangumiVotes: subject.bangumiVotes,
       tags: subject.tags,
+      externalLinks: [sourceUrl],
+      source: ANIME_SOURCE.BANGUMI,
+      sourceId,
       rawJson,
       fetchedAt: new Date(),
       imageStatus: subject.imageUrl === null ? "MISSING" : "OK"

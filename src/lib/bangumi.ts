@@ -1,7 +1,8 @@
 const BANGUMI_BASE_URL = process.env.BANGUMI_PROXY_URL ?? "https://api.bgm.tv/v0";
-const BANGUMI_ACCESS_TOKEN = process.env.BANGUMI_ACCESS_TOKEN ?? "";
+const BANGUMI_ACCESS_TOKEN = process.env.BANGUMI_ACCESS_TOKEN ?? process.env.BANGUMI_TOKEN ?? "";
 const DEFAULT_USER_AGENT = "AniMatch/0.1 (https://github.com/Zao-c/Animatch)";
 const FETCH_TIMEOUT_MS = 30_000;
+const BANGUMI_SUBJECT_PAGE_BASE_URL = "https://bgm.tv/subject";
 
 function buildHeaders(extra: Record<string, string> = {}): Record<string, string> {
   const headers: Record<string, string> = {
@@ -58,6 +59,19 @@ export interface NormalizedBangumiSubject {
   bangumiVotes: number | null;
   tags: string[];
   rawJson: JsonValue;
+}
+
+export interface BangumiSearchItem {
+  bangumiId: number;
+  sourceId: string;
+  title: string;
+  titleCn: string | null;
+  imageUrl: string | null;
+  sourceUrl: string;
+  summary: string | null;
+  tags: string[];
+  airDate: string | null;
+  year: number | null;
 }
 
 export interface BangumiRawSubject {
@@ -175,6 +189,29 @@ export function normalizeBangumiSubject(raw: unknown): NormalizedBangumiSubject 
     bangumiVotes: toPositiveInteger(subject.rating?.total),
     tags: normalizeTags(subject.tags),
     rawJson: toJsonValue(raw)
+  };
+}
+
+export function buildBangumiSubjectUrl(subjectId: number): string {
+  return `${BANGUMI_SUBJECT_PAGE_BASE_URL}/${subjectId}`;
+}
+
+export function toBangumiSearchItem(subject: NormalizedBangumiSubject): BangumiSearchItem {
+  return {
+    bangumiId: subject.bgmId,
+    sourceId: String(subject.bgmId),
+    title: subject.title,
+    titleCn: subject.titleCn,
+    imageUrl:
+      subject.imageUrl ??
+      subject.imageMediumUrl ??
+      subject.imageSmallUrl ??
+      subject.imageLargeUrl,
+    sourceUrl: buildBangumiSubjectUrl(subject.bgmId),
+    summary: subject.summary,
+    tags: subject.tags,
+    airDate: subject.airDate?.toISOString() ?? null,
+    year: subject.airDate?.getUTCFullYear() ?? null
   };
 }
 

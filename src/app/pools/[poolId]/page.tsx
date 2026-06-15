@@ -49,10 +49,12 @@ import {
   previewTierMakerTemplate,
   removeAnimeFromPool,
   restorePool,
+  searchBangumiAnime,
   uploadCustomItemToPool,
   uploadPoolAnimeCover,
   updatePoolAnimeDisplay,
   updatePool,
+  type BangumiSearchItem,
   type PersonalRun,
   type PoolAnimeEntry,
   type PoolDetail,
@@ -92,7 +94,7 @@ const TABS: { key: AddTab; label: string }[] = [
   { key: "browse", label: "分类浏览" },
   { key: "manual", label: "手动添加" },
   { key: "custom", label: "上传图片" },
-  { key: "bangumi", label: "外部导入" },
+  { key: "bangumi", label: "Bangumi 搜索" },
   { key: "tiermaker", label: "TierMaker 导入" },
 ];
 const QUICK_SEARCH_TAG_KEYS = [
@@ -169,7 +171,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [manualYear, setManualYear] = useState("");
   const [manualType, setManualType] = useState("");
   const [manualTags, setManualTags] = useState("");
-  const [bulkInput, setBulkInput] = useState("");
+  const [bangumiKeyword, setBangumiKeyword] = useState("");
+  const [bangumiResults, setBangumiResults] = useState<BangumiSearchItem[]>([]);
+  const [bangumiSearched, setBangumiSearched] = useState(false);
+  const [isBangumiSearching, setIsBangumiSearching] = useState(false);
+  const [bangumiAddingId, setBangumiAddingId] = useState<number | null>(null);
   const [customUploadDrafts, setCustomUploadDrafts] = useState<CustomUploadDraft[]>([]);
   const [isUploadingCustomItems, setIsUploadingCustomItems] = useState(false);
   const customUploadInputRef = useRef<HTMLInputElement>(null);
@@ -487,19 +493,47 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     }
   }
 
-  async function handleBulkImport() {
-    if (archived() || !bulkInput.trim()) return;
+  async function handleBangumiSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (archived() || bangumiKeyword.trim().length < 2) return;
     clearMessage();
+    setBangumiSearched(true);
+    setIsBangumiSearching(true);
+
+    try {
+      const result = await searchBangumiAnime(bangumiKeyword.trim(), 20);
+      setBangumiResults(result.items);
+    } catch {
+      setBangumiResults([]);
+      setError("搜索失败，请稍后重试。");
+    } finally {
+      setIsBangumiSearching(false);
+    }
+  }
+
+  async function handleAddBangumiResult(item: BangumiSearchItem) {
+    if (archived()) return;
+    clearMessage();
+    setBangumiAddingId(item.bangumiId);
     setIsMutating(true);
 
     try {
-      const result = await bulkImportAnimeToPool(params.poolId, bulkInput);
+      const result = await bulkImportAnimeToPool(params.poolId, String(item.bangumiId));
       await refreshPool();
-      setNotice(`新增 ${result.added.length} 部，跳过 ${result.skipped.length} 部，失败 ${result.failed.length} 部`);
-      if (result.failed.length === 0) setBulkInput("");
+      if (result.failed.length > 0) {
+        setError("添加失败，请稍后重试。");
+        return;
+      }
+      const displayTitle = item.titleCn ?? item.title;
+      setNotice(
+        result.added.length > 0
+          ? `已加入：${displayTitle}`
+          : `已在番组中：${displayTitle}`
+      );
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "批量导入失败");
+      setError(reason instanceof Error ? reason.message : "添加失败，请稍后重试。");
     } finally {
+      setBangumiAddingId(null);
       setIsMutating(false);
     }
   }
@@ -831,6 +865,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const canPromptLoginToMatch =
     pool.anime.length >= 2 && !isArchived && !canPlayPool && (permissions?.canRead ?? false);
   const joinedAnimeIds = new Set(pool.anime.map((entry) => entry.animeId));
+  const joinedBangumiIds = new Set(
+    pool.anime
+      .map((entry) => entry.anime.bgmId)
+      .filter((bgmId): bgmId is number => bgmId !== null)
+  );
   const poolGuidance = getPoolGuidance(pool.anime.length, isArchived);
   const sourceSummary = formatPoolSourceSummary(pool.anime.map((entry) => entry.anime.source));
   const selectedDisplayEntry =
@@ -1523,19 +1562,58 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
               ) : null}
 
               {activeTab === "bangumi" ? (
-                <div className="mt-4">
-                  <p className="mb-3 text-xs leading-5 text-slate-500">
-                    Bangumi 导入是可选外部来源。不可用时，请使用本地搜索、分类浏览或手动添加。
-                  </p>
-                  <textarea
-                    value={bulkInput}
-                    onChange={(event) => setBulkInput(event.target.value)}
-                    placeholder={"876, 877\nhttps://bgm.tv/subject/878"}
-                    className="anime-field min-h-32"
+                <div className="mt-4 space-y-4">
+                  <StatusHint
+                    label="Bangumi 搜索"
+                    title="从 Bangumi 添加公开条目"
+                    description="从 Bangumi 搜索公开条目并添加到当前番组。"
+                    tone="guide"
                   />
-                  <AppButton onClick={handleBulkImport} disabled={isMutating} variant="ghost" className="mt-3 w-full">
-                    导入到番组
-                  </AppButton>
+                  <form onSubmit={handleBangumiSearch} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                    <input
+                      value={bangumiKeyword}
+                      onChange={(event) => setBangumiKeyword(event.target.value)}
+                      placeholder="输入 Bangumi 关键词"
+                      className="anime-field min-w-0 flex-1"
+                    />
+                    <AppButton
+                      type="submit"
+                      disabled={isBangumiSearching || bangumiKeyword.trim().length < 2}
+                      variant="primary"
+                    >
+                      搜索
+                    </AppButton>
+                  </form>
+                  {bangumiSearched && !isBangumiSearching && bangumiResults.length === 0 ? (
+                    <StatusHint
+                      label="无结果"
+                      title="没有找到匹配条目。"
+                      description="可以换用原标题、中文名或更短关键词再试。"
+                      tone="warning"
+                    />
+                  ) : null}
+                  <div className="space-y-3">
+                    {bangumiResults.map((item) => {
+                      const alreadyJoined = joinedBangumiIds.has(item.bangumiId);
+
+                      return (
+                        <BangumiResultCard
+                          key={item.bangumiId}
+                          item={item}
+                          disabled={isMutating || alreadyJoined}
+                          isAdding={bangumiAddingId === item.bangumiId}
+                          actionLabel={
+                            alreadyJoined
+                              ? "已加入"
+                              : bangumiAddingId === item.bangumiId
+                                ? "添加中..."
+                                : "添加到当前番组"
+                          }
+                          onAdd={() => handleAddBangumiResult(item)}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
               ) : null}
 
@@ -1953,6 +2031,80 @@ function PoolAnimeCard({
           </AppButton>
         </div>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+function BangumiResultCard({
+  item,
+  disabled,
+  isAdding,
+  actionLabel,
+  onAdd
+}: {
+  item: BangumiSearchItem;
+  disabled: boolean;
+  isAdding: boolean;
+  actionLabel: string;
+  onAdd: () => void;
+}) {
+  const title = item.titleCn ?? item.title;
+  const subtitle = item.titleCn ? item.title : null;
+  const meta = [
+    `Bangumi ID ${item.bangumiId}`,
+    item.year !== null ? String(item.year) : null
+  ].filter((value): value is string => value !== null);
+
+  return (
+    <div className="flex w-full min-w-0 gap-3 rounded-2xl border border-white/10 bg-slate-950/45 p-3">
+      <AnimeCover src={item.imageUrl} title={title} size="sm" className="shrink-0" />
+      <div className="min-w-0 flex-1">
+        <h3 className="line-clamp-2 break-words text-sm font-semibold text-white">{title}</h3>
+        {subtitle ? (
+          <p className="mt-1 line-clamp-1 break-words text-xs text-slate-400">{subtitle}</p>
+        ) : null}
+        <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-medium text-slate-400">
+          {meta.map((itemMeta) => (
+            <span key={itemMeta}>{itemMeta}</span>
+          ))}
+        </div>
+        {item.summary ? (
+          <p className="mt-2 line-clamp-3 break-words text-xs leading-5 text-slate-500">
+            {item.summary}
+          </p>
+        ) : null}
+        {item.tags.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {item.tags.slice(0, 4).map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] font-medium text-slate-300"
+              >
+                {labelAnimeTag(tag)}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <AppButton
+            type="button"
+            onClick={onAdd}
+            disabled={disabled || isAdding}
+            variant="primary"
+            size="sm"
+          >
+            {actionLabel}
+          </AppButton>
+          <a
+            href={item.sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs font-semibold text-slate-400 hover:text-cyan-200"
+          >
+            查看 Bangumi
+          </a>
+        </div>
       </div>
     </div>
   );
