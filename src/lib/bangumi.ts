@@ -40,14 +40,96 @@ function getBangumiAccessToken(): string {
   return process.env.BANGUMI_ACCESS_TOKEN ?? process.env.BANGUMI_TOKEN ?? "";
 }
 
-export function getBangumiProxyUrl(): string | null {
-  const proxyUrl =
-    process.env.HTTPS_PROXY ||
-    process.env.HTTP_PROXY ||
-    process.env.https_proxy ||
-    process.env.http_proxy;
+const PROXY_ENV_KEYS = ["HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy"] as const;
 
-  return proxyUrl?.trim() || null;
+type NormalizedProxyEnv = {
+  rawKey?: string;
+  rawPresent: boolean;
+  normalizedUrl?: string;
+  protocol?: string;
+  hostPresent: boolean;
+  portPresent: boolean;
+  invalidReason?: string;
+};
+
+export function normalizeProxyEnvValue(raw: string | undefined | null): {
+  normalizedUrl?: string;
+  invalidReason?: string;
+} {
+  if (raw == null) return {};
+  let value = String(raw).trim();
+
+  if (!value) return {};
+  if (value === "undefined" || value === "null") {
+    return { invalidReason: "empty-like-value" };
+  }
+
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    value = value.slice(1, -1).trim();
+  }
+
+  if (!value) return {};
+  if (value === "undefined" || value === "null") {
+    return { invalidReason: "empty-like-value" };
+  }
+
+  try {
+    const url = new URL(value);
+    url.username = "";
+    url.password = "";
+    if (url.protocol !== "http:") {
+      return { invalidReason: "unsupported-proxy-protocol" };
+    }
+    if (!url.hostname) {
+      return { invalidReason: "missing-proxy-host" };
+    }
+    return { normalizedUrl: url.toString() };
+  } catch {
+    return { invalidReason: "invalid-proxy-url" };
+  }
+}
+
+export function getBangumiProxyDiagnostic(): NormalizedProxyEnv {
+  for (const key of PROXY_ENV_KEYS) {
+    const raw = process.env[key];
+    const rawPresent = typeof raw === "string" && raw.length > 0;
+    const parsed = normalizeProxyEnvValue(raw);
+
+    if (parsed.normalizedUrl) {
+      const url = new URL(parsed.normalizedUrl);
+      return {
+        rawKey: key,
+        rawPresent,
+        normalizedUrl: parsed.normalizedUrl,
+        protocol: url.protocol,
+        hostPresent: Boolean(url.hostname),
+        portPresent: Boolean(url.port),
+      };
+    }
+
+    if (rawPresent && parsed.invalidReason) {
+      logBangumiDiagnostic("proxy-env-invalid", {
+        key,
+        rawLength: raw.length,
+        startsWithHttp: raw.trim().startsWith("http"),
+        invalidReason: parsed.invalidReason,
+      });
+    }
+  }
+
+  return {
+    rawPresent: PROXY_ENV_KEYS.some((key) => Boolean(process.env[key])),
+    hostPresent: false,
+    portPresent: false,
+    invalidReason: "no-valid-proxy-env",
+  };
+}
+
+export function getBangumiProxyUrl(): string | null {
+  return getBangumiProxyDiagnostic().normalizedUrl ?? null;
 }
 
 function sanitizeDiagnostic(value: unknown): unknown {
@@ -88,16 +170,12 @@ function logBangumiDiagnostic(event: string, details: Record<string, unknown>): 
 }
 
 function deriveRequestPath(
-  proxyUrl: string | null,
+  proxy: NormalizedProxyEnv,
   hasToken: boolean
 ): string {
   if (!hasToken) return "missing-token";
-  if (!proxyUrl) return "node-https-direct";
-  try {
-    const p = new URL(proxyUrl);
-    if (p.protocol === "http:") return "node-http-connect-proxy";
-  } catch { /* ignore parse error */ }
-  return "unsupported-proxy";
+  if (!proxy.normalizedUrl) return "node-https-direct";
+  return "node-http-connect-proxy";
 }
 
 function safeErrorShape(error: unknown): Record<string, unknown> {
@@ -123,26 +201,14 @@ function safeErrorShape(error: unknown): Record<string, unknown> {
   return shape;
 }
 
-function proxyDiagnostic(proxyUrl: string | null): Record<string, unknown> {
-  if (!proxyUrl) {
-    return {
-      hasProxy: false,
-      proxyProtocol: null,
-      proxyHostPresent: false,
-      proxyPortPresent: false,
-    };
-  }
-  try {
-    const p = new URL(proxyUrl);
-    return {
-      hasProxy: true,
-      proxyProtocol: p.protocol,
-      proxyHostPresent: Boolean(p.hostname),
-      proxyPortPresent: Boolean(p.port),
-    };
-  } catch {
-    return { hasProxy: true, proxyProtocol: null, proxyHostPresent: false, proxyPortPresent: false };
-  }
+function proxyDiagnostic(proxy: NormalizedProxyEnv): Record<string, unknown> {
+  return {
+    hasValidProxy: Boolean(proxy.normalizedUrl),
+    effectiveProxySourceKey: proxy.rawKey ?? null,
+    proxyProtocol: proxy.protocol ?? null,
+    proxyHostPresent: proxy.hostPresent,
+    proxyPortPresent: proxy.portPresent,
+  };
 }
 
 async function bangumiRequest(
@@ -151,9 +217,9 @@ async function bangumiRequest(
 ): Promise<BangumiResponse> {
   try {
     const target = new URL(url);
-    const proxyUrl = getBangumiProxyUrl();
+    const proxy = getBangumiProxyDiagnostic();
     const hasToken = Boolean(getBangumiAccessToken());
-    const requestPath = deriveRequestPath(proxyUrl, hasToken);
+    const requestPath = deriveRequestPath(proxy, hasToken);
 
     logBangumiDiagnostic("request-start", {
       runtime: "nodejs",
@@ -161,7 +227,7 @@ async function bangumiRequest(
       targetHost: target.hostname,
       path: getUrlPath(target),
       requestPath,
-      ...proxyDiagnostic(proxyUrl),
+      ...proxyDiagnostic(proxy),
       hasToken,
       bodyLength: init.body?.length ?? 0,
     });
@@ -200,15 +266,15 @@ async function bangumiRequestText(
   init: BangumiRequestInit
 ): Promise<BangumiTextResponse> {
   const target = new URL(url);
-  const proxyUrl = getBangumiProxyUrl();
+  const proxy = getBangumiProxyDiagnostic();
   const requestInit = normalizeBangumiRequestInit(init);
 
   if (target.protocol !== "https:") {
     throw new Error("Bangumi API URL must use HTTPS");
   }
 
-  if (proxyUrl) {
-    return requestHttpsViaConnectProxy(target, new URL(proxyUrl), requestInit);
+  if (proxy.normalizedUrl) {
+    return requestHttpsViaConnectProxy(target, new URL(proxy.normalizedUrl), requestInit);
   }
 
   return requestHttps(target, requestInit);
@@ -693,7 +759,8 @@ async function createBangumiResponseError(
   response: BangumiResponse
 ): Promise<Error> {
   const body = await response.text();
-  const bodySummary = sanitizeBangumiErrorText(body).slice(0, ERROR_BODY_SUMMARY_LENGTH);
+  const proxy = getBangumiProxyDiagnostic();
+  const bodySummary = sanitizeBangumiErrorText(body, proxy.normalizedUrl).slice(0, ERROR_BODY_SUMMARY_LENGTH);
 
   logBangumiDiagnostic("response-received", {
     statusCode: response.statusCode,
@@ -706,9 +773,8 @@ async function createBangumiResponseError(
   );
 }
 
-function sanitizeBangumiErrorText(value: string): string {
+function sanitizeBangumiErrorText(value: string, proxyUrl?: string | null): string {
   const accessToken = getBangumiAccessToken();
-  const proxyUrl = getBangumiProxyUrl();
   let sanitized = value
     .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [redacted]")
     .replace(/(authorization["'\s:=]+)([^"',\s}]+)/gi, "$1[redacted]")

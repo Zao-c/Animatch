@@ -1,7 +1,7 @@
 import { ok, fromError, badRequest } from "@/lib/api-response";
 import { isAppError } from "@/lib/app-error";
 import { requireCurrentUser } from "@/lib/auth-session";
-import { getBangumiProxyUrl } from "@/lib/bangumi";
+import { getBangumiProxyDiagnostic } from "@/lib/bangumi";
 
 export const runtime = "nodejs";
 
@@ -15,51 +15,7 @@ export async function GET() {
     return badRequest("Authentication required");
   }
 
-  const proxyUrl = getBangumiProxyUrl();
-  let proxyDiagnostic: {
-    hasHttpProxy: boolean;
-    hasHttpsProxy: boolean;
-    proxyProtocol: string | null;
-    proxyHostPresent: boolean;
-    proxyPortPresent: boolean;
-    envHttpsProxyRedacted: string;
-    envHttpProxyRedacted: string;
-  };
-
-  if (proxyUrl) {
-    try {
-      const p = new URL(proxyUrl);
-      proxyDiagnostic = {
-        hasHttpProxy: proxyUrl.startsWith("http://"),
-        hasHttpsProxy: proxyUrl.startsWith("https://"),
-        proxyProtocol: p.protocol,
-        proxyHostPresent: Boolean(p.hostname),
-        proxyPortPresent: Boolean(p.port),
-        envHttpsProxyRedacted: process.env.HTTPS_PROXY ? "<set>" : "<missing>",
-        envHttpProxyRedacted: process.env.HTTP_PROXY ? "<set>" : "<missing>",
-      };
-    } catch {
-      proxyDiagnostic = {
-        hasHttpProxy: false,
-        hasHttpsProxy: false,
-        proxyProtocol: null,
-        proxyHostPresent: false,
-        proxyPortPresent: false,
-        envHttpsProxyRedacted: process.env.HTTPS_PROXY ? "<set>" : "<missing>",
-        envHttpProxyRedacted: process.env.HTTP_PROXY ? "<set>" : "<missing>",
-      };
-    }
-  } else {
-    proxyDiagnostic = {
-      hasHttpProxy: false,
-      hasHttpsProxy: false,
-      proxyProtocol: null,
-      proxyHostPresent: false,
-      proxyPortPresent: false,
-      envHttpsProxyRedacted: process.env.HTTPS_PROXY ? "<set>" : "<missing>",
-      envHttpProxyRedacted: process.env.HTTP_PROXY ? "<set>" : "<missing>",
-    };
-  }
+  const proxy = getBangumiProxyDiagnostic();
 
   const hasBangumiAccessToken = Boolean(
     process.env.BANGUMI_ACCESS_TOKEN || process.env.BANGUMI_TOKEN
@@ -69,7 +25,20 @@ export async function GET() {
     nodeVersion: process.version,
     runtime: "nodejs" as const,
     hasBangumiAccessToken,
-    ...proxyDiagnostic,
+    rawEnv: {
+      HTTPS_PROXY: process.env.HTTPS_PROXY ? "<set>" : "<missing>",
+      HTTP_PROXY: process.env.HTTP_PROXY ? "<set>" : "<missing>",
+      https_proxy: process.env.https_proxy ? "<set>" : "<missing>",
+      http_proxy: process.env.http_proxy ? "<set>" : "<missing>",
+    },
+    effectiveProxy: {
+      hasValidProxy: Boolean(proxy.normalizedUrl),
+      sourceEnvKey: proxy.rawKey ?? null,
+      protocol: proxy.protocol ?? null,
+      hostPresent: proxy.hostPresent,
+      portPresent: proxy.portPresent,
+      invalidReason: proxy.invalidReason ?? null,
+    },
     cwd: process.cwd(),
     platform: process.platform,
   });

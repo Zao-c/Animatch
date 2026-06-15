@@ -32,8 +32,10 @@ import * as https from "node:https";
 import * as tls from "node:tls";
 import { request as undiciRequest } from "undici";
 import {
+  getBangumiProxyDiagnostic,
   getBangumiProxyUrl,
   normalizeBangumiSubject,
+  normalizeProxyEnvValue,
   parseBangumiSubjectIds,
   searchBangumiAnime
 } from "../src/lib/bangumi";
@@ -357,7 +359,7 @@ describe("Bangumi request via node http", () => {
 
     await searchBangumiAnime("冰菓");
 
-    expect(getBangumiProxyUrl()).toBe("http://127.0.0.1:7890");
+    expect(getBangumiProxyUrl()).toBe("http://127.0.0.1:7890/");
     expect(httpRequestOptions[0]).toMatchObject({
       hostname: "127.0.0.1",
       port: 7890,
@@ -378,7 +380,7 @@ describe("Bangumi request via node http", () => {
 
     await searchBangumiAnime("hyouka");
 
-    expect(getBangumiProxyUrl()).toBe("http://127.0.0.1:7890");
+    expect(getBangumiProxyUrl()).toBe("http://127.0.0.1:7890/");
     expect(httpRequestOptions[0]).toMatchObject({
       hostname: "127.0.0.1",
       port: 7890
@@ -606,13 +608,10 @@ describe("Bangumi debug endpoint", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data).toMatchObject({
-      hasBangumiAccessToken: true,
-      hasHttpProxy: false,
-      hasHttpsProxy: false,
-    });
-    expect(body.data.envHttpsProxyRedacted).toBe("<missing>");
-    expect(body.data.envHttpProxyRedacted).toBe("<missing>");
+    expect(body.data.hasBangumiAccessToken).toBe(true);
+    expect(body.data.effectiveProxy.hasValidProxy).toBe(false);
+    expect(body.data.rawEnv.HTTPS_PROXY).toBe("<missing>");
+    expect(body.data.rawEnv.HTTP_PROXY).toBe("<missing>");
   });
 
   it("returns hasBangumiAccessToken false when token is missing", async () => {
@@ -627,11 +626,7 @@ describe("Bangumi debug endpoint", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data).toMatchObject({
-      hasBangumiAccessToken: false,
-      hasHttpProxy: false,
-      hasHttpsProxy: false,
-    });
+    expect(body.data.hasBangumiAccessToken).toBe(false);
   });
 
   it("does not include real token in response", async () => {
@@ -668,7 +663,7 @@ describe("Bangumi debug endpoint", () => {
     expect(bodyStr).not.toContain("7890");
   });
 
-  it("returns env redacted as <set> when proxy env is configured", async () => {
+  it("returns rawEnv with <set>/<missing> and effectiveProxy with correct fields", async () => {
     process.env.HTTPS_PROXY = "http://127.0.0.1:7890";
     process.env.HTTP_PROXY = "http://127.0.0.1:7891";
     vi.mocked(requireCurrentUser).mockResolvedValueOnce({
@@ -681,8 +676,13 @@ describe("Bangumi debug endpoint", () => {
     const response = await BANGUMI_DEBUG_GET();
     const body = await response.json();
 
-    expect(body.data.envHttpsProxyRedacted).toBe("<set>");
-    expect(body.data.envHttpProxyRedacted).toBe("<set>");
+    expect(body.data.rawEnv.HTTPS_PROXY).toBe("<set>");
+    expect(body.data.rawEnv.HTTP_PROXY).toBe("<set>");
+    expect(body.data.effectiveProxy.hasValidProxy).toBe(true);
+    expect(body.data.effectiveProxy.sourceEnvKey).toBe("HTTPS_PROXY");
+    expect(body.data.effectiveProxy.hostPresent).toBe(true);
+    expect(body.data.effectiveProxy.portPresent).toBe(true);
+    expect(body.data.effectiveProxy.invalidReason).toBeNull();
   });
 
   it("returns nodeVersion runtime and platform", async () => {
@@ -696,11 +696,26 @@ describe("Bangumi debug endpoint", () => {
     const response = await BANGUMI_DEBUG_GET();
     const body = await response.json();
 
-    expect(body.data).toMatchObject({
-      runtime: "nodejs",
-      platform: process.platform,
-    });
+    expect(body.data.runtime).toBe("nodejs");
+    expect(body.data.platform).toBe(process.platform);
     expect(typeof body.data.nodeVersion).toBe("string");
+  });
+
+  it("shows effectiveProxy.invalidReason when proxy env is invalid", async () => {
+    process.env.HTTPS_PROXY = "not-a-valid-url";
+    vi.mocked(requireCurrentUser).mockResolvedValueOnce({
+      id: "user-1",
+      username: "user-1",
+      name: "User 1",
+      image: null
+    });
+
+    const response = await BANGUMI_DEBUG_GET();
+    const body = await response.json();
+
+    expect(body.data.rawEnv.HTTPS_PROXY).toBe("<set>");
+    expect(body.data.effectiveProxy.hasValidProxy).toBe(false);
+    expect(body.data.effectiveProxy.invalidReason).toBe("no-valid-proxy-env");
   });
 });
 
@@ -770,5 +785,222 @@ describe("Bangumi search route error logging", () => {
     const response = await SEARCH_ROUTE(req);
 
     expect(response.status).toBe(502);
+  });
+});
+
+describe("normalizeProxyEnvValue", () => {
+  beforeEach(() => {
+    clearProxyEnv();
+    clearBangumiTokenEnv();
+  });
+
+  afterEach(() => {
+    restoreProxyEnv();
+    restoreBangumiTokenEnv();
+  });
+
+  function getNormalized(raw: string | undefined | null): string | null {
+    const result = normalizeProxyEnvValue(raw);
+    return result.normalizedUrl ?? null;
+  }
+
+  function getInvalidReason(raw: string | undefined | null): string | null {
+    const result = normalizeProxyEnvValue(raw);
+    return result.invalidReason ?? null;
+  }
+
+  it('strips surrounding double quotes', () => {
+    expect(getNormalized('"http://172.18.0.1:7890"')).toBe("http://172.18.0.1:7890/");
+  });
+
+  it('strips surrounding single quotes', () => {
+    expect(getNormalized("'http://172.18.0.1:7890'")).toBe("http://172.18.0.1:7890/");
+  });
+
+  it('trims whitespace around value', () => {
+    expect(getNormalized('  http://172.18.0.1:7890  ')).toBe("http://172.18.0.1:7890/");
+  });
+
+  it('handles null gracefully', () => {
+    expect(getNormalized(null)).toBeNull();
+    expect(getInvalidReason(null)).toBeNull();
+  });
+
+  it('handles undefined gracefully', () => {
+    expect(getNormalized(undefined)).toBeNull();
+    expect(getInvalidReason(undefined)).toBeNull();
+  });
+
+  it('returns nothing for empty string', () => {
+    expect(getNormalized("")).toBeNull();
+  });
+
+  it('returns invalidReason for "undefined" literal', () => {
+    expect(getInvalidReason("undefined")).toBe("empty-like-value");
+  });
+
+  it('returns invalidReason for "null" literal', () => {
+    expect(getInvalidReason("null")).toBe("empty-like-value");
+  });
+
+  it('returns invalidReason for value missing protocol', () => {
+    expect(getInvalidReason("172.18.0.1:7890")).toBe("invalid-proxy-url");
+  });
+
+  it('returns unsupported-proxy-protocol for socks5', () => {
+    expect(getInvalidReason("socks5://127.0.0.1:7890")).toBe("unsupported-proxy-protocol");
+  });
+
+  it('returns invalid-proxy-url for malformed URL', () => {
+    expect(getInvalidReason("not a valid url at all")).toBe("invalid-proxy-url");
+  });
+
+  it('returns normalizedUrl for valid http proxy', () => {
+    const r = normalizeProxyEnvValue("http://127.0.0.1:7890");
+    expect(r.normalizedUrl).toBe("http://127.0.0.1:7890/");
+    expect(r.invalidReason).toBeUndefined();
+  });
+
+  it('strips user:password from normalizedUrl', () => {
+    const r = normalizeProxyEnvValue("http://user:pass@127.0.0.1:7890");
+    expect(r.normalizedUrl).toBe("http://127.0.0.1:7890/");
+  });
+});
+
+describe("getBangumiProxyDiagnostic env priority and fallback", () => {
+  beforeEach(() => {
+    clearProxyEnv();
+    clearBangumiTokenEnv();
+  });
+
+  afterEach(() => {
+    restoreProxyEnv();
+    restoreBangumiTokenEnv();
+  });
+
+  it("uses HTTPS_PROXY when valid", () => {
+    process.env.HTTPS_PROXY = "http://127.0.0.1:7890";
+
+    const diagnostic = getBangumiProxyDiagnostic();
+
+    expect(diagnostic.rawKey).toBe("HTTPS_PROXY");
+    expect(diagnostic.normalizedUrl).toBe("http://127.0.0.1:7890/");
+    expect(diagnostic.hostPresent).toBe(true);
+    expect(diagnostic.portPresent).toBe(true);
+  });
+
+  it("uses next env when higher priority is invalid", () => {
+    process.env.HTTPS_PROXY = "not-a-valid-url";
+    process.env.HTTP_PROXY = "http://127.0.0.1:7891";
+
+    const diagnostic = getBangumiProxyDiagnostic();
+
+    expect(diagnostic.normalizedUrl).toContain(":7891");
+    expect(diagnostic.hostPresent).toBe(true);
+    expect(diagnostic.portPresent).toBe(true);
+  });
+
+  it("uses next lower priority env as fallback", () => {
+    process.env.HTTPS_PROXY = "not-valid";
+    process.env.HTTP_PROXY = "not-valid";
+    process.env.https_proxy = "http://127.0.0.1:7892";
+
+    const diagnostic = getBangumiProxyDiagnostic();
+
+    expect(diagnostic.normalizedUrl).toContain(":7892");
+  });
+
+  it("uses last fallback env", () => {
+    process.env.HTTPS_PROXY = "not-valid";
+    process.env.HTTP_PROXY = "not-valid";
+    process.env.https_proxy = "not-valid";
+    process.env.http_proxy = "http://127.0.0.1:7893";
+
+    const diagnostic = getBangumiProxyDiagnostic();
+
+    expect(diagnostic.normalizedUrl).toContain(":7893");
+  });
+
+  it("returns no-valid-proxy-env when all env vars are invalid or missing", () => {
+    process.env.HTTPS_PROXY = "not-valid";
+
+    const diagnostic = getBangumiProxyDiagnostic();
+
+    expect(diagnostic.normalizedUrl).toBeUndefined();
+    expect(diagnostic.invalidReason).toBe("no-valid-proxy-env");
+    expect(diagnostic.hostPresent).toBe(false);
+    expect(diagnostic.portPresent).toBe(false);
+  });
+
+  it("returns empty diagnostic when no proxy env is set", () => {
+    const diagnostic = getBangumiProxyDiagnostic();
+
+    expect(diagnostic.normalizedUrl).toBeUndefined();
+    expect(diagnostic.invalidReason).toBe("no-valid-proxy-env");
+    expect(diagnostic.rawKey).toBeUndefined();
+  });
+});
+
+describe("proxy-env-invalid diagnostic log", () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    clearProxyEnv();
+    clearBangumiTokenEnv();
+    httpRequestOptions.length = 0;
+    httpsRequestOptions.length = 0;
+    httpRequests.length = 0;
+    httpsRequests.length = 0;
+    nextHttpsStatus = 200;
+    nextHttpsError = null;
+    nextConnectStatus = 200;
+    nextHttpsBody = JSON.stringify({
+      data: [{ id: 1, name: "Test" }]
+    });
+    installRequestMocks();
+    process.env.BANGUMI_DEBUG = "1";
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    restoreProxyEnv();
+    restoreBangumiTokenEnv();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("logs proxy-env-invalid without leaking raw proxy URL", async () => {
+    process.env.HTTPS_PROXY = "http://secret:pass@127.0.0.1:7890";
+    process.env.BANGUMI_ACCESS_TOKEN = "test-token";
+
+    await searchBangumiAnime("hyouka");
+
+    const joined = JSON.stringify(consoleErrorSpy.mock.calls);
+    expect(joined).not.toContain("secret");
+    expect(joined).not.toContain("pass");
+  });
+
+  it("logs proxy-env-invalid with key and reason but not raw value", async () => {
+    process.env.HTTPS_PROXY = "not-a-url";
+    process.env.BANGUMI_ACCESS_TOKEN = "test-token";
+
+    await searchBangumiAnime("hyouka");
+
+    const joined = JSON.stringify(consoleErrorSpy.mock.calls);
+    expect(joined).toContain("proxy-env-invalid");
+    expect(joined).toContain("invalid-proxy-url");
+    expect(joined).not.toContain("not-a-url");
+  });
+
+  it("logs key, rawLength, startsWithHttp, and invalidReason only", async () => {
+    process.env.HTTPS_PROXY = "socks5://127.0.0.1:7890";
+    process.env.BANGUMI_ACCESS_TOKEN = "test-token";
+
+    await searchBangumiAnime("hyouka");
+
+    const joined = JSON.stringify(consoleErrorSpy.mock.calls);
+    expect(joined).toContain("HTTPS_PROXY");
+    expect(joined).toContain("unsupported-proxy-protocol");
+    expect(joined).not.toContain("socks5://");
   });
 });
