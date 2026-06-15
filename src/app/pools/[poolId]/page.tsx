@@ -2,14 +2,22 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChangeEvent, DragEvent, FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { ChangeEvent, DragEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimeCard } from "@/components/AnimeCard";
 import { AnimeCover } from "@/components/AnimeCover";
 import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { formatAnimeSource } from "@/lib/anime-source";
-import { getPopularTagOptions, labelAnimeTag } from "@/lib/anime-tag-dictionary";
+import {
+  ANIME_TAG_DICTIONARY,
+  getTagGroupLabel,
+  labelAnimeTag,
+  normalizeTagKey,
+  suggestAnimeTags,
+  type AnimeTagDictionaryEntry,
+  type AnimeTagGroup
+} from "@/lib/anime-tag-dictionary";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
@@ -87,7 +95,28 @@ const TABS: { key: AddTab; label: string }[] = [
   { key: "bangumi", label: "外部导入" },
   { key: "tiermaker", label: "TierMaker 导入" },
 ];
-const QUICK_SEARCH_TAGS = getPopularTagOptions(12);
+const QUICK_SEARCH_TAG_KEYS = [
+  "romance",
+  "school",
+  "isekai",
+  "slice of life",
+  "healing",
+  "hot blooded",
+  "action",
+  "mystery",
+  "fantasy",
+  "comedy",
+];
+const QUICK_SEARCH_TAGS = QUICK_SEARCH_TAG_KEYS
+  .map((key) => ANIME_TAG_DICTIONARY.find((tag) => tag.key === key))
+  .filter((tag): tag is AnimeTagDictionaryEntry => tag !== undefined);
+const MORE_SEARCH_TAG_GROUPS: AnimeTagGroup[] = ["类型", "场景", "氛围", "题材", "形式"];
+const GROUPED_SEARCH_TAGS = MORE_SEARCH_TAG_GROUPS.map((group) => ({
+  group,
+  tags: ANIME_TAG_DICTIONARY
+    .filter((tag) => tag.group === group)
+    .sort((left, right) => right.weight - left.weight || left.label.localeCompare(right.label))
+}));
 
 export default function PoolDetailPage({ params }: { params: { poolId: string } }) {
   const router = useRouter();
@@ -119,6 +148,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [lastSearchKeyword, setLastSearchKeyword] = useState("");
   const [lastSearchTags, setLastSearchTags] = useState<string[]>([]);
   const [selectedSearchTags, setSelectedSearchTags] = useState<string[]>([]);
+  const [showMoreSearchTags, setShowMoreSearchTags] = useState(false);
   const [searchResults, setSearchResults] = useState<PublicAnime[]>([]);
   const [searchMessage, setSearchMessage] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -198,6 +228,14 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       customUploadDraftsRef.current.forEach((draft) => URL.revokeObjectURL(draft.previewUrl));
     };
   }, []);
+
+  const tagSuggestions = useMemo(
+    () =>
+      searchKeyword.trim()
+        ? suggestAnimeTags(searchKeyword, 6).filter((tag) => !selectedSearchTags.includes(tag.key))
+        : [],
+    [searchKeyword, selectedSearchTags]
+  );
 
   function clearMessage() {
     setError(null);
@@ -320,6 +358,21 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         ? current.filter((tag) => tag !== tagKey)
         : [...current, tagKey]
     );
+  }
+
+  function addSuggestedSearchTag(tag: AnimeTagDictionaryEntry) {
+    setSelectedSearchTags((current) =>
+      current.includes(tag.key) ? current : [...current, tag.key]
+    );
+
+    const normalizedQuery = normalizeTagKey(searchKeyword);
+    const isExactTagQuery = [tag.key, tag.label, ...tag.aliases]
+      .map(normalizeTagKey)
+      .includes(normalizedQuery);
+
+    if (isExactTagQuery) {
+      setSearchKeyword("");
+    }
   }
 
   function clearSearchFilters() {
@@ -1166,27 +1219,102 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                     tone="guide"
                     className="mb-4"
                   />
-                  <div className="mb-3 flex flex-wrap gap-2">
-                    {QUICK_SEARCH_TAGS.map((tag) => {
-                      const selected = selectedSearchTags.includes(tag.key);
-                      return (
-                        <button
-                          key={tag.key}
-                          type="button"
-                          onClick={() => toggleSearchTag(tag.key)}
-                          className={`min-h-9 rounded-full border px-3 py-1.5 text-xs font-semibold transition duration-anime ${
-                            selected
-                              ? "border-cyan-300/60 bg-cyan-300/12 text-cyan-100"
-                              : "border-anime-border bg-white/[0.03] text-slate-400 hover:text-white"
-                          }`}
-                        >
-                          {tag.label}
-                        </button>
-                      );
-                    })}
+                  <form onSubmit={handleSearch} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                    <input
+                      value={searchKeyword}
+                      onChange={(event) => setSearchKeyword(event.target.value)}
+                      placeholder="输入动画名、别名或制作社"
+                      className="anime-field min-w-0 flex-1"
+                    />
+                    <AppButton type="submit" disabled={isSearching} variant="primary">
+                      搜索
+                    </AppButton>
+                  </form>
+                  {tagSuggestions.length > 0 ? (
+                    <div className="mt-2 rounded-xl border border-cyan-300/20 bg-slate-950/75 p-2">
+                      <p className="px-2 pb-1 text-[11px] font-semibold text-slate-500">标签联想</p>
+                      <div className="grid gap-1">
+                        {tagSuggestions.map((tag) => (
+                          <button
+                            key={tag.key}
+                            type="button"
+                            onClick={() => addSuggestedSearchTag(tag)}
+                            className="min-w-0 rounded-lg px-2 py-2 text-left transition hover:bg-white/[0.06]"
+                          >
+                            <span className="block text-sm font-semibold text-cyan-100">{tag.label}</span>
+                            <span className="block truncate text-xs text-slate-500">
+                              {formatTagSuggestionMeta(tag)}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className="mt-4">
+                    <p className="mb-2 text-xs font-semibold text-slate-400">常用标签</p>
+                    <div className="flex flex-wrap gap-2">
+                      {QUICK_SEARCH_TAGS.map((tag) => {
+                        const selected = selectedSearchTags.includes(tag.key);
+                        return (
+                          <button
+                            key={tag.key}
+                            type="button"
+                            onClick={() => toggleSearchTag(tag.key)}
+                            className={`min-h-9 rounded-full border px-3 py-1.5 text-xs font-semibold transition duration-anime ${
+                              selected
+                                ? "border-cyan-300/60 bg-cyan-300/12 text-cyan-100"
+                                : "border-anime-border bg-white/[0.03] text-slate-400 hover:text-white"
+                            }`}
+                          >
+                            {tag.label}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
+                  <div className="mt-3">
+                    <AppButton
+                      type="button"
+                      onClick={() => setShowMoreSearchTags((value) => !value)}
+                      variant="quiet"
+                      size="sm"
+                      aria-expanded={showMoreSearchTags}
+                    >
+                      更多标签
+                    </AppButton>
+                  </div>
+                  {showMoreSearchTags ? (
+                    <div className="mt-3 grid gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                      {GROUPED_SEARCH_TAGS.map((group) => (
+                        <div key={group.group} className="min-w-0">
+                          <p className="mb-2 text-xs font-semibold text-slate-400">
+                            {getTagGroupLabel(group.group)}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {group.tags.map((tag) => {
+                              const selected = selectedSearchTags.includes(tag.key);
+                              return (
+                                <button
+                                  key={tag.key}
+                                  type="button"
+                                  onClick={() => toggleSearchTag(tag.key)}
+                                  className={`min-h-8 rounded-full border px-3 py-1 text-xs font-semibold transition duration-anime ${
+                                    selected
+                                      ? "border-purple-300/60 bg-purple-300/12 text-purple-100"
+                                      : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
+                                  }`}
+                                >
+                                  {tag.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                   {selectedSearchTags.length > 0 ? (
-                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
                       {selectedSearchTags.map((tag) => (
                         <button
                           key={tag}
@@ -1202,17 +1330,6 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                       </AppButton>
                     </div>
                   ) : null}
-                  <form onSubmit={handleSearch} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                    <input
-                      value={searchKeyword}
-                      onChange={(event) => setSearchKeyword(event.target.value)}
-                      placeholder="输入动画名、别名或制作社"
-                      className="anime-field min-w-0 flex-1"
-                    />
-                    <AppButton type="submit" disabled={isSearching} variant="primary">
-                      搜索
-                    </AppButton>
-                  </form>
                   {searchMessage ? <p className="mt-3 text-sm text-slate-400">{searchMessage}</p> : null}
                   {searchHadNoResults ? (
                     <StatusHint
@@ -1731,6 +1848,11 @@ function getPoolGuidance(animeCount: number, isArchived: boolean) {
 
 function hasChineseText(value: string) {
   return /[\u4e00-\u9fff]/.test(value);
+}
+
+function formatTagSuggestionMeta(tag: AnimeTagDictionaryEntry) {
+  const aliases = tag.aliases.slice(0, 2).join(" / ");
+  return aliases ? `${aliases} / ${tag.key}` : tag.key;
 }
 
 function validateCustomUploadFile(file: File) {

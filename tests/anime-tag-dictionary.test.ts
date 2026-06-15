@@ -4,6 +4,7 @@ import {
   labelAnimeTag,
   matchTagAliases,
   normalizeTagKey,
+  suggestAnimeTags,
 } from "../src/lib/anime-tag-dictionary";
 
 describe("anime tag dictionary", () => {
@@ -25,5 +26,32 @@ describe("anime tag dictionary", () => {
     expect(normalizeTagKey(" Slice-Of_Life ")).toBe("slice of life");
     expect(matchTagAliases("Slice-Of_Life")).toBe("slice of life");
     expect(expandTagQuery("SCI FI")).toContain("sci fi");
+  });
+
+  it("suggests popular tags for empty input", () => {
+    const suggestions = suggestAnimeTags("", 3);
+
+    expect(suggestions).toHaveLength(3);
+    expect(suggestions[0].label).toBe("恋爱");
+  });
+
+  it("suggests tags from labels, aliases, and English keys", () => {
+    expect(suggestAnimeTags("恋")[0].label).toBe("恋爱");
+    expect(suggestAnimeTags("爱情")[0].label).toBe("恋爱");
+    expect(suggestAnimeTags("romance")[0].label).toBe("恋爱");
+    expect(suggestAnimeTags("school")[0].label).toBe("校园");
+    expect(suggestAnimeTags("热").map((tag) => tag.label)).toContain("热血");
+  });
+
+  it("returns no suggestions for unknown input", () => {
+    expect(suggestAnimeTags("not-a-real-tag")).toEqual([]);
+  });
+
+  it("deduplicates suggestions and sorts them by weight", () => {
+    const suggestions = suggestAnimeTags("题材", 10);
+    const keys = suggestions.map((tag) => tag.key);
+
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(suggestions[0].weight).toBeGreaterThanOrEqual(suggestions[1].weight);
   });
 });

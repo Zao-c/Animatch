@@ -53,11 +53,25 @@ export const ANIME_TAG_DICTIONARY: AnimeTagDictionaryEntry[] = [
     weight: 92,
   },
   {
+    key: "hot blooded",
+    label: "热血",
+    aliases: ["燃", "燃系", "热血番", "hot-blooded", "hot_blooded"],
+    group: "氛围",
+    weight: 93,
+  },
+  {
     key: "slice of life",
     label: "日常",
     aliases: ["生活", "日常系", "治愈日常", "slice-of-life", "slice_of_life"],
     group: "氛围",
     weight: 90,
+  },
+  {
+    key: "healing",
+    label: "治愈",
+    aliases: ["治愈系", "暖心", "放松", "iyashikei"],
+    group: "氛围",
+    weight: 89,
   },
   {
     key: "mystery",
@@ -254,6 +268,21 @@ export function getTagGroupLabel(group: AnimeTagGroup): string {
   return group;
 }
 
+export function suggestAnimeTags(input: string, limit = 8): AnimeTagDictionaryEntry[] {
+  const normalizedInput = normalizeTagKey(input);
+  const normalizedLimit = Math.max(0, Math.trunc(limit));
+  if (normalizedLimit === 0) return [];
+  if (!normalizedInput) return getPopularTagOptions(normalizedLimit);
+
+  const matches = ANIME_TAG_DICTIONARY.filter((entry) =>
+    tagSearchValues(entry).some((value) => value.includes(normalizedInput))
+  );
+
+  return uniqueTagEntries(matches)
+    .sort((left, right) => right.weight - left.weight || left.label.localeCompare(right.label))
+    .slice(0, normalizedLimit);
+}
+
 function uniqueNormalized(values: string[]): string[] {
   return Array.from(
     new Set(
@@ -262,4 +291,22 @@ function uniqueNormalized(values: string[]): string[] {
         .filter(Boolean)
     )
   );
+}
+
+function tagSearchValues(entry: AnimeTagDictionaryEntry): string[] {
+  return uniqueNormalized([entry.key, entry.label, entry.group, ...entry.aliases]);
+}
+
+function uniqueTagEntries(entries: AnimeTagDictionaryEntry[]): AnimeTagDictionaryEntry[] {
+  const seen = new Set<string>();
+  const unique: AnimeTagDictionaryEntry[] = [];
+
+  for (const entry of entries) {
+    const key = normalizeTagKey(entry.key);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(entry);
+  }
+
+  return unique;
 }
