@@ -4,7 +4,7 @@ import * as https from "node:https";
 import * as tls from "node:tls";
 import type { Socket } from "node:net";
 
-const BANGUMI_BASE_URL = process.env.BANGUMI_PROXY_URL ?? "https://api.bgm.tv/v0";
+const BANGUMI_BASE_URL = (process.env.BANGUMI_PROXY_URL || "").trim() || "https://api.bgm.tv/v0";
 const DEFAULT_USER_AGENT = "AniMatch/0.1 (https://github.com/Zao-c/Animatch)";
 const FETCH_TIMEOUT_MS = 30_000;
 const BANGUMI_SUBJECT_PAGE_BASE_URL = "https://bgm.tv/subject";
