@@ -287,6 +287,30 @@ export interface TierListResponse {
   progress: RankingProgress;
 }
 
+export interface CommunityRankingItem {
+  animeId: string;
+  title: string;
+  imageUrl: string | null;
+  averageRating: number | null;
+  communityScore: number | null;
+  participantCount: number;
+  comparisonCount: number;
+  rank: number | null;
+  insufficientSample: boolean;
+}
+
+export interface CommunityRankingResponse {
+  poolId: string;
+  totalParticipants: number;
+  totalRuns: number;
+  totalAnime: number;
+  minSampleThreshold: {
+    minUsers: number;
+    minComparisons: number;
+  };
+  items: CommunityRankingItem[];
+}
+
 export interface RankingScoreDistribution {
   count: number;
   mean: number;
@@ -847,6 +871,10 @@ export function undoLastComparison(poolId: string, runId: string) {
 
 export function getTierList(poolId: string, runId: string) {
   return fetchJson<TierListResponse>(`/api/pools/${poolId}/runs/${runId}/tierlist`);
+}
+
+export function getCommunityRanking(poolId: string) {
+  return fetchJson<CommunityRankingResponse>(`/api/pools/${poolId}/community-ranking`);
 }
 
 export function createTierShare(data: {

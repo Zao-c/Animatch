@@ -1,9 +1,13 @@
-import { Visibility, type CustomPool } from "@prisma/client";
+import { PoolStatus, Visibility, type CustomPool } from "@prisma/client";
 import type { FriendAuthUser } from "./auth-session";
 
 type PoolPermissionFields = Pick<
   CustomPool,
   "creatorId" | "visibility" | "allowCommunityMatch"
+>;
+type CommunityRankingPoolFields = Pick<
+  CustomPool,
+  "visibility" | "status" | "deletedAt"
 >;
 
 type MaybeUser = Pick<FriendAuthUser, "id"> | null | undefined;
@@ -34,6 +38,14 @@ export function canManagePool(pool: PoolPermissionFields, user?: MaybeUser): boo
 
 export function canAddAnime(pool: PoolPermissionFields, user?: MaybeUser): boolean {
   return isPoolOwner(pool, user);
+}
+
+export function canReadCommunityRanking(pool: CommunityRankingPoolFields): boolean {
+  return (
+    pool.visibility === Visibility.PUBLIC &&
+    pool.status !== PoolStatus.ARCHIVED &&
+    pool.deletedAt === null
+  );
 }
 
 export function getPoolPermissions(pool: PoolPermissionFields, user?: MaybeUser) {
