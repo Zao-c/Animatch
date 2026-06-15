@@ -307,7 +307,12 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   }
 
   function archived() {
-    return pool === null || pool.status === "ARCHIVED" || pool.deletedAt !== null;
+    return (
+      pool === null ||
+      pool.status === "ARCHIVED" ||
+      pool.status === "DELETED" ||
+      pool.deletedAt !== null
+    );
   }
 
   function resetPoolSettingsDraft() {
@@ -930,6 +935,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       .map((entry) => entry.anime.bgmId)
       .filter((bgmId): bgmId is number => bgmId !== null)
   );
+  const canShowCommunityBattle =
+    pool.visibility === "PUBLIC" && pool.status === "ACTIVE" && pool.deletedAt === null;
+  const canPromptLoginToBattle =
+    canShowCommunityBattle && !canPlayPool && (permissions?.canRead ?? false);
+  const loginToPoolPath = `/login?next=${encodeURIComponent(`/pools/${params.poolId}`)}`;
   const poolGuidance = getPoolGuidance(pool.anime.length, isArchived);
   const sourceSummary = formatPoolSourceSummary(pool.anime.map((entry) => entry.anime.source));
   const selectedDisplayEntry =
@@ -982,22 +992,38 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         </div>
         <AppCard className="p-5" variant="focus">
           <div className="grid gap-3">
-            <AppButton
-              onClick={() =>
-                canPromptLoginToMatch
-                  ? router.push(`/login?next=${encodeURIComponent(`/pools/${params.poolId}`)}`)
-                  : enterRun("match")
-              }
-              disabled={(!canStart && !canPromptLoginToMatch) || isMutating}
-              variant="primary"
-              size="lg"
-            >
-              {canPromptLoginToMatch
-                ? "登录后开始个人对决"
-                : canManagePool
-                  ? "开始对决"
-                  : "开始我的对决"}
-            </AppButton>
+            {canShowCommunityBattle ? (
+              <>
+                <AppButton
+                  onClick={() =>
+                    canPromptLoginToBattle ? router.push(loginToPoolPath) : enterRun("match")
+                  }
+                  disabled={(!canStart && !canPromptLoginToBattle) || isMutating}
+                  variant="primary"
+                  size="lg"
+                >
+                  {canPromptLoginToBattle ? "登录后参与大乱斗" : "加入社区大乱斗"}
+                </AppButton>
+                <p className="text-xs leading-5 text-slate-500">
+                  每个人都有自己的对决和榜单，你的选择会以匿名聚合的方式贡献到社区榜单。不会影响创建者的作品墙，也不会覆盖你的个人 Tier List。
+                </p>
+              </>
+            ) : (
+              <AppButton
+                onClick={() =>
+                  canPromptLoginToMatch ? router.push(loginToPoolPath) : enterRun("match")
+                }
+                disabled={(!canStart && !canPromptLoginToMatch) || isMutating}
+                variant="primary"
+                size="lg"
+              >
+                {canPromptLoginToMatch
+                  ? "登录后开始个人对决"
+                  : canManagePool
+                    ? "开始对决"
+                    : "开始我的对决"}
+              </AppButton>
+            )}
             <AppButton
               onClick={() =>
                 isArchived && latestRun !== undefined
@@ -1052,6 +1078,14 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           description={poolOnboardingHint}
           tone="guide"
         />
+        {canShowCommunityBattle ? (
+          <StatusHint
+            label="社区大乱斗"
+            title="公开番组的共同榜单玩法"
+            description="每个人都有自己的对决和榜单，你的选择会以匿名聚合的方式贡献到社区榜单。不会影响创建者的作品墙，也不会覆盖你的个人 Tier List。"
+            tone="guide"
+          />
+        ) : null}
         <StatusHint
           label={poolGuidance.label}
           title={poolGuidance.title}

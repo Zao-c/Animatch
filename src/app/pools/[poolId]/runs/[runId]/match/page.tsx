@@ -52,6 +52,7 @@ export default function MatchPage({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [feedbackResult, setFeedbackResult] = useState<ComparisonResult | null>(null);
+  const [canShowCommunityBattle, setCanShowCommunityBattle] = useState(false);
   const isRefillingRef = useRef(false);
 
   const appendUniquePairs = useCallback((incomingPairs: MatchPair[]) => {
@@ -83,6 +84,9 @@ export default function MatchPage({
       ]);
       setPoolName(pool.name);
       setPoolAnimeCount(pool.anime.length);
+      setCanShowCommunityBattle(
+        pool.visibility === "PUBLIC" && pool.status === "ACTIVE" && pool.deletedAt == null
+      );
       setConfidenceScore(data.confidenceScore);
       setQueueMeta({
         scoreDistribution: data.scoreDistribution,
@@ -241,6 +245,7 @@ export default function MatchPage({
 
     return (
       <PageShell>
+        {canShowCommunityBattle ? <CommunityBattleMatchHint /> : null}
         <EmptyState
           title={emptyCopy.title}
           description={emptyCopy.description}
@@ -268,7 +273,7 @@ export default function MatchPage({
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="flex flex-wrap gap-2">
-            <AppBadge tone="source">普通对决</AppBadge>
+            <AppBadge tone="source">{canShowCommunityBattle ? "社区大乱斗" : "普通对决"}</AppBadge>
             <AppBadge tone="status">{poolName}</AppBadge>
           </div>
           <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
@@ -323,6 +328,7 @@ export default function MatchPage({
       {isRefilling ? <ErrorAlert message="正在补充后续对局..." tone="notice" className="mb-5" /> : null}
       {notice ? <ErrorAlert message={notice} tone="notice" className="mb-5" /> : null}
       {error ? <ErrorAlert message={error} className="mb-5" /> : null}
+      {canShowCommunityBattle ? <CommunityBattleMatchHint /> : null}
       {queueMeta ? (
         <div className="mb-6">
           <RankingProgressCard progress={queueMeta.progress} compact />
@@ -393,6 +399,19 @@ export default function MatchPage({
         {showShortcutHelp ? <MatchShortcutHint /> : null}
       </div>
     </PageShell>
+  );
+}
+
+function CommunityBattleMatchHint() {
+  return (
+    <AppCard className="mb-5 p-4" variant="soft">
+      <div className="min-w-0">
+        <AppBadge tone="source">社区大乱斗</AppBadge>
+        <p className="mt-2 text-sm leading-6 text-slate-300">
+          你正在参与这个公开番组的社区大乱斗。你的选择只会更新你的个人榜单，并以匿名聚合方式贡献到社区榜单。
+        </p>
+      </div>
+    </AppCard>
   );
 }
 

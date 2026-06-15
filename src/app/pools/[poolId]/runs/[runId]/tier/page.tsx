@@ -114,7 +114,7 @@ export default function TierPage({
       ]);
       setPoolName(pool.name);
       setCanShowCommunityRanking(
-        pool.visibility === "PUBLIC" && pool.status !== "ARCHIVED" && pool.deletedAt == null
+        pool.visibility === "PUBLIC" && pool.status === "ACTIVE" && pool.deletedAt == null
       );
       setTierList(data);
       if (!isEditing) {
@@ -438,6 +438,17 @@ export default function TierPage({
           </AppButton>
         </div>
       </AppCard>
+
+      {canShowCommunityRanking ? (
+        <AppCard className="mb-5 p-4" variant="soft">
+          <div className="min-w-0">
+            <AppBadge tone="source">社区大乱斗</AppBadge>
+            <p className="mt-2 text-sm leading-6 text-slate-300">
+              这是你的个人榜单；它会以匿名聚合方式参与社区榜单。
+            </p>
+          </div>
+        </AppCard>
+      ) : null}
 
       {error ? <ErrorAlert message={error} className="mb-5" /> : null}
       {exportError ? <ErrorAlert message={exportError} className="mb-5" /> : null}
