@@ -227,6 +227,17 @@ describe("Bangumi search API", () => {
     expect(mockedBangumi.searchBangumiAnime).not.toHaveBeenCalled();
   });
 
+  it("returns a clear 400 for a too-short query", async () => {
+    const response = await SEARCH_BANGUMI(
+      new Request("http://test.local/api/anime/bangumi/search?q=a")
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload.error.message).toBe("q must be at least 2 characters");
+    expect(mockedBangumi.searchBangumiAnime).not.toHaveBeenCalled();
+  });
+
   it("returns normalized Bangumi search results", async () => {
     const response = await SEARCH_BANGUMI(
       new Request("http://test.local/api/anime/bangumi/search?q=frieren")
@@ -271,7 +282,7 @@ describe("Bangumi search API", () => {
   it("returns a readable error without leaking token-like internals", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     mockedBangumi.searchBangumiAnime.mockRejectedValueOnce(
-      new Error("Bangumi failed with Authorization Bearer secret-token via http://user:proxy-secret@127.0.0.1:7890")
+      new Error("Bangumi search failed: HTTP 400; body={\"error\":\"bad request\"}")
     );
 
     const response = await SEARCH_BANGUMI(
@@ -279,13 +290,32 @@ describe("Bangumi search API", () => {
     );
     const payload = await response.json();
 
-    expect(response.status).toBe(500);
-    expect(payload.error.message).toBe("Bangumi search failed. Please try again later.");
+    expect(response.status).toBe(502);
+    expect(payload.error.message).toBe("Bangumi 搜索暂时不可用，请稍后重试。");
     expect(payload.error.message).not.toContain("secret-token");
     expect(payload.error.message).not.toContain("proxy-secret");
     expect(payload.error.message).not.toContain("Bearer");
+    expect(JSON.stringify(consoleError.mock.calls)).toContain("HTTP 400");
+    expect(JSON.stringify(consoleError.mock.calls)).toContain("bad request");
     expect(JSON.stringify(consoleError.mock.calls)).not.toContain("secret-token");
     expect(JSON.stringify(consoleError.mock.calls)).not.toContain("proxy-secret");
+    consoleError.mockRestore();
+  });
+
+  it("returns 502 for Bangumi upstream 500 responses", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mockedBangumi.searchBangumiAnime.mockRejectedValueOnce(
+      new Error("Bangumi search failed: HTTP 500; body={\"error\":\"upstream\"}")
+    );
+
+    const response = await SEARCH_BANGUMI(
+      new Request("http://test.local/api/anime/bangumi/search?q=hyouka")
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(payload.error.message).toBe("Bangumi 搜索暂时不可用，请稍后重试。");
+    expect(JSON.stringify(consoleError.mock.calls)).toContain("HTTP 500");
     consoleError.mockRestore();
   });
 });

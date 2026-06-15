@@ -1,10 +1,10 @@
 import { ProxyAgent, type Dispatcher } from "undici";
 
 const BANGUMI_BASE_URL = process.env.BANGUMI_PROXY_URL ?? "https://api.bgm.tv/v0";
-const BANGUMI_ACCESS_TOKEN = process.env.BANGUMI_ACCESS_TOKEN ?? process.env.BANGUMI_TOKEN ?? "";
 const DEFAULT_USER_AGENT = "AniMatch/0.1 (https://github.com/Zao-c/Animatch)";
 const FETCH_TIMEOUT_MS = 30_000;
 const BANGUMI_SUBJECT_PAGE_BASE_URL = "https://bgm.tv/subject";
+const ERROR_BODY_SUMMARY_LENGTH = 500;
 
 let proxyAgentCache:
   | {
@@ -18,15 +18,20 @@ type BangumiFetchInit = RequestInit & {
 };
 
 function buildHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const accessToken = getBangumiAccessToken();
   const headers: Record<string, string> = {
     "User-Agent": DEFAULT_USER_AGENT,
     "Accept": "application/json",
     ...extra,
   };
-  if (BANGUMI_ACCESS_TOKEN) {
-    headers["Authorization"] = `Bearer ${BANGUMI_ACCESS_TOKEN}`;
+  if (accessToken) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
   }
   return headers;
+}
+
+function getBangumiAccessToken(): string {
+  return process.env.BANGUMI_ACCESS_TOKEN ?? process.env.BANGUMI_TOKEN ?? "";
 }
 
 export function getBangumiProxyUrl(): string | null {
@@ -171,14 +176,13 @@ export async function searchBangumiAnime(
     body: JSON.stringify({
       keyword: trimmedKeyword,
       filter: {
-        type: [2],
-        nsfw: false
+        type: [2]
       }
     })
   });
 
   if (!response.ok) {
-    throw new Error(`Bangumi search failed with status ${response.status}`);
+    throw await createBangumiResponseError("search", response);
   }
 
   const body = (await response.json()) as BangumiSearchResponse;
@@ -200,7 +204,7 @@ export async function getBangumiSubject(
   });
 
   if (!response.ok) {
-    throw new Error(`Bangumi subject ${subjectId} failed with status ${response.status}`);
+    throw await createBangumiResponseError(`subject ${subjectId}`, response);
   }
 
   return normalizeBangumiSubject(await response.json());
@@ -356,6 +360,28 @@ function clampInteger(value: number, min: number, max: number): number {
   }
 
   return Math.min(max, Math.max(min, Math.trunc(value)));
+}
+
+async function createBangumiResponseError(
+  endpoint: string,
+  response: Response
+): Promise<Error> {
+  const body = await response.text().catch(() => "");
+  const bodySummary = sanitizeBangumiErrorText(body).slice(0, ERROR_BODY_SUMMARY_LENGTH);
+  return new Error(
+    `Bangumi ${endpoint} failed: HTTP ${response.status}; body=${bodySummary || "<empty>"}`
+  );
+}
+
+function sanitizeBangumiErrorText(value: string): string {
+  const accessToken = getBangumiAccessToken();
+  const sanitized = value
+    .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [redacted]")
+    .replace(/(authorization["'\s:=]+)([^"',\s}]+)/gi, "$1[redacted]")
+    .replace(/(access[_-]?token["'\s:=]+)([^"',\s}]+)/gi, "$1[redacted]")
+    .replace(/https?:\/\/[^/\s:@]+:[^/\s@]+@/gi, "http://[redacted]@");
+
+  return accessToken ? sanitized.replaceAll(accessToken, "[redacted]") : sanitized;
 }
 
 function toJsonValue(value: unknown): JsonValue {

@@ -1,4 +1,5 @@
-import { badRequest, fromError, ok, serverError } from "@/lib/api-response";
+import { NextResponse } from "next/server";
+import { badRequest, fromError, ok } from "@/lib/api-response";
 import { isAppError } from "@/lib/app-error";
 import { requireCurrentUser } from "@/lib/auth-session";
 import { searchBangumiAnime, toBangumiSearchItem } from "@/lib/bangumi";
@@ -32,7 +33,15 @@ export async function GET(request: Request) {
       message: toSafeBangumiSearchLogMessage(error)
     });
 
-    return serverError("Bangumi search failed. Please try again later.");
+    return NextResponse.json(
+      {
+        ok: false,
+        error: {
+          message: "Bangumi 搜索暂时不可用，请稍后重试。"
+        }
+      },
+      { status: 502 }
+    );
   }
 }
 
@@ -41,7 +50,7 @@ function toSafeBangumiSearchLogMessage(error: unknown): string {
     return "Unknown Bangumi search error";
   }
 
-  if (/^Bangumi search failed with status \d+$/.test(error.message)) {
+  if (/^Bangumi search failed: HTTP \d+; body=/.test(error.message)) {
     return error.message;
   }
 

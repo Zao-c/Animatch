@@ -13,6 +13,10 @@ const originalProxyEnv = {
   https_proxy: process.env.https_proxy,
   http_proxy: process.env.http_proxy
 };
+const originalBangumiTokenEnv = {
+  BANGUMI_ACCESS_TOKEN: process.env.BANGUMI_ACCESS_TOKEN,
+  BANGUMI_TOKEN: process.env.BANGUMI_TOKEN
+};
 
 function clearProxyEnv() {
   delete process.env.HTTPS_PROXY;
@@ -24,6 +28,20 @@ function clearProxyEnv() {
 function restoreProxyEnv() {
   clearProxyEnv();
   for (const [key, value] of Object.entries(originalProxyEnv)) {
+    if (value !== undefined) {
+      process.env[key] = value;
+    }
+  }
+}
+
+function clearBangumiTokenEnv() {
+  delete process.env.BANGUMI_ACCESS_TOKEN;
+  delete process.env.BANGUMI_TOKEN;
+}
+
+function restoreBangumiTokenEnv() {
+  clearBangumiTokenEnv();
+  for (const [key, value] of Object.entries(originalBangumiTokenEnv)) {
     if (value !== undefined) {
       process.env[key] = value;
     }
@@ -120,6 +138,7 @@ describe("normalizeBangumiSubject", () => {
 describe("Bangumi fetch proxy support", () => {
   beforeEach(() => {
     clearProxyEnv();
+    clearBangumiTokenEnv();
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
@@ -143,6 +162,37 @@ describe("Bangumi fetch proxy support", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     restoreProxyEnv();
+    restoreBangumiTokenEnv();
+  });
+
+  it("posts a valid search body and Bangumi headers", async () => {
+    process.env.BANGUMI_ACCESS_TOKEN = "test-token";
+
+    await searchBangumiAnime("hyouka");
+
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    const headers = init?.headers as Record<string, string>;
+    const body = JSON.parse(String(init?.body)) as {
+      keyword: string;
+      filter: { type: number[]; nsfw?: boolean };
+    };
+
+    expect(init?.method).toBe("POST");
+    expect(headers["User-Agent"]).toContain("AniMatch");
+    expect(headers["Accept"]).toBe("application/json");
+    expect(headers["Content-Type"]).toBe("application/json");
+    expect(headers["Authorization"]).toBe("Bearer test-token");
+    expect(body.keyword).toBe("hyouka");
+    expect(body.filter.type).toEqual([2]);
+    expect(body.filter).not.toHaveProperty("nsfw");
+  });
+
+  it("keeps Authorization absent when the Bangumi token is not configured", async () => {
+    await searchBangumiAnime("hyouka");
+
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    const headers = init?.headers as Record<string, string>;
+    expect(headers["Authorization"]).toBeUndefined();
   });
 
   it("does not pass a dispatcher when HTTP_PROXY and HTTPS_PROXY are absent", async () => {
@@ -175,24 +225,36 @@ describe("Bangumi fetch proxy support", () => {
     expect(init).toHaveProperty("dispatcher");
   });
 
-  it("does not leak proxy URLs or tokens in Bangumi status errors", async () => {
+  it("includes upstream status and body summary without leaking proxy URLs or tokens", async () => {
     process.env.HTTPS_PROXY = "http://user:secret-proxy@127.0.0.1:7890";
+    process.env.BANGUMI_ACCESS_TOKEN = "token-secret";
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
         Response.json(
           {
-            error: "token-secret"
+            error: "bad request",
+            authorization: "Bearer token-secret",
+            proxy: "http://user:secret-proxy@127.0.0.1:7890"
           },
-          { status: 502 }
+          { status: 400 }
         )
       )
     );
 
-    await expect(searchBangumiAnime("冰菓")).rejects.toThrow(
-      "Bangumi search failed with status 502"
-    );
-    await expect(searchBangumiAnime("冰菓")).rejects.not.toThrow("secret-proxy");
-    await expect(searchBangumiAnime("冰菓")).rejects.not.toThrow("token-secret");
+    let error: unknown;
+    try {
+      await searchBangumiAnime("冰菓");
+    } catch (reason) {
+      error = reason;
+    }
+
+    expect(error).toBeInstanceOf(Error);
+    const message = (error as Error).message;
+    expect(message).toContain("Bangumi search failed: HTTP 400");
+    expect(message).toContain("bad request");
+    expect(message).not.toContain("secret-proxy");
+    expect(message).not.toContain("token-secret");
+    expect(message).not.toContain("Bearer token-secret");
   });
 });
