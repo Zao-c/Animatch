@@ -48,7 +48,9 @@ describe("TierShareView", () => {
               { key: "B", label: "B", items: [] },
               { key: "C", label: "C", items: [] },
               { key: "D", label: "D", items: [] }
-            ]
+            ],
+            animeCount: 1,
+            comparisonCount: 5
           },
           createdAt: "2026-06-11T12:00:00.000Z"
         }
@@ -216,7 +218,9 @@ function shareFixture(): PublicTierShare {
         { key: "B" as const, label: "B", items: [] },
         { key: "C" as const, label: "C", items: [] },
         { key: "D" as const, label: "D", items: [] }
-      ]
+      ],
+      animeCount: 1,
+      comparisonCount: 5
     },
     createdAt: "2026-06-11T12:00:00.000Z"
   };

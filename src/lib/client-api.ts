@@ -382,6 +382,8 @@ export interface TierShareSnapshot {
     username: string | null;
   };
   tiers: TierShareSnapshotTier[];
+  animeCount: number;
+  comparisonCount: number;
 }
 
 export interface PublicTierShare {

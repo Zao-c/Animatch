@@ -334,3 +334,7 @@ textarea:focus {
 .share-tier-label-d {
   background: #70f475;
 }
+
+.share-tier-label-insufficient {
+  background: #334155;
+}

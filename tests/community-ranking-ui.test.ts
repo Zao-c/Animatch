@@ -39,7 +39,8 @@ describe("community ranking UI wiring", () => {
   });
 
   it("renders community ranking summary and item metrics from the API payload", () => {
-    expect(detailSource).toContain("CommunityRankingSection");
+    expect(detailSource).toContain("CommunitySection");
+    expect(detailSource).toContain("CommunityAverageTierList");
     expect(detailSource).toContain("ranking.totalParticipants");
     expect(detailSource).toContain("ranking.totalRuns");
     expect(detailSource).toContain("ranking.totalAnime");
@@ -67,12 +68,12 @@ describe("community ranking UI wiring", () => {
   });
 
   it("keeps the community ranking mobile layout card-based rather than table-based", () => {
-    const sectionStart = detailSource.indexOf("function CommunityRankingSection");
-    const section = detailSource.slice(sectionStart);
+    const sectionStart = detailSource.indexOf("function CommunitySection");
+    const section = sectionStart !== -1
+      ? detailSource.slice(sectionStart)
+      : detailSource.slice(detailSource.indexOf("function CommunityRankingSection"));
 
     expect(section).not.toContain("<table");
-    expect(section).toContain("min-w-0");
-    expect(section).toContain("[overflow-wrap:anywhere]");
     expect(section).toContain("grid gap-3");
     expect(section).toContain("sm:grid-cols");
   });

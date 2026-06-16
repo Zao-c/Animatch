@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChangeEvent, DragEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimeCard } from "@/components/AnimeCard";
 import { AnimeCover } from "@/components/AnimeCover";
+import { CommunityAverageTierList } from "@/components/CommunityAverageTierList";
 import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
@@ -139,6 +140,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [isCommunityRankingLoading, setIsCommunityRankingLoading] = useState(false);
   const [communityRankingError, setCommunityRankingError] = useState<string | null>(null);
   const [communityRankingUnavailable, setCommunityRankingUnavailable] = useState(false);
+  const [communityView, setCommunityView] = useState<"ranking" | "tierlist">("ranking");
   const [activeTab, setActiveTab] = useState<AddTab>("search");
   const [showMorePoolActions, setShowMorePoolActions] = useState(false);
   const [showMoreImportMethods, setShowMoreImportMethods] = useState(false);
@@ -1986,10 +1988,12 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       </section>
 
       {canShowCommunityRanking ? (
-        <CommunityRankingSection
+        <CommunitySection
           ranking={communityRanking}
           isLoading={isCommunityRankingLoading}
           error={communityRankingError}
+          view={communityView}
+          onViewChange={setCommunityView}
         />
       ) : null}
 
@@ -2008,14 +2012,18 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   );
 }
 
-function CommunityRankingSection({
+function CommunitySection({
   ranking,
   isLoading,
-  error
+  error,
+  view,
+  onViewChange
 }: {
   ranking: CommunityRankingResponse | null;
   isLoading: boolean;
   error: string | null;
+  view: "ranking" | "tierlist";
+  onViewChange: (v: "ranking" | "tierlist") => void;
 }) {
   const hasItems = (ranking?.items.length ?? 0) > 0;
 
@@ -2049,46 +2057,81 @@ function CommunityRankingSection({
           </div>
         ) : null}
 
-        <div className="mt-5 rounded-xl border border-cyan-300/18 bg-cyan-300/[0.07] p-4">
-          <AppBadge tone="source">样本说明</AppBadge>
-          <h3 className="mt-3 text-sm font-semibold text-white">
-            参与人数或有效比较次数还不够时，排名仅供参考
-          </h3>
-          <p className="mt-2 text-sm leading-6 text-slate-300">
-            样本不足的作品会保留在列表中，但不会获得正式排名。登录后开始对决，也可以帮助这个番组生成社区榜单。
-          </p>
+        <div className="mt-5 flex gap-2 border-b border-white/10 pb-3">
+          <button
+            type="button"
+            onClick={() => onViewChange("ranking")}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+              view === "ranking"
+                ? "bg-cyan-400/20 text-cyan-200"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            社区排名
+          </button>
+          <button
+            type="button"
+            onClick={() => onViewChange("tierlist")}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+              view === "tierlist"
+                ? "bg-yellow-400/20 text-yellow-200"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            社区平均 Tier List
+          </button>
         </div>
 
-        {isLoading ? (
-          <ErrorAlert message="正在加载社区榜单..." tone="notice" className="mt-5" />
-        ) : null}
-        {error ? <ErrorAlert message={error} className="mt-5" /> : null}
+        {view === "ranking" ? (
+          <>
+            <div className="mt-3 rounded-xl border border-cyan-300/18 bg-cyan-300/[0.07] p-4">
+              <AppBadge tone="source">样本说明</AppBadge>
+              <h3 className="mt-3 text-sm font-semibold text-white">
+                参与人数或有效比较次数还不够时，排名仅供参考
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                样本不足的作品会保留在列表中，但不会获得正式排名。登录后开始对决，也可以帮助这个番组生成社区榜单。
+              </p>
+            </div>
 
-        {!isLoading && error === null && ranking === null ? (
-          <div className="mt-5">
-            <EmptyState
-              title="这个番组暂时没有社区榜单"
-              description="公开番组积累更多个人对决后，会在这里展示社区聚合结果。"
-            />
-          </div>
-        ) : null}
+            {isLoading ? (
+              <ErrorAlert message="正在加载社区榜单..." tone="notice" className="mt-5" />
+            ) : null}
+            {error ? <ErrorAlert message={error} className="mt-5" /> : null}
 
-        {!isLoading && error === null && ranking !== null && !hasItems ? (
-          <div className="mt-5">
-            <EmptyState
-              title="还没有足够的社区对决数据。"
-              description="登录后开始对决，也可以帮助这个番组生成社区榜单。"
-            />
-          </div>
-        ) : null}
+            {!isLoading && error === null && ranking === null ? (
+              <div className="mt-5">
+                <EmptyState
+                  title="这个番组暂时没有社区榜单"
+                  description="公开番组积累更多个人对决后，会在这里展示社区聚合结果。"
+                />
+              </div>
+            ) : null}
 
-        {ranking !== null && hasItems ? (
-          <div className="mt-5 grid gap-3">
-            {ranking.items.map((item) => (
-              <CommunityRankingCard key={item.animeId} item={item} />
-            ))}
-          </div>
-        ) : null}
+            {!isLoading && error === null && ranking !== null && !hasItems ? (
+              <div className="mt-5">
+                <EmptyState
+                  title="还没有足够的社区对决数据。"
+                  description="登录后开始对决，也可以帮助这个番组生成社区榜单。"
+                />
+              </div>
+            ) : null}
+
+            {ranking !== null && hasItems ? (
+              <div className="mt-5 grid gap-3">
+                {ranking.items.map((item) => (
+                  <CommunityRankingCard key={item.animeId} item={item} />
+                ))}
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <CommunityAverageTierList
+            ranking={ranking}
+            isLoading={isLoading && !ranking}
+            error={error}
+          />
+        )}
       </AppCard>
     </section>
   );

@@ -153,7 +153,9 @@ function shareFixture() {
             }
           ]
         }
-      ]
+      ],
+      animeCount: 1,
+      comparisonCount: 5
     },
     createdAt: "2026-06-11T12:00:00.000Z"
   };

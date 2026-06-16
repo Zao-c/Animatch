@@ -51,6 +51,8 @@ export interface TierShareSnapshot {
     username: string | null;
   };
   tiers: TierShareSnapshotTier[];
+  animeCount: number;
+  comparisonCount: number;
 }
 
 export interface PublicTierShare {
@@ -125,7 +127,9 @@ export function buildTierShareSnapshot(params: {
       key: tier,
       label: params.tierLabels[tier],
       items: params.tierList.tiers[tier].map(toSnapshotItem)
-    }))
+    })),
+    animeCount: params.tierList.comparedAnime,
+    comparisonCount: params.tierList.effectiveComparisons
   };
 }
 

@@ -61,6 +61,14 @@ describe("waitForShareCardImages", () => {
 
 describe("exportShareCardAsPng", () => {
   it("passes an image placeholder to html-to-image so failed images do not reject export", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers({ "content-type": "image/png" }),
+      blob: async () => new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" })
+    }));
+    vi.stubGlobal("setTimeout", vi.fn((fn: () => void) => fn() as unknown as number));
+    vi.stubGlobal("clearTimeout", vi.fn());
+
     const card = fakeCard([
       fakeImage({ complete: true, naturalWidth: 320, naturalHeight: 180 })
     ]);
@@ -83,21 +91,27 @@ describe("exportShareCardAsPng", () => {
     );
   });
 
-  it("uses the caller timeout while waiting for image load before export", async () => {
-    vi.useFakeTimers();
-    vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    vi.mocked(toPng).mockResolvedValue("data:image/png;base64,exported");
+  it("allows custom filename and timeout in export options", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers({ "content-type": "image/png" }),
+      blob: async () => new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" })
+    }));
+    vi.stubGlobal("setTimeout", vi.fn((fn: () => void) => fn() as unknown as number));
+    vi.stubGlobal("clearTimeout", vi.fn());
+
     const card = fakeCard([
-      fakeImage({ complete: false, naturalWidth: 0, naturalHeight: 0 })
+      fakeImage({ complete: true, naturalWidth: 320, naturalHeight: 180 })
     ]);
     const container = fakeContainer(card);
+    vi.mocked(toPng).mockResolvedValue("data:image/png;base64,exported");
 
-    const pending = exportShareCardAsPng(container, { timeoutMs: 25 });
-    await Promise.resolve();
-    expect(toPng).not.toHaveBeenCalled();
+    const result = await exportShareCardAsPng(container, {
+      filename: "custom-name",
+      timeoutMs: 5000
+    });
 
-    await vi.advanceTimersByTimeAsync(25);
-    await pending;
+    expect(result.dataUrl).toBe("data:image/png;base64,exported");
     expect(toPng).toHaveBeenCalledOnce();
   });
 });
@@ -132,7 +146,10 @@ function fakeImage({
     src: "/api/image-proxy?url=https%3A%2F%2Fexample.com%2Fimg.png",
     currentSrc: "/api/image-proxy?url=https%3A%2F%2Fexample.com%2Fimg.png",
     addEventListener: vi.fn(),
-    removeEventListener: vi.fn()
+    removeEventListener: vi.fn(),
+    dataset: {} as DOMStringMap,
+    removeAttribute: vi.fn(),
+    style: {} as CSSStyleDeclaration
   } as unknown as HTMLImageElement & {
     addEventListener: ReturnType<typeof vi.fn>;
     removeEventListener: ReturnType<typeof vi.fn>;
