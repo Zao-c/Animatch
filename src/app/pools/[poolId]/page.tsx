@@ -62,6 +62,7 @@ import {
   uploadPoolAnimeCover,
   updatePoolAnimeDisplay,
   updatePool,
+  updatePoolTierConfig,
   ApiClientError,
   type BangumiSearchItem,
   type CommunityRankingResponse,
@@ -78,6 +79,8 @@ import {
   TIERMAKER_URL_LIST_SOURCE,
   TIERMAKER_URL_LIST_TEMPLATE_NAME
 } from "@/lib/tiermaker-url-list";
+import { PoolTierConfigEditor } from "@/components/PoolTierConfigEditor";
+import type { PoolTierConfig } from "@/lib/tier-config";
 
 type AddTab = "search" | "browse" | "manual" | "custom" | "bangumi" | "tiermaker";
 type DisplayOverrideForm = {
@@ -136,6 +139,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [runs, setRuns] = useState<PersonalRun[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
+  const [tierConfigSaving, setTierConfigSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accessState, setAccessState] = useState<PoolAccessState | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -486,6 +490,23 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       setError(reason instanceof Error ? reason.message : "恢复失败");
     } finally {
       setIsMutating(false);
+    }
+  }
+
+  async function handleSaveTierConfig(config: PoolTierConfig) {
+    if (pool === null) return;
+    clearMessage();
+    setTierConfigSaving(true);
+    try {
+      const { tierConfig } = await updatePoolTierConfig(pool.id, config);
+      setPool((current) =>
+        current === null ? current : { ...current, tierConfig }
+      );
+      setNotice("Tier 行配置已保存。");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "保存 Tier 配置失败");
+    } finally {
+      setTierConfigSaving(false);
     }
   }
 
@@ -1370,6 +1391,16 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 启用大乱斗公共榜单
               </label>
             </section>
+
+            {canManagePool && !isArchived ? (
+              <section className="space-y-3 border-t border-anime-border pt-5">
+                <PoolTierConfigEditor
+                  tierConfig={pool.tierConfig ?? null}
+                  onSave={handleSaveTierConfig}
+                  isSaving={tierConfigSaving}
+                />
+              </section>
+            ) : null}
 
             <section className="space-y-3 border-t border-anime-border pt-5">
               <div>

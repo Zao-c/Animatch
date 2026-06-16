@@ -69,6 +69,7 @@ export interface PoolSummary {
   allowPublicEdit?: boolean;
   allowCommunityMatch?: boolean;
   isOfficialDemo?: boolean;
+  tierConfig?: PoolTierConfig | null;
   tags: string[];
   createdAt: string;
   updatedAt: string;
