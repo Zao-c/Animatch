@@ -10,9 +10,9 @@ describe("onboarding guide copy", () => {
   it("shows the home onboarding guide", () => {
     expect(homeSource).toContain("怎么玩 AniMatch");
     expect(homeSource).toContain("浏览公开番组");
-    expect(homeSource).toContain("开始个人对决");
-    expect(homeSource).toContain("创建自己的番组");
-    expect(homeSource).toContain("分享 Tier List");
+    expect(homeSource).toContain("添加动画");
+    expect(homeSource).toContain("开始对决");
+    expect(homeSource).toContain("生成榜单");
   });
 
   it("shows public pool anonymous onboarding copy", () => {
@@ -41,8 +41,12 @@ describe("onboarding guide copy", () => {
 
   it("explains tier sharing, export, and manual display behavior", () => {
     expect(tierSource).toContain("Tier List 根据你的对决结果生成");
-    expect(tierSource).toContain("可以分享榜单");
-    expect(tierSource).toContain("也可以导出图片");
+    expect(tierSource).toContain("分享榜单");
+    expect(tierSource).toContain("导出图片");
+    expect(tierSource).toContain("继续对决");
+    expect(tierSource).toContain("查看社区榜单");
+    expect(tierSource).toContain("社区大乱斗");
+    expect(tierSource).toContain("匿名聚合方式参与社区榜单");
     expect(tierSource).toContain("手动调整只影响榜单展示和当前手动排序");
     expect(tierSource).toContain("不会改写对决历史");
   });
@@ -56,7 +60,7 @@ describe("onboarding guide copy", () => {
   });
 
   it("keeps onboarding surfaces wrapped for narrow mobile widths", () => {
-    expect(homeSource).toContain("sm:grid-cols-2 lg:grid-cols-4");
+    expect(homeSource).toContain("sm:grid-cols-2 lg:grid-cols-3");
     expect(detailSource).toContain("flex flex-wrap");
     expect(matchSource).toContain("flex flex-wrap");
     expect(tierSource).toContain("sm:flex-row sm:flex-wrap");

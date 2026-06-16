@@ -16,9 +16,9 @@ describe("home page UI refresh", () => {
     expect(html).toContain("用左右选择，生成你的动画 Tier List");
     expect(html).toContain("怎么玩 AniMatch");
     expect(html).toContain("浏览公开番组");
-    expect(html).toContain("开始个人对决");
-    expect(html).toContain("创建自己的番组");
-    expect(html).toContain("分享 Tier List");
+    expect(html).toContain("添加动画");
+    expect(html).toContain("开始对决");
+    expect(html).toContain("生成榜单");
     expect(html).toContain("官方 Demo");
   });
 });

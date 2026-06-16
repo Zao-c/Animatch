@@ -53,7 +53,7 @@ describe("public pools view UI", () => {
   });
 
   it("keeps the responsive filter layout table-free", () => {
-    expect(poolsSource).toContain("grid gap-3");
+    expect(poolsSource).toContain("grid gap-4");
     expect(poolsSource).toContain("md:grid-cols-2");
     expect(poolsSource).not.toContain("<table");
   });
