@@ -58,6 +58,15 @@ describe("public pools view UI", () => {
     expect(poolsSource).not.toContain("<table");
   });
 
+  it("keeps public pool cards stable without community ranking N+1 queries", () => {
+    expect(poolsSource).toContain("flex h-full flex-col overflow-hidden");
+    expect(poolsSource).toContain("grid h-28 grid-cols-5");
+    expect(poolsSource).toContain("line-clamp-2 min-h-10");
+    expect(poolsSource).toContain("mt-auto pt-4");
+    expect(poolsSource).toContain("更多操作");
+    expect(poolsSource).not.toContain("getCommunityRanking");
+  });
+
   it("home links point directly to /pools?view=public", () => {
     const matches = homeActionsSource.match(/href="\/pools\?view=public"/g) ?? [];
     expect(matches.length).toBeGreaterThanOrEqual(2);

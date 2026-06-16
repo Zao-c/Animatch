@@ -4,6 +4,12 @@ import { describe, expect, it } from "vitest";
 import { AnimeCover } from "../src/components/AnimeCover";
 import { DuelAnimeCard } from "../src/components/DuelAnimeCard";
 import { TierAnimeCard } from "../src/components/TierAnimeCard";
+import {
+  getAnimeDisplayTitle,
+  getAnimeImageFitMode,
+  isGeneratedOrNoisyTitle,
+  isImageFocusedSource
+} from "../src/lib/anime-display";
 import type { PublicAnimeWithScore, TierListItem } from "../src/lib/client-api";
 
 const scoreDistribution = {
@@ -86,7 +92,7 @@ describe("anime cover rendering", () => {
     expect(html).toContain("图片暂时无法加载");
   });
 
-  it("AnimeCover can render user imported images with object-contain and no referrer", () => {
+  it("AnimeCover renders every image with no-referrer and supports contain mode", () => {
     const html = renderToStaticMarkup(
       React.createElement(AnimeCover, {
         src: "http://tiermaker.example/image.png",
@@ -98,6 +104,20 @@ describe("anime cover rendering", () => {
     expect(html).toContain('data-cover-fit="contain"');
     expect(html).toContain("object-contain");
     expect(html).toContain('referrerPolicy="no-referrer"');
+  });
+
+  it("AnimeCover applies no-referrer to ordinary cover images too", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(AnimeCover, {
+        src: "https://img.example.test/bangumi.jpg",
+        title: "Bangumi Cover",
+        fit: "cover"
+      })
+    );
+
+    expect(html).toContain('src="https://img.example.test/bangumi.jpg"');
+    expect(html).toContain('referrerPolicy="no-referrer"');
+    expect(html).toContain('data-cover-fit="cover"');
   });
 
   it("DuelAnimeCard renders an img when coverUrl is present", () => {
@@ -138,7 +158,7 @@ describe("anime cover rendering", () => {
     expect(html).toContain('src="https://example.com/high.jpg"');
     expect(html).not.toContain('src="https://example.com/thumb.jpg"');
     expect(html).toContain('data-cover-fit="cover"');
-    expect(html).not.toContain('referrerPolicy="no-referrer"');
+    expect(html).toContain('referrerPolicy="no-referrer"');
   });
 
   it("DuelAnimeCard keeps the card height stable and action aligned", () => {
@@ -161,6 +181,23 @@ describe("anime cover rendering", () => {
     expect(html).toContain("mt-auto w-full");
     expect(html).toContain("未命名作品");
     expect(html).not.toContain("17750273769085f154");
+  });
+
+  it("anime display helpers contain user images and protect normal titles", () => {
+    expect(isImageFocusedSource("TIERMAKER_IMPORT")).toBe(true);
+    expect(isImageFocusedSource("CUSTOM_UPLOAD")).toBe(true);
+    expect(getAnimeImageFitMode({ source: "TIERMAKER_IMPORT" })).toBe("contain");
+    expect(getAnimeImageFitMode({ source: "BANGUMI" })).toBe("cover");
+    expect(isGeneratedOrNoisyTitle("https://tiermaker.com/create/abc-17750273769085")).toBe(true);
+    expect(
+      getAnimeDisplayTitle({
+        source: "TIERMAKER_IMPORT",
+        title: "https://tiermaker.com/create/abc-17750273769085"
+      })
+    ).toBe("未命名作品");
+    expect(getAnimeDisplayTitle({ source: "BANGUMI", titleCn: "葬送的芙莉莲" })).toBe(
+      "葬送的芙莉莲"
+    );
   });
 
   it("TierAnimeCard renders an img when coverUrl is present", () => {
@@ -234,7 +271,7 @@ describe("anime cover rendering", () => {
     expect(html).not.toContain("1554.3");
   });
 
-  it("TierAnimeCard shows /10 and keeps Elo secondary", () => {
+  it("TierAnimeCard shows /10 and keeps battle count low emphasis", () => {
     const html = renderToStaticMarkup(
       React.createElement(TierAnimeCard, {
         item: tierItem({ eloScore: 1554.3, compareCount: 3 }),
@@ -246,8 +283,7 @@ describe("anime cover rendering", () => {
     );
 
     expect(html).toContain("/ 10");
-    expect(html).toContain("对决 3");
-    expect(html).toContain("Elo 1554");
+    expect(html).toContain("3 battles");
     expect(html).not.toContain("Elo 1554.3");
   });
 });

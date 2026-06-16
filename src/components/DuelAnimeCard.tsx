@@ -6,7 +6,7 @@ import { AppBadge } from "./ui/AppBadge";
 import { AppButton } from "./ui/AppButton";
 import { AppCard } from "./ui/AppCard";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
-import { getAnimeDisplaySubtitle, getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
+import { getAnimeDisplaySubtitle, getAnimeDisplayTitle, getAnimeImageFitMode } from "@/lib/anime-display";
 import { getAniScore } from "@/lib/ranking-display";
 import type { PublicAnimeWithScore, RankingScoreDistribution } from "@/lib/client-api";
 
@@ -34,7 +34,7 @@ export function DuelAnimeCard({
   const title = getAnimeDisplayTitle(anime);
   const subtitle = getAnimeDisplaySubtitle(anime);
   const coverUrl = getAnimeCoverUrl(anime, { intent: "hero" });
-  const coverFit = shouldUseContainCover(anime) ? "contain" : "cover";
+  const coverFit = getAnimeImageFitMode(anime);
   const animeType = anime.display?.animeType ?? anime.animeType;
   const aniScore = getAniScore(anime.eloScore, scoreDistribution);
   const sideLabel = side === "left" ? "LEFT" : "RIGHT";
@@ -85,7 +85,7 @@ export function DuelAnimeCard({
       </div>
 
       <div className="mt-4">
-        <h2 className="line-clamp-2 min-h-[3.5rem] text-xl font-black tracking-tight text-white sm:text-2xl">
+        <h2 className="line-clamp-2 min-h-[4rem] text-xl font-black leading-8 tracking-tight text-white sm:text-2xl">
           {title}
         </h2>
         {subtitle ? <p className="mt-2 line-clamp-1 text-sm text-slate-400">{subtitle}</p> : null}
@@ -96,11 +96,11 @@ export function DuelAnimeCard({
         ) : null}
       </div>
 
-      <details className="mb-4 mt-4 rounded-xl border border-white/10 bg-slate-950/28 px-3 py-2 text-sm text-slate-400">
+      <details className="relative mb-4 mt-4 rounded-xl border border-white/10 bg-slate-950/28 px-3 py-2 text-sm text-slate-400">
         <summary className="cursor-pointer select-none text-xs font-semibold text-slate-300">
           详细指标
         </summary>
-        <div className="mt-3 grid grid-cols-3 gap-1.5">
+        <div className="absolute left-0 right-0 top-full z-20 mt-2 grid grid-cols-3 gap-1.5 rounded-xl border border-white/10 bg-slate-950/95 p-2 shadow-anime-panel">
           <Metric label="AniScore" value={aniScore.label} />
           <Metric label="对决" value={String(anime.compareCount)} />
           <Metric label="Elo" value={anime.eloScore.toFixed(0)} muted />

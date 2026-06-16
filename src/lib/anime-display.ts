@@ -97,6 +97,10 @@ export function isUserGeneratedImageSource(source: string | null | undefined): b
   return source === "TIERMAKER_IMPORT" || source === "CUSTOM_UPLOAD";
 }
 
+export function isImageFocusedSource(source: string | null | undefined): boolean {
+  return isUserGeneratedImageSource(source);
+}
+
 export function isGeneratedOrNoisyTitle(title: string): boolean {
   const trimmed = title.trim();
 
@@ -162,6 +166,14 @@ export function getAnimeDisplaySubtitle(anime: AnimeDisplaySource): string | nul
 
 export function shouldUseContainCover(anime: AnimeDisplaySource): boolean {
   return isUserGeneratedImageSource(anime.source);
+}
+
+export function getAnimeImageFitMode(anime: AnimeDisplaySource): "cover" | "contain" {
+  return shouldUseContainCover(anime) ? "contain" : "cover";
+}
+
+export function shouldShowAnimeTitle(anime: AnimeDisplaySource): boolean {
+  return getAnimeDisplayTitle(anime).length > 0;
 }
 
 function nonEmpty(value: string | null | undefined): string | null {

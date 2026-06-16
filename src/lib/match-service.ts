@@ -138,17 +138,17 @@ export async function getMatchQueue(params: {
 
   if (visibleScores.length < 2) {
     const effectiveComparisons = Math.floor(
-      activeScores.reduce((sum, score) => sum + score.compareCount, 0) / 2
+      visibleScores.reduce((sum, score) => sum + score.compareCount, 0) / 2
     );
 
     return {
       pairs: [],
-      confidenceScore: calculateQueueConfidence(activeScores),
-      scoreDistribution: buildScoreDistribution(activeScores.map((score) => score.eloScore)),
+      confidenceScore: calculateQueueConfidence(visibleScores),
+      scoreDistribution: buildScoreDistribution(visibleScores.map((score) => score.eloScore)),
       progress: buildRankingProgress({
-        totalItems: activeScores.length,
+        totalItems: visibleScores.length,
         effectiveComparisons,
-        comparedItems: activeScores.filter((score) => score.compareCount > 0).length,
+        comparedItems: visibleScores.filter((score) => score.compareCount > 0).length,
         totalComparisons: effectiveComparisons
       })
     };
@@ -231,7 +231,7 @@ export async function getMatchQueue(params: {
 
   return {
     pairs,
-    confidenceScore: calculateQueueConfidence(activeScores),
+    confidenceScore: calculateQueueConfidence(visibleScores),
     scoreDistribution: buildScoreDistribution(visibleScores.map((score) => score.eloScore)),
     progress
   };

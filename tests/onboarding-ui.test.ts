@@ -8,8 +8,8 @@ describe("onboarding guide copy", () => {
   const tierSource = readFileSync("src/app/pools/[poolId]/runs/[runId]/tier/page.tsx", "utf8");
 
   it("shows the home onboarding guide", () => {
-    expect(homeSource).toContain("怎么玩 AniMatch");
-    expect(homeSource).toContain("浏览公开番组");
+    expect(homeSource).toContain("三步生成榜单");
+    expect(homeSource).toContain("从公开番组体验一次大乱斗");
     expect(homeSource).toContain("添加动画");
     expect(homeSource).toContain("开始对决");
     expect(homeSource).toContain("生成榜单");
@@ -32,11 +32,12 @@ describe("onboarding guide copy", () => {
   });
 
   it("explains match undo, skip, unseen, and reset actions", () => {
-    expect(matchSource).toContain("怎么对决");
-    expect(matchSource).toContain("左右选择你更喜欢的作品");
-    expect(matchSource).toContain("可以跳过，或标记没看过");
-    expect(matchSource).toContain("点错可以撤回上次选择");
-    expect(matchSource).toContain("想重来可以重开本轮");
+    expect(matchSource).toContain("点击整张卡或使用方向键快速选择");
+    expect(matchSource).toContain("对决设置");
+    expect(matchSource).toContain("快捷键");
+    expect(matchSource).toContain("撤回上次选择");
+    expect(matchSource).toContain("重开本轮");
+    expect(matchSource).toContain("左边没看过");
   });
 
   it("explains tier sharing, export, and manual display behavior", () => {
@@ -60,7 +61,7 @@ describe("onboarding guide copy", () => {
   });
 
   it("keeps onboarding surfaces wrapped for narrow mobile widths", () => {
-    expect(homeSource).toContain("sm:grid-cols-2 lg:grid-cols-3");
+    expect(homeSource).toContain("sm:grid-cols-3");
     expect(detailSource).toContain("flex flex-wrap");
     expect(matchSource).toContain("flex flex-wrap");
     expect(tierSource).toContain("sm:flex-row sm:flex-wrap");

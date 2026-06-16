@@ -4,7 +4,7 @@ import React, { type DragEvent } from "react";
 import { AnimeCover } from "./AnimeCover";
 import { AppBadge } from "./ui/AppBadge";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
-import { getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
+import { getAnimeDisplayTitle, getAnimeImageFitMode } from "@/lib/anime-display";
 import { getAniScore } from "@/lib/ranking-display";
 import type { RankingScoreDistribution, TierListItem } from "@/lib/client-api";
 
@@ -27,7 +27,7 @@ export function TierAnimeCard({
 }) {
   const title = getAnimeDisplayTitle(item);
   const coverUrl = getAnimeCoverUrl(item, { intent: "display" });
-  const coverFit = shouldUseContainCover(item) ? "contain" : "cover";
+  const coverFit = getAnimeImageFitMode(item);
   const aniScore = getAniScore(item.eloScore, scoreDistribution);
 
   return (

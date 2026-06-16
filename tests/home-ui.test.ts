@@ -14,12 +14,12 @@ describe("home page UI refresh", () => {
     const html = renderToStaticMarkup(React.createElement(Home));
 
     expect(html).toContain("用左右选择，生成你的动画 Tier List");
-    expect(html).toContain("怎么玩 AniMatch");
+    expect(html).toContain("三步生成榜单");
     expect(html).toContain("浏览公开番组");
     expect(html).toContain("添加动画");
     expect(html).toContain("开始对决");
     expect(html).toContain("生成榜单");
-    expect(html).toContain("官方 Demo");
+    expect(html).toContain("番剧擂台");
   });
 });
 
@@ -27,9 +27,9 @@ describe("home page playtest readiness copy", () => {
   it("explains public community battle and anonymous aggregate ranking", () => {
     const source = readFileSync("src/app/page.tsx", "utf8");
 
-    expect(source).toContain("选择公开番组，加入社区大乱斗");
+    expect(source).toContain("从公开番组体验一次大乱斗");
     expect(source).toContain("个人 Tier List");
-    expect(source).toContain("匿名聚合方式贡献到社区榜单");
+    expect(source).toContain("生成公开分享链接");
   });
 });
 

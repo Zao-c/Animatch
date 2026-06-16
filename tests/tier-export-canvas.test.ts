@@ -113,6 +113,7 @@ describe("TierExportCanvas", () => {
     expect(html).toContain("待定");
     expect(html).toContain("跳过");
     expect(html).toContain('src="https://example.com/high.jpg"');
+    expect(html).toContain('referrerPolicy="no-referrer"');
     expect(html).not.toContain('src="https://example.com/large.jpg"');
     expect(html).not.toContain('src="https://example.com/thumb.jpg"');
     expect(html).not.toContain("tiermaker-export-image-contain");

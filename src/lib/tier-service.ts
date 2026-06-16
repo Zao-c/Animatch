@@ -90,6 +90,7 @@ export async function getRunTierList(params: {
     poolAnimeEntries.map((entry) => [entry.animeId, getEffectiveAnimeDisplay(entry)])
   );
   const activeScores = scores.filter((score) => activeAnimeIds.has(score.animeId));
+  const visibleScores = activeScores.filter((score) => !score.isHidden);
   const activeComparisonsWhere = {
     userId: params.userId,
     poolId: params.poolId,
@@ -113,7 +114,7 @@ export async function getRunTierList(params: {
       }
     })
   ]);
-  const items = activeScores.map((score) =>
+  const items = visibleScores.map((score) =>
     toTierListItem(score, displayByAnimeId.get(score.animeId))
   );
   const tiers = buildTierList(items);
@@ -122,14 +123,14 @@ export async function getRunTierList(params: {
     tiers,
     confidenceScore: calculateRankingConfidence(items),
     totalAnime: activeAnimeIds.size,
-    comparedAnime: activeScores.filter((score) => score.compareCount > 0).length,
+    comparedAnime: visibleScores.filter((score) => score.compareCount > 0).length,
     totalComparisons: activeTotalComparisons,
     effectiveComparisons: activeEffectiveComparisons,
     scoreDistribution: buildScoreDistribution(items.map((item) => item.eloScore)),
     progress: buildRankingProgress({
-      totalItems: activeAnimeIds.size,
+      totalItems: visibleScores.length,
       effectiveComparisons: activeEffectiveComparisons,
-      comparedItems: activeScores.filter((score) => score.compareCount > 0).length,
+      comparedItems: visibleScores.filter((score) => score.compareCount > 0).length,
       totalComparisons: activeTotalComparisons
     })
   };

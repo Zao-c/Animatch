@@ -486,12 +486,12 @@ function PoolCard({
 
   return (
     <AppCard
-      className={`overflow-hidden p-0 transition hover:border-cyan-300/25 ${
+      className={`flex h-full flex-col overflow-hidden p-0 transition hover:border-cyan-300/25 ${
         isArchived ? "opacity-70 grayscale-[0.18]" : ""
       }`}
     >
       <CoverStrip images={pool.coverImages ?? []} title={pool.name} />
-      <div className="p-5">
+      <div className="flex flex-1 flex-col p-5">
       {isEditing ? (
         <div className="space-y-3">
           <input
@@ -589,7 +589,7 @@ function PoolCard({
             更新于 {formatDateTimeStable(pool.updatedAt)}
             {confidenceScore > 0 ? ` · 信心 ${confidenceScore.toFixed(1)}` : ""}
           </p>
-          <div className="mt-4">
+          <div className="mt-auto pt-4">
             {canMatch || canPromptLoginToMatch ? (
               <AppButton
                 onClick={() =>
@@ -673,7 +673,7 @@ function CoverStrip({ images, title }: { images: string[]; title: string }) {
 
   if (visibleImages.length === 0) {
     return (
-      <div className="grid h-24 grid-cols-5 gap-1 bg-slate-950/45 p-2">
+      <div className="grid h-28 grid-cols-5 gap-1 bg-slate-950/45 p-2">
         {Array.from({ length: 5 }, (_, index) => (
           <div
             key={index}
