@@ -945,6 +945,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const permissions = pool.permissions;
   const canManagePool = permissions?.canManage ?? false;
   const canAddAnimeToPool = permissions?.canAddAnime ?? canManagePool;
+  const canEditContent = canManagePool || canAddAnimeToPool;
   const canPlayPool = permissions?.canPlay ?? canManagePool;
   const canReadCommunityMatch = permissions?.canCommunityMatch ?? false;
   const canStart = pool.anime.length >= 2 && !isArchived && canPlayPool;
@@ -1317,7 +1318,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                   key={entry.id}
                   entry={entry}
                   isArchived={isArchived}
-                  canManage={canManagePool}
+                  canManage={canEditContent}
                   isMutating={isMutating}
                   onEdit={() => startEditingDisplay(entry)}
                   onRemove={() => handleRemove(entry.animeId)}
@@ -1328,7 +1329,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         </AppCard>
 
         <div className="space-y-5">
-        {selectedDisplayEntry !== null && canManagePool ? (
+        {selectedDisplayEntry !== null && canEditContent ? (
           <PoolAnimeDisplayPanel
             entry={selectedDisplayEntry}
             isMutating={isMutating}

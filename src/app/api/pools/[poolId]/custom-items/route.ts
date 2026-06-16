@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { PoolStatus, Prisma } from "@prisma/client";
 import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
 import {
@@ -8,6 +8,7 @@ import {
 } from "@/lib/anime-cover-upload";
 import { requireCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
+import { canEditPoolContent } from "@/lib/pool-permissions";
 import { ANIME_SOURCE } from "@/lib/anime-source";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
 
@@ -32,10 +33,6 @@ export async function POST(request: Request, context: RouteContext) {
       return notFound("Pool not found");
     }
 
-    if (pool.creatorId !== user.id) {
-      return forbidden("你没有权限管理这个番组。");
-    }
-
     if (pool.deletedAt !== null || pool.status === PoolStatus.ARCHIVED) {
       return NextResponse.json(
         {
@@ -46,6 +43,10 @@ export async function POST(request: Request, context: RouteContext) {
         },
         { status: 409 }
       );
+    }
+
+    if (!canEditPoolContent(pool, user)) {
+      return forbidden("你没有权限管理这个番组。");
     }
 
     const formData = await request.formData().catch(() => null);
