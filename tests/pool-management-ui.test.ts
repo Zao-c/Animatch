@@ -107,4 +107,60 @@ describe("pool management UI", () => {
     expect(detailSource).toContain("图片 URL 列表");
     expect(detailSource).toContain("可选：自动解析模板链接");
   });
+
+  it("shows pool readiness check for owners", () => {
+    expect(detailSource).toContain("PoolReadinessCard");
+    expect(detailSource).toContain("poolReadiness");
+    expect(detailSource).toContain("buildPoolReadinessReport");
+    expect(detailSource).toContain("canManagePool && !isArchived");
+  });
+
+  it("has batch management mode with toggle", () => {
+    expect(detailSource).toContain("batchMode");
+    expect(detailSource).toContain("selectedAnimeIds");
+    expect(detailSource).toContain("批量管理");
+    expect(detailSource).toContain("取消批量管理");
+    expect(detailSource).toContain("移出 ");
+  });
+
+  it("has search and filter controls on the anime wall", () => {
+    expect(detailSource).toContain("搜索当前作品...");
+    expect(detailSource).toContain("animeWallSearch");
+    expect(detailSource).toContain("animeWallFilter");
+    expect(detailSource).toContain("缺封面");
+    expect(detailSource).toContain("疑似脏标题");
+    expect(detailSource).toContain("TierMaker 导入");
+    expect(detailSource).toContain("Custom 上传");
+  });
+
+  it("has batch confirmation dialog", () => {
+    expect(detailSource).toContain("batchConfirmOpen");
+    expect(detailSource).toContain("确认移出作品");
+    expect(detailSource).toContain("将从当前番组中移出");
+    expect(detailSource).toContain("不会删除全局作品数据");
+    expect(detailSource).toContain("确定移出");
+  });
+
+  it("disables batch remove button when nothing selected", () => {
+    expect(detailSource).toContain("selectedAnimeIds.size === 0");
+  });
+
+  it("hides edit/remove buttons in batch mode", () => {
+    expect(detailSource).toContain("canManage && !batchMode");
+    expect(detailSource).toContain("isBatchSelected");
+    expect(detailSource).toContain("onToggleBatchSelect");
+    expect(detailSource).toContain('type="checkbox"');
+  });
+
+  it("calls batchRemoveAnimeFromPool in the handler", () => {
+    expect(detailSource).toContain("batchRemoveAnimeFromPool");
+    expect(detailSource).toContain("handleBatchRemove");
+    expect(detailSource).toContain("Array.from(selectedAnimeIds)");
+  });
+
+  it("resets batch state and refreshes after batch remove success", () => {
+    expect(detailSource).toContain("setSelectedAnimeIds(new Set())");
+    expect(detailSource).toContain("setBatchMode(false)");
+    expect(detailSource).toContain("setBatchConfirmOpen(false)");
+  });
 });

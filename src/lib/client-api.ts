@@ -772,6 +772,16 @@ export function removeAnimeFromPool(poolId: string, animeId: string) {
   });
 }
 
+export function batchRemoveAnimeFromPool(poolId: string, poolAnimeIds: string[]) {
+  return fetchJson<{ removed: number }>(
+    `/api/pools/${poolId}/anime/batch-remove`,
+    {
+      method: "POST",
+      body: JSON.stringify({ poolAnimeIds })
+    }
+  );
+}
+
 export function updatePoolAnimeDisplay(
   poolId: string,
   animeId: string,

@@ -28,6 +28,8 @@ import { AppCard } from "@/components/ui/AppCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { PoolReadinessCard } from "@/components/PoolReadinessCard";
+import { buildPoolReadinessReport, type ReadinessIssue } from "@/lib/pool-readiness";
 import {
   getPoolAccessStateCopy,
   getPoolAccessStateFromError,
@@ -53,6 +55,7 @@ import {
   listRuns,
   previewTierMakerTemplate,
   removeAnimeFromPool,
+  batchRemoveAnimeFromPool,
   restorePool,
   searchBangumiAnime,
   uploadCustomItemToPool,
@@ -143,6 +146,14 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [communityView, setCommunityView] = useState<"ranking" | "tierlist">("ranking");
   const [activeTab, setActiveTab] = useState<AddTab>("search");
   const [showMorePoolActions, setShowMorePoolActions] = useState(false);
+
+  const [batchMode, setBatchMode] = useState(false);
+  const [selectedAnimeIds, setSelectedAnimeIds] = useState<Set<string>>(new Set());
+  const [animeWallSearch, setAnimeWallSearch] = useState("");
+  const [animeWallFilter, setAnimeWallFilter] = useState<
+    "all" | "missingCover" | "suspiciousTitle" | "tiermaker" | "custom"
+  >("all");
+  const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
   const [showMoreImportMethods, setShowMoreImportMethods] = useState(false);
 
   const [editName, setEditName] = useState("");
@@ -210,6 +221,79 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [tiermakerShowAll, setTiermakerShowAll] = useState(false);
   const [tiermakerImporting, setTiermakerImporting] = useState(false);
   const [tiermakerImportResult, setTiermakerImportResult] = useState<string | null>(null);
+
+  const poolReadiness = useMemo(
+    () =>
+      pool === null
+        ? { status: "blocked" as const, activeCount: 0, missingCoverCount: 0, suspiciousTitleCount: 0, sourceTypeCounts: {}, issues: [] as ReadinessIssue[], suggestions: [] }
+        : buildPoolReadinessReport({
+            animeCount: pool.anime.length,
+            hasTitle: pool.name.length > 0,
+            hasDescription: (pool.description?.length ?? 0) > 0,
+            visibility: pool.visibility,
+            animeSourceFields: pool.anime.map((entry) => ({
+              source: entry.anime.source,
+              title: entry.anime.title,
+              titleCn: entry.anime.titleCn,
+              imageUrl: entry.anime.imageUrl,
+              imageMediumUrl: entry.anime.imageMediumUrl,
+              imageLargeUrl: entry.anime.imageLargeUrl,
+              thumbnailUrl: entry.anime.thumbnailUrl
+            }))
+          }),
+    [pool]
+  );
+
+  const filteredAnime = useMemo(() => {
+    if (pool === null) return [];
+    let items = pool.anime;
+
+    if (animeWallSearch.length > 0) {
+      const lower = animeWallSearch.toLowerCase();
+      items = items.filter((entry) => {
+        const t = entry.anime.titleCn ?? entry.anime.title;
+        return (
+          t.toLowerCase().includes(lower) ||
+          entry.anime.aliases.some((a) => a.toLowerCase().includes(lower))
+        );
+      });
+    }
+
+    switch (animeWallFilter) {
+      case "missingCover": {
+        const source = items;
+        items = [];
+        for (const entry of source) {
+          const a = entry.anime;
+          if (a.imageUrl || a.imageMediumUrl || a.imageLargeUrl || a.thumbnailUrl) continue;
+          items.push(entry);
+        }
+        break;
+      }
+      case "suspiciousTitle": {
+        const source = items;
+        items = [];
+        for (const entry of source) {
+          const title = entry.anime.titleCn ?? entry.anime.title;
+          if (!/^未命名/.test(title) &&
+              !/^untitled$/i.test(title) &&
+              !/^unknown$/i.test(title) &&
+              !/^image[_\s-]?\d+$/i.test(title) &&
+              !/^\d{15,}$/.test(title)) continue;
+          items.push(entry);
+        }
+        break;
+      }
+      case "tiermaker":
+        items = items.filter((entry) => entry.anime.source === "TIERMAKER_IMPORT");
+        break;
+      case "custom":
+        items = items.filter((entry) => entry.anime.source === "CUSTOM_UPLOAD");
+        break;
+    }
+
+    return items;
+  }, [pool, animeWallSearch, animeWallFilter]);
 
   const refreshRuns = useCallback(async () => {
     const data = await listRuns(params.poolId);
@@ -851,6 +935,44 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     }
   }
 
+  async function handleBatchRemove() {
+    if (archived() || selectedAnimeIds.size === 0) return;
+    clearMessage();
+    setIsMutating(true);
+
+    try {
+      const ids = Array.from(selectedAnimeIds);
+      const result = await batchRemoveAnimeFromPool(params.poolId, ids);
+      setNotice(`已移出 ${result.removed} 个作品`);
+      setSelectedAnimeIds(new Set());
+      setBatchMode(false);
+      setBatchConfirmOpen(false);
+      await refreshPool();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "批量移除失败");
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  function toggleBatchSelect(animeId: string) {
+    setSelectedAnimeIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(animeId)) {
+        next.delete(animeId);
+      } else {
+        next.add(animeId);
+      }
+      return next;
+    });
+  }
+
+  function exitBatchMode() {
+    setBatchMode(false);
+    setSelectedAnimeIds(new Set());
+    setBatchConfirmOpen(false);
+  }
+
   function startEditingDisplay(entry: PoolAnimeEntry) {
     clearMessage();
     setEditingDisplayAnimeId(entry.animeId);
@@ -1302,6 +1424,12 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         </AppCard>
       ) : null}
 
+      {canManagePool && !isArchived ? (
+        <section className="mt-8">
+          <PoolReadinessCard report={poolReadiness} />
+        </section>
+      ) : null}
+
       <section className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_410px]">
         <AppCard className="p-5">
           <SectionHeader
@@ -1309,24 +1437,120 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             title="作品墙"
             description="封面优先展示；显示修正和移除操作保持低调。"
           />
+
           {pool.anime.length === 0 ? (
             <div className="mt-5">
               <EmptyState title="还没有添加动画" description="从右侧本地搜索、分类浏览或手动添加开始。" />
             </div>
           ) : (
-            <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {pool.anime.map((entry) => (
-                <PoolAnimeCard
-                  key={entry.id}
-                  entry={entry}
-                  isArchived={isArchived}
-                  canManage={canEditContent}
-                  isMutating={isMutating}
-                  onEdit={() => startEditingDisplay(entry)}
-                  onRemove={() => handleRemove(entry.animeId)}
-                />
-              ))}
-            </div>
+            <>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-1 items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="搜索当前作品..."
+                    value={animeWallSearch}
+                    onChange={(e) => setAnimeWallSearch(e.target.value)}
+                    className="anime-field flex-1 text-sm"
+                  />
+                  <select
+                    value={animeWallFilter}
+                    onChange={(e) =>
+                      setAnimeWallFilter(e.target.value as typeof animeWallFilter)
+                    }
+                    className="anime-field w-auto text-sm"
+                  >
+                    <option value="all">全部</option>
+                    <option value="missingCover">缺封面</option>
+                    <option value="suspiciousTitle">疑似脏标题</option>
+                    <option value="tiermaker">TierMaker 导入</option>
+                    <option value="custom">Custom 上传</option>
+                  </select>
+                </div>
+                {canEditContent && !isArchived ? (
+                  <div className="flex gap-2">
+                    {batchMode ? (
+                      <>
+                        <AppButton
+                          onClick={exitBatchMode}
+                          variant="ghost"
+                          size="sm"
+                          disabled={isMutating}
+                        >
+                          取消批量管理
+                        </AppButton>
+                        <AppButton
+                          onClick={() => setBatchConfirmOpen(true)}
+                          variant="danger"
+                          size="sm"
+                          disabled={selectedAnimeIds.size === 0 || isMutating}
+                        >
+                          移出 {selectedAnimeIds.size} 个作品
+                        </AppButton>
+                      </>
+                    ) : (
+                      <AppButton
+                        onClick={() => setBatchMode(true)}
+                        variant="quiet"
+                        size="sm"
+                      >
+                        批量管理
+                      </AppButton>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+
+              {batchConfirmOpen ? (
+                <div className="mt-3 rounded-xl border border-red-400/30 bg-red-400/10 p-4">
+                  <p className="text-sm font-semibold text-red-300">确认移出作品</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-300">
+                    将从当前番组中移出 {selectedAnimeIds.size} 个作品，不会删除全局作品数据。确定继续吗？
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <AppButton
+                      onClick={handleBatchRemove}
+                      disabled={isMutating}
+                      variant="danger"
+                      size="sm"
+                    >
+                      {isMutating ? "移出中..." : "确定移出"}
+                    </AppButton>
+                    <AppButton
+                      onClick={() => setBatchConfirmOpen(false)}
+                      disabled={isMutating}
+                      variant="ghost"
+                      size="sm"
+                    >
+                      取消
+                    </AppButton>
+                  </div>
+                </div>
+              ) : null}
+
+              {filteredAnime.length === 0 ? (
+                <div className="mt-5">
+                  <p className="text-sm text-slate-400">没有匹配的作品。</p>
+                </div>
+              ) : (
+                <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {filteredAnime.map((entry) => (
+                    <PoolAnimeCard
+                      key={entry.id}
+                      entry={entry}
+                      isArchived={isArchived}
+                      canManage={canEditContent}
+                      isMutating={isMutating}
+                      batchMode={batchMode}
+                      isBatchSelected={selectedAnimeIds.has(entry.id)}
+                      onToggleBatchSelect={() => toggleBatchSelect(entry.id)}
+                      onEdit={() => startEditingDisplay(entry)}
+                      onRemove={() => handleRemove(entry.animeId)}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </AppCard>
 
@@ -2384,6 +2608,9 @@ function PoolAnimeCard({
   isArchived,
   canManage,
   isMutating,
+  batchMode = false,
+  isBatchSelected = false,
+  onToggleBatchSelect,
   onEdit,
   onRemove
 }: {
@@ -2391,6 +2618,9 @@ function PoolAnimeCard({
   isArchived: boolean;
   canManage: boolean;
   isMutating: boolean;
+  batchMode?: boolean;
+  isBatchSelected?: boolean;
+  onToggleBatchSelect?: () => void;
   onEdit: () => void;
   onRemove: () => void;
 }) {
@@ -2413,6 +2643,29 @@ function PoolAnimeCard({
         fit={coverFit}
         className="h-56 w-full rounded-none border-0 sm:h-64"
       />
+      {batchMode ? (
+        <label
+          className={
+            "absolute right-2 top-2 flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border-2 " +
+            (isBatchSelected
+              ? "border-cyan-400 bg-cyan-400/30"
+              : "border-white/40 bg-slate-950/60")
+          }
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            checked={isBatchSelected}
+            onChange={() => onToggleBatchSelect?.()}
+            className="sr-only"
+          />
+          {isBatchSelected ? (
+            <svg className="h-4 w-4 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
+            </svg>
+          ) : null}
+        </label>
+      ) : null}
       <div className="p-3 pb-14">
         <div className="flex min-h-11 items-start gap-2">
           <h3 className="line-clamp-2 flex-1 text-sm font-semibold text-white">{title}</h3>
@@ -2429,7 +2682,7 @@ function PoolAnimeCard({
             {display.tags.slice(0, 4).map(labelAnimeTag).join(" / ")}
           </p>
         ) : null}
-        {canManage ? (
+        {canManage && !batchMode ? (
         <div className="absolute inset-x-3 bottom-3 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-slate-950/78 p-2 opacity-0 shadow-anime-panel backdrop-blur-xl transition-opacity duration-anime group-hover:opacity-100 group-focus-within:opacity-100">
           {!isArchived ? (
             <AppButton onClick={onEdit} disabled={isMutating} variant="quiet" size="sm">
