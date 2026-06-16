@@ -31,6 +31,7 @@ import {
 import { isCommunityBattleVisiblePool } from "@/lib/community-battle-visibility";
 import { exportShareCardAsPng } from "@/lib/share-export";
 import { formatTierExportTimestamp } from "@/lib/tier-export";
+import { DEFAULT_TIER_CONFIG, type TierRowConfig } from "@/lib/tier-config";
 import {
   DEFAULT_TIER_LABELS,
   readTierLabels,
@@ -39,25 +40,26 @@ import {
   type TierLabels
 } from "@/lib/tier-labels";
 
-const TIERS = ["S", "A", "B", "C", "D"] as const;
-type Tier = (typeof TIERS)[number];
-type TierMap = Record<Tier, TierListItem[]>;
+function deriveTierStyles(rows: TierRowConfig[]) {
+  const labelStyle: Record<string, string> = {};
+  const borderStyle: Record<string, string> = {};
 
-const TIER_STYLE: Record<Tier, string> = {
-  S: "border-anime-pink/35 from-anime-pink/18 via-anime-amber/10",
-  A: "border-anime-purple/30 from-anime-purple/16 via-anime-purple/8",
-  B: "border-blue-300/25 from-blue-400/14 via-blue-400/6",
-  C: "border-emerald-300/22 from-emerald-400/12 via-emerald-400/5",
-  D: "border-slate-300/16 from-slate-400/8 via-emerald-400/4"
-};
+  for (const row of rows) {
+    const colorVar = `--tier-color-${row.order}`;
+    labelStyle[row.id] = `tier-row-bg text-slate-950`;
+    borderStyle[row.id] = `border-white/10`;
+  }
 
-const TIER_LABEL_STYLE: Record<Tier, string> = {
-  S: "bg-gradient-to-br from-anime-pink to-anime-amber text-slate-950",
-  A: "bg-anime-purple text-slate-950",
-  B: "bg-blue-300 text-slate-950",
-  C: "bg-emerald-300 text-slate-950",
-  D: "bg-slate-500 text-white"
-};
+  return { labelStyle, borderStyle };
+}
+
+function cloneTiers(tiers: Record<string, TierListItem[]>): Record<string, TierListItem[]> {
+  const result: Record<string, TierListItem[]> = {};
+  for (const key of Object.keys(tiers)) {
+    result[key] = [...tiers[key]];
+  }
+  return result;
+}
 
 const RECALIBRATION_MODES: { type: RecalibrationType; title: string; body: string }[] = [
   { type: "SMART", title: "智能校准", body: "自动挑选最值得复核的组合。" },
@@ -82,15 +84,15 @@ export default function TierPage({
   const router = useRouter();
   const [poolName, setPoolName] = useState("当前番组");
   const [tierList, setTierList] = useState<TierListResponse | null>(null);
-  const [editableTiers, setEditableTiers] = useState<TierMap | null>(null);
-  const [dragSource, setDragSource] = useState<{ tier: Tier; animeId: string } | null>(null);
+  const [editableTiers, setEditableTiers] = useState<Record<string, TierListItem[]> | null>(null);
+  const [dragSource, setDragSource] = useState<{ tier: string; animeId: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRecalibration, setShowRecalibration] = useState(false);
   const [recalibrationType, setRecalibrationType] = useState<RecalibrationType>("SMART");
-  const [targetTier, setTargetTier] = useState<Tier>("A");
+  const [targetTier, setTargetTier] = useState<string>("a");
   const [focusIds, setFocusIds] = useState<string[]>([]);
   const [plannedCount, setPlannedCount] = useState(20);
   const [isExporting, setIsExporting] = useState(false);
@@ -182,9 +184,9 @@ export default function TierPage({
       const data = await saveManualTierList(
         params.poolId,
         params.runId,
-        TIERS.map((tier) => ({
-          tier,
-          animeIds: editableTiers[tier].map((item) => item.animeId)
+        tierRows.map((row) => ({
+          tier: row.id,
+          animeIds: (editableTiers[row.id] ?? []).map((item) => item.animeId)
         }))
       );
       setTierList(data);
@@ -350,7 +352,7 @@ export default function TierPage({
     }
   }
 
-  function handleDrop(targetTierName: Tier, beforeAnimeId?: string) {
+  function handleDrop(targetTierName: string, beforeAnimeId?: string) {
     if (dragSource === null || editableTiers === null) {
       return;
     }
@@ -370,8 +372,8 @@ export default function TierPage({
 
       const next = cloneTiers(current);
 
-      for (const tier of TIERS) {
-        next[tier] = next[tier].filter((item) => item.animeId !== sourceItem.animeId);
+      for (const row of tierRows) {
+        next[row.id] = next[row.id].filter((item) => item.animeId !== sourceItem.animeId);
       }
 
       const insertIndex =
@@ -388,9 +390,16 @@ export default function TierPage({
   }
 
   const visibleTiers = editableTiers ?? tierList?.tiers ?? null;
-  const allItems = useMemo(
-    () => (tierList === null ? [] : TIERS.flatMap((tier) => tierList.tiers[tier])),
+  const tierRows = useMemo(
+    () => tierList?.tierRows ?? DEFAULT_TIER_CONFIG.rows,
     [tierList]
+  );
+
+  const tierStyles = useMemo(() => deriveTierStyles(tierRows), [tierRows]);
+
+  const allAnime = useMemo(
+    () => (tierList === null ? [] : tierRows.flatMap((row) => tierList.tiers[row.id] ?? [])),
+    [tierList, tierRows]
   );
   const scoreDistribution = tierList?.scoreDistribution ?? fallbackScoreDistribution;
   const displayedExportedAt = exportedAt ?? exportPreviewedAt;
@@ -555,15 +564,15 @@ export default function TierPage({
             </div>
           </div>
           <div className="mt-5 grid gap-3 sm:grid-cols-5">
-            {TIERS.map((tier) => (
-              <label key={tier} className="block">
-                <span className="text-sm text-slate-300">{tier}</span>
+            {tierRows.map((row) => (
+              <label key={row.id} className="block">
+                <span className="text-sm text-slate-300">{row.id}</span>
                 <input
-                  value={draftTierLabels[tier]}
+                  value={draftTierLabels[row.id] ?? row.label}
                   onChange={(event) =>
                     setDraftTierLabels((current) => ({
                       ...current,
-                      [tier]: event.target.value
+                      [row.id]: event.target.value
                     }))
                   }
                   maxLength={24}
@@ -616,13 +625,13 @@ export default function TierPage({
               <span className="text-sm text-slate-300">目标 Tier</span>
               <select
                 value={targetTier}
-                onChange={(event) => setTargetTier(event.target.value as Tier)}
+                onChange={(event) => setTargetTier(event.target.value)}
                 disabled={recalibrationType !== "RANGE"}
                 className="anime-field mt-2 disabled:opacity-50"
               >
-                {TIERS.map((tier) => (
-                  <option key={tier} value={tier}>
-                    {tier}
+                {tierRows.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.label}
                   </option>
                 ))}
               </select>
@@ -642,7 +651,7 @@ export default function TierPage({
 
           {recalibrationType === "FOCUS" ? (
             <div className="mt-4 flex flex-wrap gap-2">
-              {allItems.map((item) => {
+              {allAnime.map((item) => {
                 const selected = focusIds.includes(item.animeId);
                 return (
                   <button
@@ -731,40 +740,46 @@ export default function TierPage({
           </div>
 
           <div className="space-y-4">
-            {TIERS.map((tier) => (
+            {tierRows.map((row) => {
+              const rowItems = visibleTiers?.[row.id] ?? [];
+              return (
               <section
-                key={tier}
+                key={row.id}
                 onDragOver={(event) => event.preventDefault()}
-                onDrop={() => handleDrop(tier)}
-                className={`grid gap-4 rounded-2xl border bg-gradient-to-r ${TIER_STYLE[tier]} to-slate-950/46 p-3 backdrop-blur-xl lg:grid-cols-[104px_1fr]`}
+                onDrop={() => handleDrop(row.id)}
+                className="grid gap-4 rounded-2xl border border-white/10 bg-gradient-to-r from-slate-900/50 to-slate-950/46 p-3 backdrop-blur-xl lg:grid-cols-[104px_1fr]"
               >
-                <div className={`flex min-h-24 items-center justify-center rounded-xl border border-white/15 px-3 text-center shadow-anime-panel ${TIER_LABEL_STYLE[tier]}`}>
-                  <span className="max-w-full text-2xl font-black leading-tight [overflow-wrap:anywhere]">
-                    {tierLabels[tier]}
+                <div
+                  className="flex min-h-24 items-center justify-center rounded-xl border border-white/15 px-3 text-center shadow-anime-panel"
+                  style={{ backgroundColor: row.color }}
+                >
+                  <span className="max-w-full text-2xl font-black leading-tight text-slate-950 [overflow-wrap:anywhere]">
+                    {tierLabels[row.id] ?? row.label}
                   </span>
                 </div>
-                {visibleTiers[tier].length === 0 ? (
+                {rowItems.length === 0 ? (
                   <div className="flex min-h-24 items-center rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-4">
                     <p className="text-sm text-slate-500">
-                      {tier} Tier 暂无作品。继续对决后作品会自动进入对应区间。
+                      {row.label} Tier 暂无作品。继续对决后作品会自动进入对应区间。
                     </p>
                   </div>
                 ) : (
                   <div className="flex gap-3 overflow-x-auto pb-2">
-                    {visibleTiers[tier].map((item) => (
+                    {rowItems.map((item) => (
                       <TierAnimeCard
                         key={item.animeId}
                         item={item}
                         editable={isEditing}
                         scoreDistribution={scoreDistribution}
-                        onDragStart={() => setDragSource({ tier, animeId: item.animeId })}
-                        onDropBefore={() => handleDrop(tier, item.animeId)}
+                        onDragStart={() => setDragSource({ tier: row.id, animeId: item.animeId })}
+                        onDropBefore={() => handleDrop(row.id, item.animeId)}
                       />
                     ))}
                   </div>
                 )}
               </section>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : null}
@@ -780,16 +795,6 @@ export default function TierPage({
       ) : null}
     </PageShell>
   );
-}
-
-function cloneTiers(tiers: TierMap): TierMap {
-  return {
-    S: [...tiers.S],
-    A: [...tiers.A],
-    B: [...tiers.B],
-    C: [...tiers.C],
-    D: [...tiers.D]
-  };
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

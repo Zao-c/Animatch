@@ -56,6 +56,7 @@ function pool(overrides: Record<string, unknown> = {}) {
     allowPublicEdit: false,
     allowCommunityMatch: false,
     isOfficialDemo: false,
+    tierConfig: null,
     cloneCount: 0,
     useCount: 0,
     likeCount: 0,

@@ -21,6 +21,9 @@ vi.mock("../src/lib/db", () => ({
     poolComparison: {
       count: vi.fn(),
       findMany: vi.fn()
+    },
+    customPool: {
+      findUnique: vi.fn()
     }
   }
 }));
@@ -28,10 +31,12 @@ vi.mock("../src/lib/db", () => ({
 const mockedScores = vi.mocked(prisma.userPoolScore);
 const mockedPoolAnime = vi.mocked(prisma.poolAnime);
 const mockedComparisons = vi.mocked(prisma.poolComparison);
+const mockedCustomPool = vi.mocked(prisma.customPool);
 
 describe("removed anime active pool filtering", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedCustomPool.findUnique.mockResolvedValue({ tierConfig: null } as any);
   });
 
   it("excludes removed anime from the tier list even when it has a manual tier", async () => {

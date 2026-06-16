@@ -3,27 +3,28 @@ import { AppError } from "./app-error";
 import { prisma } from "./db";
 import { assertRunAccess } from "./run-service";
 import { getRunTierList } from "./tier-service";
-import type { Tier } from "./tier";
+import { resolveTierRows, type PoolTierConfig } from "./tier-config";
 
-const TIERS: Tier[] = ["S", "A", "B", "C", "D"];
+const TIER_MIN_COUNT = 2;
 
 export interface ManualTierInput {
-  tier: Tier;
+  tier: string;
   animeIds: string[];
 }
 
 export interface ManualTierUpdate {
   animeId: string;
-  manualTier: Tier;
+  manualTier: string;
   manualRank: number;
 }
 
 export function validateTierPayload(tiers: ManualTierInput[]): void {
   const seenAnimeIds = new Set<string>();
+  const tierIds = new Set(tiers.map((t) => t.tier));
 
   for (const tierGroup of tiers) {
-    if (!TIERS.includes(tierGroup.tier)) {
-      throw new AppError("Invalid tier", 400, "INVALID_TIER");
+    if (!tierGroup.tier.trim()) {
+      throw new AppError("tier is required", 400, "INVALID_TIER");
     }
 
     for (const animeId of tierGroup.animeIds) {
@@ -37,6 +38,10 @@ export function validateTierPayload(tiers: ManualTierInput[]): void {
 
       seenAnimeIds.add(animeId);
     }
+  }
+
+  if (tierIds.size < TIER_MIN_COUNT) {
+    throw new AppError("至少需要两条不同的 Tier 行。", 400, "INVALID_TIER");
   }
 }
 
@@ -61,6 +66,26 @@ export async function saveManualTierList(params: {
   const updates = applyManualTierOrdering(params.tiers);
 
   await assertRunAccess(params);
+
+  const pool = await prisma.customPool.findUnique({
+    where: { id: params.poolId },
+    select: { tierConfig: true }
+  });
+
+  const tierRows = resolveTierRows(pool?.tierConfig as unknown as PoolTierConfig | null);
+  const validTierIds = new Set(tierRows.map((r) => r.id));
+
+  for (const update of updates) {
+    const lower = update.manualTier.toLowerCase();
+    if (!validTierIds.has(lower)) {
+      throw new AppError(
+        `无效的 Tier "${update.manualTier}"，当前番组的 Tier 行为：${tierRows.map((r) => r.id).join(", ")}。`,
+        400,
+        "INVALID_TIER"
+      );
+    }
+    update.manualTier = lower;
+  }
 
   await prisma.$transaction(async (tx) => {
     const existingScores = await tx.userPoolScore.findMany({

@@ -6,10 +6,9 @@ import { getRunTierList, type RunTierListResult, type TierListItem } from "./tie
 import {
   DEFAULT_TIER_LABELS,
   normalizeTierLabels,
-  TIER_KEYS,
-  type TierKey,
   type TierLabels
 } from "./tier-labels";
+import { DEFAULT_TIER_CONFIG, type TierRowConfig } from "./tier-config";
 
 export interface TierShareSnapshotItem {
   animeId: string;
@@ -30,8 +29,9 @@ export interface TierShareSnapshotItem {
 }
 
 export interface TierShareSnapshotTier {
-  key: TierKey;
+  key: string;
   label: string;
+  color?: string;
   items: TierShareSnapshotItem[];
 }
 
@@ -51,6 +51,7 @@ export interface TierShareSnapshot {
     username: string | null;
   };
   tiers: TierShareSnapshotTier[];
+  tierRows?: TierRowConfig[];
   animeCount: number;
   comparisonCount: number;
 }
@@ -86,7 +87,7 @@ export function sanitizeTierShareLabels(value: unknown): TierLabels {
     return DEFAULT_TIER_LABELS;
   }
 
-  return normalizeTierLabels(value as Partial<Record<TierKey, string>>);
+  return normalizeTierLabels(value as Partial<Record<string, string>>);
 }
 
 export function buildTierShareSnapshot(params: {
@@ -103,6 +104,7 @@ export function buildTierShareSnapshot(params: {
   generatedAt?: Date;
 }): TierShareSnapshot {
   const generatedAt = params.generatedAt ?? new Date();
+  const tierRows = params.tierList.tierRows ?? DEFAULT_TIER_CONFIG.rows;
 
   return {
     version: 1,
@@ -123,11 +125,13 @@ export function buildTierShareSnapshot(params: {
           }
         }
       : {}),
-    tiers: TIER_KEYS.map((tier) => ({
-      key: tier,
-      label: params.tierLabels[tier],
-      items: params.tierList.tiers[tier].map(toSnapshotItem)
+    tiers: tierRows.map((row) => ({
+      key: row.id,
+      label: lookupTierLabel(params.tierLabels, row.id) ?? row.label,
+      color: row.color,
+      items: (params.tierList.tiers[row.id] ?? []).map(toSnapshotItem)
     })),
+    tierRows,
     animeCount: params.tierList.comparedAnime,
     comparisonCount: params.tierList.effectiveComparisons
   };
@@ -309,4 +313,8 @@ function nonEmpty(value: string | null | undefined): string | null {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function lookupTierLabel(labels: Record<string, string>, rowId: string): string | undefined {
+  return labels[rowId] ?? labels[rowId.toUpperCase()] ?? labels[rowId.toLowerCase()];
 }

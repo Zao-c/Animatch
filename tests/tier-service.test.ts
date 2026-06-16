@@ -12,6 +12,9 @@ vi.mock("../src/lib/db", () => ({
     },
     poolComparison: {
       count: vi.fn()
+    },
+    customPool: {
+      findUnique: vi.fn()
     }
   }
 }));
@@ -134,6 +137,9 @@ describe("tier-service mapping", () => {
     (mockedPrisma.poolComparison.count as unknown as Mock)
       .mockResolvedValueOnce(4)
       .mockResolvedValueOnce(2);
+    (mockedPrisma.customPool.findUnique as unknown as Mock).mockResolvedValue({
+      tierConfig: null
+    });
 
     const result = await getRunTierList({
       userId: "user-1",

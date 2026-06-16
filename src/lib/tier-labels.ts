@@ -1,6 +1,6 @@
 export const TIER_KEYS = ["S", "A", "B", "C", "D"] as const;
 export type TierKey = (typeof TIER_KEYS)[number];
-export type TierLabels = Record<TierKey, string>;
+export type TierLabels = Record<string, string>;
 
 export const DEFAULT_TIER_LABELS: TierLabels = {
   S: "S",
@@ -35,14 +35,13 @@ export function normalizeTierLabelInput(value: string): string {
   return result;
 }
 
-export function normalizeTierLabels(labels: Partial<Record<TierKey, string>>): TierLabels {
-  return {
-    S: normalizeOrDefault("S", labels.S),
-    A: normalizeOrDefault("A", labels.A),
-    B: normalizeOrDefault("B", labels.B),
-    C: normalizeOrDefault("C", labels.C),
-    D: normalizeOrDefault("D", labels.D)
-  };
+export function normalizeTierLabels(labels: Partial<Record<string, string>>): TierLabels {
+  const result: TierLabels = { ...DEFAULT_TIER_LABELS };
+  for (const key of Object.keys(labels)) {
+    const normalized = normalizeTierLabelInput(labels[key] ?? "");
+    result[key] = normalized.length > 0 ? normalized : (DEFAULT_TIER_LABELS[key] ?? key);
+  }
+  return result;
 }
 
 export function readTierLabels(
@@ -51,25 +50,25 @@ export function readTierLabels(
   storage = getBrowserStorage()
 ): TierLabels {
   if (storage === null) {
-    return DEFAULT_TIER_LABELS;
+    return { ...DEFAULT_TIER_LABELS };
   }
 
   try {
     const raw = storage.getItem(getTierLabelStorageKey(poolId, runId));
     if (raw === null) {
-      return DEFAULT_TIER_LABELS;
+      return { ...DEFAULT_TIER_LABELS };
     }
 
-    return normalizeTierLabels(JSON.parse(raw) as Partial<Record<TierKey, string>>);
+    return normalizeTierLabels(JSON.parse(raw) as Partial<Record<string, string>>);
   } catch {
-    return DEFAULT_TIER_LABELS;
+    return { ...DEFAULT_TIER_LABELS };
   }
 }
 
 export function saveTierLabels(
   poolId: string,
   runId: string,
-  labels: Partial<Record<TierKey, string>>,
+  labels: Partial<Record<string, string>>,
   storage = getBrowserStorage()
 ): TierLabels {
   const normalized = normalizeTierLabels(labels);
@@ -94,16 +93,11 @@ export function resetTierLabels(
     try {
       storage.removeItem(getTierLabelStorageKey(poolId, runId));
     } catch {
-      return DEFAULT_TIER_LABELS;
+      return { ...DEFAULT_TIER_LABELS };
     }
   }
 
-  return DEFAULT_TIER_LABELS;
-}
-
-function normalizeOrDefault(tier: TierKey, value: string | undefined): string {
-  const normalized = normalizeTierLabelInput(value ?? "");
-  return normalized.length > 0 ? normalized : DEFAULT_TIER_LABELS[tier];
+  return { ...DEFAULT_TIER_LABELS };
 }
 
 function getBrowserStorage(): StorageLike | null {

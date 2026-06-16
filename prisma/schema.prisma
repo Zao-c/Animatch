@@ -166,6 +166,7 @@ model CustomPool {
   allowPublicEdit    Boolean                @default(false)
   allowCommunityMatch Boolean               @default(false)
   isOfficialDemo     Boolean                @default(false)
+  tierConfig         Json?
   cloneCount         Int                    @default(0)
   useCount           Int                    @default(0)
   likeCount          Int                    @default(0)

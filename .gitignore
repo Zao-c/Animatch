@@ -13,6 +13,7 @@ docker-data
 backups
 backups/
 *.sql
+!prisma/migrations/**/*.sql
 *.sql.gz
 *.tsbuildinfo
 data/anime-offline-database*.json

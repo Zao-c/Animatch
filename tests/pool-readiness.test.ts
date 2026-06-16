@@ -153,10 +153,10 @@ describe("buildPoolReadinessReport", () => {
       hasDescription: true,
       visibility: "PRIVATE",
       animeSourceFields: [
-        { source: "BANGUMI", title: "B", titleCn: "B", imageUrl: "https://x.com/b.jpg" },
-        { source: "BANGUMI", title: "B2", titleCn: "B2", imageUrl: "https://x.com/b2.jpg" },
-        { source: "TIERMAKER_IMPORT", title: "T", titleCn: "T", imageUrl: "https://x.com/t.jpg" },
-        { source: "CUSTOM_UPLOAD", title: "C", titleCn: "C", imageUrl: "https://x.com/c.jpg" }
+        { source: "BANGUMI", title: "B", titleCn: "B", imageUrl: "https://x.com/b.jpg", imageMediumUrl: null, imageLargeUrl: null, thumbnailUrl: null },
+        { source: "BANGUMI", title: "B2", titleCn: "B2", imageUrl: "https://x.com/b2.jpg", imageMediumUrl: null, imageLargeUrl: null, thumbnailUrl: null },
+        { source: "TIERMAKER_IMPORT", title: "T", titleCn: "T", imageUrl: "https://x.com/t.jpg", imageMediumUrl: null, imageLargeUrl: null, thumbnailUrl: null },
+        { source: "CUSTOM_UPLOAD", title: "C", titleCn: "C", imageUrl: "https://x.com/c.jpg", imageMediumUrl: null, imageLargeUrl: null, thumbnailUrl: null }
       ]
     });
     expect(report.sourceTypeCounts["BANGUMI"]).toBe(2);

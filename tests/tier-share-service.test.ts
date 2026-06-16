@@ -75,11 +75,11 @@ describe("tier share service", () => {
       runId: "run-1",
       generatedAt: new Date("2026-06-11T12:00:00.000Z"),
       tierLabels: {
-        S: "神作",
-        A: "A",
-        B: "B",
-        C: "C",
-        D: "D"
+        s: "神作",
+        a: "A",
+        b: "B",
+        c: "C",
+        d: "D"
       },
       tierList: tierListFixture()
     });
@@ -91,7 +91,7 @@ describe("tier share service", () => {
       run: { id: "run-1" }
     });
     expect(snapshot.tiers[0]).toMatchObject({
-      key: "S",
+      key: "s",
       label: "神作",
       items: [
         expect.objectContaining({
@@ -115,8 +115,8 @@ describe("tier share service", () => {
 
   it("keeps share snapshot image variants for export card parity", () => {
     const tierList = tierListFixture();
-    tierList.tiers.S[0] = {
-      ...tierList.tiers.S[0],
+    tierList.tiers.s[0] = {
+      ...tierList.tiers.s[0],
       source: "TIERMAKER_IMPORT",
       title: "zzzzz 17750273769085f154 f2a3b4c5d6e7f8",
       imageUrl: "https://cdn.tiermaker.com/images/item.png",
@@ -143,11 +143,11 @@ describe("tier share service", () => {
       runId: "run-1",
       generatedAt: new Date("2026-06-11T12:00:00.000Z"),
       tierLabels: {
-        S: "S",
-        A: "A",
-        B: "B",
-        C: "C",
-        D: "D"
+        s: "S",
+        a: "A",
+        b: "B",
+        c: "C",
+        d: "D"
       },
       tierList
     });
@@ -174,11 +174,11 @@ describe("tier share service", () => {
       },
       generatedAt: new Date("2026-06-11T12:00:00.000Z"),
       tierLabels: {
-        S: "S",
-        A: "A",
-        B: "B",
-        C: "C",
-        D: "D"
+        s: "S",
+        a: "A",
+        b: "B",
+        c: "C",
+        d: "D"
       },
       tierList: tierListFixture()
     });
@@ -206,11 +206,11 @@ describe("tier share service", () => {
       title: "Pool",
       description: "shared",
       tierLabels: {
-        S: "神作",
-        A: "A",
-        B: "B",
-        C: "C",
-        D: "D"
+        s: "神作",
+        a: "A",
+        b: "B",
+        c: "C",
+        d: "D"
       },
       snapshot: {
         version: 1,
@@ -407,11 +407,11 @@ function tierShareRecord(overrides: Record<string, unknown> = {}) {
     title: "Pool",
     description: null,
     tierLabels: {
-      S: "S",
-      A: "A",
-      B: "B",
-      C: "C",
-      D: "D"
+      s: "S",
+      a: "A",
+      b: "B",
+      c: "C",
+      d: "D"
     },
     snapshot: {
       version: 1,
@@ -429,7 +429,7 @@ function tierShareRecord(overrides: Record<string, unknown> = {}) {
 function tierListFixture(): RunTierListResult {
   return {
     tiers: {
-      S: [
+      s: [
         {
           id: "anime-1",
           animeId: "anime-1",
@@ -477,11 +477,18 @@ function tierListFixture(): RunTierListResult {
           manualLocked: true
         }
       ],
-      A: [],
-      B: [],
-      C: [],
-      D: []
+      a: [],
+      b: [],
+      c: [],
+      d: []
     },
+    tierRows: [
+      { id: "s", label: "S", color: "#ff747c", order: 0 },
+      { id: "a", label: "A", color: "#ffc078", order: 1 },
+      { id: "b", label: "B", color: "#ffe082", order: 2 },
+      { id: "c", label: "C", color: "#b6ff73", order: 3 },
+      { id: "d", label: "D", color: "#70f475", order: 4 }
+    ],
     confidenceScore: 20,
     totalAnime: 1,
     comparedAnime: 1,

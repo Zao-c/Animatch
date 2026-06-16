@@ -1,4 +1,7 @@
-export type Tier = "S" | "A" | "B" | "C" | "D";
+import type { TierRowConfig } from "./tier-config";
+import { matchTierRow } from "./tier-config";
+
+export type Tier = string;
 
 export interface TierScore {
   animeId: string;
@@ -10,19 +13,22 @@ export interface TierScore {
   uncertainty?: number;
 }
 
-export type TierList<T extends TierScore = TierScore> = Record<Tier, T[]>;
+export type TierList<T extends TierScore = TierScore> = Record<string, T[]>;
 
-const TIERS: Tier[] = ["S", "A", "B", "C", "D"];
-
-export function buildTierList<T extends TierScore>(scores: T[]): TierList<T> {
-  const result = emptyTierList<T>();
+export function buildTierList<T extends TierScore>(
+  scores: T[],
+  rows: TierRowConfig[]
+): TierList<T> {
+  const result = emptyTierList<T>(rows);
   const automaticScores: T[] = [];
 
   for (const score of scores) {
     validateTierScore(score);
 
-    if (score.manualLocked === true && isTier(score.manualTier)) {
-      result[score.manualTier].push(score);
+    const matchedRow = score.manualLocked === true ? matchTierRow(score.manualTier, rows) : undefined;
+
+    if (matchedRow !== undefined) {
+      result[matchedRow.id].push(score);
     } else {
       automaticScores.push(score);
     }
@@ -33,11 +39,12 @@ export function buildTierList<T extends TierScore>(scores: T[]): TierList<T> {
   );
 
   sortedAutomaticScores.forEach((score, index) => {
-    result[tierForPercentile(index, sortedAutomaticScores.length)].push(score);
+    const tierId = tierForPercentile(index, sortedAutomaticScores.length, rows);
+    result[tierId].push(score);
   });
 
-  for (const tier of TIERS) {
-    result[tier].sort(compareTierItems);
+  for (const row of rows) {
+    result[row.id].sort((a, b) => compareTierItems(a, b, rows));
   }
 
   return result;
@@ -86,49 +93,50 @@ export function calculateRankingConfidence(scores: TierScore[]): number {
   return clampToPercent(scoreConfidence * 0.75 + separationConfidence * 0.25);
 }
 
-function emptyTierList<T extends TierScore>(): TierList<T> {
-  return {
-    S: [],
-    A: [],
-    B: [],
-    C: [],
-    D: []
-  };
+export function emptyTierList<T extends TierScore>(rows: TierRowConfig[]): TierList<T> {
+  const result: TierList<T> = {};
+  for (const row of rows) {
+    result[row.id] = [];
+  }
+  return result;
 }
 
-function isTier(value: string | null | undefined): value is Tier {
-  return TIERS.includes(value as Tier);
-}
+const DEFAULT_FIVE_PERCENTILE_CUTOFFS = [0.1, 0.3, 0.6, 0.85];
 
-function tierForPercentile(index: number, total: number): Tier {
-  if (total <= 0) {
-    return "D";
+function tierForPercentile(
+  index: number,
+  total: number,
+  rows: TierRowConfig[]
+): string {
+  if (total <= 0 || rows.length === 0) {
+    return rows.length > 0 ? rows[rows.length - 1].id : "d";
   }
 
   const percentile = index / total;
 
-  if (percentile < 0.1) {
-    return "S";
+  if (rows.length === 5) {
+    for (let i = 0; i < DEFAULT_FIVE_PERCENTILE_CUTOFFS.length; i++) {
+      if (percentile < DEFAULT_FIVE_PERCENTILE_CUTOFFS[i]) {
+        return rows[i].id;
+      }
+    }
+    return rows[4].id;
   }
 
-  if (percentile < 0.3) {
-    return "A";
-  }
-
-  if (percentile < 0.6) {
-    return "B";
-  }
-
-  if (percentile < 0.85) {
-    return "C";
-  }
-
-  return "D";
+  const bucketSize = 1 / rows.length;
+  const bucketIndex = Math.min(rows.length - 1, Math.floor(percentile / bucketSize));
+  return rows[bucketIndex].id;
 }
 
-function compareTierItems(a: TierScore, b: TierScore): number {
-  const aManual = a.manualLocked === true && isTier(a.manualTier);
-  const bManual = b.manualLocked === true && isTier(b.manualTier);
+function compareTierItems<T extends TierScore>(
+  a: T,
+  b: T,
+  rows: TierRowConfig[]
+): number {
+  const aRow = a.manualLocked === true ? matchTierRow(a.manualTier, rows) : undefined;
+  const bRow = b.manualLocked === true ? matchTierRow(b.manualTier, rows) : undefined;
+  const aManual = aRow !== undefined;
+  const bManual = bRow !== undefined;
 
   if (aManual && bManual) {
     return (

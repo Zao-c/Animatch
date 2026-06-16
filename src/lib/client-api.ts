@@ -285,7 +285,8 @@ export interface TierListItem extends PublicAnime {
 }
 
 export interface TierListResponse {
-  tiers: Record<"S" | "A" | "B" | "C" | "D", TierListItem[]>;
+  tiers: Record<string, TierListItem[]>;
+  tierRows?: TierRowConfig[];
   confidenceScore: number;
   totalAnime: number;
   comparedAnime: number;
@@ -340,7 +341,7 @@ export interface RankingProgress {
 }
 
 export type TierKey = "S" | "A" | "B" | "C" | "D";
-export type PublicTierLabels = Record<TierKey, string>;
+export type PublicTierLabels = Record<string, string>;
 
 export interface TierShareSnapshotItem {
   animeId: string;
@@ -361,9 +362,22 @@ export interface TierShareSnapshotItem {
 }
 
 export interface TierShareSnapshotTier {
-  key: TierKey;
+  key: string;
   label: string;
+  color?: string;
   items: TierShareSnapshotItem[];
+}
+
+export interface TierRowConfig {
+  id: string;
+  label: string;
+  color: string;
+  order: number;
+}
+
+export interface PoolTierConfig {
+  version: 1;
+  rows: TierRowConfig[];
 }
 
 export interface TierShareSnapshot {
@@ -382,6 +396,7 @@ export interface TierShareSnapshot {
     username: string | null;
   };
   tiers: TierShareSnapshotTier[];
+  tierRows?: TierRowConfig[];
   animeCount: number;
   comparisonCount: number;
 }
@@ -448,7 +463,7 @@ type ApiFailure = {
 type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
 
 interface FetchJsonOptions {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
 }
 
@@ -642,6 +657,25 @@ export function updatePool(
     method: "PATCH",
     body: data
   });
+}
+
+export function getPoolTierConfig(poolId: string) {
+  return fetchJson<{ tierConfig: PoolTierConfig | null }>(
+    `/api/pools/${poolId}/tier-config`
+  );
+}
+
+export function updatePoolTierConfig(
+  poolId: string,
+  tierConfig: PoolTierConfig
+) {
+  return fetchJson<{ tierConfig: PoolTierConfig }>(
+    `/api/pools/${poolId}/tier-config`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ tierConfig })
+    }
+  );
 }
 
 export function archivePool(poolId: string) {
@@ -926,7 +960,7 @@ export function getTierShare(token: string) {
 export function saveManualTierList(
   poolId: string,
   runId: string,
-  tiers: { tier: "S" | "A" | "B" | "C" | "D"; animeIds: string[] }[]
+  tiers: { tier: string; animeIds: string[] }[]
 ) {
   return fetchJson<TierListResponse>(`/api/pools/${poolId}/runs/${runId}/manual-tier`, {
     method: "PATCH",

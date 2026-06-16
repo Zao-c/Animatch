@@ -144,12 +144,17 @@ export function TierShareCard({
           </div>
         </header>
       ) : null}
-      {share.snapshot.tiers.map((tier) => (
+      {share.snapshot.tiers.map((tier) => {
+        const tierColor = tier.color ?? "#ff747c";
+        return (
         <div
           key={tier.key}
           className="grid min-h-24 grid-cols-[82px_1fr] border-b border-black/80 last:border-b-0 sm:grid-cols-[120px_1fr]"
         >
-          <div className={`share-tier-label share-tier-label-${tier.key.toLowerCase()}`}>
+          <div
+            className="share-tier-label flex items-center justify-center px-1"
+            style={{ backgroundColor: tierColor }}
+          >
             <span className="max-w-full text-center text-xl font-extrabold leading-tight text-slate-950 [overflow-wrap:anywhere] sm:text-3xl">
               {tier.label}
             </span>
@@ -166,7 +171,8 @@ export function TierShareCard({
             )}
           </div>
         </div>
-      ))}
+        );
+      })}
       {exportMode ? (
         <footer className="border-t border-cyan-300/10 bg-[#0f1722] px-5 py-4">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">

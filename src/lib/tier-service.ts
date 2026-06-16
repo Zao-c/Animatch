@@ -4,7 +4,8 @@ import { getEffectiveAnimeDisplay, type EffectiveAnimeDisplay } from "./anime-di
 import { prisma } from "./db";
 import { buildScoreDistribution, type RankingScoreDistribution } from "./ranking-display";
 import { buildRankingProgress, type RankingProgress } from "./ranking-progress";
-import { buildTierList, calculateRankingConfidence, type Tier } from "./tier";
+import { buildTierList, calculateRankingConfidence } from "./tier";
+import { resolveTierRows, type TierRowConfig, type PoolTierConfig } from "./tier-config";
 import { assertRunAccess } from "./run-service";
 
 type ScoreWithAnime = UserPoolScore & { anime: Anime };
@@ -26,7 +27,8 @@ export interface TierListItem extends ReturnType<typeof toPublicAnime> {
 }
 
 export interface RunTierListResult {
-  tiers: Record<Tier, TierListItem[]>;
+  tiers: Record<string, TierListItem[]>;
+  tierRows: TierRowConfig[];
   confidenceScore: number;
   totalAnime: number;
   comparedAnime: number;
@@ -65,7 +67,7 @@ export async function getRunTierList(params: {
 }): Promise<RunTierListResult> {
   await assertRunAccess(params);
 
-  const [scores, poolAnimeEntries] = await Promise.all([
+  const [scores, poolAnimeEntries, pool] = await Promise.all([
     prisma.userPoolScore.findMany({
       where: {
         userId: params.userId,
@@ -83,8 +85,16 @@ export async function getRunTierList(params: {
       include: {
         anime: true
       }
+    }),
+    prisma.customPool.findUnique({
+      where: { id: params.poolId },
+      select: { tierConfig: true }
     })
   ]);
+
+  const tierConfig = (pool?.tierConfig ?? null) as PoolTierConfig | null;
+  const tierRows = resolveTierRows(tierConfig);
+
   const activeAnimeIds = new Set(poolAnimeEntries.map((entry) => entry.animeId));
   const displayByAnimeId = new Map(
     poolAnimeEntries.map((entry) => [entry.animeId, getEffectiveAnimeDisplay(entry)])
@@ -117,10 +127,11 @@ export async function getRunTierList(params: {
   const items = visibleScores.map((score) =>
     toTierListItem(score, displayByAnimeId.get(score.animeId))
   );
-  const tiers = buildTierList(items);
+  const tiers = buildTierList(items, tierRows);
 
   return {
     tiers,
+    tierRows,
     confidenceScore: calculateRankingConfidence(items),
     totalAnime: activeAnimeIds.size,
     comparedAnime: visibleScores.filter((score) => score.compareCount > 0).length,

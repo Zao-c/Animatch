@@ -4,72 +4,85 @@ import React from "react";
 import { AnimeCover } from "./AnimeCover";
 import { AppBadge } from "./ui/AppBadge";
 import type { CommunityRankingResponse, CommunityRankingItem } from "@/lib/client-api";
+import { DEFAULT_TIER_CONFIG, type TierRowConfig } from "@/lib/tier-config";
 
-const TIER_KEYS = ["S", "A", "B", "C", "D"] as const;
+const DEFAULT_FIVE_PERCENTILE_CUTOFFS = [0.1, 0.3, 0.6, 0.85];
 
-function percentileBuckets(items: CommunityRankingItem[]) {
+function percentileBuckets(items: CommunityRankingItem[], rows: TierRowConfig[]) {
   const sufficient = items.filter((i) => !i.insufficientSample);
   const sorted = [...sufficient].sort(
     (a, b) => (b.communityScore ?? 0) - (a.communityScore ?? 0)
   );
   const n = sorted.length;
 
+  const emptyBuckets: Record<string, CommunityRankingItem[]> = {};
+  for (const row of rows) {
+    emptyBuckets[row.id] = [];
+  }
+
   if (n === 0) {
-    return { buckets: { S: [], A: [], B: [], C: [], D: [] as CommunityRankingItem[] }, insufficient: items };
+    return { buckets: emptyBuckets, insufficient: items };
   }
 
   if (n <= 3) {
-    return {
-      buckets: {
-        S: sorted.slice(0, 1),
-        A: sorted.slice(1),
-        B: [],
-        C: [],
-        D: []
-      },
-      insufficient: items.filter((i) => i.insufficientSample)
-    };
+    emptyBuckets[rows[0].id] = sorted.slice(0, 1);
+    for (let i = 1; i < rows.length && i < n; i++) {
+      emptyBuckets[rows[i].id] = [sorted[i]];
+    }
+    const remaining = sorted.slice(rows.length > 0 ? Math.min(rows.length, n) : 0);
+    if (remaining.length > 0 && rows.length > 0) {
+      emptyBuckets[rows[rows.length - 1].id].push(...remaining);
+    }
+    return { buckets: emptyBuckets, insufficient: items.filter((i) => i.insufficientSample) };
   }
 
   if (n <= 7) {
-    return {
-      buckets: {
-        S: sorted.slice(0, Math.ceil(n * 0.2)),
-        A: sorted.slice(Math.ceil(n * 0.2), Math.ceil(n * 0.5)),
-        B: sorted.slice(Math.ceil(n * 0.5), Math.ceil(n * 0.8)),
-        C: sorted.slice(Math.ceil(n * 0.8)),
-        D: []
-      },
-      insufficient: items.filter((i) => i.insufficientSample)
-    };
+    const top20 = Math.ceil(n * 0.2);
+    const top50 = Math.ceil(n * 0.5);
+    const top80 = Math.ceil(n * 0.8);
+    if (rows.length >= 1) emptyBuckets[rows[0].id] = sorted.slice(0, top20);
+    if (rows.length >= 2) emptyBuckets[rows[1].id] = sorted.slice(top20, top50);
+    if (rows.length >= 3) emptyBuckets[rows[2].id] = sorted.slice(top50, top80);
+    if (rows.length >= 4) emptyBuckets[rows[3].id] = sorted.slice(top80);
+    return { buckets: emptyBuckets, insufficient: items.filter((i) => i.insufficientSample) };
   }
 
-  const sEnd = Math.max(1, Math.round(n * 0.1));
-  const aEnd = Math.max(sEnd + 1, Math.round(n * 0.3));
-  const bEnd = Math.max(aEnd + 1, Math.round(n * 0.6));
-  const cEnd = Math.max(bEnd + 1, Math.round(n * 0.85));
+  if (rows.length === 5 && n > 7) {
+    const sEnd = Math.max(1, Math.round(n * 0.1));
+    const aEnd = Math.max(sEnd + 1, Math.round(n * 0.3));
+    const bEnd = Math.max(aEnd + 1, Math.round(n * 0.6));
+    const cEnd = Math.max(bEnd + 1, Math.round(n * 0.85));
+    emptyBuckets[rows[0].id] = sorted.slice(0, sEnd);
+    if (rows.length >= 2) emptyBuckets[rows[1].id] = sorted.slice(sEnd, aEnd);
+    if (rows.length >= 3) emptyBuckets[rows[2].id] = sorted.slice(aEnd, bEnd);
+    if (rows.length >= 4) emptyBuckets[rows[3].id] = sorted.slice(bEnd, cEnd);
+    if (rows.length >= 5) emptyBuckets[rows[4].id] = sorted.slice(cEnd);
+    return { buckets: emptyBuckets, insufficient: items.filter((i) => i.insufficientSample) };
+  }
 
-  return {
-    buckets: {
-      S: sorted.slice(0, sEnd),
-      A: sorted.slice(sEnd, aEnd),
-      B: sorted.slice(aEnd, bEnd),
-      C: sorted.slice(bEnd, cEnd),
-      D: sorted.slice(cEnd)
-    },
-    insufficient: items.filter((i) => i.insufficientSample)
-  };
+  const bucketSize = 1 / rows.length;
+  for (let i = 0; i < rows.length; i++) {
+    const start = Math.round(i * bucketSize * n);
+    const end = i === rows.length - 1 ? n : Math.round((i + 1) * bucketSize * n);
+    emptyBuckets[rows[i].id] = sorted.slice(start, end);
+  }
+
+  return { buckets: emptyBuckets, insufficient: items.filter((i) => i.insufficientSample) };
 }
 
 export function CommunityAverageTierList({
   ranking,
   isLoading,
-  error
+  error,
+  tierRows
 }: {
   ranking: CommunityRankingResponse | null;
   isLoading: boolean;
   error: string | null;
+  tierRows?: TierRowConfig[] | null;
 }) {
+  const resolvedRows = tierRows ?? DEFAULT_TIER_CONFIG.rows;
+
   if (isLoading) {
     return (
       <div className="mt-5 animate-pulse space-y-3">
@@ -108,7 +121,7 @@ export function CommunityAverageTierList({
     );
   }
 
-  const { buckets, insufficient } = percentileBuckets(ranking.items);
+  const { buckets, insufficient } = percentileBuckets(ranking.items, resolvedRows);
 
   return (
     <div className="mt-5">
@@ -119,18 +132,21 @@ export function CommunityAverageTierList({
       </div>
 
       <section className="overflow-hidden rounded-2xl border border-black/80 bg-[#191d21] shadow-[0_20px_90px_rgba(0,0,0,0.35)]">
-        {TIER_KEYS.map((key) => {
-          const items = buckets[key as keyof typeof buckets];
+        {resolvedRows.map((row) => {
+          const items = buckets[row.id] ?? [];
           if (items.length === 0) return null;
 
           return (
             <div
-              key={key}
+              key={row.id}
               className="grid min-h-20 grid-cols-[72px_1fr] border-b border-black/80 last:border-b-0 sm:grid-cols-[100px_1fr]"
             >
-              <div className={`share-tier-label share-tier-label-${key.toLowerCase()}`}>
+              <div
+                className="flex items-center justify-center px-1"
+                style={{ backgroundColor: row.color }}
+              >
                 <span className="text-center text-xl font-extrabold text-slate-950 sm:text-3xl">
-                  {key}
+                  {row.label}
                 </span>
               </div>
               <div className="flex min-h-20 flex-wrap content-start gap-2 bg-[#171b20] p-2 sm:gap-3 sm:p-3">
@@ -144,7 +160,7 @@ export function CommunityAverageTierList({
 
         {insufficient.length > 0 ? (
           <div className="grid min-h-20 grid-cols-[72px_1fr] border-b border-black/80 last:border-b-0 sm:grid-cols-[100px_1fr]">
-            <div className="share-tier-label share-tier-label-insufficient">
+            <div className="share-tier-label-insufficient flex items-center justify-center">
               <span className="text-center text-sm font-bold text-slate-600 sm:text-base">
                 样本不足
               </span>
