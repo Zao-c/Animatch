@@ -66,17 +66,28 @@ export function getAnimeCoverUrl(
   }
 
   if (intent === "export") {
-    return (
-      imageUrl ??
-      posterUrl ??
-      genericCover ??
-      thumbnailUrl ??
-      imageLargeUrl ??
-      imageMediumUrl ??
-      imageSmallUrl ??
-      displayCover ??
-      null
-    );
+    return pickCover({
+      imageUrl,
+      imageMediumUrl,
+      imageLargeUrl,
+      thumbnailUrl,
+      imageSmallUrl,
+      displayCover,
+      genericCover,
+      posterUrl
+    });
+  }
+
+  if (intent === "display" || intent === "hero") {
+    return pickCover({
+      imageUrl,
+      imageMediumUrl,
+      imageLargeUrl,
+      thumbnailUrl,
+      imageSmallUrl,
+      displayCover,
+      genericCover
+    });
   }
 
   return (
@@ -87,6 +98,31 @@ export function getAnimeCoverUrl(
     imageSmallUrl ??
     displayCover ??
     genericCover ??
+    null
+  );
+}
+
+interface CoverCandidates {
+  imageUrl: string | null;
+  imageMediumUrl: string | null;
+  imageLargeUrl: string | null;
+  thumbnailUrl: string | null;
+  imageSmallUrl: string | null;
+  displayCover: string | null;
+  genericCover: string | null;
+  posterUrl?: string | null;
+}
+
+function pickCover(candidates: CoverCandidates): string | null {
+  return (
+    candidates.imageUrl ??
+    candidates.imageMediumUrl ??
+    candidates.imageLargeUrl ??
+    candidates.thumbnailUrl ??
+    candidates.imageSmallUrl ??
+    candidates.displayCover ??
+    candidates.genericCover ??
+    candidates.posterUrl ??
     null
   );
 }

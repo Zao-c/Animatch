@@ -34,6 +34,16 @@ function isBlockedHostname(hostname: string): boolean {
   return false;
 }
 
+function pickReferer(hostname: string): string | null {
+  if (hostname.endsWith(".bgm.tv") || hostname === "bgm.tv") {
+    return "https://bgm.tv/";
+  }
+  if (hostname.endsWith(".bangumi.tv") || hostname === "bangumi.tv") {
+    return "https://bangumi.tv/";
+  }
+  return null;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const rawUrl = searchParams.get("url");
@@ -61,14 +71,21 @@ export async function GET(request: Request) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
+  const referer = pickReferer(parsed.hostname);
+  const headers: Record<string, string> = {
+    "User-Agent": "AniMatch-ImageProxy/1.0",
+    "Accept": "image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.8",
+  };
+  if (referer !== null) {
+    headers["Referer"] = referer;
+  }
+
   let response: Response;
 
   try {
     response = await fetch(parsed.toString(), {
       signal: controller.signal,
-      headers: {
-        "User-Agent": "AniMatch-ImageProxy/1.0",
-      },
+      headers,
     });
   } catch (error) {
     clearTimeout(timeoutId);

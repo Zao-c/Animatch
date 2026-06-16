@@ -801,39 +801,74 @@ function waitForPaint(): Promise<void> {
   });
 }
 
-async function waitForTierExportImages(container: HTMLElement): Promise<void> {
+async function waitForTierExportImages(
+  container: HTMLElement,
+  timeoutMs: number = 15000
+): Promise<void> {
   const images = Array.from(
     container.querySelectorAll<HTMLImageElement>("img[data-tier-export-image='true']")
   );
+
+  if (images.length === 0) {
+    return;
+  }
+
+  const deadline = Date.now() + timeoutMs;
 
   await Promise.all(
     images.map(
       (image) =>
         new Promise<void>((resolve) => {
-          if (image.complete) {
+          if (image.complete && image.naturalWidth > 0) {
             resolve();
             return;
           }
 
-          const cleanup = () => {
-            image.removeEventListener("load", handleLoad);
-            image.removeEventListener("error", handleError);
-          };
-          const handleLoad = () => {
+          let settled = false;
+
+          const finish = () => {
+            if (settled) return;
+            settled = true;
             cleanup();
             resolve();
           };
+
+          const cleanup = () => {
+            image.removeEventListener("load", handleLoad);
+            image.removeEventListener("error", handleError);
+            clearTimeout(timeout);
+          };
+
+          const handleLoad = () => {
+            if (image.naturalWidth > 0) {
+              finish();
+            }
+          };
+
           const handleError = () => {
-            cleanup();
             console.warn("Tier export cover failed before capture", {
               animeId: image.dataset.animeId,
               coverUrl: image.currentSrc || image.src
             });
-            resolve();
+            finish();
           };
+
+          const timeout = setTimeout(() => {
+            console.warn("Tier export cover timed out before capture", {
+              animeId: image.dataset.animeId,
+              coverUrl: image.currentSrc || image.src
+            });
+            finish();
+          }, Math.max(0, deadline - Date.now()));
 
           image.addEventListener("load", handleLoad, { once: true });
           image.addEventListener("error", handleError, { once: true });
+
+          if (image.complete) {
+            if (image.naturalWidth > 0) {
+              finish();
+            }
+          }
         })
     )
   );

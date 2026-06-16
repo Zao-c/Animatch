@@ -103,15 +103,29 @@ describe("getAnimeCoverUrl", () => {
     ).toBe("https://example.com/override.jpg");
   });
 
-  it("uses poster and cover fields before lower priority export variants", () => {
+  it("export and display produce the same fallback chain for non-poster fields", () => {
+    const fields = coverFields({
+      imageUrl: null,
+      posterUrl: "https://example.com/poster.jpg",
+      coverUrl: "https://example.com/cover.jpg",
+      thumbnailUrl: "https://example.com/thumb.jpg",
+      imageLargeUrl: "https://example.com/large.jpg"
+    });
+    expect(getAnimeCoverUrl(fields, { intent: "export" }))
+      .toBe(getAnimeCoverUrl(fields, { intent: "display" }));
+  });
+
+  it("export falls back to posterUrl after all other fields are exhausted", () => {
     expect(
       getAnimeCoverUrl(
         coverFields({
           imageUrl: null,
-          posterUrl: "https://example.com/poster.jpg",
-          coverUrl: "https://example.com/cover.jpg",
-          thumbnailUrl: "https://example.com/thumb.jpg",
-          imageLargeUrl: "https://example.com/large.jpg"
+          imageMediumUrl: null,
+          imageLargeUrl: null,
+          thumbnailUrl: null,
+          imageSmallUrl: null,
+          coverUrl: null,
+          posterUrl: "https://example.com/poster.jpg"
         }),
         { intent: "export" }
       )
@@ -121,13 +135,15 @@ describe("getAnimeCoverUrl", () => {
       getAnimeCoverUrl(
         coverFields({
           imageUrl: null,
-          posterUrl: null,
-          coverUrl: "https://example.com/cover.jpg",
-          thumbnailUrl: "https://example.com/thumb.jpg",
-          imageLargeUrl: "https://example.com/large.jpg"
+          imageMediumUrl: null,
+          imageLargeUrl: null,
+          thumbnailUrl: null,
+          imageSmallUrl: null,
+          coverUrl: null,
+          posterUrl: null
         }),
         { intent: "export" }
       )
-    ).toBe("https://example.com/cover.jpg");
+    ).toBeNull();
   });
 });
