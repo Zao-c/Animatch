@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -1330,7 +1330,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           />
         ) : null}
 
-        {canAddAnimeToPool ? (
+        {canAddAnimeToPool && editingDisplayAnimeId === null ? (
         <AppCard id="add-anime" className="p-5">
           <SectionHeader eyebrow="Add anime" title="添加动画" />
           {isArchived ? (
@@ -2349,7 +2349,7 @@ function PoolAnimeCard({
   const coverFit = shouldUseContainCover(displayAnime) ? "contain" : "cover";
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-anime-border bg-slate-950/45 transition duration-anime hover:border-anime-cyan/25">
+    <div className="group overflow-hidden rounded-2xl border border-anime-border bg-slate-950/45 transition duration-anime hover:border-anime-cyan/25">
       <AnimeCover
         src={coverUrl}
         secondarySrc={entry.anime.imageSmallUrl ?? entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl}
@@ -2375,7 +2375,7 @@ function PoolAnimeCard({
           </p>
         ) : null}
         {canManage ? (
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap gap-2 opacity-0 transition-opacity duration-anime group-hover:opacity-100">
           {!isArchived ? (
             <AppButton onClick={onEdit} disabled={isMutating} variant="quiet" size="sm">
               编辑显示

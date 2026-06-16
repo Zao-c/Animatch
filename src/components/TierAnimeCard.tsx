@@ -58,14 +58,12 @@ export function TierAnimeCard({
         </div>
         <h3 className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-white">{title}</h3>
         <p className="mt-2 text-sm font-bold text-cyan-100">{aniScore.label}</p>
-        <p className="mt-1 text-xs text-slate-500">
-          Elo {item.eloScore.toFixed(0)} · 对决 {item.compareCount}
-        </p>
-        <div className="mt-3 grid grid-cols-4 gap-1 border-t border-anime-border pt-2 text-center text-[11px] text-slate-400">
+        <div className="mt-2 flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-slate-500">
+          <span>Elo {item.eloScore.toFixed(0)}</span>
+          <span>·</span>
+          <span>对决 {item.compareCount}</span>
+          <span>·</span>
           <span>胜 {item.winCount}</span>
-          <span>负 {item.lossCount}</span>
-          <span>平 {item.drawCount}</span>
-          <span>未看 {item.unseenCount}</span>
         </div>
       </div>
     </div>

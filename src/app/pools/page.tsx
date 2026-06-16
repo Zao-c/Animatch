@@ -254,7 +254,6 @@ function PoolsPageContent() {
   }
 
   const hasSearch = query.trim().length > 0;
-  const activeCount = pools.filter((pool) => !isPoolArchived(pool)).length;
   const readyCount = pools.filter((pool) => pool.uiStatus === "READY").length;
   const isPublicView = view === "PUBLIC";
   const viewCopy = getPoolViewCopy(view);
@@ -273,34 +272,17 @@ function PoolsPageContent() {
             {viewCopy.description}
           </p>
         </div>
-        <AppCard className="p-5">
-          <div className="grid grid-cols-2 gap-3">
-            <Stat label="当前显示" value={String(pools.length)} />
-            <Stat label="可开始" value={String(readyCount)} />
-            <Stat label="未归档" value={String(activeCount)} />
-            <Stat label="筛选" value={FILTERS.find((item) => item.value === filter)?.label ?? "全部"} compact />
-          </div>
-          {isPublicView ? (
-            <button
-              type="button"
-              onClick={() => handleViewChange("MINE")}
-              className={appButtonClasses({ variant: "secondary", className: "mt-4 w-full" })}
-            >
-              查看我的番组
-            </button>
-          ) : (
-            <Link
-              href="/pools/new"
-              className={appButtonClasses({ variant: "primary", className: "mt-4 w-full" })}
-            >
-              新建番组
-            </Link>
-          )}
-        </AppCard>
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-sm text-slate-300">
+          <span className="font-black text-white">{String(pools.length)}</span> 个番组
+          <span className="text-slate-500">·</span>
+          <span className="font-black text-emerald-200">{String(readyCount)}</span> 可开始
+          <span className="text-slate-500">·</span>
+          <span className="text-slate-400">筛选 {FILTERS.find((item) => item.value === filter)?.label ?? "全部"}</span>
+        </div>
       </section>
 
-      <AppCard className="mt-7 p-4">
-        <form onSubmit={handleSearch} className="grid gap-3 lg:grid-cols-[1fr_160px_180px_180px_auto]">
+      <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+        <form onSubmit={handleSearch} className="grid gap-2 lg:grid-cols-[1fr_140px_140px_140px_auto]">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -346,7 +328,7 @@ function PoolsPageContent() {
             搜索
           </AppButton>
         </form>
-      </AppCard>
+      </div>
 
       <div className="mt-5 space-y-3">
         {error ? <ErrorAlert message={error} /> : null}
@@ -603,23 +585,11 @@ function PoolCard({
               ))}
             </div>
           ) : null}
-          <div className="mt-5 grid grid-cols-3 gap-2">
-            <Metric label="动画" value={String(animeCount)} />
-            <Metric label="对决" value={String(comparisonCount)} />
-            <Metric label="信心" value={`${confidenceScore.toFixed(1)}`} />
-          </div>
-          <p className="mt-4 text-xs text-slate-500">
+          <p className="mt-3 text-xs text-slate-500">
             更新于 {formatDateTimeStable(pool.updatedAt)}
+            {confidenceScore > 0 ? ` · 信心 ${confidenceScore.toFixed(1)}` : ""}
           </p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            <Link href={`/pools/${pool.id}`} className={appButtonClasses({ variant: "secondary", size: "sm" })}>
-              进入
-            </Link>
-            {!isPublicView && !isArchived && canAddAnime ? (
-              <Link href={`/pools/${pool.id}#add-anime`} className={appButtonClasses({ variant: "ghost", size: "sm" })}>
-                添加动画
-              </Link>
-            ) : null}
+          <div className="mt-4">
             {canMatch || canPromptLoginToMatch ? (
               <AppButton
                 onClick={() =>
@@ -628,8 +598,9 @@ function PoolCard({
                     : onOpenRun(pool, "match")
                 }
                 disabled={isMutating}
-                variant={uiStatus === "READY" ? "primary" : "secondary"}
+                variant="primary"
                 size="sm"
+                className="w-full"
               >
                 {isPublicView && pool.visibility === "PUBLIC"
                   ? canPromptLoginToMatch
@@ -640,39 +611,49 @@ function PoolCard({
                     : "继续对决"}
               </AppButton>
             ) : null}
-            <AppButton
-              onClick={() => onOpenRun(pool, "tier")}
-              disabled={isMutating || !canViewTier}
-              variant="ghost"
-              size="sm"
-            >
-              查看 Tier
-            </AppButton>
           </div>
-          {canManage ? (
-          <details className="mt-4 rounded-2xl border border-white/10 bg-slate-950/35 px-3 py-2">
+          <details className="mt-3 rounded-2xl border border-white/10 bg-slate-950/35 px-3 py-2">
             <summary className="cursor-pointer select-none text-sm font-semibold text-slate-300">
               更多操作
             </summary>
             <div className="mt-3 flex flex-wrap gap-2">
-              <AppButton onClick={onBeginEdit} disabled={isMutating} variant="quiet" size="sm">
-                番组设置
+              <Link href={`/pools/${pool.id}`} className={appButtonClasses({ variant: "secondary", size: "sm" })}>
+                进入
+              </Link>
+              {!isPublicView && !isArchived && canAddAnime ? (
+                <Link href={`/pools/${pool.id}#add-anime`} className={appButtonClasses({ variant: "ghost", size: "sm" })}>
+                  添加动画
+                </Link>
+              ) : null}
+              <AppButton
+                onClick={() => onOpenRun(pool, "tier")}
+                disabled={isMutating || !canViewTier}
+                variant="ghost"
+                size="sm"
+              >
+                查看 Tier
               </AppButton>
-              {isArchived ? (
-                <AppButton onClick={onRestore} disabled={isMutating} variant="secondary" size="sm">
-                  恢复番组
-                </AppButton>
-              ) : (
-                <AppButton onClick={onArchive} disabled={isMutating} variant="danger" size="sm">
-                  归档番组
-                </AppButton>
-              )}
-              <AppButton onClick={onCopyPoolId} disabled={isMutating} variant="quiet" size="sm">
-                复制番组 ID
-              </AppButton>
+              {canManage ? (
+                <>
+                  <AppButton onClick={onBeginEdit} disabled={isMutating} variant="quiet" size="sm">
+                    番组设置
+                  </AppButton>
+                  {isArchived ? (
+                    <AppButton onClick={onRestore} disabled={isMutating} variant="secondary" size="sm">
+                      恢复番组
+                    </AppButton>
+                  ) : (
+                    <AppButton onClick={onArchive} disabled={isMutating} variant="danger" size="sm">
+                      归档番组
+                    </AppButton>
+                  )}
+                  <AppButton onClick={onCopyPoolId} disabled={isMutating} variant="quiet" size="sm">
+                    复制番组 ID
+                  </AppButton>
+                </>
+              ) : null}
             </div>
           </details>
-          ) : null}
         </>
       )}
       </div>
@@ -813,28 +794,4 @@ function toneForStatus(status: PoolManagementStatus): "status" | "warning" | "da
   }
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2">
-      <p className="text-[11px] text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-black text-white">{value}</p>
-    </div>
-  );
-}
 
-function Stat({
-  label,
-  value,
-  compact = false
-}: {
-  label: string;
-  value: string;
-  compact?: boolean;
-}) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className={`mt-2 font-black text-white ${compact ? "text-xl" : "text-3xl"}`}>{value}</p>
-    </div>
-  );
-}

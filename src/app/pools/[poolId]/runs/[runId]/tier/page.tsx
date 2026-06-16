@@ -103,6 +103,7 @@ export default function TierPage({
   const [draftTierLabels, setDraftTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
   const [showTierLabelEditor, setShowTierLabelEditor] = useState(false);
   const [showAdvancedActions, setShowAdvancedActions] = useState(false);
+  const [showTierInfo, setShowTierInfo] = useState(false);
   const [canShowCommunityRanking, setCanShowCommunityRanking] = useState(false);
 
   const loadTierList = useCallback(async () => {
@@ -381,7 +382,7 @@ export default function TierPage({
             Tier List 排名榜单墙
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-            导出和分享是这个页面的主动作；校准、手动设定和分层标签收进高级控制。
+            导出和分享是这里的主动作；校准和高级设定默认折叠。
           </p>
         </div>
       </div>
@@ -391,11 +392,11 @@ export default function TierPage({
           <div>
             <h2 className="text-lg font-semibold text-white">生成你的榜单作品</h2>
             <p className="mt-1 text-sm text-slate-400">
-              自定义 Tier 标签会同步用于页面展示、导出画布和公开分享。
+              导出、分享和继续对决是这个页面的主动作。
             </p>
           </div>
           <p className="max-w-2xl text-xs leading-5 text-slate-500 lg:col-span-2">
-            Tier List 根据你的对决结果生成，可以分享榜单，也可以导出图片。手动调整只影响榜单展示和当前手动排序，不会改写对决历史。
+            Tier List 根据你的对决结果生成。手动调整只影响榜单展示和当前手动排序，不会改写对决历史。
           </p>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <AppButton
@@ -674,20 +675,32 @@ export default function TierPage({
           <div className="mb-8">
             <RankingProgressCard progress={tierList.progress} compact />
           </div>
-          <div className="mb-8 space-y-3">
-            <StatusHint
-              label="榜单说明"
-              title="系统排序来自两两对决"
-              description="每次选择都会更新作品的相对位置；手动最终设定不会删除对决历史，锁标记代表用户手动确认过最终排序。"
-              tone="guide"
-            />
-            {tierList.totalComparisons === 0 ? (
-              <StatusHint
-                label="初始估计"
-                title="还没有对决记录"
-                description="当前 Tier List 只是初始估计。完成几轮对决后，分数、分层和信心指数会更准确。"
-                tone="warning"
-              />
+          <div className="mb-8">
+            <AppButton
+              onClick={() => setShowTierInfo((value) => !value)}
+              variant="quiet"
+              size="sm"
+              aria-expanded={showTierInfo}
+            >
+              {showTierInfo ? "收起说明" : "榜单说明与初始估计"}
+            </AppButton>
+            {showTierInfo ? (
+              <div className="mt-3 space-y-3">
+                <StatusHint
+                  label="榜单说明"
+                  title="系统排序来自两两对决"
+                  description="每次选择都会更新作品的相对位置；手动最终设定不会删除对决历史，锁标记代表用户手动确认过最终排序。"
+                  tone="guide"
+                />
+                {tierList.totalComparisons === 0 ? (
+                  <StatusHint
+                    label="初始估计"
+                    title="还没有对决记录"
+                    description="当前 Tier List 只是初始估计。完成几轮对决后，分数、分层和信心指数会更准确。"
+                    tone="warning"
+                  />
+                ) : null}
+              </div>
             ) : null}
           </div>
 

@@ -9,23 +9,18 @@ import { appButtonClasses } from "@/components/ui/AppButton";
 const STEPS = [
   {
     step: "01",
-    title: "浏览公开番组",
-    body: "先看公开番组，或直接体验官方 Demo。"
+    title: "添加动画",
+    body: "选择公开番组或创建自己的列表，用中文标签检索动画。"
   },
   {
     step: "02",
-    title: "开始个人对决",
-    body: "登录后选择更喜欢的作品，结果只属于你。"
+    title: "开始对决",
+    body: "通过两两对决快速排出你的偏好顺序。"
   },
   {
     step: "03",
-    title: "创建自己的番组",
-    body: "添加作品，也可以用中文标签二次检索。"
-  },
-  {
-    step: "04",
-    title: "分享 Tier List",
-    body: "生成榜单后，可以导出图片或分享链接。"
+    title: "生成榜单",
+    body: "导出图片或生成分享链接，以匿名聚合方式贡献到社区榜单。"
   }
 ];
 
@@ -61,7 +56,7 @@ export default function Home() {
           <AppBadge tone="status">新手说明</AppBadge>
           <h2 className="text-lg font-semibold text-white">怎么玩 AniMatch</h2>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {STEPS.map((item, index) => (
             <AppCard key={item.step} variant={index === 1 ? "focus" : "soft"} className="p-4">
               <div className="flex items-center gap-3">
@@ -96,21 +91,6 @@ export default function Home() {
         </AppCard>
       </section>
 
-      <section className="mt-7 grid gap-4 lg:grid-cols-[1fr_1fr]">
-        <AppCard className="p-5">
-          <h2 className="text-lg font-semibold text-white">封面优先，选择更快</h2>
-          <p className="mt-3 text-sm leading-6 text-slate-400">
-            AniMatch 的核心不是管理数据，而是让动画封面、对决状态和最终榜单成为主角。
-            搜索、上传、校准和显示修正会保留，但不会抢走首屏主动作。
-          </p>
-        </AppCard>
-        <AppCard className="p-5" variant="soft">
-          <h2 className="text-lg font-semibold text-white">轻竞技，不是后台</h2>
-          <p className="mt-3 text-sm leading-6 text-slate-400">
-            首页只解释下一步：浏览番组、开始对决、创建自己的番组、生成榜单。高级功能留在对应流程里渐进展开。
-          </p>
-        </AppCard>
-      </section>
     </PageShell>
   );
 }
