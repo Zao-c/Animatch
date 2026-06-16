@@ -15,6 +15,7 @@ import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
+import { getAnimeDisplayTitle } from "@/lib/anime-display";
 import {
   clearManualTier,
   createRecalibrationSession,
@@ -634,7 +635,7 @@ export default function TierPage({
                         : "border-white/15 text-slate-300 hover:border-cyan-300/35"
                     }`}
                   >
-                    {item.display?.title ?? item.titleCn ?? item.title}
+                    {getAnimeDisplayTitle(item)}
                   </button>
                 );
               })}

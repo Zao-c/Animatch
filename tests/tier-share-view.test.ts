@@ -101,6 +101,23 @@ describe("TierShareView", () => {
     expect(html).not.toContain("<img");
     expect(html).toContain("Custom Upload");
   });
+
+  it("uses imported image display rules for shared TierMaker items", () => {
+    const share = shareFixture();
+    share.snapshot.tiers[0].items[0] = {
+      animeId: "anime-1",
+      title: "zzzzz 17750273769085f154 f2a3b4c5d6e7f8",
+      coverUrl: "http://tiermaker.example/item.png",
+      source: "TIERMAKER_IMPORT",
+      animeType: "IMAGE"
+    };
+
+    const html = renderToStaticMarkup(React.createElement(TierShareView, { share }));
+
+    expect(html).toContain("未命名作品");
+    expect(html).not.toContain("17750273769085f154");
+    expect(html).toContain('data-cover-fit="contain"');
+  });
 });
 
 function shareFixture(): PublicTierShare {

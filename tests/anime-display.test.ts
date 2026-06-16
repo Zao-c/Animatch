@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { getEffectiveAnimeDisplay, type PoolAnimeDisplayFields } from "../src/lib/anime-display";
+import {
+  getAnimeDisplaySubtitle,
+  getAnimeDisplayTitle,
+  getEffectiveAnimeDisplay,
+  isGeneratedOrNoisyTitle,
+  shouldUseContainCover,
+  type PoolAnimeDisplayFields,
+  UNNAMED_ANIME_TITLE
+} from "../src/lib/anime-display";
 
 function entry(overrides: Partial<PoolAnimeDisplayFields> = {}): PoolAnimeDisplayFields {
   return {
@@ -107,5 +115,63 @@ describe("getEffectiveAnimeDisplay", () => {
     expect(display.tags).toEqual(["action", "fantasy"]);
     expect(display.isOverridden).toBe(false);
     expect(display.isCoverOverridden).toBe(false);
+  });
+
+  it("hides noisy generated TierMaker titles", () => {
+    const display = getEffectiveAnimeDisplay(
+      entry({
+        anime: {
+          ...entry().anime,
+          source: "TIERMAKER_IMPORT",
+          title: "zzzzz 17750273769085f154 f2a3b4c5d6e7f8",
+          titleCn: null
+        }
+      })
+    );
+
+    expect(display.title).toBe(UNNAMED_ANIME_TITLE);
+    expect(display.subtitle).toBeNull();
+  });
+});
+
+describe("anime display helpers", () => {
+  it("hides noisy generated TierMaker titles without changing normal titles", () => {
+    const noisy = "zzzzz 17750273769085f154 f2a3b4c5d6e7f8";
+
+    expect(isGeneratedOrNoisyTitle(noisy)).toBe(true);
+    expect(
+      getAnimeDisplayTitle({
+        source: "TIERMAKER_IMPORT",
+        title: noisy
+      })
+    ).toBe(UNNAMED_ANIME_TITLE);
+    expect(
+      getAnimeDisplayTitle({
+        source: "BANGUMI",
+        title: "Bocchi the Rock!",
+        titleCn: "孤独摇滚！"
+      })
+    ).toBe("孤独摇滚！");
+    expect(
+      getAnimeDisplayTitle({
+        source: "TIERMAKER_IMPORT",
+        title: "Miku"
+      })
+    ).toBe("Miku");
+  });
+
+  it("keeps user image sources on the contain cover strategy", () => {
+    expect(shouldUseContainCover({ source: "TIERMAKER_IMPORT" })).toBe(true);
+    expect(shouldUseContainCover({ source: "CUSTOM_UPLOAD" })).toBe(true);
+    expect(shouldUseContainCover({ source: "BANGUMI" })).toBe(false);
+  });
+
+  it("does not repeat noisy titles as subtitles", () => {
+    expect(
+      getAnimeDisplaySubtitle({
+        source: "TIERMAKER_IMPORT",
+        title: "https://tiermaker.com/images/12345678901234567890.png"
+      })
+    ).toBeNull();
   });
 });

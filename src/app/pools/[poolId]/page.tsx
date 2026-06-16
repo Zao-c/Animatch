@@ -8,6 +8,7 @@ import { AnimeCover } from "@/components/AnimeCover";
 import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
 import { formatAnimeSource } from "@/lib/anime-source";
 import { copyTextWithFallback } from "@/lib/browser-copy";
 import { isCommunityBattleVisiblePool } from "@/lib/community-battle-visibility";
@@ -1219,9 +1220,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
             <section className="space-y-3 border-t border-anime-border pt-5">
               <div>
-                <h3 className="text-sm font-semibold text-white">公开权限，暂未开放</h3>
+                <h3 className="text-sm font-semibold text-white">未来公开协作功能，暂未开放</h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                  这些功能还在设计中，当前公开番组只支持他人浏览并进行个人对决。
+                  这些开关还在设计中，不影响当前公开浏览、社区大乱斗和社区榜单。
                 </p>
               </div>
               <label className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm text-slate-500">
@@ -1913,6 +1914,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                                   secondarySrc={null}
                                   title={item.title}
                                   size="sm"
+                                  fit="contain"
                                   className="aspect-[3/4] w-full rounded-none border-0"
                                 />
                                 <div className="flex items-center gap-2 p-2">
@@ -2338,11 +2340,13 @@ function PoolAnimeCard({
   onRemove: () => void;
 }) {
   const display = entry.display;
-  const title = display.title;
+  const displayAnime = { ...entry.anime, display };
+  const title = getAnimeDisplayTitle(displayAnime);
   const coverUrl = getAnimeCoverUrl(
-    { ...entry.anime, display, coverUrlOverride: entry.coverUrlOverride },
+    { ...displayAnime, coverUrlOverride: entry.coverUrlOverride },
     { intent: "display" }
   );
+  const coverFit = shouldUseContainCover(displayAnime) ? "contain" : "cover";
 
   return (
     <div className="overflow-hidden rounded-2xl border border-anime-border bg-slate-950/45 transition duration-anime hover:border-anime-cyan/25">
@@ -2351,6 +2355,7 @@ function PoolAnimeCard({
         secondarySrc={entry.anime.imageSmallUrl ?? entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl}
         title={title}
         size="md"
+        fit={coverFit}
         className="h-56 w-full rounded-none border-0 sm:h-64"
       />
       <div className="p-3">
@@ -2485,11 +2490,13 @@ function PoolAnimeDisplayPanel({
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [coverUploadError, setCoverUploadError] = useState<string | null>(null);
   const display = entry.display;
-  const title = display.title;
+  const displayAnime = { ...entry.anime, display };
+  const title = getAnimeDisplayTitle(displayAnime);
   const coverUrl = getAnimeCoverUrl(
-    { ...entry.anime, display, coverUrlOverride: entry.coverUrlOverride },
+    { ...displayAnime, coverUrlOverride: entry.coverUrlOverride },
     { intent: "thumbnail" }
   );
+  const coverFit = shouldUseContainCover(displayAnime) ? "contain" : "cover";
 
   useEffect(() => {
     if (selectedCoverFile === null) {
@@ -2586,6 +2593,7 @@ function PoolAnimeDisplayPanel({
           secondarySrc={entry.anime.imageSmallUrl ?? entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl}
           title={title}
           size="sm"
+          fit={coverFit}
           className="shrink-0 rounded-xl"
         />
         <div className="min-w-0 flex-1">

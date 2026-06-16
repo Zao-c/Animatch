@@ -5,6 +5,7 @@ import React, { useState } from "react";
 import { AnimeCover } from "./AnimeCover";
 import { AppBadge } from "./ui/AppBadge";
 import { AppButton, appButtonClasses } from "./ui/AppButton";
+import { getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
 import type { PublicTierShare, TierShareSnapshotItem } from "@/lib/client-api";
 import { formatDateTimeStable } from "@/lib/date-format";
 
@@ -102,16 +103,20 @@ export function TierShareMissingView() {
 }
 
 function ShareItemCard({ item }: { item: TierShareSnapshotItem }) {
+  const title = getAnimeDisplayTitle(item);
+  const coverFit = shouldUseContainCover(item) ? "contain" : "cover";
+
   return (
     <article className="w-28 rounded-xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_12px_36px_rgba(0,0,0,0.25)] sm:w-32">
       <AnimeCover
         src={item.coverUrl ?? null}
-        title={item.title}
+        title={title}
         size="sm"
+        fit={coverFit}
         className="h-28 w-full rounded-lg sm:h-32"
       />
       <h2 className="mt-2 line-clamp-2 text-xs font-semibold leading-snug text-white">
-        {item.title}
+        {title}
       </h2>
       <div className="mt-2 flex flex-wrap gap-1">
         <AppBadge tone="source">{item.source}</AppBadge>

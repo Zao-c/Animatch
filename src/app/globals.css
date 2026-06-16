@@ -283,6 +283,11 @@ textarea:focus {
   object-fit: cover;
 }
 
+.tiermaker-export-image-contain {
+  object-fit: contain;
+  background: #101318;
+}
+
 .tiermaker-export-fallback {
   display: flex;
   align-items: center;

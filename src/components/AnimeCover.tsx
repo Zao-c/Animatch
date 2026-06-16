@@ -15,12 +15,14 @@ export function AnimeCover({
   secondarySrc,
   title,
   size = "md",
+  fit = "cover",
   className = ""
 }: {
   src: string | null | undefined;
   secondarySrc?: string | null;
   title: string;
   size?: "sm" | "md" | "lg";
+  fit?: "cover" | "contain";
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);
@@ -37,16 +39,22 @@ export function AnimeCover({
       ? null
       : secondarySrc ?? null;
   const shouldShowImage = Boolean(imageSrc);
+  const imageFitClass =
+    fit === "contain"
+      ? "object-contain bg-slate-950"
+      : "object-cover";
 
   return (
     <div
       className={`${SIZE_CLASS[size]} relative overflow-hidden rounded-lg border border-white/10 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 ${className}`}
+      data-cover-fit={fit}
     >
       {shouldShowImage ? (
         <img
           src={imageSrc ?? ""}
           alt={title}
-          className="h-full w-full object-cover"
+          referrerPolicy={fit === "contain" ? "no-referrer" : undefined}
+          className={`h-full w-full ${imageFitClass}`}
           onError={() => {
             if (!failed) {
               setFailed(true);
@@ -61,9 +69,14 @@ export function AnimeCover({
             {title.charAt(0).toUpperCase() || "A"}
           </span>
           {size !== "sm" && (
-            <span className="line-clamp-2 text-center text-[10px] font-medium leading-tight text-zinc-500">
-              {title}
-            </span>
+            <>
+              <span className="text-center text-[10px] font-semibold leading-tight text-zinc-400">
+                图片暂时无法加载
+              </span>
+              <span className="line-clamp-2 text-center text-[10px] font-medium leading-tight text-zinc-500">
+                {title}
+              </span>
+            </>
           )}
         </div>
       )}

@@ -85,8 +85,8 @@ export function HomeActions() {
   if (isLoggedIn === null) {
     return (
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-        <Link href="/pools" className={appButtonClasses({ variant: "primary", size: "lg", className: "w-full sm:w-auto" })}>
-          浏览番组
+        <Link href="/pools?view=public" className={appButtonClasses({ variant: "primary", size: "lg", className: "w-full sm:w-auto" })}>
+          浏览公开番组
         </Link>
       </div>
     );
@@ -142,6 +142,16 @@ export function HomeActions() {
           {primaryLabel}
         </Link>
         <Link
+          href="/pools?view=public"
+          className={appButtonClasses({
+            variant: "secondary",
+            size: "lg",
+            className: "w-full sm:w-auto"
+          })}
+        >
+          浏览公开番组
+        </Link>
+        <Link
           href="/pools"
           className={appButtonClasses({
             variant: "ghost",
@@ -170,4 +180,3 @@ export function HomeActions() {
     </div>
   );
 }
-

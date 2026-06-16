@@ -4,6 +4,7 @@ import React from "react";
 import type { PublicAnime } from "@/lib/client-api";
 import { formatAnimeSource } from "@/lib/anime-source";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { getAnimeDisplaySubtitle, getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
 import { labelAnimeTag } from "@/lib/anime-tag-dictionary";
 import { AnimeCover } from "./AnimeCover";
 
@@ -20,8 +21,10 @@ export function AnimeCard({
   disabled?: boolean;
   actionLabel?: string;
 }) {
-  const title = anime.titleCn ?? anime.title;
+  const title = getAnimeDisplayTitle(anime);
+  const subtitle = getAnimeDisplaySubtitle(anime);
   const coverUrl = getAnimeCoverUrl(anime, { intent: "thumbnail" });
+  const coverFit = shouldUseContainCover(anime) ? "contain" : "cover";
 
   return (
     <button
@@ -38,12 +41,13 @@ export function AnimeCard({
         src={coverUrl}
         title={title}
         size="md"
+        fit={coverFit}
         className="shrink-0"
       />
       <div className="min-w-0 flex-1 py-1">
         <h3 className="line-clamp-2 text-base font-semibold text-white">{title}</h3>
-        {anime.titleCn ? (
-          <p className="mt-1 line-clamp-1 text-sm text-zinc-400">{anime.title}</p>
+        {subtitle ? (
+          <p className="mt-1 line-clamp-1 text-sm text-zinc-400">{subtitle}</p>
         ) : null}
         <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-300">
           {anime.bangumiScore !== null ? <span>评分 {anime.bangumiScore}</span> : null}

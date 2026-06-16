@@ -74,6 +74,8 @@ describe("TierExportCanvas", () => {
     expect(html).toContain(">C<");
     expect(html).toContain(">D<");
     expect(html).toContain('src="/uploads/custom-items/export-test.png"');
+    expect(html).toContain("tiermaker-export-image-contain");
+    expect(html).toContain('referrerPolicy="no-referrer"');
     expect(html).toContain("tiermaker-export-fallback");
   });
 
@@ -113,6 +115,25 @@ describe("TierExportCanvas", () => {
     expect(html).toContain('src="https://example.com/high.jpg"');
     expect(html).not.toContain('src="https://example.com/large.jpg"');
     expect(html).not.toContain('src="https://example.com/thumb.jpg"');
+    expect(html).not.toContain("tiermaker-export-image-contain");
+  });
+
+  it("hides noisy TierMaker titles in export aria labels", () => {
+    const noisyTitle = "zzzzz 17750273769085f154 f2a3b4c5d6e7f8";
+    const html = renderToStaticMarkup(
+      React.createElement(TierExportCanvas, {
+        tiers: {
+          S: [tierItem({ source: "TIERMAKER_IMPORT", title: noisyTitle })],
+          A: [],
+          B: [],
+          C: [],
+          D: []
+        }
+      })
+    );
+
+    expect(html).toContain('aria-label="未命名作品"');
+    expect(html).not.toContain(noisyTitle);
   });
 
   it("uses real imageUrl covers for tier wall items with images", () => {

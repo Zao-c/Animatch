@@ -83,6 +83,21 @@ describe("anime cover rendering", () => {
 
     expect(html).not.toContain("<img");
     expect(html).toContain("Fallback Title");
+    expect(html).toContain("图片暂时无法加载");
+  });
+
+  it("AnimeCover can render user imported images with object-contain and no referrer", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(AnimeCover, {
+        src: "http://tiermaker.example/image.png",
+        title: "Imported image",
+        fit: "contain"
+      })
+    );
+
+    expect(html).toContain('data-cover-fit="contain"');
+    expect(html).toContain("object-contain");
+    expect(html).toContain('referrerPolicy="no-referrer"');
   });
 
   it("DuelAnimeCard renders an img when coverUrl is present", () => {
@@ -99,6 +114,7 @@ describe("anime cover rendering", () => {
 
     expect(html).toContain("<img");
     expect(html).toContain('src="/uploads/custom-items/test.png"');
+    expect(html).toContain('data-cover-fit="contain"');
   });
 
   it("DuelAnimeCard prefers imageUrl over thumbnailUrl for hero covers", () => {
@@ -121,6 +137,30 @@ describe("anime cover rendering", () => {
 
     expect(html).toContain('src="https://example.com/high.jpg"');
     expect(html).not.toContain('src="https://example.com/thumb.jpg"');
+    expect(html).toContain('data-cover-fit="cover"');
+    expect(html).not.toContain('referrerPolicy="no-referrer"');
+  });
+
+  it("DuelAnimeCard keeps the card height stable and action aligned", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DuelAnimeCard, {
+        anime: baseAnime({
+          source: "TIERMAKER_IMPORT",
+          title: "zzzzz 17750273769085f154 f2a3b4c5d6e7f8"
+        }),
+        side: "left",
+        disabled: false,
+        actionLabel: "Pick",
+        scoreDistribution,
+        onPick: () => undefined
+      })
+    );
+
+    expect(html).toContain("flex h-full flex-col");
+    expect(html).toContain("min-h-[4rem]");
+    expect(html).toContain("mt-auto w-full");
+    expect(html).toContain("未命名作品");
+    expect(html).not.toContain("17750273769085f154");
   });
 
   it("TierAnimeCard renders an img when coverUrl is present", () => {
@@ -136,6 +176,7 @@ describe("anime cover rendering", () => {
 
     expect(html).toContain("<img");
     expect(html).toContain('src="/uploads/custom-items/test.png"');
+    expect(html).toContain('data-cover-fit="contain"');
   });
 
   it("TierAnimeCard prefers imageUrl over thumbnailUrl for display covers", () => {
@@ -157,6 +198,7 @@ describe("anime cover rendering", () => {
 
     expect(html).toContain('src="https://example.com/high.jpg"');
     expect(html).not.toContain('src="https://example.com/thumb.jpg"');
+    expect(html).toContain('data-cover-fit="cover"');
   });
 
   it("TierAnimeCard disables drag interaction in export mode", () => {

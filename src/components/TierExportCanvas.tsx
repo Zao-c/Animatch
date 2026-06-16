@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import React, { useState } from "react";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
 import type { TierListItem } from "@/lib/client-api";
 import { DEFAULT_TIER_LABELS, type TierLabels } from "@/lib/tier-labels";
 
@@ -66,17 +67,19 @@ function TierExportItem({
   initiallyFailed: boolean;
 }) {
   const [imageFailed, setImageFailed] = useState(initiallyFailed);
-  const title = item.display?.title ?? item.titleCn ?? item.title;
+  const title = getAnimeDisplayTitle(item);
   const coverUrl = getAnimeCoverUrl(item, { intent: "export" });
+  const useContain = shouldUseContainCover(item);
   const fallback = title.trim().slice(0, 1).toUpperCase() || "A";
 
   return (
     <div className="tiermaker-export-item" aria-label={title}>
       {coverUrl && !imageFailed ? (
         <img
-          className="tiermaker-export-image"
+          className={`tiermaker-export-image ${useContain ? "tiermaker-export-image-contain" : ""}`}
           src={coverUrl}
           alt=""
+          referrerPolicy={useContain ? "no-referrer" : undefined}
           data-tier-export-image="true"
           data-anime-id={item.animeId}
           onError={() => {

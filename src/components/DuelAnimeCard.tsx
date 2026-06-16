@@ -6,6 +6,7 @@ import { AppBadge } from "./ui/AppBadge";
 import { AppButton } from "./ui/AppButton";
 import { AppCard } from "./ui/AppCard";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { getAnimeDisplaySubtitle, getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
 import { getAniScore } from "@/lib/ranking-display";
 import type { PublicAnimeWithScore, RankingScoreDistribution } from "@/lib/client-api";
 
@@ -30,9 +31,10 @@ export function DuelAnimeCard({
   highlighted?: boolean;
   className?: string;
 }) {
-  const title = anime.display?.title ?? anime.titleCn ?? anime.title;
-  const subtitle = anime.display?.subtitle ?? (anime.titleCn ? anime.title : null);
+  const title = getAnimeDisplayTitle(anime);
+  const subtitle = getAnimeDisplaySubtitle(anime);
   const coverUrl = getAnimeCoverUrl(anime, { intent: "hero" });
+  const coverFit = shouldUseContainCover(anime) ? "contain" : "cover";
   const animeType = anime.display?.animeType ?? anime.animeType;
   const aniScore = getAniScore(anime.eloScore, scoreDistribution);
   const sideLabel = side === "left" ? "LEFT" : "RIGHT";
@@ -55,7 +57,7 @@ export function DuelAnimeCard({
           handlePick();
         }
       }}
-      className={`group overflow-hidden p-4 transition duration-anime hover:border-anime-cyan/35 hover:shadow-anime-focus ${
+      className={`group flex h-full flex-col overflow-hidden p-4 transition duration-anime hover:border-anime-cyan/35 hover:shadow-anime-focus ${
         disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer"
       } ${
         highlighted
@@ -69,6 +71,7 @@ export function DuelAnimeCard({
           secondarySrc={anime.imageMediumUrl ?? anime.imageSmallUrl ?? anime.imageLargeUrl}
           title={title}
           size="lg"
+          fit={coverFit}
           className="rounded-2xl border-cyan-200/10"
         />
         <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-t from-slate-950/82 via-transparent to-transparent" />
@@ -82,7 +85,7 @@ export function DuelAnimeCard({
       </div>
 
       <div className="mt-5">
-        <h2 className="line-clamp-2 text-2xl font-black tracking-tight text-white">
+        <h2 className="line-clamp-2 min-h-[4rem] text-2xl font-black tracking-tight text-white">
           {title}
         </h2>
         {subtitle ? <p className="mt-2 line-clamp-1 text-sm text-slate-400">{subtitle}</p> : null}
@@ -93,7 +96,7 @@ export function DuelAnimeCard({
         ) : null}
       </div>
 
-      <details className="mt-5 rounded-2xl border border-anime-border bg-slate-950/42 px-3 py-2 text-sm text-slate-400">
+      <details className="mb-5 mt-5 rounded-2xl border border-anime-border bg-slate-950/42 px-3 py-2 text-sm text-slate-400">
         <summary className="cursor-pointer select-none text-xs font-semibold text-slate-300">
           详细指标
         </summary>
@@ -113,7 +116,7 @@ export function DuelAnimeCard({
         }}
         variant="primary"
         size="lg"
-        className="mt-5 w-full"
+        className="mt-auto w-full"
       >
         {shortcut ? <ShortcutKey>{shortcut}</ShortcutKey> : null}
         <span>{actionLabel}</span>

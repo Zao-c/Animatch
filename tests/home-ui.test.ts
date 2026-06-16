@@ -61,6 +61,8 @@ describe("HomeActions anonymous state", () => {
   it("shows logged-in CTA when authenticated", () => {
     expect(source).toContain("primaryHref");
     expect(source).toContain('href="/pools"');
+    expect(source).toContain('href="/pools?view=public"');
+    expect(source).toContain("浏览公开番组");
   });
 });
 

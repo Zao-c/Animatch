@@ -4,6 +4,7 @@ import React, { type DragEvent } from "react";
 import { AnimeCover } from "./AnimeCover";
 import { AppBadge } from "./ui/AppBadge";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
 import { getAniScore } from "@/lib/ranking-display";
 import type { RankingScoreDistribution, TierListItem } from "@/lib/client-api";
 
@@ -24,8 +25,9 @@ export function TierAnimeCard({
   onDropBefore: () => void;
   className?: string;
 }) {
-  const title = item.display?.title ?? item.titleCn ?? item.title;
+  const title = getAnimeDisplayTitle(item);
   const coverUrl = getAnimeCoverUrl(item, { intent: "display" });
+  const coverFit = shouldUseContainCover(item) ? "contain" : "cover";
   const aniScore = getAniScore(item.eloScore, scoreDistribution);
 
   return (
@@ -46,6 +48,7 @@ export function TierAnimeCard({
         secondarySrc={item.imageSmallUrl ?? item.imageMediumUrl ?? item.imageLargeUrl}
         title={title}
         size="md"
+        fit={coverFit}
         className="h-56 w-full rounded-none border-0"
       />
       <div className="p-3">

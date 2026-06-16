@@ -64,10 +64,10 @@ describe("pool management UI", () => {
   });
 
   it("renders disabled reserved public permission controls", () => {
-    expect(detailSource).toContain("公开权限，暂未开放");
+    expect(detailSource).toContain("未来公开协作功能，暂未开放");
     expect(detailSource).toContain("允许其他人添加动画");
     expect(detailSource).toContain("启用大乱斗公共榜单");
-    expect(detailSource).toContain("这些功能还在设计中，当前公开番组只支持他人浏览并进行个人对决。");
+    expect(detailSource).toContain("这些开关还在设计中，不影响当前公开浏览、社区大乱斗和社区榜单。");
     expect(detailSource).toContain('type="checkbox" disabled');
   });
 
