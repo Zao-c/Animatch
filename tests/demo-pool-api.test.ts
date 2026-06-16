@@ -186,6 +186,28 @@ describe("POST /api/demo-pool", () => {
     expect(mockedBangumi.searchBangumiAnime).not.toHaveBeenCalled();
   });
 
+  it("assigns stable local cover URLs and OK image status to demo anime", async () => {
+    await POST();
+
+    const localCoverPattern = /^\/demo-covers\/[\w-]+\.svg$/;
+    expect(mockedAnime.upsert).toHaveBeenCalledTimes(10);
+
+    const firstCall = (mockedAnime.upsert as any).mock.calls[0][0];
+    expect(firstCall.where.bgmId).toBe(-900001);
+    expect(firstCall.create.imageUrl).toMatch(localCoverPattern);
+    expect(firstCall.create.thumbnailUrl).toMatch(localCoverPattern);
+    expect(firstCall.create.imageStatus).toBe("OK");
+    expect(firstCall.update.imageUrl).toMatch(localCoverPattern);
+    expect(firstCall.update.imageStatus).toBe("OK");
+
+    for (const call of (mockedAnime.upsert as any).mock.calls) {
+      expect(call[0].create.imageUrl).not.toBeNull();
+      expect(call[0].create.imageStatus).not.toBe("MISSING");
+      expect(call[0].update.imageUrl).not.toBeNull();
+      expect(call[0].update.imageStatus).not.toBe("MISSING");
+    }
+  });
+
   it("reuses an active demo pool and does not duplicate existing pool anime", async () => {
     mockedCustomPool.findFirst.mockResolvedValue(pool());
     mockedPoolAnime.findMany.mockResolvedValue(

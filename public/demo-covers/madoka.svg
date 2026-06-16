@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AniMatch official demo cover - stable local asset -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 420" width="300" height="420">
+  <defs>
+    <linearGradient id="grad-madoka" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#7a4c6b"/>
+      <stop offset="55%"  stop-color="#4a1e3a"/>
+      <stop offset="100%" stop-color="#250f1a"/>
+    </linearGradient>
+    <radialGradient id="glow-madoka" cx="50%" cy="30%" r="70%">
+      <stop offset="0%"   stop-color="rgba(255,255,255,0.18)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+    <pattern id="grid-madoka" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect fill="url(#grad-madoka)" width="300" height="420"/>
+  <rect fill="url(#glow-madoka)" width="300" height="420"/>
+  <rect fill="url(#grid-madoka)" width="300" height="420"/>
+
+  <g>
+    <text x="20" y="34" font-family="sans-serif" font-size="16" font-weight="900" fill="#ffffff" letter-spacing="1">AniMatch</text>
+    <text x="20" y="50" font-family="sans-serif" font-size="9" fill="rgba(255,255,255,0.65)" letter-spacing="1.5">OFFICIAL DEMO</text>
+    <line x1="20" y1="58" x2="80" y2="58" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+  </g>
+
+  <g text-anchor="middle">
+    <text x="150" y="190" font-family="&quot;Noto Sans CJK SC&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, &quot;SimHei&quot;, sans-serif" font-size="40" font-weight="900" fill="#ffffff" letter-spacing="4">魔法少女小圆</text>
+    <text x="150" y="222" font-family="sans-serif" font-size="12" font-weight="500" fill="rgba(255,255,255,0.75)" letter-spacing="3">MADOKA MAGICA</text>
+    <line x1="110" y1="238" x2="190" y2="238" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+    <text x="150" y="262" font-family="sans-serif" font-size="10" fill="rgba(255,255,255,0.55)" letter-spacing="2">ANIME · ANIMATION</text>
+  </g>
+
+  <g>
+      <g transform="translate(24,360)">
+        <rect x="0" y="0" width="120" height="24" rx="12" ry="12" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.35)"/>
+        <text x="60" y="16" text-anchor="middle" font-family="&quot;Noto Sans CJK SC&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, &quot;SimHei&quot;, sans-serif" font-size="12" font-weight="700" fill="#ffffff">魔法少女</text>
+      </g>
+      <g transform="translate(154,360)">
+        <rect x="0" y="0" width="66" height="24" rx="12" ry="12" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.35)"/>
+        <text x="33" y="16" text-anchor="middle" font-family="&quot;Noto Sans CJK SC&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, &quot;SimHei&quot;, sans-serif" font-size="12" font-weight="700" fill="#ffffff">原创</text>
+      </g>
+      <g transform="translate(230,360)">
+        <rect x="0" y="0" width="66" height="24" rx="12" ry="12" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.35)"/>
+        <text x="33" y="16" text-anchor="middle" font-family="&quot;Noto Sans CJK SC&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, &quot;SimHei&quot;, sans-serif" font-size="12" font-weight="700" fill="#ffffff">剧情</text>
+      </g>
+  </g>
+
+  <g text-anchor="end">
+    <rect x="232" y="378" width="56" height="26" rx="6" ry="6" fill="rgba(0,0,0,0.35)" stroke="rgba(255,255,255,0.3)"/>
+    <text x="284" y="391" font-family="sans-serif" font-size="9" font-weight="700" fill="rgba(255,255,255,0.85)" letter-spacing="1">BGM</text>
+    <text x="260" y="397" font-family="sans-serif" font-size="14" font-weight="900" fill="#ffd36b">8.4</text>
+  </g>
+
+  <g opacity="0.6">
+    <line x1="20" y1="410" x2="280" y2="410" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+    <text x="20" y="418" font-family="sans-serif" font-size="7" fill="rgba(255,255,255,0.4)" letter-spacing="1.5">ANIMATCH.GAL · 2026</text>
+  </g>
+</svg>

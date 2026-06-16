@@ -16,7 +16,8 @@ const DEMO_ANIME = [
     airDate: "2012-04-22T00:00:00.000Z",
     bangumiScore: 8.1,
     bangumiRank: 120,
-    tags: ["校园", "推理", "日常"]
+    tags: ["校园", "推理", "日常"],
+    cover: "/demo-covers/hyouka.svg"
   },
   {
     bgmId: -900002,
@@ -25,7 +26,8 @@ const DEMO_ANIME = [
     airDate: "2007-10-04T00:00:00.000Z",
     bangumiScore: 8.0,
     bangumiRank: 150,
-    tags: ["校园", "恋爱", "Key"]
+    tags: ["校园", "恋爱", "Key"],
+    cover: "/demo-covers/clannad.svg"
   },
   {
     bgmId: -900003,
@@ -34,7 +36,8 @@ const DEMO_ANIME = [
     airDate: "2009-04-02T00:00:00.000Z",
     bangumiScore: 7.9,
     bangumiRank: 180,
-    tags: ["音乐", "日常", "校园"]
+    tags: ["音乐", "日常", "校园"],
+    cover: "/demo-covers/k-on.svg"
   },
   {
     bgmId: -900004,
@@ -43,7 +46,8 @@ const DEMO_ANIME = [
     airDate: "2011-04-06T00:00:00.000Z",
     bangumiScore: 8.7,
     bangumiRank: 20,
-    tags: ["科幻", "悬疑", "时间旅行"]
+    tags: ["科幻", "悬疑", "时间旅行"],
+    cover: "/demo-covers/steins-gate.svg"
   },
   {
     bgmId: -900005,
@@ -52,7 +56,8 @@ const DEMO_ANIME = [
     airDate: "2011-01-07T00:00:00.000Z",
     bangumiScore: 8.4,
     bangumiRank: 60,
-    tags: ["魔法少女", "原创", "剧情"]
+    tags: ["魔法少女", "原创", "剧情"],
+    cover: "/demo-covers/madoka.svg"
   },
   {
     bgmId: -900006,
@@ -61,7 +66,8 @@ const DEMO_ANIME = [
     airDate: "2018-01-11T00:00:00.000Z",
     bangumiScore: 8.0,
     bangumiRank: 170,
-    tags: ["治愈", "奇幻", "京阿尼"]
+    tags: ["治愈", "奇幻", "京阿尼"],
+    cover: "/demo-covers/violet.svg"
   },
   {
     bgmId: -900007,
@@ -70,7 +76,8 @@ const DEMO_ANIME = [
     airDate: "2023-09-29T00:00:00.000Z",
     bangumiScore: 8.6,
     bangumiRank: 30,
-    tags: ["奇幻", "冒险", "旅行"]
+    tags: ["奇幻", "冒险", "旅行"],
+    cover: "/demo-covers/frieren.svg"
   },
   {
     bgmId: -900008,
@@ -79,7 +86,8 @@ const DEMO_ANIME = [
     airDate: "2022-10-09T00:00:00.000Z",
     bangumiScore: 8.3,
     bangumiRank: 80,
-    tags: ["音乐", "喜剧", "乐队"]
+    tags: ["音乐", "喜剧", "乐队"],
+    cover: "/demo-covers/bocchi.svg"
   },
   {
     bgmId: -900009,
@@ -88,7 +96,8 @@ const DEMO_ANIME = [
     airDate: "2013-04-07T00:00:00.000Z",
     bangumiScore: 8.2,
     bangumiRank: 100,
-    tags: ["战斗", "剧情", "热血"]
+    tags: ["战斗", "剧情", "热血"],
+    cover: "/demo-covers/attack-on-titan.svg"
   },
   {
     bgmId: -900010,
@@ -97,7 +106,8 @@ const DEMO_ANIME = [
     airDate: "2014-10-10T00:00:00.000Z",
     bangumiScore: 7.8,
     bangumiRank: 240,
-    tags: ["音乐", "恋爱", "青春"]
+    tags: ["音乐", "恋爱", "青春"],
+    cover: "/demo-covers/your-lie-in-april.svg"
   }
 ] as const;
 
@@ -201,11 +211,11 @@ async function ensureDemoAnime(): Promise<Anime[]> {
           bgmId: item.bgmId,
           title: item.title,
           titleCn: item.titleCn,
-          imageUrl: null,
-          imageSmallUrl: null,
-          imageMediumUrl: null,
-          imageLargeUrl: null,
-          thumbnailUrl: null,
+          imageUrl: item.cover,
+          imageSmallUrl: item.cover,
+          imageMediumUrl: item.cover,
+          imageLargeUrl: item.cover,
+          thumbnailUrl: item.cover,
           airDate: new Date(item.airDate),
           bangumiRank: item.bangumiRank,
           bangumiScore: item.bangumiScore,
@@ -215,16 +225,16 @@ async function ensureDemoAnime(): Promise<Anime[]> {
           externalLinks: [],
           source: ANIME_SOURCE.DEMO,
           sourceId: `demo/${Math.abs(item.bgmId)}`,
-          imageStatus: "MISSING"
+          imageStatus: "OK"
         },
         update: {
           title: item.title,
           titleCn: item.titleCn,
-          imageUrl: null,
-          imageSmallUrl: null,
-          imageMediumUrl: null,
-          imageLargeUrl: null,
-          thumbnailUrl: null,
+          imageUrl: item.cover,
+          imageSmallUrl: item.cover,
+          imageMediumUrl: item.cover,
+          imageLargeUrl: item.cover,
+          thumbnailUrl: item.cover,
           airDate: new Date(item.airDate),
           bangumiRank: item.bangumiRank,
           bangumiScore: item.bangumiScore,
@@ -234,7 +244,7 @@ async function ensureDemoAnime(): Promise<Anime[]> {
           externalLinks: [],
           source: ANIME_SOURCE.DEMO,
           sourceId: `demo/${Math.abs(item.bgmId)}`,
-          imageStatus: "MISSING"
+          imageStatus: "OK"
         }
       })
     );
