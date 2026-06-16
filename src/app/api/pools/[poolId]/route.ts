@@ -28,6 +28,14 @@ export async function GET(_request: Request, context: RouteContext) {
         id: context.params.poolId
       },
       include: {
+        creator: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            image: true
+          }
+        },
         poolAnime: {
           orderBy: {
             position: "asc"
@@ -59,6 +67,7 @@ export async function GET(_request: Request, context: RouteContext) {
     return ok({
       id: pool.id,
       creatorId: pool.creatorId,
+      creator: pool.creator,
       name: pool.name,
       description: pool.description,
       coverUrl: pool.coverUrl,

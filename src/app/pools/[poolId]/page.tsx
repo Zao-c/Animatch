@@ -999,6 +999,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
             {pool.description ?? "暂无描述"}
           </p>
+          {pool.creator ? (
+            <p className="mt-3 text-xs text-slate-500">
+              由 <span className="font-medium text-slate-300">{pool.creator.name ?? pool.creator.username}</span> 创建
+            </p>
+          ) : null}
           {pool.isOfficialDemo && canPlayPool ? (
             <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-medium text-emerald-300">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400"></span>

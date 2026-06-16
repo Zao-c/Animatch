@@ -50,9 +50,17 @@ export interface EffectiveAnimeDisplay {
   isCoverOverridden?: boolean;
 }
 
+export interface PoolCreator {
+  id: string;
+  name: string | null;
+  username: string;
+  image: string | null;
+}
+
 export interface PoolSummary {
   id: string;
   creatorId: string;
+  creator?: PoolCreator | null;
   name: string;
   description: string | null;
   coverUrl: string | null;
