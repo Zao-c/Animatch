@@ -43,6 +43,11 @@ describe("home mini match demo source", () => {
     expect(source).toContain("createDemoPool");
     expect(source).not.toContain("submitComparison");
   });
+
+  it("renders side labels without anime title displayed in preview card area", () => {
+    expect(source).toContain("左候选");
+    expect(source).toContain("右候选");
+  });
 });
 
 describe("HomeActions anonymous state", () => {

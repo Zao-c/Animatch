@@ -190,11 +190,6 @@ function PreviewCard({
           size="lg"
           className="aspect-[3/4] h-auto w-full rounded-none border-0 object-cover"
         />
-        <div className="p-3">
-          <p className="line-clamp-2 text-sm font-bold leading-5 text-white">{title}</p>
-          {anime.titleCn ? <p className="mt-1 line-clamp-1 text-xs text-slate-400">{anime.title}</p> : null}
-          {anime.meta ? <p className="mt-1 text-xs text-slate-500">{anime.meta}</p> : null}
-        </div>
       </div>
       <p className="mt-2 text-center text-xs font-semibold text-slate-400">
         {side === "left" ? "左候选" : "右候选"}

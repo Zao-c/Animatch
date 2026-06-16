@@ -7,18 +7,22 @@ import { AppBadge } from "./ui/AppBadge";
 import { AppButton, appButtonClasses } from "./ui/AppButton";
 import { getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
 import type { PublicTierShare, TierShareSnapshotItem } from "@/lib/client-api";
+import { copyToClipboard } from "@/lib/clipboard";
 import { formatDateTimeStable } from "@/lib/date-format";
 
 export function TierShareView({ share }: { share: PublicTierShare }) {
   const [copied, setCopied] = useState(false);
+  const [copyFallback, setCopyFallback] = useState(false);
 
   async function copyLink() {
     const href = window.location.href;
-    try {
-      await navigator.clipboard?.writeText(href);
+    const result = await copyToClipboard(href);
+    if (result.ok) {
       setCopied(true);
-    } catch {
+      setCopyFallback(false);
+    } else {
       setCopied(false);
+      setCopyFallback(true);
     }
   }
 
@@ -51,6 +55,20 @@ export function TierShareView({ share }: { share: PublicTierShare }) {
               返回 AniMatch 首页
             </Link>
           </div>
+          {copyFallback ? (
+            <div className="mt-3 max-w-lg">
+              <p className="text-xs text-red-300">自动复制失败，请手动复制下面的链接。</p>
+              <input
+                type="text"
+                readOnly
+                value={typeof window !== "undefined" ? window.location.href : ""}
+                className="anime-field mt-2 w-full text-xs"
+                onFocus={(e) => {
+                  e.target.select();
+                }}
+              />
+            </div>
+          ) : null}
         </header>
 
         <section className="overflow-hidden rounded-2xl border border-black/80 bg-[#191d21] shadow-[0_20px_90px_rgba(0,0,0,0.35)]">

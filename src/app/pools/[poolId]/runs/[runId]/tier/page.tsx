@@ -16,6 +16,7 @@ import { AppCard } from "@/components/ui/AppCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
 import { getAnimeDisplayTitle } from "@/lib/anime-display";
+import { copyToClipboard } from "@/lib/clipboard";
 import {
   clearManualTier,
   createRecalibrationSession,
@@ -99,6 +100,7 @@ export default function TierPage({
   const [shareError, setShareError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
+  const [shareCopyFallback, setShareCopyFallback] = useState(false);
   const [tierLabels, setTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
   const [draftTierLabels, setDraftTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
   const [showTierLabelEditor, setShowTierLabelEditor] = useState(false);
@@ -289,6 +291,7 @@ export default function TierPage({
     setIsSharing(true);
     setShareError(null);
     setShareCopied(false);
+    setShareCopyFallback(false);
 
     try {
       const result = await createTierShare({
@@ -298,11 +301,13 @@ export default function TierPage({
       });
       const absoluteUrl = `${window.location.origin}${result.url}`;
       setShareUrl(absoluteUrl);
-      try {
-        await copyText(absoluteUrl);
+      const copyResult = await copyToClipboard(absoluteUrl);
+      if (copyResult.ok) {
         setShareCopied(true);
-      } catch {
+        setShareCopyFallback(false);
+      } else {
         setShareCopied(false);
+        setShareCopyFallback(true);
       }
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : "请稍后重试。";
@@ -317,11 +322,13 @@ export default function TierPage({
       return;
     }
 
-    try {
-      await copyText(shareUrl);
+    const result = await copyToClipboard(shareUrl);
+    if (result.ok) {
       setShareCopied(true);
-    } catch {
+      setShareCopyFallback(false);
+    } else {
       setShareCopied(false);
+      setShareCopyFallback(true);
     }
   }
 
@@ -457,6 +464,7 @@ export default function TierPage({
         shareError={shareError}
         shareUrl={shareUrl}
         shareCopied={shareCopied}
+        shareCopyFallback={shareCopyFallback}
         onCopyShareUrl={handleCopyShareUrl}
       />
       {isLoading ? <ErrorAlert message="正在加载榜单..." tone="notice" className="mb-5" /> : null}
@@ -829,12 +837,4 @@ async function waitForTierExportImages(container: HTMLElement): Promise<void> {
         })
     )
   );
-}
-
-async function copyText(value: string): Promise<void> {
-  if (!navigator.clipboard) {
-    throw new Error("Clipboard is not available");
-  }
-
-  await navigator.clipboard.writeText(value);
 }

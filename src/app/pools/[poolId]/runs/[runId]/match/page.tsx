@@ -129,6 +129,19 @@ export default function MatchPage({
     }
   }, [appendUniquePairs, params.poolId, params.runId]);
 
+  const refreshProgress = useCallback(async () => {
+    try {
+      const data = await getMatchQueue(params.poolId, params.runId, 1);
+      setConfidenceScore(data.confidenceScore);
+      setQueueMeta({
+        scoreDistribution: data.scoreDistribution,
+        progress: data.progress
+      });
+    } catch {
+      // Progress refresh failure should not interrupt the match.
+    }
+  }, [params.poolId, params.runId]);
+
   useEffect(() => {
     void loadInitialQueue();
   }, [loadInitialQueue]);
@@ -150,6 +163,9 @@ export default function MatchPage({
     setNotice(null);
     setIsSubmitting(true);
 
+    const isUnseen =
+      result === "LEFT_UNSEEN" || result === "RIGHT_UNSEEN" || result === "BOTH_UNSEEN";
+
     try {
       await submitComparison(params.poolId, params.runId, {
         leftAnimeId: currentPair.left.id,
@@ -160,13 +176,16 @@ export default function MatchPage({
       setFeedbackResult(result);
       await waitForMatchFeedback();
       setQueue((current) => current.slice(1));
+      if (isUnseen) {
+        void refreshProgress();
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "提交结果失败");
     } finally {
       setFeedbackResult(null);
       setIsSubmitting(false);
     }
-  }, [isSubmitting, params.poolId, params.runId, queue]);
+  }, [isSubmitting, params.poolId, params.runId, queue, refreshProgress]);
 
   const handleUndoLast = useCallback(async () => {
     if (
@@ -342,6 +361,9 @@ export default function MatchPage({
       {queueMeta ? (
         <div className="mb-6">
           <RankingProgressCard progress={queueMeta.progress} compact />
+          <p className="mt-2 text-xs text-slate-500">
+            没看过的作品不会进入你的榜单，也不会继续计入本轮目标。
+          </p>
         </div>
       ) : null}
 

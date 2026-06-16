@@ -96,7 +96,10 @@ export function DuelAnimeCard({
         ) : null}
       </div>
 
-      <details className="relative mb-4 mt-4 rounded-xl border border-white/10 bg-slate-950/28 px-3 py-2 text-sm text-slate-400">
+      <details
+        className="relative mb-4 mt-4 rounded-xl border border-white/10 bg-slate-950/28 px-3 py-2 text-sm text-slate-400"
+        onClick={(e) => e.stopPropagation()}
+      >
         <summary className="cursor-pointer select-none text-xs font-semibold text-slate-300">
           详细指标
         </summary>

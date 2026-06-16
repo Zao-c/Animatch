@@ -112,7 +112,7 @@ describe("TierExportCanvas", () => {
     expect(html).toContain("普通");
     expect(html).toContain("待定");
     expect(html).toContain("跳过");
-    expect(html).toContain('src="https://example.com/high.jpg"');
+    expect(html).toContain("/api/image-proxy?url=https%3A%2F%2Fexample.com%2Fhigh.jpg");
     expect(html).toContain('referrerPolicy="no-referrer"');
     expect(html).not.toContain('src="https://example.com/large.jpg"');
     expect(html).not.toContain('src="https://example.com/thumb.jpg"');
@@ -169,8 +169,8 @@ describe("TierExportCanvas", () => {
       })
     );
 
-    expect(html).toContain('src="https://img.example.test/one-piece.jpg"');
-    expect(html).toContain('src="https://img.example.test/chainsaw-man.jpg"');
+    expect(html).toContain("/api/image-proxy?url=https%3A%2F%2Fimg.example.test%2Fone-piece.jpg");
+    expect(html).toContain("/api/image-proxy?url=https%3A%2F%2Fimg.example.test%2Fchainsaw-man.jpg");
     expect(html).not.toContain("tiermaker-export-fallback");
     expect(html).not.toContain("one-piece-large.jpg");
     expect(html).not.toContain("chainsaw-man-large.jpg");
@@ -207,8 +207,8 @@ describe("TierExportCanvas", () => {
       })
     );
 
-    expect(html).toContain('src="https://img.example.test/one-piece.jpg"');
-    expect(html).not.toContain('src="https://img.example.test/chainsaw-man.jpg"');
+    expect(html).toContain("/api/image-proxy?url=https%3A%2F%2Fimg.example.test%2Fone-piece.jpg");
+    expect(html).not.toContain("/api/image-proxy?url=https%3A%2F%2Fimg.example.test%2Fchainsaw-man.jpg");
     expect(html.match(/tiermaker-export-fallback/g)).toHaveLength(1);
   });
 

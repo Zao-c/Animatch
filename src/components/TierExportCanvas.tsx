@@ -1,7 +1,8 @@
 /* eslint-disable @next/next/no-img-element */
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { getAnimeDisplayTitle, getAnimeImageFitMode } from "@/lib/anime-display";
+import { proxyExternalImageUrl } from "@/lib/image-proxy";
 import type { TierListItem } from "@/lib/client-api";
 import { DEFAULT_TIER_LABELS, type TierLabels } from "@/lib/tier-labels";
 
@@ -68,9 +69,12 @@ function TierExportItem({
 }) {
   const [imageFailed, setImageFailed] = useState(initiallyFailed);
   const title = getAnimeDisplayTitle(item);
-  const coverUrl = getAnimeCoverUrl(item, { intent: "export" });
+  const rawCoverUrl = getAnimeCoverUrl(item, { intent: "export" });
+  const coverUrl = useMemo(() => proxyExternalImageUrl(rawCoverUrl), [rawCoverUrl]);
   const useContain = getAnimeImageFitMode(item) === "contain";
   const fallback = title.trim().slice(0, 1).toUpperCase() || "A";
+
+  useImageLoadTimeout(rawCoverUrl, () => setImageFailed(true));
 
   return (
     <div className="tiermaker-export-item" aria-label={title}>
@@ -95,4 +99,13 @@ function TierExportItem({
       )}
     </div>
   );
+}
+
+function useImageLoadTimeout(imageUrl: string | null, onTimeout: () => void) {
+  React.useEffect(() => {
+    if (!imageUrl) return;
+
+    const timer = window.setTimeout(onTimeout, 15000);
+    return () => window.clearTimeout(timer);
+  }, [imageUrl, onTimeout]);
 }

@@ -57,7 +57,7 @@ export function getEffectiveAnimeDisplay(
     nonEmpty(entry.anime.titleEn) ??
     "Untitled anime";
   const title =
-    entry.anime.source === "TIERMAKER_IMPORT" && isGeneratedOrNoisyTitle(rawTitle)
+    isUserGeneratedImageSource(entry.anime.source) && isGeneratedOrNoisyTitle(rawTitle)
       ? UNNAMED_ANIME_TITLE
       : rawTitle;
   const subtitle =
@@ -143,7 +143,7 @@ export function getAnimeDisplayTitle(anime: AnimeDisplaySource): string {
     anime.title ??
     "";
 
-  if (anime.source === "TIERMAKER_IMPORT" && isGeneratedOrNoisyTitle(title)) {
+  if (isUserGeneratedImageSource(anime.source) && isGeneratedOrNoisyTitle(title)) {
     return UNNAMED_ANIME_TITLE;
   }
 

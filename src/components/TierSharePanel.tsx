@@ -8,11 +8,13 @@ export function TierSharePanel({
   shareError,
   shareUrl,
   shareCopied,
+  shareCopyFallback = false,
   onCopyShareUrl
 }: {
   shareError: string | null;
   shareUrl: string | null;
   shareCopied: boolean;
+  shareCopyFallback?: boolean;
   onCopyShareUrl: () => void;
 }) {
   if (shareError === null && shareUrl === null) {
@@ -30,8 +32,24 @@ export function TierSharePanel({
             <ErrorAlert message={shareError} className="mt-3" />
           ) : null}
           {shareUrl ? (
+          <div>
             <p className="mt-3 break-all text-sm text-slate-300">{shareUrl}</p>
-          ) : null}
+            {shareCopyFallback ? (
+              <div className="mt-3">
+                <p className="text-xs text-red-300">自动复制失败，请手动复制上面的链接。</p>
+                <input
+                  type="text"
+                  readOnly
+                  value={shareUrl}
+                  className="anime-field mt-2 w-full text-xs"
+                  onFocus={(e) => {
+                    e.target.select();
+                  }}
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         </div>
         {shareUrl ? (
           <AppButton onClick={onCopyShareUrl} variant="primary">

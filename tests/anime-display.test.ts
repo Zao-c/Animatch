@@ -174,4 +174,60 @@ describe("anime display helpers", () => {
       })
     ).toBeNull();
   });
+
+  it("replaces noisy CUSTOM_UPLOAD title with UNNAMED_ANIME_TITLE", () => {
+    expect(
+      getAnimeDisplayTitle({
+        source: "CUSTOM_UPLOAD",
+        title: "zzzzz177777777777777777777777777777777777777"
+      })
+    ).toBe(UNNAMED_ANIME_TITLE);
+  });
+
+  it("keeps clean CUSTOM_UPLOAD title intact", () => {
+    expect(
+      getAnimeDisplayTitle({
+        source: "CUSTOM_UPLOAD",
+        title: "My Favorite Anime"
+      })
+    ).toBe("My Favorite Anime");
+  });
+
+  it("replaces noisy TIERMAKER_IMPORT title with UNNAMED_ANIME_TITLE in effective display", () => {
+    const display = getEffectiveAnimeDisplay(
+      entry({
+        anime: {
+          title: "aaaaaaaa177777777777777",
+          titleCn: null,
+          titleJa: null,
+          titleEn: null,
+          imageUrl: "https://example.com/x.jpg",
+          thumbnailUrl: "https://example.com/x.jpg",
+          animeType: "TV",
+          tags: [],
+          source: "TIERMAKER_IMPORT"
+        }
+      })
+    );
+    expect(display.title).toBe(UNNAMED_ANIME_TITLE);
+  });
+
+  it("replaces noisy CUSTOM_UPLOAD title with UNNAMED_ANIME_TITLE in effective display", () => {
+    const display = getEffectiveAnimeDisplay(
+      entry({
+        anime: {
+          title: "zzzzz177777777777777777777777777777777777777",
+          titleCn: null,
+          titleJa: null,
+          titleEn: null,
+          imageUrl: "https://example.com/y.jpg",
+          thumbnailUrl: "https://example.com/y.jpg",
+          animeType: "TV",
+          tags: [],
+          source: "CUSTOM_UPLOAD"
+        }
+      })
+    );
+    expect(display.title).toBe(UNNAMED_ANIME_TITLE);
+  });
 });
