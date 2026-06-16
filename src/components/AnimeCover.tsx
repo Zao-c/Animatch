@@ -54,6 +54,7 @@ export function AnimeCover({
           src={imageSrc ?? ""}
           alt={title}
           referrerPolicy="no-referrer"
+          data-export-secondary-src={secondarySrc ?? undefined}
           className={`h-full w-full ${imageFitClass}`}
           onError={() => {
             if (!failed) {
