@@ -36,6 +36,12 @@ export function AppShell({
           </Link>
           <nav className="flex items-center gap-2 text-sm text-slate-300">
             <Link
+              href="/pools/new"
+              className="inline-flex min-h-11 items-center rounded-full border border-anime-pink/30 bg-gradient-to-r from-anime-pink/15 to-anime-amber/10 px-4 py-2 font-semibold text-white shadow-[0_0_18px_rgba(255,122,182,0.15)] transition duration-anime hover:border-anime-pink/50 hover:shadow-[0_0_28px_rgba(255,122,182,0.25)]"
+            >
+              创建番组
+            </Link>
+            <Link
               href="/pools"
               className="inline-flex min-h-11 items-center rounded-full border border-white/10 bg-white/[0.035] px-4 py-2 font-semibold transition duration-anime hover:border-anime-purple/40 hover:bg-white/[0.06] hover:text-white"
             >
