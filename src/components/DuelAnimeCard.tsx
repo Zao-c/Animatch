@@ -57,7 +57,7 @@ export function DuelAnimeCard({
           handlePick();
         }
       }}
-      className={`group flex h-full flex-col overflow-hidden p-4 transition duration-anime hover:border-anime-cyan/35 hover:shadow-anime-focus ${
+      className={`group flex h-full flex-col overflow-hidden p-3 transition duration-anime hover:border-anime-cyan/35 hover:shadow-anime-focus sm:p-4 ${
         disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer"
       } ${
         highlighted
@@ -75,7 +75,7 @@ export function DuelAnimeCard({
           className="rounded-2xl border-cyan-200/10"
         />
         <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-t from-slate-950/82 via-transparent to-transparent" />
-        <div className="absolute left-4 top-4 flex flex-wrap gap-2">
+        <div className="absolute left-3 top-3 flex flex-wrap gap-2">
           <AppBadge tone={side === "left" ? "source" : "status"}>
             {sideLabel}
           </AppBadge>
@@ -84,8 +84,8 @@ export function DuelAnimeCard({
         </div>
       </div>
 
-      <div className="mt-5">
-        <h2 className="line-clamp-2 min-h-[4rem] text-2xl font-black tracking-tight text-white">
+      <div className="mt-4">
+        <h2 className="line-clamp-2 min-h-[3.5rem] text-xl font-black tracking-tight text-white sm:text-2xl">
           {title}
         </h2>
         {subtitle ? <p className="mt-2 line-clamp-1 text-sm text-slate-400">{subtitle}</p> : null}
@@ -96,11 +96,11 @@ export function DuelAnimeCard({
         ) : null}
       </div>
 
-      <details className="mb-5 mt-5 rounded-2xl border border-anime-border bg-slate-950/42 px-3 py-2 text-sm text-slate-400">
+      <details className="mb-4 mt-4 rounded-xl border border-white/10 bg-slate-950/28 px-3 py-2 text-sm text-slate-400">
         <summary className="cursor-pointer select-none text-xs font-semibold text-slate-300">
           详细指标
         </summary>
-        <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className="mt-3 grid grid-cols-3 gap-1.5">
           <Metric label="AniScore" value={aniScore.label} />
           <Metric label="对决" value={String(anime.compareCount)} />
           <Metric label="Elo" value={anime.eloScore.toFixed(0)} muted />
@@ -135,7 +135,7 @@ function ShortcutKey({ children }: { children: string }) {
 
 function Metric({ label, value, muted = false }: { label: string; value: string; muted?: boolean }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-3 text-center">
+    <div className="rounded-xl border border-white/10 bg-slate-950/42 px-2 py-2 text-center">
       <div className="text-[11px] text-slate-500">{label}</div>
       <div className={`mt-1 text-sm font-bold ${muted ? "text-slate-300" : "text-white"}`}>
         {value}

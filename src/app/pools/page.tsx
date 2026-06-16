@@ -260,7 +260,7 @@ function PoolsPageContent() {
 
   return (
     <PageShell>
-      <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <section className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
         <div>
           <AppBadge tone={isPublicView ? "status" : "source"}>
             {isPublicView ? "Public Pools" : "Pool Control"}
@@ -272,7 +272,7 @@ function PoolsPageContent() {
             {viewCopy.description}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-sm text-slate-300">
+        <div className="flex flex-wrap items-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-4 py-2 text-xs text-slate-400">
           <span className="font-black text-white">{String(pools.length)}</span> 个番组
           <span className="text-slate-500">·</span>
           <span className="font-black text-emerald-200">{String(readyCount)}</span> 可开始
@@ -281,7 +281,7 @@ function PoolsPageContent() {
         </div>
       </section>
 
-      <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+      <div className="mt-7 rounded-2xl border border-white/10 bg-slate-950/22 p-3">
         <form onSubmit={handleSearch} className="grid gap-2 lg:grid-cols-[1fr_140px_140px_140px_auto]">
           <input
             value={query}
@@ -610,9 +610,16 @@ function PoolCard({
                     ? "开始对决"
                     : "继续对决"}
               </AppButton>
-            ) : null}
+            ) : (
+              <Link
+                href={`/pools/${pool.id}`}
+                className={appButtonClasses({ variant: "primary", size: "sm", className: "w-full" })}
+              >
+                进入作品墙
+              </Link>
+            )}
           </div>
-          <details className="mt-3 rounded-2xl border border-white/10 bg-slate-950/35 px-3 py-2">
+          <details className="mt-3 rounded-xl border border-white/10 bg-slate-950/24 px-3 py-2">
             <summary className="cursor-pointer select-none text-sm font-semibold text-slate-300">
               更多操作
             </summary>

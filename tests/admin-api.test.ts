@@ -356,8 +356,8 @@ describe("Admin Content Permissions", () => {
 
     const pool = {
       creatorId: "owner-1",
-      visibility: Visibility.PRIVATE as const,
-      status: PoolStatus.PUBLISHED as const,
+      visibility: Visibility.PRIVATE,
+      status: PoolStatus.PUBLISHED,
       deletedAt: null,
       isOfficialDemo: false,
       allowPublicEdit: false
@@ -374,8 +374,8 @@ describe("Admin Content Permissions", () => {
 
     const archivedPool = {
       creatorId: "owner-1",
-      visibility: Visibility.PUBLIC as const,
-      status: PoolStatus.ARCHIVED as const,
+      visibility: Visibility.PUBLIC,
+      status: PoolStatus.ARCHIVED,
       deletedAt: null,
       isOfficialDemo: false,
       allowPublicEdit: false
@@ -391,8 +391,8 @@ describe("Admin Content Permissions", () => {
 
     const deletedPool = {
       creatorId: "owner-1",
-      visibility: Visibility.PUBLIC as const,
-      status: PoolStatus.PUBLISHED as const,
+      visibility: Visibility.PUBLIC,
+      status: PoolStatus.PUBLISHED,
       deletedAt: new Date(),
       isOfficialDemo: false,
       allowPublicEdit: false
@@ -408,8 +408,8 @@ describe("Admin Content Permissions", () => {
 
     const privatePool = {
       creatorId: "owner-1",
-      visibility: Visibility.PRIVATE as const,
-      status: PoolStatus.PUBLISHED as const,
+      visibility: Visibility.PRIVATE,
+      status: PoolStatus.PUBLISHED,
       deletedAt: null,
       isOfficialDemo: false,
       allowPublicEdit: false
@@ -425,8 +425,8 @@ describe("Admin Content Permissions", () => {
 
     const pool = {
       creatorId: "owner-1",
-      visibility: Visibility.PRIVATE as const,
-      status: PoolStatus.PUBLISHED as const,
+      visibility: Visibility.PRIVATE,
+      status: PoolStatus.PUBLISHED,
       deletedAt: null,
       isOfficialDemo: false,
       allowPublicEdit: false
@@ -442,8 +442,8 @@ describe("Admin Content Permissions", () => {
 
     const demoPool = {
       creatorId: "demo-owner",
-      visibility: Visibility.PUBLIC as const,
-      status: PoolStatus.PUBLISHED as const,
+      visibility: Visibility.PUBLIC,
+      status: PoolStatus.PUBLISHED,
       deletedAt: null,
       isOfficialDemo: true,
       allowPublicEdit: true

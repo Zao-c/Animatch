@@ -663,7 +663,7 @@ export default function TierPage({
             </div>
           </div>
 
-          <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mb-4 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.025] p-3">
             <Stat label="信心指数" value={tierList.confidenceScore.toFixed(1)} />
             <Stat label="当前阶段" value={tierList.progress.stageLabel} />
             <Stat
@@ -672,10 +672,10 @@ export default function TierPage({
             />
             <Stat label="总作品" value={String(tierList.totalAnime)} />
           </div>
-          <div className="mb-8">
+          <div className="mb-5">
             <RankingProgressCard progress={tierList.progress} compact />
           </div>
-          <div className="mb-8">
+          <div className="mb-6">
             <AppButton
               onClick={() => setShowTierInfo((value) => !value)}
               variant="quiet"
@@ -766,10 +766,10 @@ function cloneTiers(tiers: TierMap): TierMap {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <AppCard className="p-4">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-2 text-3xl font-black text-white">{value}</p>
-    </AppCard>
+    <div className="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/10 bg-slate-950/28 px-3 text-xs text-slate-400">
+      <span>{label}</span>
+      <span className="font-black text-white">{value}</span>
+    </div>
   );
 }
 

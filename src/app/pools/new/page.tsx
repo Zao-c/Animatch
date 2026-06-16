@@ -126,18 +126,18 @@ export default function NewPoolPage() {
           </form>
         </AppCard>
 
-        <AppCard className="p-5 sm:p-6">
+        <aside className="rounded-3xl border border-white/10 bg-slate-950/24 p-5 sm:p-6">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-black text-white">下一步会发生什么</h2>
             <AppBadge tone="tier">Flow</AppBadge>
           </div>
-          <div className="mt-6 space-y-4">
+          <div className="mt-5 space-y-3">
             {FLOW_STEPS.map((step, index) => (
               <div key={step} className="flex gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-anime-cyan/25 bg-anime-cyan/10 text-sm font-black text-cyan-100">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-anime-purple/25 bg-anime-purple/10 text-xs font-black text-purple-100">
                   {index + 1}
                 </span>
-                <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3">
+                <div className="min-w-0 py-1.5">
                   <p className="text-sm font-semibold text-white">{step}</p>
                 </div>
               </div>
@@ -146,7 +146,7 @@ export default function NewPoolPage() {
           <p className="mt-6 text-sm leading-6 text-slate-400">
             建议先放入 4-8 部动画。数量足够后，AniMatch 会把它变成一场左右选择的轻竞技对决。
           </p>
-        </AppCard>
+        </aside>
       </section>
     </PageShell>
   );

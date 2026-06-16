@@ -269,7 +269,7 @@ export default function MatchPage({
 
   return (
     <PageShell>
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="flex flex-wrap gap-2">
             <AppBadge tone="source">{canShowCommunityBattle ? "社区大乱斗" : "普通对决"}</AppBadge>
@@ -282,45 +282,56 @@ export default function MatchPage({
             点击整张卡或使用方向键快速选择。分数和统计已收进详细指标，先专注判断作品。
           </p>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <Stat label="信心指数" value={confidenceScore.toFixed(1)} />
-          <Stat label="队列剩余" value={String(queue.length)} />
-          <AppButton
-            type="button"
-            onClick={() => setShowShortcutHelp((value) => !value)}
-            variant="quiet"
-            size="sm"
-            aria-expanded={showShortcutHelp}
-            className="self-end"
-          >
-            ? 快捷键
-          </AppButton>
-          <AppButton
-            type="button"
-            onClick={handleUndoLast}
-            disabled={isSubmitting || isUndoing}
-            variant="quiet"
-            size="sm"
-            className="self-end"
-          >
-            {isUndoing ? "撤回中..." : "撤回上次选择"}
-          </AppButton>
-          <AppButton
-            type="button"
-            onClick={handleResetRun}
-            disabled={isSubmitting || isResetting}
-            variant="quiet"
-            size="sm"
-            className="self-end"
-          >
-            {isResetting ? "重开中..." : "重开本轮"}
-          </AppButton>
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/pools/${params.poolId}/runs/${params.runId}/tier`}
-            className={appButtonClasses({ variant: "ghost", className: "self-end" })}
+            className={appButtonClasses({ variant: "ghost", size: "sm" })}
           >
-            查看 Tier List
+            查看 Tier
           </Link>
+          <details className="relative">
+            <summary className={appButtonClasses({ variant: "quiet", size: "sm", className: "list-none" })}>
+              对决设置
+            </summary>
+            <div className="absolute right-0 z-20 mt-3 w-72 rounded-2xl border border-white/10 bg-slate-950/92 p-3 shadow-anime-panel backdrop-blur-xl">
+              <div className="mb-3 grid grid-cols-2 gap-2">
+                <Stat label="信心" value={confidenceScore.toFixed(1)} />
+                <Stat label="队列" value={String(queue.length)} />
+              </div>
+              <div className="grid gap-2">
+                <AppButton
+                  type="button"
+                  onClick={() => setShowShortcutHelp((value) => !value)}
+                  variant="quiet"
+                  size="sm"
+                  aria-expanded={showShortcutHelp}
+                  className="w-full justify-start"
+                >
+                  快捷键
+                </AppButton>
+                <AppButton
+                  type="button"
+                  onClick={handleUndoLast}
+                  disabled={isSubmitting || isUndoing}
+                  variant="quiet"
+                  size="sm"
+                  className="w-full justify-start"
+                >
+                  {isUndoing ? "撤回中..." : "撤回上次选择"}
+                </AppButton>
+                <AppButton
+                  type="button"
+                  onClick={handleResetRun}
+                  disabled={isSubmitting || isResetting}
+                  variant="quiet"
+                  size="sm"
+                  className="w-full justify-start"
+                >
+                  {isResetting ? "重开中..." : "重开本轮"}
+                </AppButton>
+              </div>
+            </div>
+          </details>
         </div>
       </div>
 
@@ -334,17 +345,7 @@ export default function MatchPage({
         </div>
       ) : null}
 
-      <AppCard className="mb-5 p-4" variant="soft">
-        <div className="flex flex-wrap gap-2 text-xs leading-5 text-slate-400">
-          <span className="font-semibold text-cyan-100">怎么对决：</span>
-          <span>左右选择你更喜欢的作品。</span>
-          <span>可以跳过，或标记没看过。</span>
-          <span>点错可以撤回上次选择。</span>
-          <span>想重来可以重开本轮。</span>
-        </div>
-      </AppCard>
-
-      <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)]">
+      <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_80px_minmax(0,1fr)]">
         <DuelAnimeCard
           anime={currentPair.left}
           side="left"
@@ -356,7 +357,7 @@ export default function MatchPage({
           highlighted={feedbackResult === "LEFT_WIN"}
         />
         <div className="flex items-center justify-center">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full border border-anime-amber/35 bg-anime-amber/10 text-2xl font-black text-amber-100 shadow-anime-amber lg:h-24 lg:w-24 lg:text-3xl">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-anime-amber/35 bg-anime-amber/10 text-xl font-black text-amber-100 shadow-anime-amber lg:h-20 lg:w-20 lg:text-2xl">
             VS
           </div>
         </div>
@@ -372,8 +373,8 @@ export default function MatchPage({
         />
       </div>
 
-      <div className="mt-5 space-y-3">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-5 space-y-3 rounded-2xl border border-white/10 bg-slate-950/24 p-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           <AppButton disabled={isSubmitting} onClick={() => handleSubmit("DRAW")} variant="quiet">
             <ShortcutKey>↑</ShortcutKey>
             <span>差不多</span>
@@ -458,9 +459,9 @@ function waitForMatchFeedback(): Promise<void> {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-28 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 backdrop-blur-xl">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-1 text-xl font-black text-white">{value}</p>
+    <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+      <p className="text-[11px] text-slate-500">{label}</p>
+      <p className="mt-0.5 text-base font-black text-white">{value}</p>
     </div>
   );
 }

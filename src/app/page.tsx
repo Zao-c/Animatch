@@ -2,25 +2,22 @@ import { HomeActions } from "@/components/HomeActions";
 import { HomeMiniMatchDemo } from "@/components/home/HomeMiniMatchDemo";
 import { PageShell } from "@/components/PageShell";
 import { AppBadge } from "@/components/ui/AppBadge";
-import { AppCard } from "@/components/ui/AppCard";
-import Link from "next/link";
-import { appButtonClasses } from "@/components/ui/AppButton";
 
 const STEPS = [
   {
     step: "01",
     title: "添加动画",
-    body: "选择公开番组或创建自己的列表，用中文标签检索动画。"
+    body: "从公开番组开始，或创建自己的作品池。"
   },
   {
     step: "02",
     title: "开始对决",
-    body: "通过两两对决快速排出你的偏好顺序。"
+    body: "用左右选择快速完成一轮偏好判断。"
   },
   {
     step: "03",
     title: "生成榜单",
-    body: "导出图片或生成分享链接，以匿名聚合方式贡献到社区榜单。"
+    body: "得到个人 Tier List，并可导出或分享。"
   }
 ];
 
@@ -38,10 +35,10 @@ export default function Home() {
             用左右选择，生成你的动画 Tier List
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
-            添加几部动画，通过两两对决快速排出你的个人榜单。可以导出图片，也可以生成公开分享链接。
+            添加几部动画，通过两两对决快速排出你的个人榜单。封面优先、选择更快，最后可以导出图片或生成公开分享链接。
           </p>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-            选择公开番组，加入社区大乱斗：你的左右选择会生成个人 Tier List，并以匿名聚合方式贡献到社区榜单。
+            从公开番组体验一次大乱斗，或创建自己的番组开始私人排序。
           </p>
           <div className="mt-7">
             <HomeActions />
@@ -53,44 +50,32 @@ export default function Home() {
 
       <section className="mt-7">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <AppBadge tone="status">新手说明</AppBadge>
-          <h2 className="text-lg font-semibold text-white">怎么玩 AniMatch</h2>
+          <AppBadge tone="status">Quick start</AppBadge>
+          <h2 className="text-lg font-semibold text-white">三步生成榜单</h2>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.025] p-3 sm:grid-cols-3">
           {STEPS.map((item, index) => (
-            <AppCard key={item.step} variant={index === 1 ? "focus" : "soft"} className="p-4">
-              <div className="flex items-center gap-3">
-                <AppBadge tone={index === 1 ? "status" : "muted"}>{item.step}</AppBadge>
-                <h2 className="text-base font-semibold text-white">{item.title}</h2>
+            <div
+              key={item.step}
+              className={`rounded-xl px-3 py-3 transition duration-anime ${
+                index === 1 ? "bg-anime-purple/10 ring-1 ring-anime-purple/25" : "bg-slate-950/24"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black ${
+                    index === 1 ? "bg-anime-purple text-slate-950" : "bg-white/[0.06] text-slate-300"
+                  }`}
+                >
+                  {item.step}
+                </span>
+                <h2 className="text-sm font-semibold text-white">{item.title}</h2>
               </div>
-              <p className="mt-3 text-sm leading-6 text-slate-400">{item.body}</p>
-            </AppCard>
+              <p className="mt-2 text-xs leading-5 text-slate-400">{item.body}</p>
+            </div>
           ))}
         </div>
       </section>
-
-      <section className="mt-7">
-        <AppCard className="p-5" variant="focus">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
-                <AppBadge tone="source">官方 Demo</AppBadge>
-                先看看别人怎么玩
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                访问 AniMatch 入门体验池，不用登录也能看到公开番组和 Demo 作品墙。
-              </p>
-            </div>
-            <Link
-              href="/pools?view=public"
-              className={appButtonClasses({ variant: "primary", size: "md", className: "shrink-0" })}
-            >
-              浏览公开番组
-            </Link>
-          </div>
-        </AppCard>
-      </section>
-
     </PageShell>
   );
 }

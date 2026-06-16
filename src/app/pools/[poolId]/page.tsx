@@ -2361,7 +2361,7 @@ function PoolAnimeCard({
   const coverFit = shouldUseContainCover(displayAnime) ? "contain" : "cover";
 
   return (
-    <div className="group overflow-hidden rounded-2xl border border-anime-border bg-slate-950/45 transition duration-anime hover:border-anime-cyan/25">
+    <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-slate-950/36 transition duration-anime hover:-translate-y-0.5 hover:border-anime-cyan/25 hover:shadow-anime-panel focus-within:border-anime-cyan/35">
       <AnimeCover
         src={coverUrl}
         secondarySrc={entry.anime.imageSmallUrl ?? entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl}
@@ -2370,8 +2370,8 @@ function PoolAnimeCard({
         fit={coverFit}
         className="h-56 w-full rounded-none border-0 sm:h-64"
       />
-      <div className="p-3">
-        <div className="flex min-h-14 items-start gap-2">
+      <div className="p-3 pb-14">
+        <div className="flex min-h-11 items-start gap-2">
           <h3 className="line-clamp-2 flex-1 text-sm font-semibold text-white">{title}</h3>
           <AppBadge tone="muted">{display.sourceLabel}</AppBadge>
           {display.isOverridden ? <AppBadge tone="source">已修正</AppBadge> : null}
@@ -2387,7 +2387,7 @@ function PoolAnimeCard({
           </p>
         ) : null}
         {canManage ? (
-        <div className="mt-2 flex flex-wrap gap-2 opacity-0 transition-opacity duration-anime group-hover:opacity-100">
+        <div className="absolute inset-x-3 bottom-3 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-slate-950/78 p-2 opacity-0 shadow-anime-panel backdrop-blur-xl transition-opacity duration-anime group-hover:opacity-100 group-focus-within:opacity-100">
           {!isArchived ? (
             <AppButton onClick={onEdit} disabled={isMutating} variant="quiet" size="sm">
               编辑显示

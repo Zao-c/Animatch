@@ -30,8 +30,8 @@ body {
   margin: 0;
   min-height: 100%;
   background:
-    radial-gradient(circle at 15% 8%, rgba(167, 139, 250, 0.18), transparent 32rem),
-    radial-gradient(circle at 82% 16%, rgba(53, 230, 220, 0.14), transparent 28rem),
+    radial-gradient(circle at 15% 8%, rgba(167, 139, 250, 0.14), transparent 32rem),
+    radial-gradient(circle at 82% 16%, rgba(53, 230, 220, 0.09), transparent 28rem),
     linear-gradient(135deg, #07101f 0%, #111936 48%, #170f2d 100%);
   color: #f8fafc;
 }
@@ -83,9 +83,9 @@ textarea:focus {
   position: relative;
   isolation: isolate;
   background:
-    radial-gradient(circle at 8% 12%, rgba(167, 139, 250, 0.18), transparent 28rem),
-    radial-gradient(circle at 88% 10%, rgba(53, 230, 220, 0.14), transparent 24rem),
-    radial-gradient(circle at 48% 34%, rgba(255, 122, 182, 0.08), transparent 22rem),
+    radial-gradient(circle at 8% 12%, rgba(167, 139, 250, 0.14), transparent 28rem),
+    radial-gradient(circle at 88% 10%, rgba(53, 230, 220, 0.08), transparent 24rem),
+    radial-gradient(circle at 48% 34%, rgba(255, 122, 182, 0.07), transparent 22rem),
     linear-gradient(135deg, #07101f 0%, #101936 52%, #1a1130 100%);
 }
 
@@ -96,10 +96,10 @@ textarea:focus {
   z-index: -2;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 42px 42px;
-  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.72), transparent 78%);
+    linear-gradient(rgba(255, 255, 255, 0.024) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.024) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.48), transparent 72%);
 }
 
 .anime-shell::after {
