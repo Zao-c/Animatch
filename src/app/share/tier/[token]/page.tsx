@@ -7,12 +7,20 @@ interface ShareTierPageProps {
   params: {
     token: string;
   };
+  searchParams: {
+    export?: string;
+  };
 }
 
-export default async function ShareTierPage({ params }: ShareTierPageProps) {
+export default async function ShareTierPage({
+  params,
+  searchParams
+}: ShareTierPageProps) {
+  const exportMode = searchParams.export === "1";
+
   try {
     const share = await getPublicTierShare(params.token);
-    return <TierShareView share={share} />;
+    return <TierShareView share={share} exportMode={exportMode} />;
   } catch {
     return <TierShareMissingView />;
   }

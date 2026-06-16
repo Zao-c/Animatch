@@ -1,12 +1,11 @@
 "use client";
 
-import { toPng } from "html-to-image";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TierAnimeCard } from "@/components/TierAnimeCard";
-import { TierExportCanvas } from "@/components/TierExportCanvas";
 import { TierSharePanel } from "@/components/TierSharePanel";
+import { TierShareCard } from "@/components/TierShareView";
 import { PageShell } from "@/components/PageShell";
 import { RankingProgressCard } from "@/components/RankingProgressCard";
 import { StatusHint } from "@/components/StatusHint";
@@ -23,17 +22,15 @@ import {
   createTierShare,
   getPool,
   getTierList,
+  getTierShare,
   saveManualTierList,
   type RecalibrationType,
   type TierListItem,
   type TierListResponse
 } from "@/lib/client-api";
 import { isCommunityBattleVisiblePool } from "@/lib/community-battle-visibility";
-import {
-  buildTierExportFilename,
-  formatTierExportTimestamp,
-  getTierExportDimensions
-} from "@/lib/tier-export";
+import { exportShareCardAsPng } from "@/lib/share-export";
+import { formatTierExportTimestamp } from "@/lib/tier-export";
 import {
   DEFAULT_TIER_LABELS,
   readTierLabels,
@@ -68,9 +65,14 @@ const RECALIBRATION_MODES: { type: RecalibrationType; title: string; body: strin
   { type: "FOCUS", title: "焦点校准", body: "指定 1-3 部动画进行重点复核。" }
 ];
 
-const EXPORT_BACKGROUND = "#101310";
-const EXPORT_IMAGE_PLACEHOLDER =
-  "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='448' viewBox='0 0 320 448'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop stop-color='%230f766e' stop-opacity='.65'/%3E%3Cstop offset='1' stop-color='%23312e81' stop-opacity='.65'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='320' height='448' fill='%23071121'/%3E%3Crect x='28' y='28' width='264' height='392' rx='24' fill='url(%23g)'/%3E%3Ctext x='160' y='230' text-anchor='middle' fill='%23a5f3fc' font-family='Arial' font-size='28' font-weight='700'%3EAniMatch%3C/text%3E%3C/svg%3E";
+const fallbackScoreDistribution = {
+  count: 0,
+  mean: 1500,
+  median: 1500,
+  std: 120
+};
+
+const STALE_THRESHOLD_MS = 60 * 5000;
 
 export default function TierPage({
   params
@@ -78,7 +80,6 @@ export default function TierPage({
   params: { poolId: string; runId: string };
 }) {
   const router = useRouter();
-  const exportRef = useRef<HTMLDivElement | null>(null);
   const [poolName, setPoolName] = useState("当前番组");
   const [tierList, setTierList] = useState<TierListResponse | null>(null);
   const [editableTiers, setEditableTiers] = useState<TierMap | null>(null);
@@ -101,6 +102,11 @@ export default function TierPage({
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
   const [shareCopyFallback, setShareCopyFallback] = useState(false);
+  const [shareToken, setShareToken] = useState<string | null>(null);
+  const [shareSnapshot, setShareSnapshot] = useState<
+    import("@/lib/client-api").PublicTierShare | null
+  >(null);
+  const exportCardRef = useRef<HTMLDivElement | null>(null);
   const [tierLabels, setTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
   const [draftTierLabels, setDraftTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
   const [showTierLabelEditor, setShowTierLabelEditor] = useState(false);
@@ -246,7 +252,7 @@ export default function TierPage({
   }
 
   async function handleExportImage() {
-    if (exportRef.current === null || tierList === null) {
+    if (tierList === null) {
       return;
     }
 
@@ -256,28 +262,39 @@ export default function TierPage({
     setExportedAt(generatedAt);
 
     try {
-      await waitForExportReady(exportRef.current);
-      const exportSize = getTierExportDimensions(exportRef.current);
-      const dataUrl = await toPng(exportRef.current, {
-        backgroundColor: EXPORT_BACKGROUND,
-        cacheBust: true,
-        width: exportSize.width,
-        height: exportSize.height,
-        pixelRatio: 2,
-        imagePlaceholder: EXPORT_IMAGE_PLACEHOLDER,
-        style: {
-          width: `${exportSize.width}px`,
-          height: `${exportSize.height}px`
-        },
-        filter: (node) =>
-          !(node instanceof HTMLElement && node.dataset.exportHidden === "true")
+      let token = shareToken;
+
+      if (token === null) {
+        const result = await createTierShare({
+          poolId: params.poolId,
+          runId: params.runId,
+          tierLabels
+        });
+        token = result.token;
+        setShareToken(token);
+        setShareUrl(`${window.location.origin}${result.url}`);
+      }
+
+      const share = await getTierShare(token);
+      setShareSnapshot(share);
+
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
       });
-      const link = document.createElement("a");
-      link.download = buildTierExportFilename(poolName, generatedAt);
-      link.href = dataUrl;
-      link.click();
+
+      if (exportCardRef.current === null) {
+        throw new Error("Export card not mounted");
+      }
+
+      await exportShareCardAsPng(exportCardRef.current, {
+        filename: `animatch-tier-${poolName.replace(/[^a-zA-Z0-9\u4e00-\u9fff_-]+/g, "-").slice(0, 40)}`
+      });
     } catch (reason) {
-      setExportError(reason instanceof Error ? reason.message : "导出图片失败");
+      setExportError(
+        reason instanceof Error
+          ? `导出图片失败，可以先打开分享链接后手动截图。(${reason.message})`
+          : "导出图片失败，可以先打开分享链接后手动截图。"
+      );
     } finally {
       setIsExporting(false);
     }
@@ -300,6 +317,7 @@ export default function TierPage({
         tierLabels
       });
       const absoluteUrl = `${window.location.origin}${result.url}`;
+      setShareToken(result.token);
       setShareUrl(absoluteUrl);
       const copyResult = await copyToClipboard(absoluteUrl);
       if (copyResult.ok) {
@@ -753,8 +771,10 @@ export default function TierPage({
 
       {visibleTiers ? (
         <div className="tiermaker-export-host" aria-hidden="true">
-          <div ref={exportRef}>
-            <TierExportCanvas tiers={visibleTiers} labels={tierLabels} />
+          <div ref={exportCardRef}>
+            {shareSnapshot !== null ? (
+              <TierShareCard share={shareSnapshot} exportMode />
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -781,95 +801,3 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-const fallbackScoreDistribution = {
-  count: 0,
-  mean: 1500,
-  median: 1500,
-  std: 120
-};
-
-async function waitForExportReady(container: HTMLElement): Promise<void> {
-  await waitForPaint();
-  await document.fonts?.ready;
-  await waitForTierExportImages(container);
-  await waitForPaint();
-}
-
-function waitForPaint(): Promise<void> {
-  return new Promise((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  });
-}
-
-async function waitForTierExportImages(
-  container: HTMLElement,
-  timeoutMs: number = 15000
-): Promise<void> {
-  const images = Array.from(
-    container.querySelectorAll<HTMLImageElement>("img[data-tier-export-image='true']")
-  );
-
-  if (images.length === 0) {
-    return;
-  }
-
-  const deadline = Date.now() + timeoutMs;
-
-  await Promise.all(
-    images.map(
-      (image) =>
-        new Promise<void>((resolve) => {
-          if (image.complete && image.naturalWidth > 0) {
-            resolve();
-            return;
-          }
-
-          let settled = false;
-
-          const finish = () => {
-            if (settled) return;
-            settled = true;
-            cleanup();
-            resolve();
-          };
-
-          const cleanup = () => {
-            image.removeEventListener("load", handleLoad);
-            image.removeEventListener("error", handleError);
-            clearTimeout(timeout);
-          };
-
-          const handleLoad = () => {
-            if (image.naturalWidth > 0) {
-              finish();
-            }
-          };
-
-          const handleError = () => {
-            console.warn("Tier export cover failed before capture", {
-              animeId: image.dataset.animeId,
-              coverUrl: image.currentSrc || image.src
-            });
-            finish();
-          };
-
-          const timeout = setTimeout(() => {
-            console.warn("Tier export cover timed out before capture", {
-              animeId: image.dataset.animeId,
-              coverUrl: image.currentSrc || image.src
-            });
-            finish();
-          }, Math.max(0, deadline - Date.now()));
-
-          image.addEventListener("load", handleLoad, { once: true });
-          image.addEventListener("error", handleError, { once: true });
-
-          if (image.complete) {
-            if (image.naturalWidth > 0) {
-              finish();
-            }
-          }
-        })
-    )
-  );
-}

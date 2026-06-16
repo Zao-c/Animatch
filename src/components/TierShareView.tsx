@@ -9,8 +9,15 @@ import { getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display
 import type { PublicTierShare, TierShareSnapshotItem } from "@/lib/client-api";
 import { copyToClipboard } from "@/lib/clipboard";
 import { formatDateTimeStable } from "@/lib/date-format";
+import { proxyExternalImageUrl } from "@/lib/image-proxy";
 
-export function TierShareView({ share }: { share: PublicTierShare }) {
+export function TierShareView({
+  share,
+  exportMode = false
+}: {
+  share: PublicTierShare;
+  exportMode?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
   const [copyFallback, setCopyFallback] = useState(false);
 
@@ -29,77 +36,98 @@ export function TierShareView({ share }: { share: PublicTierShare }) {
   return (
     <main className="min-h-screen bg-[#101310] px-4 py-6 text-white sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <header className="mb-8 flex flex-col gap-4 rounded-3xl border border-cyan-300/20 bg-slate-950/70 p-5 shadow-[0_28px_100px_rgba(0,0,0,0.35)] sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex flex-wrap gap-2">
-              <AppBadge tone="source">AniMatch</AppBadge>
-              <AppBadge tone="tier">Tier Wall</AppBadge>
-            </div>
-            <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-5xl">
-              {share.title}
-            </h1>
-            <p className="mt-3 text-sm text-slate-400">
-              生成于 {formatDateTimeStable(share.snapshot.generatedAt)}
-            </p>
-            {share.description ? (
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-                {share.description}
+        {!exportMode ? (
+          <header className="mb-8 flex flex-col gap-4 rounded-3xl border border-cyan-300/20 bg-slate-950/70 p-5 shadow-[0_28px_100px_rgba(0,0,0,0.35)] sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex flex-wrap gap-2">
+                <AppBadge tone="source">AniMatch</AppBadge>
+                <AppBadge tone="tier">Tier Wall</AppBadge>
+              </div>
+              <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-5xl">
+                {share.title}
+              </h1>
+              <p className="mt-3 text-sm text-slate-400">
+                生成于 {formatDateTimeStable(share.snapshot.generatedAt)}
               </p>
+              {share.description ? (
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+                  {share.description}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <AppButton onClick={copyLink} variant="primary">
+                {copied ? "链接已复制" : "复制链接"}
+              </AppButton>
+              <Link href="/" className={appButtonClasses({ variant: "ghost" })}>
+                返回 AniMatch 首页
+              </Link>
+            </div>
+            {copyFallback ? (
+              <div className="mt-3 max-w-lg">
+                <p className="text-xs text-red-300">自动复制失败，请手动复制下面的链接。</p>
+                <input
+                  type="text"
+                  readOnly
+                  value={typeof window !== "undefined" ? window.location.href : ""}
+                  className="anime-field mt-2 w-full text-xs"
+                  onFocus={(e) => {
+                    e.target.select();
+                  }}
+                />
+              </div>
             ) : null}
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <AppButton onClick={copyLink} variant="primary">
-              {copied ? "链接已复制" : "复制链接"}
-            </AppButton>
-            <Link href="/" className={appButtonClasses({ variant: "ghost" })}>
-              返回 AniMatch 首页
-            </Link>
-          </div>
-          {copyFallback ? (
-            <div className="mt-3 max-w-lg">
-              <p className="text-xs text-red-300">自动复制失败，请手动复制下面的链接。</p>
-              <input
-                type="text"
-                readOnly
-                value={typeof window !== "undefined" ? window.location.href : ""}
-                className="anime-field mt-2 w-full text-xs"
-                onFocus={(e) => {
-                  e.target.select();
-                }}
-              />
-            </div>
-          ) : null}
-        </header>
+          </header>
+        ) : null}
 
-        <section className="overflow-hidden rounded-2xl border border-black/80 bg-[#191d21] shadow-[0_20px_90px_rgba(0,0,0,0.35)]">
-          {share.snapshot.tiers.map((tier) => (
-            <div
-              key={tier.key}
-              className="grid min-h-28 grid-cols-[92px_1fr] border-b border-black/80 last:border-b-0 sm:grid-cols-[132px_1fr]"
-            >
-              <div className={`share-tier-label share-tier-label-${tier.key.toLowerCase()}`}>
-                <span className="max-w-full text-center text-2xl font-extrabold leading-tight text-slate-950 [overflow-wrap:anywhere] sm:text-4xl">
-                  {tier.label}
-                </span>
-              </div>
-              <div className="flex min-h-28 flex-wrap content-start gap-3 bg-[#171b20] p-3">
-                {tier.items.length === 0 ? (
-                  <div className="flex h-24 items-center text-sm text-slate-500">
-                    暂无作品
-                  </div>
-                ) : (
-                  tier.items.map((item) => <ShareItemCard key={item.animeId} item={item} />)
-                )}
-              </div>
-            </div>
-          ))}
-        </section>
+        <TierShareCard share={share} exportMode={exportMode} />
 
-        <p className="mt-5 text-right text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-          generated by animatch
-        </p>
+        {!exportMode ? (
+          <p className="mt-5 text-right text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+            generated by animatch
+          </p>
+        ) : null}
       </div>
     </main>
+  );
+}
+
+export function TierShareCard({
+  share,
+  exportMode = false
+}: {
+  share: PublicTierShare;
+  exportMode?: boolean;
+}) {
+  return (
+    <section
+      data-tier-share-card={exportMode ? "true" : undefined}
+      className="overflow-hidden rounded-2xl border border-black/80 bg-[#191d21] shadow-[0_20px_90px_rgba(0,0,0,0.35)]"
+    >
+      {share.snapshot.tiers.map((tier) => (
+        <div
+          key={tier.key}
+          className="grid min-h-28 grid-cols-[92px_1fr] border-b border-black/80 last:border-b-0 sm:grid-cols-[132px_1fr]"
+        >
+          <div className={`share-tier-label share-tier-label-${tier.key.toLowerCase()}`}>
+            <span className="max-w-full text-center text-2xl font-extrabold leading-tight text-slate-950 [overflow-wrap:anywhere] sm:text-4xl">
+              {tier.label}
+            </span>
+          </div>
+          <div className="flex min-h-28 flex-wrap content-start gap-3 bg-[#171b20] p-3">
+            {tier.items.length === 0 ? (
+              <div className="flex h-24 items-center text-sm text-slate-500">
+                暂无作品
+              </div>
+            ) : (
+              tier.items.map((item) => (
+                <ShareItemCard key={item.animeId} item={item} exportMode={exportMode} />
+              ))
+            )}
+          </div>
+        </div>
+      ))}
+    </section>
   );
 }
 
@@ -120,14 +148,22 @@ export function TierShareMissingView() {
   );
 }
 
-function ShareItemCard({ item }: { item: TierShareSnapshotItem }) {
+function ShareItemCard({
+  item,
+  exportMode = false
+}: {
+  item: TierShareSnapshotItem;
+  exportMode?: boolean;
+}) {
   const title = getAnimeDisplayTitle(item);
   const coverFit = shouldUseContainCover(item) ? "contain" : "cover";
+  const rawCoverUrl = item.coverUrl ?? null;
+  const coverUrl = exportMode ? proxyExternalImageUrl(rawCoverUrl) : rawCoverUrl;
 
   return (
     <article className="w-28 rounded-xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_12px_36px_rgba(0,0,0,0.25)] sm:w-32">
       <AnimeCover
-        src={item.coverUrl ?? null}
+        src={coverUrl}
         title={title}
         size="sm"
         fit={coverFit}

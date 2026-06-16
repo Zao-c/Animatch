@@ -46,7 +46,7 @@ describe("tier export helpers", () => {
     expect(source).toContain("导出图片");
     expect(source).toContain("编辑分层标签");
     expect(source).toContain("不影响 Elo、对决历史和分层排序");
-    expect(source).toContain("TierExportCanvas");
-    expect(source).toContain("ref={exportRef}");
+    expect(source).toContain("TierShareCard");
+    expect(source).toContain("ref={exportCardRef}");
   });
 });
