@@ -113,7 +113,9 @@ export async function resetRunForUser(params: RunAccessParams): Promise<{
         visibility: true,
         allowCommunityMatch: true,
         status: true,
-        deletedAt: true
+        deletedAt: true,
+        isOfficialDemo: true,
+        allowPublicEdit: true
       }
     });
 

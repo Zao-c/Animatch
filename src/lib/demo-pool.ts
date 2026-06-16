@@ -164,7 +164,7 @@ export async function getOrCreateOfficialDemoPool(): Promise<DemoPoolResult> {
         visibility: Visibility.PUBLIC,
         tags: [DEMO_POOL_TAG, "示例池"],
         affectsGlobalTaste: false,
-        allowPublicEdit: false,
+        allowPublicEdit: true,
         allowCommunityMatch: false,
         isOfficialDemo: true
       }
@@ -211,11 +211,11 @@ async function ensureDemoAnime(): Promise<Anime[]> {
           bgmId: item.bgmId,
           title: item.title,
           titleCn: item.titleCn,
-          imageUrl: item.cover,
-          imageSmallUrl: item.cover,
-          imageMediumUrl: item.cover,
-          imageLargeUrl: item.cover,
-          thumbnailUrl: item.cover,
+          imageUrl: null,
+          imageSmallUrl: null,
+          imageMediumUrl: null,
+          imageLargeUrl: null,
+          thumbnailUrl: null,
           airDate: new Date(item.airDate),
           bangumiRank: item.bangumiRank,
           bangumiScore: item.bangumiScore,
@@ -225,16 +225,11 @@ async function ensureDemoAnime(): Promise<Anime[]> {
           externalLinks: [],
           source: ANIME_SOURCE.DEMO,
           sourceId: `demo/${Math.abs(item.bgmId)}`,
-          imageStatus: "OK"
+          imageStatus: "MISSING"
         },
         update: {
           title: item.title,
           titleCn: item.titleCn,
-          imageUrl: item.cover,
-          imageSmallUrl: item.cover,
-          imageMediumUrl: item.cover,
-          imageLargeUrl: item.cover,
-          thumbnailUrl: item.cover,
           airDate: new Date(item.airDate),
           bangumiRank: item.bangumiRank,
           bangumiScore: item.bangumiScore,
@@ -243,8 +238,7 @@ async function ensureDemoAnime(): Promise<Anime[]> {
           studios: [],
           externalLinks: [],
           source: ANIME_SOURCE.DEMO,
-          sourceId: `demo/${Math.abs(item.bgmId)}`,
-          imageStatus: "OK"
+          sourceId: `demo/${Math.abs(item.bgmId)}`
         }
       })
     );

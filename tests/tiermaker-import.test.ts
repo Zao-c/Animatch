@@ -646,7 +646,7 @@ describe("TierMaker import source type (existing)", () => {
       { params: { poolId: "pool-1" } }
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(403);
     expect(mockedAnime.upsert).not.toHaveBeenCalled();
     expect(mockedPoolAnime.create).not.toHaveBeenCalled();
   });

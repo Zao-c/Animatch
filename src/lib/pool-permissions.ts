@@ -3,11 +3,15 @@ import type { FriendAuthUser } from "./auth-session";
 
 type PoolPermissionFields = Pick<
   CustomPool,
-  "creatorId" | "visibility" | "allowCommunityMatch"
+  "creatorId" | "visibility" | "allowCommunityMatch" | "status" | "deletedAt" | "isOfficialDemo" | "allowPublicEdit"
 >;
 type CommunityRankingPoolFields = Pick<
   CustomPool,
   "visibility" | "status" | "deletedAt"
+>;
+type EditPermissionFields = Pick<
+  CustomPool,
+  "creatorId" | "visibility" | "status" | "deletedAt" | "isOfficialDemo" | "allowPublicEdit"
 >;
 
 type MaybeUser = Pick<FriendAuthUser, "id"> | null | undefined;
@@ -36,8 +40,36 @@ export function canManagePool(pool: PoolPermissionFields, user?: MaybeUser): boo
   return isPoolOwner(pool, user);
 }
 
-export function canAddAnime(pool: PoolPermissionFields, user?: MaybeUser): boolean {
-  return isPoolOwner(pool, user);
+export function canEditPoolContent(pool: EditPermissionFields, user?: MaybeUser): boolean {
+  if (user === null || user === undefined) {
+    return false;
+  }
+
+  if (pool.status === PoolStatus.ARCHIVED || pool.deletedAt !== null) {
+    return false;
+  }
+
+  if (isPoolOwner(pool, user)) {
+    return true;
+  }
+
+  if (pool.visibility !== Visibility.PUBLIC) {
+    return false;
+  }
+
+  if (pool.isOfficialDemo) {
+    return true;
+  }
+
+  if (pool.allowPublicEdit) {
+    return true;
+  }
+
+  return false;
+}
+
+export function canAddAnime(pool: EditPermissionFields, user?: MaybeUser): boolean {
+  return canEditPoolContent(pool, user);
 }
 
 export function canReadCommunityRanking(pool: CommunityRankingPoolFields): boolean {

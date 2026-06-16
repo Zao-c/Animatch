@@ -999,6 +999,12 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
             {pool.description ?? "暂无描述"}
           </p>
+          {pool.isOfficialDemo && canPlayPool ? (
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-medium text-emerald-300">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400"></span>
+              这是开放体验池，登录后可以添加或调整作品，方便一起测试 AniMatch。
+            </div>
+          ) : null}
           <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-cyan-100">
             下一步：{poolGuidance.title}
           </p>
@@ -1220,16 +1226,16 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
             <section className="space-y-3 border-t border-anime-border pt-5">
               <div>
-                <h3 className="text-sm font-semibold text-white">未来公开协作功能，暂未开放</h3>
+                <h3 className="text-sm font-semibold text-white">公开协作设置</h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                  这些开关还在设计中，不影响当前公开浏览、社区大乱斗和社区榜单。
+                  体验番组会作为开放样板池，允许所有登录用户协作编辑。普通公开番组的协作开关暂未开放。
                 </p>
               </div>
-              <label className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm text-slate-500">
+              <label className="flex items-center gap-3 rounded-lg border-white/10 bg-white/[0.03] p-3 text-sm text-slate-500">
                 <input type="checkbox" disabled className="h-4 w-4 accent-cyan-400" />
                 允许其他人添加动画
               </label>
-              <label className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm text-slate-500">
+              <label className="flex items-center gap-3 rounded-lg border-white/10 bg-white/[0.03] p-3 text-sm text-slate-500">
                 <input type="checkbox" disabled className="h-4 w-4 accent-cyan-400" />
                 启用大乱斗公共榜单
               </label>

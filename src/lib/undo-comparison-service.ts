@@ -150,7 +150,10 @@ async function assertPoolAndRunAccess(
         creatorId: true,
         visibility: true,
         allowCommunityMatch: true,
-        deletedAt: true
+        deletedAt: true,
+        status: true,
+        isOfficialDemo: true,
+        allowPublicEdit: true
       }
     }),
     tx.personalRun.findUnique({

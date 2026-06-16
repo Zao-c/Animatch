@@ -246,7 +246,7 @@ describe("pool anime display override API", () => {
       { params: { poolId: "pool-1", animeId: "anime-1" } }
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(403);
     expect(mockedPoolAnime.update).not.toHaveBeenCalled();
   });
 
@@ -322,7 +322,7 @@ describe("pool anime display override API", () => {
       { params: { poolId: "pool-1", animeId: "anime-1" } }
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(403);
     expect(mockedPoolAnime.update).not.toHaveBeenCalled();
   });
 
