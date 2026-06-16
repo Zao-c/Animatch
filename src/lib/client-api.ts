@@ -346,7 +346,12 @@ export interface TierShareSnapshotItem {
   animeId: string;
   title: string;
   subtitle?: string;
-  coverUrl?: string;
+  coverUrl?: string | null;
+  imageUrl?: string | null;
+  imageSmallUrl?: string | null;
+  imageMediumUrl?: string | null;
+  imageLargeUrl?: string | null;
+  thumbnailUrl?: string | null;
   source: string;
   animeType?: string;
   tags?: string[];

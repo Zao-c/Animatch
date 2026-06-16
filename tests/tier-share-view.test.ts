@@ -102,6 +102,51 @@ describe("TierShareView", () => {
     expect(html).toContain("Custom Upload");
   });
 
+  it("export mode selects image variants when coverUrl is absent", () => {
+    const share = shareFixture();
+    share.snapshot.tiers[0].items[0] = {
+      animeId: "anime-1",
+      title: "TierMaker Image",
+      coverUrl: null,
+      imageUrl: "https://cdn.tiermaker.com/images/item.png",
+      imageMediumUrl: "https://cdn.tiermaker.com/images/item-medium.png",
+      imageLargeUrl: "https://cdn.tiermaker.com/images/item-large.png",
+      thumbnailUrl: "https://cdn.tiermaker.com/images/item-thumb.png",
+      source: "TIERMAKER_IMPORT",
+      animeType: "IMAGE"
+    };
+
+    const html = renderToStaticMarkup(
+      React.createElement(TierShareView, { share, exportMode: true })
+    );
+
+    expect(html).toContain("<img");
+    expect(html).toContain(
+      "/api/image-proxy?url=https%3A%2F%2Fcdn.tiermaker.com%2Fimages%2Fitem.png"
+    );
+  });
+
+  it("noisy titles do not affect export image src", () => {
+    const share = shareFixture();
+    share.snapshot.tiers[0].items[0] = {
+      animeId: "anime-1",
+      title: "zzzzz 17750273769085f154 f2a3b4c5d6e7f8",
+      imageUrl: "https://cdn.tiermaker.com/images/noisy-title-item.png",
+      source: "TIERMAKER_IMPORT",
+      animeType: "IMAGE"
+    };
+
+    const html = renderToStaticMarkup(
+      React.createElement(TierShareView, { share, exportMode: true })
+    );
+
+    expect(html).toContain(
+      "/api/image-proxy?url=https%3A%2F%2Fcdn.tiermaker.com%2Fimages%2Fnoisy-title-item.png"
+    );
+    expect(html).toContain("未命名作品");
+    expect(html).not.toContain("17750273769085f154");
+  });
+
   it("uses imported image display rules for shared TierMaker items", () => {
     const share = shareFixture();
     share.snapshot.tiers[0].items[0] = {

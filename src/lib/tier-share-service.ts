@@ -15,7 +15,12 @@ export interface TierShareSnapshotItem {
   animeId: string;
   title: string;
   subtitle?: string;
-  coverUrl?: string;
+  coverUrl?: string | null;
+  imageUrl?: string | null;
+  imageSmallUrl?: string | null;
+  imageMediumUrl?: string | null;
+  imageLargeUrl?: string | null;
+  thumbnailUrl?: string | null;
   source: string;
   animeType?: string;
   tags?: string[];
@@ -219,7 +224,12 @@ function toSnapshotItem(item: TierListItem): TierShareSnapshotItem {
     animeId: item.animeId,
     title,
     ...(subtitle ? { subtitle } : {}),
-    ...(coverUrl ? { coverUrl } : {}),
+    coverUrl: coverUrl ?? null,
+    imageUrl: item.imageUrl ?? null,
+    imageSmallUrl: item.imageSmallUrl ?? null,
+    imageMediumUrl: item.imageMediumUrl ?? null,
+    imageLargeUrl: item.imageLargeUrl ?? null,
+    thumbnailUrl: item.thumbnailUrl ?? null,
     source: item.source,
     ...(animeType ? { animeType } : {}),
     ...(tags.length > 0 ? { tags } : {}),

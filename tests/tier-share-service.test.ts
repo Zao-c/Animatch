@@ -94,6 +94,11 @@ describe("tier share service", () => {
           animeId: "anime-1",
           title: "Custom Upload",
           coverUrl: "/uploads/custom-items/item.png",
+          imageUrl: "/uploads/custom-items/item.png",
+          imageSmallUrl: null,
+          imageMediumUrl: null,
+          imageLargeUrl: null,
+          thumbnailUrl: null,
           source: "CUSTOM_UPLOAD",
           animeType: "IMAGE",
           tags: ["验收", "自定义"],
@@ -101,6 +106,55 @@ describe("tier share service", () => {
           isEdited: true
         })
       ]
+    });
+  });
+
+  it("keeps share snapshot image variants for export card parity", () => {
+    const tierList = tierListFixture();
+    tierList.tiers.S[0] = {
+      ...tierList.tiers.S[0],
+      source: "TIERMAKER_IMPORT",
+      title: "zzzzz 17750273769085f154 f2a3b4c5d6e7f8",
+      imageUrl: "https://cdn.tiermaker.com/images/item.png",
+      imageSmallUrl: "https://cdn.tiermaker.com/images/item-small.png",
+      imageMediumUrl: "https://cdn.tiermaker.com/images/item-medium.png",
+      imageLargeUrl: "https://cdn.tiermaker.com/images/item-large.png",
+      thumbnailUrl: "https://cdn.tiermaker.com/images/item-thumb.png",
+      coverUrl: null,
+      display: {
+        title: "未命名作品",
+        subtitle: null,
+        coverUrl: "https://cdn.tiermaker.com/images/item.png",
+        animeType: "IMAGE",
+        tags: [],
+        sourceLabel: "TIERMAKER_IMPORT",
+        isOverridden: false,
+        isCoverOverridden: false
+      }
+    };
+
+    const snapshot = buildTierShareSnapshot({
+      poolId: "pool-1",
+      poolName: "Pool",
+      runId: "run-1",
+      generatedAt: new Date("2026-06-11T12:00:00.000Z"),
+      tierLabels: {
+        S: "S",
+        A: "A",
+        B: "B",
+        C: "C",
+        D: "D"
+      },
+      tierList
+    });
+
+    expect(snapshot.tiers[0].items[0]).toMatchObject({
+      coverUrl: "https://cdn.tiermaker.com/images/item.png",
+      imageUrl: "https://cdn.tiermaker.com/images/item.png",
+      imageSmallUrl: "https://cdn.tiermaker.com/images/item-small.png",
+      imageMediumUrl: "https://cdn.tiermaker.com/images/item-medium.png",
+      imageLargeUrl: "https://cdn.tiermaker.com/images/item-large.png",
+      thumbnailUrl: "https://cdn.tiermaker.com/images/item-thumb.png"
     });
   });
 

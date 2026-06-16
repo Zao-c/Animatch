@@ -49,4 +49,22 @@ describe("tier export helpers", () => {
     expect(source).toContain("TierShareCard");
     expect(source).toContain("ref={exportCardRef}");
   });
+
+  it("keeps the hidden export host renderable and waits after snapshot commit", () => {
+    const pageSource = readFileSync(
+      "src/app/pools/[poolId]/runs/[runId]/tier/page.tsx",
+      "utf8"
+    );
+    const cssSource = readFileSync("src/app/globals.css", "utf8");
+
+    expect(pageSource).toContain("setShareSnapshot(share)");
+    expect(pageSource).toContain("requestAnimationFrame(() => requestAnimationFrame");
+    expect(cssSource).toContain(".tiermaker-export-host");
+    expect(cssSource).toContain("left: -10000px");
+    const exportHostCss = cssSource.slice(
+      cssSource.indexOf(".tiermaker-export-host"),
+      cssSource.indexOf("}", cssSource.indexOf(".tiermaker-export-host")) + 1
+    );
+    expect(exportHostCss).not.toMatch(/display\s*:\s*none/i);
+  });
 });

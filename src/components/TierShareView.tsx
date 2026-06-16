@@ -5,6 +5,7 @@ import React, { useState } from "react";
 import { AnimeCover } from "./AnimeCover";
 import { AppBadge } from "./ui/AppBadge";
 import { AppButton, appButtonClasses } from "./ui/AppButton";
+import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
 import type { PublicTierShare, TierShareSnapshotItem } from "@/lib/client-api";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -157,7 +158,7 @@ function ShareItemCard({
 }) {
   const title = getAnimeDisplayTitle(item);
   const coverFit = shouldUseContainCover(item) ? "contain" : "cover";
-  const rawCoverUrl = item.coverUrl ?? null;
+  const rawCoverUrl = getAnimeCoverUrl(item, { intent: "export" });
   const coverUrl = exportMode ? proxyExternalImageUrl(rawCoverUrl) : rawCoverUrl;
 
   return (

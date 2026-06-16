@@ -41,6 +41,9 @@ function pickReferer(hostname: string): string | null {
   if (hostname.endsWith(".bangumi.tv") || hostname === "bangumi.tv") {
     return "https://bangumi.tv/";
   }
+  if (hostname.endsWith(".tiermaker.com") || hostname === "tiermaker.com") {
+    return "https://tiermaker.com/";
+  }
   return null;
 }
 
