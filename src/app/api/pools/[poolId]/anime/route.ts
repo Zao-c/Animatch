@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
 import { getOrImportAnimeByBgmId } from "@/lib/anime-service";
 import { requireCurrentUser } from "@/lib/auth-session";
+import { isAdminEditSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 import { canAddAnime } from "@/lib/pool-permissions";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
@@ -38,7 +39,7 @@ export async function POST(request: Request, context: RouteContext) {
       return notFound("Pool not found");
     }
 
-    if (!canAddAnime(pool, user)) {
+    if (!canAddAnime(pool, user) && !(await isAdminEditSession(user))) {
       return forbidden("你没有权限管理这个番组。");
     }
 

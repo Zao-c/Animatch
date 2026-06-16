@@ -980,3 +980,85 @@ export function getRecalibrationNextPair(
     `/api/pools/${poolId}/runs/${runId}/recalibration/${sessionId}/next-pair`
   );
 }
+
+export function adminLogin(code: string) {
+  return fetchJson<{ ok: boolean }>("/api/admin/session", {
+    method: "POST",
+    body: { code }
+  });
+}
+
+export function adminLogout() {
+  return fetchJson<{ ok: boolean }>("/api/admin/session", {
+    method: "DELETE"
+  });
+}
+
+export interface AdminPoolItem {
+  id: string;
+  name: string;
+  description: string | null;
+  visibility: "PRIVATE" | "UNLISTED" | "PUBLIC";
+  status: "DRAFT" | "PUBLISHED" | "LOCKED" | "ARCHIVED";
+  deletedAt: string | null;
+  isOfficialDemo: boolean;
+  allowPublicEdit: boolean;
+  allowCommunityMatch: boolean;
+  creator: {
+    id: string;
+    name: string | null;
+    username: string;
+    image: string | null;
+  } | null;
+  animeCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminPoolsResponse {
+  items: AdminPoolItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export function getAdminPools(params: {
+  q?: string;
+  visibility?: string;
+  status?: string;
+  deleted?: string;
+  demo?: string;
+  page?: number;
+  limit?: number;
+} = {}) {
+  const searchParams = new URLSearchParams();
+  if (params.q) searchParams.set("q", params.q);
+  if (params.visibility) searchParams.set("visibility", params.visibility);
+  if (params.status) searchParams.set("status", params.status);
+  if (params.deleted) searchParams.set("deleted", params.deleted);
+  if (params.demo) searchParams.set("demo", params.demo);
+  if (params.page) searchParams.set("page", String(params.page));
+  if (params.limit) searchParams.set("limit", String(params.limit));
+  const qs = searchParams.toString();
+  return fetchJson<AdminPoolsResponse>(`/api/admin/pools${qs ? `?${qs}` : ""}`);
+}
+
+export function updateAdminPool(
+  poolId: string,
+  data: {
+    name?: string;
+    description?: string;
+    tags?: string[];
+    visibility?: string;
+    archive?: boolean;
+    restoreArchived?: boolean;
+    softDelete?: boolean;
+    restoreDeleted?: boolean;
+    confirm?: string;
+  }
+) {
+  return fetchJson<AdminPoolItem>(`/api/admin/pools/${poolId}`, {
+    method: "PATCH",
+    body: data
+  });
+}

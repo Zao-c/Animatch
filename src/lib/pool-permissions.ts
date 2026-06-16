@@ -40,13 +40,21 @@ export function canManagePool(pool: PoolPermissionFields, user?: MaybeUser): boo
   return isPoolOwner(pool, user);
 }
 
-export function canEditPoolContent(pool: EditPermissionFields, user?: MaybeUser): boolean {
+export function canEditPoolContent(
+  pool: EditPermissionFields,
+  user?: MaybeUser,
+  opts?: { isAdmin?: boolean }
+): boolean {
   if (user === null || user === undefined) {
     return false;
   }
 
   if (pool.status === PoolStatus.ARCHIVED || pool.deletedAt !== null) {
     return false;
+  }
+
+  if (opts?.isAdmin === true) {
+    return true;
   }
 
   if (isPoolOwner(pool, user)) {
@@ -68,8 +76,12 @@ export function canEditPoolContent(pool: EditPermissionFields, user?: MaybeUser)
   return false;
 }
 
-export function canAddAnime(pool: EditPermissionFields, user?: MaybeUser): boolean {
-  return canEditPoolContent(pool, user);
+export function canAddAnime(
+  pool: EditPermissionFields,
+  user?: MaybeUser,
+  opts?: { isAdmin?: boolean }
+): boolean {
+  return canEditPoolContent(pool, user, opts);
 }
 
 export function canReadCommunityRanking(pool: CommunityRankingPoolFields): boolean {
@@ -80,13 +92,18 @@ export function canReadCommunityRanking(pool: CommunityRankingPoolFields): boole
   );
 }
 
-export function getPoolPermissions(pool: PoolPermissionFields, user?: MaybeUser) {
+export function getPoolPermissions(
+  pool: PoolPermissionFields,
+  user?: MaybeUser,
+  opts?: { isAdmin?: boolean }
+) {
   return {
     canRead: canReadPool(pool, user),
     canPlay: canPlayPool(pool, user),
     canManage: canManagePool(pool, user),
-    canAddAnime: canAddAnime(pool, user),
-    canCommunityMatch: pool.allowCommunityMatch && canReadPool(pool, user)
+    canAddAnime: canAddAnime(pool, user, opts),
+    canCommunityMatch: pool.allowCommunityMatch && canReadPool(pool, user),
+    isAdmin: opts?.isAdmin ?? false
   };
 }
 

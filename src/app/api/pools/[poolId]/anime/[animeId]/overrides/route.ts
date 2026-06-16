@@ -2,6 +2,7 @@ import { PoolStatus } from "@prisma/client";
 import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
 import { deleteLocalAnimeCoverIfPresent } from "@/lib/anime-cover-upload";
 import { requireCurrentUser } from "@/lib/auth-session";
+import { isAdminEditSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 import { canEditPoolContent } from "@/lib/pool-permissions";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
@@ -26,7 +27,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
       return notFound("Pool not found");
     }
 
-    if (!canEditPoolContent(pool, user)) {
+    if (!canEditPoolContent(pool, user) && !(await isAdminEditSession(user))) {
       return forbidden("你没有权限管理这个番组。");
     }
 

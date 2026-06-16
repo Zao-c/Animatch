@@ -7,6 +7,7 @@ import {
   saveCustomItemUpload
 } from "@/lib/anime-cover-upload";
 import { requireCurrentUser } from "@/lib/auth-session";
+import { isAdminEditSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 import { canEditPoolContent } from "@/lib/pool-permissions";
 import { ANIME_SOURCE } from "@/lib/anime-source";
@@ -45,7 +46,7 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    if (!canEditPoolContent(pool, user)) {
+    if (!canEditPoolContent(pool, user) && !(await isAdminEditSession(user))) {
       return forbidden("你没有权限管理这个番组。");
     }
 

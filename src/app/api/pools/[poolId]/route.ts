@@ -1,6 +1,7 @@
 import { PoolStatus, Visibility } from "@prisma/client";
 import { badRequest, forbidden, notFound, ok, unauthorized, fromError } from "@/lib/api-response";
 import { getCurrentUser, requireCurrentUser } from "@/lib/auth-session";
+import { isAdminEditSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 import { canManagePool, getPoolPermissions } from "@/lib/pool-permissions";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
@@ -55,7 +56,9 @@ export async function GET(_request: Request, context: RouteContext) {
       return notFound("Pool not found");
     }
 
-    const permissions = getPoolPermissions(pool, user);
+    const permissions = getPoolPermissions(pool, user, {
+      isAdmin: user !== null ? await isAdminEditSession(user) : false
+    });
 
     if (!permissions.canRead) {
       if (user === null) {
