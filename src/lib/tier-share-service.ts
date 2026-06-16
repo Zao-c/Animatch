@@ -45,6 +45,11 @@ export interface TierShareSnapshot {
   run: {
     id: string;
   };
+  creator?: {
+    id: string;
+    displayName: string;
+    username: string | null;
+  };
   tiers: TierShareSnapshotTier[];
 }
 
@@ -86,6 +91,11 @@ export function buildTierShareSnapshot(params: {
   poolId: string;
   poolName: string;
   runId: string;
+  creator?: {
+    id: string;
+    name: string | null;
+    username: string | null;
+  } | null;
   tierList: RunTierListResult;
   tierLabels: TierLabels;
   generatedAt?: Date;
@@ -102,6 +112,15 @@ export function buildTierShareSnapshot(params: {
     run: {
       id: params.runId
     },
+    ...(params.creator
+      ? {
+          creator: {
+            id: params.creator.id,
+            displayName: getShareCreatorDisplayName(params.creator),
+            username: params.creator.username ?? null
+          }
+        }
+      : {}),
     tiers: TIER_KEYS.map((tier) => ({
       key: tier,
       label: params.tierLabels[tier],
@@ -121,7 +140,7 @@ export async function createTierShare(params: {
     throw new AppError("poolId and runId are required", 400, "INVALID_SHARE_INPUT");
   }
 
-  const [pool, run] = await Promise.all([
+  const [pool, run, creator] = await Promise.all([
     prisma.customPool.findUnique({
       where: {
         id: params.poolId
@@ -140,6 +159,16 @@ export async function createTierShare(params: {
         userId: true,
         poolId: true,
         deletedAt: true
+      }
+    }),
+    prisma.user.findUnique({
+      where: {
+        id: params.userId
+      },
+      select: {
+        id: true,
+        name: true,
+        username: true
       }
     })
   ]);
@@ -171,6 +200,7 @@ export async function createTierShare(params: {
     poolId: pool.id,
     poolName: pool.name,
     runId: params.runId,
+    creator,
     tierList,
     tierLabels
   });
@@ -257,6 +287,22 @@ function toPublicTierShare(share: {
   };
 }
 
+function getShareCreatorDisplayName(creator: {
+  name: string | null;
+  username: string | null;
+}): string {
+  return nonEmpty(creator.name) ?? nonEmpty(creator.username) ?? "AniMatch 玩家";
+}
+
 function isValidShareToken(token: string): boolean {
   return /^[a-zA-Z0-9_-]{24,80}$/.test(token);
+}
+
+function nonEmpty(value: string | null | undefined): string | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }

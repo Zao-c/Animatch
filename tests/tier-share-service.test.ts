@@ -17,6 +17,9 @@ vi.mock("../src/lib/db", () => ({
     personalRun: {
       findUnique: vi.fn()
     },
+    user: {
+      findUnique: vi.fn()
+    },
     tierShare: {
       create: vi.fn(),
       findUnique: vi.fn()
@@ -30,6 +33,7 @@ vi.mock("../src/lib/tier-service", () => ({
 
 const mockedPool = vi.mocked(prisma.customPool);
 const mockedRun = vi.mocked(prisma.personalRun);
+const mockedUser = vi.mocked(prisma.user);
 const mockedTierShare = vi.mocked(prisma.tierShare);
 const mockedGetRunTierList = vi.mocked(getRunTierList);
 
@@ -158,12 +162,41 @@ describe("tier share service", () => {
     });
   });
 
+  it("stores the creator display name in the share snapshot", () => {
+    const snapshot = buildTierShareSnapshot({
+      poolId: "pool-1",
+      poolName: "Pool",
+      runId: "run-1",
+      creator: {
+        id: "user-1",
+        name: null,
+        username: "zaoc"
+      },
+      generatedAt: new Date("2026-06-11T12:00:00.000Z"),
+      tierLabels: {
+        S: "S",
+        A: "A",
+        B: "B",
+        C: "C",
+        D: "D"
+      },
+      tierList: tierListFixture()
+    });
+
+    expect(snapshot.creator).toEqual({
+      id: "user-1",
+      displayName: "zaoc",
+      username: "zaoc"
+    });
+  });
+
   it("creates a persisted snapshot instead of accepting client snapshot data", async () => {
     mockedPool.findUnique.mockResolvedValue({
       id: "pool-1",
       name: "Pool"
     } as Awaited<ReturnType<typeof mockedPool.findUnique>>);
     mockedRun.findUnique.mockResolvedValue(runFixture() as Awaited<ReturnType<typeof mockedRun.findUnique>>);
+    mockedUser.findUnique.mockResolvedValue(userFixture() as Awaited<ReturnType<typeof mockedUser.findUnique>>);
     mockedGetRunTierList.mockResolvedValue(tierListFixture());
     mockedTierShare.create.mockResolvedValue({
       id: "share-1",
@@ -212,6 +245,9 @@ describe("tier share service", () => {
           description: "shared",
           snapshot: expect.objectContaining({
             version: 1,
+            creator: expect.objectContaining({
+              displayName: "zaoc"
+            }),
             tiers: expect.any(Array)
           })
         })
@@ -330,6 +366,7 @@ function mockSuccessfulTierShare({
 } = {}) {
   mockedPool.findUnique.mockResolvedValue(pool as Awaited<ReturnType<typeof mockedPool.findUnique>>);
   mockedRun.findUnique.mockResolvedValue(run as Awaited<ReturnType<typeof mockedRun.findUnique>>);
+  mockedUser.findUnique.mockResolvedValue(userFixture() as Awaited<ReturnType<typeof mockedUser.findUnique>>);
   mockedGetRunTierList.mockResolvedValue(tierListFixture());
   mockedTierShare.create.mockResolvedValue(tierShareRecord());
 }
@@ -348,6 +385,15 @@ function runFixture(overrides: Record<string, unknown> = {}) {
     userId: "user-1",
     poolId: "pool-1",
     deletedAt: null,
+    ...overrides
+  };
+}
+
+function userFixture(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "user-1",
+    name: null,
+    username: "zaoc",
     ...overrides
   };
 }

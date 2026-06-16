@@ -104,7 +104,8 @@ describe("image proxy API upstream handling", () => {
       originalUrl,
       expect.objectContaining({
         headers: expect.objectContaining({
-          Referer: "https://tiermaker.com/"
+          Referer: "https://tiermaker.com/",
+          "User-Agent": expect.stringContaining("Mozilla/5.0")
         })
       })
     );

@@ -2,6 +2,9 @@
 
 import { toPng } from "html-to-image";
 
+const EXPORT_IMAGE_PLACEHOLDER =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+
 export interface ExportShareCardOptions {
   filename?: string;
   timeoutMs?: number;
@@ -21,12 +24,13 @@ export async function exportShareCardAsPng(
     throw new Error("Export container has no share card element.");
   }
 
-  await waitForShareCardImages(card);
+  await waitForShareCardImages(card, timeoutMs);
 
   const dataUrl = await toPng(card, {
     cacheBust: true,
     pixelRatio: 2,
     backgroundColor: "#101310",
+    imagePlaceholder: EXPORT_IMAGE_PLACEHOLDER,
     skipAutoScale: true
   });
 
@@ -80,10 +84,23 @@ export async function waitForShareCardImages(
           };
 
           const handleError = () => {
+            const failedSrc = img.currentSrc || img.src;
             console.warn("[share-export] image failed", {
-              src: img.currentSrc || img.src
+              src: failedSrc
             });
-            finish();
+            globalThis.setTimeout(() => {
+              const nextSrc = img.currentSrc || img.src;
+              if (nextSrc !== failedSrc && img.complete && img.naturalWidth > 0) {
+                finish();
+                return;
+              }
+
+              if (nextSrc !== failedSrc && !img.complete) {
+                return;
+              }
+
+              finish();
+            }, 80);
           };
 
           const timer = setTimeout(() => {

@@ -25,6 +25,11 @@ describe("TierShareView", () => {
             generatedAt: "2026-06-11T12:00:00.000Z",
             pool: { id: "pool-1", name: "Shared Pool" },
             run: { id: "run-1" },
+            creator: {
+              id: "user-1",
+              displayName: "zaoc",
+              username: "zaoc"
+            },
             tiers: [
               {
                 key: "S",
@@ -51,6 +56,7 @@ describe("TierShareView", () => {
     );
 
     expect(html).toContain("Shared Pool");
+    expect(html).toContain("由 zaoc 制作这套 Tier List");
     expect(html).toContain("神作");
     expect(html).toContain("Custom Upload");
     expect(html).toContain("/uploads/custom-items/item.png");
@@ -124,6 +130,9 @@ describe("TierShareView", () => {
     expect(html).toContain(
       "/api/image-proxy?url=https%3A%2F%2Fcdn.tiermaker.com%2Fimages%2Fitem.png"
     );
+    expect(html).toContain("Shared Pool");
+    expect(html).toContain("由 zaoc 制作");
+    expect(html).not.toContain(">TIERMAKER_IMPORT<");
   });
 
   it("noisy titles do not affect export image src", () => {
@@ -144,6 +153,7 @@ describe("TierShareView", () => {
       "/api/image-proxy?url=https%3A%2F%2Fcdn.tiermaker.com%2Fimages%2Fnoisy-title-item.png"
     );
     expect(html).toContain("未命名作品");
+    expect(html).not.toContain(">TIERMAKER_IMPORT<");
     expect(html).not.toContain("17750273769085f154");
   });
 
@@ -162,6 +172,7 @@ describe("TierShareView", () => {
     expect(html).toContain("未命名作品");
     expect(html).not.toContain("17750273769085f154");
     expect(html).toContain('data-cover-fit="contain"');
+    expect(html).not.toContain(">TIERMAKER_IMPORT<");
   });
 });
 
@@ -182,6 +193,11 @@ function shareFixture(): PublicTierShare {
       generatedAt: "2026-06-11T12:00:00.000Z",
       pool: { id: "pool-1", name: "Shared Pool" },
       run: { id: "run-1" },
+      creator: {
+        id: "user-1",
+        displayName: "zaoc",
+        username: "zaoc"
+      },
       tiers: [
         {
           key: "S" as const,

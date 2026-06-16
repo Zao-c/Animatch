@@ -376,6 +376,11 @@ export interface TierShareSnapshot {
   run: {
     id: string;
   };
+  creator?: {
+    id: string;
+    displayName: string;
+    username: string | null;
+  };
   tiers: TierShareSnapshotTier[];
 }
 

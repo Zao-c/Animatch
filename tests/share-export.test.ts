@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { waitForShareCardImages } from "../src/lib/share-export";
+import { toPng } from "html-to-image";
+import { exportShareCardAsPng, waitForShareCardImages } from "../src/lib/share-export";
+
+vi.mock("html-to-image", () => ({
+  toPng: vi.fn(async () => "data:image/png;base64,exported")
+}));
 
 afterEach(() => {
   vi.useRealTimers();
@@ -54,12 +59,61 @@ describe("waitForShareCardImages", () => {
   });
 });
 
+describe("exportShareCardAsPng", () => {
+  it("passes an image placeholder to html-to-image so failed images do not reject export", async () => {
+    const card = fakeCard([
+      fakeImage({ complete: true, naturalWidth: 320, naturalHeight: 180 })
+    ]);
+    const container = fakeContainer(card);
+    vi.mocked(toPng).mockResolvedValue("data:image/png;base64,exported");
+
+    await expect(
+      exportShareCardAsPng(container, { filename: "test-tier" })
+    ).resolves.toEqual({ dataUrl: "data:image/png;base64,exported" });
+
+    expect(toPng).toHaveBeenCalledWith(
+      card,
+      expect.objectContaining({
+        backgroundColor: "#101310",
+        cacheBust: true,
+        imagePlaceholder: expect.stringMatching(/^data:image\/gif;base64,/),
+        pixelRatio: 2,
+        skipAutoScale: true
+      })
+    );
+  });
+
+  it("uses the caller timeout while waiting for image load before export", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.mocked(toPng).mockResolvedValue("data:image/png;base64,exported");
+    const card = fakeCard([
+      fakeImage({ complete: false, naturalWidth: 0, naturalHeight: 0 })
+    ]);
+    const container = fakeContainer(card);
+
+    const pending = exportShareCardAsPng(container, { timeoutMs: 25 });
+    await Promise.resolve();
+    expect(toPng).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(25);
+    await pending;
+    expect(toPng).toHaveBeenCalledOnce();
+  });
+});
+
 function fakeCard(images: ReturnType<typeof fakeImage>[]) {
   return {
     querySelectorAll: vi.fn(() => images)
   } as unknown as HTMLElement & {
     querySelectorAll: ReturnType<typeof vi.fn>;
   };
+}
+
+function fakeContainer(card: ReturnType<typeof fakeCard>) {
+  return {
+    querySelector: vi.fn(() => card)
+  } as unknown as HTMLElement;
 }
 
 function fakeImage({

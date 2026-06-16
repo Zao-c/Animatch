@@ -6,7 +6,11 @@ import { AnimeCover } from "./AnimeCover";
 import { AppBadge } from "./ui/AppBadge";
 import { AppButton, appButtonClasses } from "./ui/AppButton";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
-import { getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
+import {
+  getAnimeDisplayTitle,
+  isUserGeneratedImageSource,
+  shouldUseContainCover
+} from "@/lib/anime-display";
 import type { PublicTierShare, TierShareSnapshotItem } from "@/lib/client-api";
 import { copyToClipboard } from "@/lib/clipboard";
 import { formatDateTimeStable } from "@/lib/date-format";
@@ -21,6 +25,7 @@ export function TierShareView({
 }) {
   const [copied, setCopied] = useState(false);
   const [copyFallback, setCopyFallback] = useState(false);
+  const creatorLabel = getShareCreatorLabel(share);
 
   async function copyLink() {
     const href = window.location.href;
@@ -50,6 +55,11 @@ export function TierShareView({
               <p className="mt-3 text-sm text-slate-400">
                 生成于 {formatDateTimeStable(share.snapshot.generatedAt)}
               </p>
+              {creatorLabel ? (
+                <p className="mt-2 text-sm font-semibold text-cyan-100">
+                  由 {creatorLabel} 制作这套 Tier List
+                </p>
+              ) : null}
               {share.description ? (
                 <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
                   {share.description}
@@ -100,11 +110,28 @@ export function TierShareCard({
   share: PublicTierShare;
   exportMode?: boolean;
 }) {
+  const creatorLabel = getShareCreatorLabel(share);
+
   return (
     <section
       data-tier-share-card={exportMode ? "true" : undefined}
       className="overflow-hidden rounded-2xl border border-black/80 bg-[#191d21] shadow-[0_20px_90px_rgba(0,0,0,0.35)]"
     >
+      {exportMode ? (
+        <header className="border-b border-black/80 bg-[#11161c] px-5 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
+            AniMatch Tier List
+          </p>
+          <h1 className="mt-2 text-3xl font-black leading-tight text-white">
+            {share.title}
+          </h1>
+          {creatorLabel ? (
+            <p className="mt-1 text-sm font-semibold text-slate-300">
+              由 {creatorLabel} 制作
+            </p>
+          ) : null}
+        </header>
+      ) : null}
       {share.snapshot.tiers.map((tier) => (
         <div
           key={tier.key}
@@ -160,11 +187,13 @@ function ShareItemCard({
   const coverFit = shouldUseContainCover(item) ? "contain" : "cover";
   const rawCoverUrl = getAnimeCoverUrl(item, { intent: "export" });
   const coverUrl = exportMode ? proxyExternalImageUrl(rawCoverUrl) : rawCoverUrl;
+  const shouldShowSourceBadge = !isUserGeneratedImageSource(item.source);
 
   return (
     <article className="w-28 rounded-xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_12px_36px_rgba(0,0,0,0.25)] sm:w-32">
       <AnimeCover
         src={coverUrl}
+        secondarySrc={exportMode ? rawCoverUrl : undefined}
         title={title}
         size="sm"
         fit={coverFit}
@@ -174,9 +203,14 @@ function ShareItemCard({
         {title}
       </h2>
       <div className="mt-2 flex flex-wrap gap-1">
-        <AppBadge tone="source">{item.source}</AppBadge>
+        {shouldShowSourceBadge ? <AppBadge tone="source">{item.source}</AppBadge> : null}
         {item.animeType ? <AppBadge tone="status">{item.animeType}</AppBadge> : null}
       </div>
     </article>
   );
+}
+
+function getShareCreatorLabel(share: PublicTierShare): string | null {
+  const value = share.snapshot.creator?.displayName?.trim();
+  return value && value.length > 0 ? value : null;
 }
