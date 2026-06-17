@@ -51,7 +51,7 @@ describe("AnimeCover background warm proxy", () => {
         title: "WarmTest"
       })
     );
-    expect(html).toContain('src="https://example.com/warm-test.jpg"');
+    expect(html).toContain("/api/image-proxy?url=https%3A%2F%2Fexample.com%2Fwarm-test.jpg");
     expect(html).toContain("WarmTest");
   });
 });

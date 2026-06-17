@@ -139,10 +139,10 @@ function buildImageCandidates(
   const rawPrimary = normalizeImageUrl(primary);
   const rawSecondary = normalizeImageUrl(secondary);
   const values = [
-    rawPrimary,
     proxyExternalImageUrl(rawPrimary),
-    rawSecondary,
-    proxyExternalImageUrl(rawSecondary)
+    proxyExternalImageUrl(rawSecondary),
+    rawPrimary,
+    rawSecondary
   ];
   const seen = new Set<string>();
 

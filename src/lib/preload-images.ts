@@ -69,10 +69,10 @@ function bestImageCandidates(anime: AnimeCoverUrlFields): string[] {
   const heroUrl = getAnimeCoverUrl(anime, { intent: "hero" });
   const exportUrl = getAnimeCoverUrl(anime, { intent: "export" });
   const values = [
-    heroUrl,
     proxyExternalImageUrl(heroUrl),
-    exportUrl,
-    proxyExternalImageUrl(exportUrl)
+    proxyExternalImageUrl(exportUrl),
+    heroUrl,
+    exportUrl
   ];
   const seen = new Set<string>();
 

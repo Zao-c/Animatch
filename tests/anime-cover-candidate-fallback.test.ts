@@ -7,27 +7,19 @@ import { AnimeCover } from "../src/components/AnimeCover";
 describe("AnimeCover candidate priority queue", () => {
   const source = readFileSync("src/components/AnimeCover.tsx", "utf8");
 
-  it("builds candidate queue: raw primary before proxy primary", () => {
+  it("builds candidate queue: proxy primary before raw primary", () => {
     expect(source).toContain("proxyExternalImageUrl(rawPrimary)");
     const candidateArray = source.slice(source.indexOf("const values = ["));
+    const proxyIdx = candidateArray.indexOf("proxyExternalImageUrl(rawPrimary)");
     const rawPrimaryIdx = candidateArray.indexOf("rawPrimary,");
-    const proxyIdx = candidateArray.indexOf("proxyExternalImageUrl(rawPrimary)");
-    expect(rawPrimaryIdx).toBeLessThan(proxyIdx);
+    expect(proxyIdx).toBeLessThan(rawPrimaryIdx);
   });
 
-  it("builds candidate queue: proxy primary before raw secondary", () => {
-    expect(source).toContain("rawSecondary");
+  it("builds candidate queue: proxy secondary before raw secondary", () => {
     const candidateArray = source.slice(source.indexOf("const values = ["));
-    const proxyIdx = candidateArray.indexOf("proxyExternalImageUrl(rawPrimary)");
-    const rawSecondaryIdx = candidateArray.indexOf("rawSecondary");
-    expect(proxyIdx).toBeLessThan(rawSecondaryIdx + 1);
-  });
-
-  it("builds candidate queue: raw secondary before proxy secondary", () => {
-    const candidateArray = source.slice(source.indexOf("const values = ["));
-    const rawSecIdx = candidateArray.indexOf("rawSecondary");
     const proxySecIdx = candidateArray.indexOf("proxyExternalImageUrl(rawSecondary)");
-    expect(rawSecIdx).toBeLessThan(proxySecIdx);
+    const rawSecIdx = candidateArray.indexOf("rawSecondary", proxySecIdx + 1);
+    expect(proxySecIdx).toBeLessThan(rawSecIdx);
   });
 
   it("deduplicates candidate URLs", () => {
@@ -78,7 +70,7 @@ describe("AnimeCover candidate priority queue", () => {
     expect(emptyHtml).toContain("无");
   });
 
-  it("renders raw primary URL as first img src and passes secondarySrc to data attr", () => {
+  it("renders proxy URL as first img src and passes secondarySrc to data attr", () => {
     const html = renderToStaticMarkup(
       React.createElement(AnimeCover, {
         src: "https://primary.example/a.jpg",
@@ -86,7 +78,7 @@ describe("AnimeCover candidate priority queue", () => {
         title: "Dual"
       })
     );
-    expect(html).toContain("src=\"https://primary.example/a.jpg\"");
+    expect(html).toContain("/api/image-proxy?url=https%3A%2F%2Fprimary.example");
     expect(html).toContain("data-export-secondary-src=\"https://secondary.example/b.jpg\"");
   });
 

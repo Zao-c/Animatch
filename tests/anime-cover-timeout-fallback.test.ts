@@ -82,43 +82,36 @@ describe("AnimeCover timeout fallback", () => {
 describe("AnimeCover candidate order", () => {
   const source = readFileSync("src/components/AnimeCover.tsx", "utf8");
 
-  it("places raw primary before proxy primary", () => {
+  it("places proxy primary before raw primary", () => {
     const candidateArray = source.slice(source.indexOf("const values = ["));
-    const rawPrimaryIdx = candidateArray.indexOf("rawPrimary,");
     const proxyPrimaryIdx = candidateArray.indexOf("proxyExternalImageUrl(rawPrimary)");
-    expect(rawPrimaryIdx).toBeLessThan(proxyPrimaryIdx);
+    const rawPrimaryIdx = candidateArray.indexOf("rawPrimary,");
+    expect(proxyPrimaryIdx).toBeLessThan(rawPrimaryIdx);
   });
 
-  it("places proxy primary before raw secondary", () => {
+  it("places proxy secondary before raw secondary", () => {
     const candidateArray = source.slice(source.indexOf("const values = ["));
-    const proxyIdx = candidateArray.indexOf("proxyExternalImageUrl(rawPrimary)");
-    const rawSecondaryIdx = candidateArray.indexOf("rawSecondary");
-    expect(proxyIdx).toBeLessThan(rawSecondaryIdx + 1);
-  });
-
-  it("places raw secondary before proxy secondary", () => {
-    const candidateArray = source.slice(source.indexOf("const values = ["));
-    const rawSecIdx = candidateArray.indexOf("rawSecondary");
     const proxySecIdx = candidateArray.indexOf("proxyExternalImageUrl(rawSecondary)");
-    expect(rawSecIdx).toBeLessThan(proxySecIdx);
+    const rawSecIdx = candidateArray.indexOf("rawSecondary", proxySecIdx + 1);
+    expect(proxySecIdx).toBeLessThan(rawSecIdx);
   });
 
-  it("does NOT place proxy secondary before raw primary", () => {
-    const rawPrimaryIdx = source.indexOf("rawPrimary");
-    const proxySecondaryIdx = source.indexOf("proxyExternalImageUrl(rawSecondary)");
-    expect(rawPrimaryIdx).toBeLessThan(proxySecondaryIdx);
+  it("does NOT place raw primary before proxy primary", () => {
+    const proxyPrimaryIdx = source.indexOf("proxyExternalImageUrl(rawPrimary)");
+    const rawPrimaryIdx = source.indexOf("rawPrimary,");
+    expect(proxyPrimaryIdx).toBeLessThan(rawPrimaryIdx);
   });
 
-  it("candidate order in values array matches: raw-primary, proxy-primary, raw-secondary, proxy-secondary", () => {
+  it("candidate order in values array matches: proxy-primary, proxy-secondary, raw-primary, raw-secondary", () => {
     const fragment = source.slice(source.indexOf("const values = ["));
-    const rawPrimIdx = fragment.indexOf("rawPrimary,");
     const proxyPrimIdx = fragment.indexOf("proxyExternalImageUrl(rawPrimary)");
-    const rawSecIdx = fragment.indexOf("rawSecondary");
     const proxySecIdx = fragment.indexOf("proxyExternalImageUrl(rawSecondary)");
+    const rawPrimIdx = fragment.indexOf("rawPrimary,");
+    const rawSecIdx = fragment.lastIndexOf("rawSecondary");
 
-    expect(rawPrimIdx).toBeLessThan(proxyPrimIdx);
-    expect(proxyPrimIdx).toBeLessThan(rawSecIdx);
-    expect(rawSecIdx).toBeLessThan(proxySecIdx);
+    expect(proxyPrimIdx).toBeLessThan(proxySecIdx);
+    expect(proxySecIdx).toBeLessThan(rawPrimIdx);
+    expect(rawPrimIdx).toBeLessThan(rawSecIdx);
   });
 });
 

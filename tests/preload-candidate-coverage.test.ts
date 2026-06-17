@@ -12,16 +12,16 @@ describe("preload-images cover candidate alignment", () => {
     expect(source).toContain("proxyExternalImageUrl(exportUrl)");
   });
 
-  it("raw URLs come before proxy URLs, raw-primary first", () => {
+  it("proxy URLs come before raw URLs, proxy-primary first", () => {
     const candidateBlock = source.slice(source.indexOf("const values = ["));
-    const rawHeroIdx = candidateBlock.indexOf("heroUrl,");
     const proxyHeroIdx = candidateBlock.indexOf("proxyExternalImageUrl(heroUrl)");
-    const rawExportIdx = candidateBlock.indexOf("exportUrl");
     const proxyExportIdx = candidateBlock.indexOf("proxyExternalImageUrl(exportUrl)");
+    const rawHeroIdx = candidateBlock.indexOf("heroUrl,");
+    const rawExportIdx = candidateBlock.lastIndexOf("exportUrl");
 
-    expect(rawHeroIdx).toBeLessThan(proxyHeroIdx);
-    expect(proxyHeroIdx).toBeLessThan(rawExportIdx);
-    expect(rawExportIdx).toBeLessThan(proxyExportIdx);
+    expect(proxyHeroIdx).toBeLessThan(proxyExportIdx);
+    expect(proxyExportIdx).toBeLessThan(rawHeroIdx);
+    expect(rawHeroIdx).toBeLessThan(rawExportIdx);
   });
 
   it("deduplicates preload candidate values", () => {
