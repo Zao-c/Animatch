@@ -1183,10 +1183,6 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 >
                   {canPromptLoginToBattle ? "登录后参与大乱斗" : "加入社区大乱斗"}
                 </AppButton>
-                <p className="text-xs leading-5 text-slate-500">
-                  每个人都有自己的对决和榜单，你的选择会以匿名聚合的方式贡献到社区榜单。不会影响创建者的作品墙，也不会覆盖你的个人 Tier List。
-                  不会公开你的单次选择或个人身份，只展示匿名聚合结果。
-                </p>
               </>
             ) : (
               <AppButton
@@ -1238,7 +1234,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             </Link>
             {!canManagePool && canPlayPool ? (
               <p className="mt-2 text-center text-xs leading-5 text-slate-500">
-                你的对决和榜单只属于你，不会影响创建者。
+                你的对决和榜单只属于你，不影响创建者。
               </p>
             ) : null}
           </div>
@@ -1252,26 +1248,17 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             tone="warning"
           />
         ) : null}
-        <StatusHint
-          label="新手提示"
-          title="这个番组可以这样玩"
-          description={poolOnboardingHint}
-          tone="guide"
-        />
-        {canShowCommunityBattle ? (
-          <StatusHint
-            label="社区大乱斗"
-            title="公开番组的共同榜单玩法"
-            description="每个人都有自己的对决和榜单，你的选择会以匿名聚合的方式贡献到社区榜单。不会影响创建者的作品墙，也不会覆盖你的个人 Tier List。不会公开你的单次选择或个人身份，只展示匿名聚合结果。"
-            tone="guide"
-          />
-        ) : null}
-        <StatusHint
-          label={poolGuidance.label}
-          title={poolGuidance.title}
-          description={poolGuidance.description}
-          tone={poolGuidance.tone}
-        />
+        <details className="mt-2 rounded-xl border border-white/10 bg-white/[0.025] px-4 py-2.5 text-sm">
+          <summary className="cursor-pointer select-none font-medium text-slate-300">
+            玩法说明
+          </summary>
+          <div className="mt-3 space-y-3 border-t border-white/8 pt-3 text-xs leading-5 text-slate-400">
+            <p>{poolOnboardingHint}</p>
+            {canShowCommunityBattle ? (
+              <p>公开番组的社区榜单玩法：每个人的对决产生个人榜单，你的选择以匿名聚合方式贡献到社区榜单。不影响创建者的作品墙，不覆盖你的个人 Tier List，不公开单次选择或个人身份。</p>
+            ) : null}
+          </div>
+        </details>
         {error ? <ErrorAlert message={error} /> : null}
         {notice ? <ErrorAlert message={notice} tone="notice" /> : null}
       </div>

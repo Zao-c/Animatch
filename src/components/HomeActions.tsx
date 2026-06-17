@@ -102,15 +102,9 @@ export function HomeActions() {
           >
             浏览公开番组
           </Link>
-          <Link
-            href="/login"
-            className={appButtonClasses({ variant: "secondary", size: "lg", className: "w-full sm:w-auto" })}
-          >
-            立即登录
-          </Link>
           <AppButton
             type="button"
-            variant="ghost"
+            variant="secondary"
             size="lg"
             className="w-full sm:w-auto"
             onClick={handleCreateDemoPool}
@@ -118,9 +112,15 @@ export function HomeActions() {
           >
             {isPreparingDemoPool ? "正在准备体验池..." : "体验示例番组"}
           </AppButton>
+          <Link
+            href="/login"
+            className={appButtonClasses({ variant: "ghost", size: "lg", className: "w-full sm:w-auto" })}
+          >
+            登录
+          </Link>
         </div>
         <p className="text-xs leading-5 text-slate-400">
-          不用登录也能浏览公开番组。登录后可以创建自己的番组、开始两两对决、生成个人 Tier List。
+          不用登录也能浏览公开番组并体验对决。登录后可以创建自己的番组、生成个人 Tier List、参与社区榜单。
         </p>
         {demoPoolError ? <ErrorAlert message={demoPoolError} /> : null}
       </div>
@@ -151,19 +151,9 @@ export function HomeActions() {
         >
           浏览公开番组
         </Link>
-        <Link
-          href="/pools"
-          className={appButtonClasses({
-            variant: "ghost",
-            size: "lg",
-            className: "w-full sm:w-auto"
-          })}
-        >
-          查看我的番组
-        </Link>
         <AppButton
           type="button"
-          variant="secondary"
+          variant="ghost"
           size="lg"
           className="w-full sm:w-auto"
           onClick={handleCreateDemoPool}
@@ -172,10 +162,6 @@ export function HomeActions() {
           {isPreparingDemoPool ? "正在准备体验池..." : "体验示例番组"}
         </AppButton>
       </div>
-      <p className="text-xs leading-5 text-slate-400">
-        不用搜索和导入，直接体验二选一对决。
-        {readyPool === null ? " 也可以先体验示例番组。" : ""}
-      </p>
       {demoPoolError ? <ErrorAlert message={demoPoolError} /> : null}
     </div>
   );

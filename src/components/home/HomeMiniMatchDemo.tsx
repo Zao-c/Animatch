@@ -192,7 +192,7 @@ function PreviewCard({
         />
       </div>
       <p className="mt-2 text-center text-xs font-semibold text-slate-400">
-        {side === "left" ? "左候选" : "右候选"}
+        {side === "left" ? "这边" : "那边"}
       </p>
     </div>
   );

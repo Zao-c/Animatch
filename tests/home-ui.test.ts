@@ -45,8 +45,8 @@ describe("home mini match demo source", () => {
   });
 
   it("renders side labels without anime title displayed in preview card area", () => {
-    expect(source).toContain("左候选");
-    expect(source).toContain("右候选");
+    expect(source).toContain("这边");
+    expect(source).toContain("那边");
   });
 });
 
@@ -65,9 +65,9 @@ describe("HomeActions anonymous state", () => {
 
   it("shows logged-in CTA when authenticated", () => {
     expect(source).toContain("primaryHref");
-    expect(source).toContain('href="/pools"');
     expect(source).toContain('href="/pools?view=public"');
     expect(source).toContain("浏览公开番组");
+    expect(source).toContain("体验示例番组");
   });
 });
 

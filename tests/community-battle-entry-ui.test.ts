@@ -67,14 +67,14 @@ describe("community battle entry UI wiring", () => {
     expect(detailSource).toContain("isCommunityBattleVisiblePool(pool)");
     expect(detailSource).toContain("登录后参与大乱斗");
     expect(detailSource).toContain("加入社区大乱斗");
-    expect(detailSource).toContain("每个人都有自己的对决和榜单");
-    expect(detailSource).toContain("匿名聚合的方式贡献到社区榜单");
-    expect(detailSource).toContain("不会影响创建者的作品墙");
-    expect(detailSource).toContain("不会覆盖你的个人 Tier List");
+    expect(detailSource).toContain("每个人的对决");
+    expect(detailSource).toContain("以匿名聚合方式贡献到社区榜单");
+    expect(detailSource).toContain("不影响创建者的作品墙");
+    expect(detailSource).toContain("不覆盖你的个人 Tier List");
   });
 
   it("shows the public pool privacy copy for community battle", () => {
-    expect(detailSource).toContain("不会公开你的单次选择或个人身份，只展示匿名聚合结果。");
+    expect(detailSource).toContain("不公开单次选择或个人身份");
   });
 
   it("hides the community battle entry for non-public, archived, and deleted pools", () => {
