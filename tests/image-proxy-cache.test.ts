@@ -131,6 +131,71 @@ describe("image proxy LRU cache", () => {
     expect(source).toContain("imageCache.totalBytes > MAX_CACHE_BYTES");
   });
 
+  it("sets CDN-Cache-Control response header on success", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: {
+            "content-type": "image/png",
+            "content-length": "3"
+          }
+        })
+      )
+    );
+
+    const response = await GET(
+      new Request(
+        "http://localhost:3000/api/image-proxy?url=https%3A%2F%2Fcdn.example.com%2Fcdn-test.png"
+      )
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("CDN-Cache-Control")).toContain("max-age=604800");
+    expect(response.headers.get("CDN-Cache-Control")).toContain("stale-while-revalidate=604800");
+  });
+
+  it("defines CDN_CACHE_CONTROL and ERROR_CACHE_CONTROL constants", () => {
+    expect(source).toContain("CDN_CACHE_CONTROL");
+    expect(source).toContain("ERROR_CACHE_CONTROL");
+    expect(source).toContain('"no-store"');
+  });
+
+  it("error responses have no-store Cache-Control to prevent CDN caching", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("connection refused");
+      })
+    );
+
+    const response = await GET(
+      new Request(
+        "http://localhost:3000/api/image-proxy?url=https%3A%2F%2Fcdn.unknown.example%2F404.png"
+      )
+    );
+
+    expect(response.status).toBe(502);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(response.headers.get("CDN-Cache-Control")).toBe("no-store");
+  });
+
+  it("missing url returns 400 with no-store", async () => {
+    const response = await GET(
+      new Request("http://localhost:3000/api/image-proxy")
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+  });
+
+  it("successful response includes CDN-Cache-Control alongside Cache-Control", () => {
+    expect(source).toContain('"CDN-Cache-Control"');
+    expect(source).toContain("CDN_CACHE_CONTROL");
+    expect(source).toContain("ERROR_CACHE_CONTROL");
+  });
+
   it("maintains LRU order by moving accessed entries to end", () => {
     expect(source).toContain("imageCache.entries.delete(cacheKey)");
     expect(source).toContain("imageCache.entries.set(cacheKey, entry)");

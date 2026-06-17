@@ -7,6 +7,8 @@ const STALE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 500;
 const MAX_CACHE_BYTES = 128 * 1024 * 1024;
 const CACHE_CONTROL = "public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800";
+const CDN_CACHE_CONTROL = "public, max-age=604800, stale-while-revalidate=604800";
+const ERROR_CACHE_CONTROL = "no-store";
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 
 const BLOCKED_HOSTNAMES = new Set([
@@ -81,7 +83,7 @@ export async function GET(request: Request) {
   const rawUrl = searchParams.get("url");
 
   if (!rawUrl) {
-    return NextResponse.json({ error: "url is required" }, { status: 400 });
+    return errorResponse({ error: "url is required" }, 400);
   }
 
   let parsed: URL;
@@ -89,15 +91,15 @@ export async function GET(request: Request) {
   try {
     parsed = new URL(rawUrl);
   } catch {
-    return NextResponse.json({ error: "invalid url" }, { status: 400 });
+    return errorResponse({ error: "invalid url" }, 400);
   }
 
   if (!ALLOWED_PROTOCOLS.has(parsed.protocol)) {
-    return NextResponse.json({ error: "protocol not allowed" }, { status: 400 });
+    return errorResponse({ error: "protocol not allowed" }, 400);
   }
 
   if (isBlockedHostname(parsed.hostname)) {
-    return NextResponse.json({ error: "hostname not allowed" }, { status: 400 });
+    return errorResponse({ error: "hostname not allowed" }, 400);
   }
 
   const cacheKey = parsed.toString();
@@ -135,7 +137,7 @@ export async function GET(request: Request) {
     const message = error instanceof DOMException && error.name === "AbortError"
       ? "upstream timeout"
       : "fetch failed";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return errorResponse({ error: message }, 502);
   } finally {
     clearTimeout(timeoutId);
   }
@@ -144,17 +146,17 @@ export async function GET(request: Request) {
     if (staleEntry !== null) {
       return cachedImageResponse(staleEntry, "STALE");
     }
-    return NextResponse.json({ error: `upstream returned ${response.status}` }, { status: 502 });
+    return errorResponse({ error: `upstream returned ${response.status}` }, 502);
   }
 
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.startsWith("image/")) {
-    return NextResponse.json({ error: "not an image" }, { status: 400 });
+    return errorResponse({ error: "not an image" }, 400);
   }
 
   const contentLength = response.headers.get("content-length");
   if (contentLength !== null && Number(contentLength) > MAX_SIZE) {
-    return NextResponse.json({ error: "image too large" }, { status: 400 });
+    return errorResponse({ error: "image too large" }, 400);
   }
 
   let buffer: ArrayBuffer;
@@ -165,11 +167,11 @@ export async function GET(request: Request) {
     if (staleEntry !== null) {
       return cachedImageResponse(staleEntry, "STALE");
     }
-    return NextResponse.json({ error: "read failed" }, { status: 502 });
+    return errorResponse({ error: "read failed" }, 502);
   }
 
   if (buffer.byteLength > MAX_SIZE) {
-    return NextResponse.json({ error: "image too large" }, { status: 400 });
+    return errorResponse({ error: "image too large" }, 400);
   }
 
   const cachedBuffer = Buffer.from(buffer);
@@ -242,9 +244,17 @@ function cachedImageResponse(entry: ImageCacheEntry, cacheStatus: "HIT" | "MISS"
     headers: {
       "Content-Type": entry.contentType,
       "Cache-Control": CACHE_CONTROL,
+      "CDN-Cache-Control": CDN_CACHE_CONTROL,
       "Content-Length": String(entry.buffer.byteLength),
       "X-Animatch-Image-Cache": cacheStatus
     },
+  });
+}
+
+function errorResponse(body: Record<string, string>, status: number) {
+  return NextResponse.json(body, {
+    status,
+    headers: { "Cache-Control": ERROR_CACHE_CONTROL, "CDN-Cache-Control": ERROR_CACHE_CONTROL }
   });
 }
 
