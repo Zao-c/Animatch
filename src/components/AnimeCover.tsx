@@ -10,6 +10,8 @@ const SIZE_CLASS = {
   md: "h-36 w-24",
   lg: "aspect-[2/3] w-full sm:max-h-[420px]"
 } as const;
+const IMAGE_CANDIDATE_TIMEOUT_MS = 4500;
+const FINAL_IMAGE_TIMEOUT_MS = 12000;
 
 export function AnimeCover({
   src,
@@ -40,6 +42,28 @@ export function AnimeCover({
   }, [candidates, animeId]);
 
   const imageSrc = candidates[candidateIndex] ?? null;
+
+  useEffect(() => {
+    if (state !== "loading" || candidates.length === 0 || imageSrc === null) {
+      return;
+    }
+
+    const hasNextCandidate = candidateIndex < candidates.length - 1;
+    const timeout = window.setTimeout(
+      () => {
+        if (hasNextCandidate) {
+          setCandidateIndex((current) => Math.min(current + 1, candidates.length - 1));
+          setState("loading");
+        } else {
+          setState("error");
+        }
+      },
+      hasNextCandidate ? IMAGE_CANDIDATE_TIMEOUT_MS : FINAL_IMAGE_TIMEOUT_MS
+    );
+
+    return () => window.clearTimeout(timeout);
+  }, [candidateIndex, candidates.length, imageSrc, state]);
+
   const shouldShowImage = Boolean(imageSrc) && state !== "empty" && state !== "error";
   const coverState: "loading" | "loaded" | "error" | "empty" =
     candidates.length === 0 ? "empty" : state;
@@ -108,8 +132,8 @@ function buildImageCandidates(
   const rawSecondary = normalizeImageUrl(secondary);
   const values = [
     proxyExternalImageUrl(rawPrimary),
-    proxyExternalImageUrl(rawSecondary),
     rawPrimary,
+    proxyExternalImageUrl(rawSecondary),
     rawSecondary
   ];
   const seen = new Set<string>();
