@@ -1,7 +1,7 @@
 import { PersonalRunStatus, PoolStatus, Visibility } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "../src/lib/db";
-import { getOrCreateDefaultRun, resetRunForUser } from "../src/lib/run-service";
+import { assertRunAccess, getOrCreateDefaultRun, resetRunForUser } from "../src/lib/run-service";
 
 vi.mock("../src/lib/db", () => ({
   prisma: {
@@ -158,6 +158,41 @@ describe("run reset service", () => {
         })
       })
     );
+  });
+
+  it("getOrCreateDefaultRun rejects archived pool with 403", async () => {
+    db.customPool.findUnique.mockResolvedValue(
+      poolFixture({ status: PoolStatus.ARCHIVED, deletedAt: new Date() })
+    );
+
+    await expect(
+      getOrCreateDefaultRun({
+        userId: "user-a",
+        poolId: "pool-1"
+      })
+    ).rejects.toMatchObject({
+      message: "Pool is archived",
+      statusCode: 403
+    });
+    expect(db.personalRun.findFirst).not.toHaveBeenCalled();
+    expect(db.personalRun.create).not.toHaveBeenCalled();
+  });
+
+  it("assertRunAccess rejects archived pool with 403", async () => {
+    db.customPool.findUnique.mockResolvedValue(
+      poolFixture({ status: PoolStatus.ARCHIVED, deletedAt: new Date() })
+    );
+
+    await expect(
+      assertRunAccess({
+        userId: "user-a",
+        poolId: "pool-1",
+        runId: "run-old"
+      })
+    ).rejects.toMatchObject({
+      message: "Pool is archived",
+      statusCode: 403
+    });
   });
 });
 

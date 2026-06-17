@@ -1282,7 +1282,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             <div>
               <h2 className="text-lg font-semibold text-white">番组设置</h2>
               <p className="mt-1 text-sm text-slate-400">
-                管理基本信息、可见性和归档状态。编辑、导入和归档仍只有创建者可以操作。
+                {pool.isOfficialDemo
+                  ? "管理基本信息、可见性和归档状态。编辑和导入开放给所有登录用户，基础设置和归档仍只有创建者可以操作。"
+                  : "管理基本信息、可见性和归档状态。编辑、导入和归档仍只有创建者可以操作。"}
               </p>
             </div>
           </div>

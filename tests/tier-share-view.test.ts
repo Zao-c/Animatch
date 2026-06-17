@@ -130,7 +130,7 @@ describe("TierShareView", () => {
 
     expect(html).toContain("<img");
     expect(html).toContain(
-      "/api/image-proxy?url=https%3A%2F%2Fcdn.tiermaker.com%2Fimages%2Fitem.png"
+      "/api/image-proxy?url=https%3A%2F%2Fcdn.tiermaker.com%2Fimages%2Fitem-large.png"
     );
     expect(html).toContain("Shared Pool");
     expect(html).toContain("由 zaoc 制作");

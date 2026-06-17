@@ -153,7 +153,7 @@ describe("tier share service", () => {
     });
 
     expect(snapshot.tiers[0].items[0]).toMatchObject({
-      coverUrl: "https://cdn.tiermaker.com/images/item.png",
+      coverUrl: "https://cdn.tiermaker.com/images/item-large.png",
       imageUrl: "https://cdn.tiermaker.com/images/item.png",
       imageSmallUrl: "https://cdn.tiermaker.com/images/item-small.png",
       imageMediumUrl: "https://cdn.tiermaker.com/images/item-medium.png",

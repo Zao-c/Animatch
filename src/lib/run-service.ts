@@ -44,7 +44,15 @@ export async function getOrCreateDefaultRun(params: {
     }
   });
 
-  if (pool === null || pool.deletedAt !== null) {
+  if (pool === null) {
+    throw new AppError("Pool not found", 404, "POOL_NOT_FOUND");
+  }
+
+  if (pool.status === PoolStatus.ARCHIVED) {
+    throw new AppError("Pool is archived", 403, "POOL_ARCHIVED");
+  }
+
+  if (pool.deletedAt !== null) {
     throw new AppError("Pool not found", 404, "POOL_NOT_FOUND");
   }
 
@@ -259,7 +267,15 @@ export async function assertRunAccess(params: RunAccessParams): Promise<Personal
     })
   ]);
 
-  if (pool === null || pool.deletedAt !== null) {
+  if (pool === null) {
+    throw new AppError("Pool not found", 404, "POOL_NOT_FOUND");
+  }
+
+  if (pool.status === PoolStatus.ARCHIVED) {
+    throw new AppError("Pool is archived", 403, "POOL_ARCHIVED");
+  }
+
+  if (pool.deletedAt !== null) {
     throw new AppError("Pool not found", 404, "POOL_NOT_FOUND");
   }
 

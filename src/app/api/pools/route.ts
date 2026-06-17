@@ -66,7 +66,10 @@ export async function GET(request: Request) {
             };
 
     if (status === "ARCHIVED") {
-      where.OR = [{ status: PoolStatus.ARCHIVED }, { deletedAt: { not: null } }];
+      where.AND = [
+        ...(Array.isArray(where.AND) ? where.AND : []),
+        { OR: [{ status: PoolStatus.ARCHIVED }, { deletedAt: { not: null } }] }
+      ];
     } else if (status === "ACTIVE" || !includeArchived) {
       where.status = { not: PoolStatus.ARCHIVED };
       where.deletedAt = null;

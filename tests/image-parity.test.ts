@@ -17,7 +17,7 @@ function fakeItem(overrides: Partial<AnimeCoverUrlFields> = {}): AnimeCoverUrlFi
 }
 
 describe("image parity: display vs export intent", () => {
-  it("both return imageUrl when available", () => {
+  it("both return imageMediumUrl when available and no imageLargeUrl", () => {
     const item = fakeItem({
       imageUrl: "https://img.example.com/cover.jpg",
       imageMediumUrl: "https://img.example.com/medium.jpg",
@@ -25,12 +25,12 @@ describe("image parity: display vs export intent", () => {
     });
     const display = getAnimeCoverUrl(item, { intent: "display" });
     const exportUrl = getAnimeCoverUrl(item, { intent: "export" });
-    expect(display).toBe("https://img.example.com/cover.jpg");
-    expect(exportUrl).toBe("https://img.example.com/cover.jpg");
+    expect(display).toBe("https://img.example.com/medium.jpg");
+    expect(exportUrl).toBe("https://img.example.com/medium.jpg");
     expect(display).toBe(exportUrl);
   });
 
-  it("both fallback to imageMediumUrl when imageUrl is null", () => {
+  it("both prefer imageLargeUrl when available", () => {
     const item = fakeItem({
       imageUrl: null,
       imageMediumUrl: "https://img.example.com/medium.jpg",
@@ -38,8 +38,8 @@ describe("image parity: display vs export intent", () => {
     });
     const display = getAnimeCoverUrl(item, { intent: "display" });
     const exportUrl = getAnimeCoverUrl(item, { intent: "export" });
-    expect(display).toBe("https://img.example.com/medium.jpg");
-    expect(exportUrl).toBe("https://img.example.com/medium.jpg");
+    expect(display).toBe("https://img.example.com/large.jpg");
+    expect(exportUrl).toBe("https://img.example.com/large.jpg");
     expect(display).toBe(exportUrl);
   });
 

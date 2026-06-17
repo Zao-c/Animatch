@@ -53,78 +53,71 @@ export function getAnimeCoverUrl(
   }
 
   if (intent === "thumbnail") {
-    return (
-      displayCover ??
-      genericCover ??
-      thumbnailUrl ??
-      imageUrl ??
-      imageSmallUrl ??
-      imageMediumUrl ??
-      imageLargeUrl ??
-      null
-    );
+    return pickRemoteFirst([
+      thumbnailUrl,
+      imageSmallUrl,
+      imageUrl,
+      imageMediumUrl,
+      imageLargeUrl,
+      displayCover,
+      genericCover
+    ]);
   }
 
   if (intent === "export") {
-    return pickCover({
-      imageUrl,
-      imageMediumUrl,
+    return pickRemoteFirst([
       imageLargeUrl,
-      thumbnailUrl,
+      imageMediumUrl,
+      imageUrl,
       imageSmallUrl,
+      thumbnailUrl,
       displayCover,
       genericCover,
       posterUrl
-    });
+    ]);
   }
 
   if (intent === "display" || intent === "hero") {
-    return pickCover({
-      imageUrl,
-      imageMediumUrl,
+    return pickRemoteFirst([
       imageLargeUrl,
-      thumbnailUrl,
+      imageMediumUrl,
+      imageUrl,
       imageSmallUrl,
+      thumbnailUrl,
       displayCover,
       genericCover
-    });
+    ]);
   }
 
-  return (
-    imageUrl ??
-    imageMediumUrl ??
-    imageLargeUrl ??
-    thumbnailUrl ??
-    imageSmallUrl ??
-    displayCover ??
-    genericCover ??
-    null
-  );
+  return pickRemoteFirst([
+    imageLargeUrl,
+    imageMediumUrl,
+    imageUrl,
+    imageSmallUrl,
+    thumbnailUrl,
+    displayCover,
+    genericCover
+  ]);
 }
 
-interface CoverCandidates {
-  imageUrl: string | null;
-  imageMediumUrl: string | null;
-  imageLargeUrl: string | null;
-  thumbnailUrl: string | null;
-  imageSmallUrl: string | null;
-  displayCover: string | null;
-  genericCover: string | null;
-  posterUrl?: string | null;
+function pickRemoteFirst(candidates: (string | null)[]): string | null {
+  const remote: string[] = [];
+  const localSvg: string[] = [];
+
+  for (const candidate of candidates) {
+    if (candidate === null) continue;
+    if (isLocalSvg(candidate)) {
+      localSvg.push(candidate);
+    } else {
+      remote.push(candidate);
+    }
+  }
+
+  return remote[0] ?? localSvg[0] ?? null;
 }
 
-function pickCover(candidates: CoverCandidates): string | null {
-  return (
-    candidates.imageUrl ??
-    candidates.imageMediumUrl ??
-    candidates.imageLargeUrl ??
-    candidates.thumbnailUrl ??
-    candidates.imageSmallUrl ??
-    candidates.displayCover ??
-    candidates.genericCover ??
-    candidates.posterUrl ??
-    null
-  );
+function isLocalSvg(url: string): boolean {
+  return url.endsWith(".svg") && !url.startsWith("http");
 }
 
 function nonEmpty(value: string | null | undefined): string | null {

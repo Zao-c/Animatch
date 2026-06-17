@@ -685,5 +685,125 @@ describe("pools API management", () => {
 
     expect(userBResponse.status).toBe(403);
   });
+
+  it("GET /api/pools?view=all&status=ARCHIVED keeps view scope (does not leak other users' private archived pools)", async () => {
+    mockedGetCurrentUser.mockResolvedValue({
+      id: "user-1",
+      username: "user-1",
+      name: "User 1",
+      image: null
+    });
+
+    mockedCustomPool.findMany.mockResolvedValue([
+      pool({
+        id: "own-archived",
+        creatorId: "user-1",
+        visibility: Visibility.PRIVATE,
+        status: PoolStatus.ARCHIVED,
+        deletedAt: new Date(),
+        _count: { poolAnime: 2, poolComparisons: 0 }
+      })
+    ]);
+
+    const response = await LIST_POOLS(
+      new Request("http://test.local/api/pools?view=all&status=ARCHIVED")
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCustomPool.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { creatorId: "user-1" },
+            { visibility: Visibility.PUBLIC }
+          ],
+          AND: [
+            { OR: [{ status: PoolStatus.ARCHIVED }, { deletedAt: { not: null } }] }
+          ]
+        })
+      })
+    );
+  });
+
+  it("GET /api/pools?view=all&status=ARCHIVED returns own archived pools within scope", async () => {
+    mockedGetCurrentUser.mockResolvedValue({
+      id: "user-1",
+      username: "user-1",
+      name: "User 1",
+      image: null
+    });
+
+    mockedCustomPool.findMany.mockResolvedValue([
+      pool({
+        id: "own-archived",
+        creatorId: "user-1",
+        visibility: Visibility.PRIVATE,
+        status: PoolStatus.ARCHIVED,
+        deletedAt: new Date(),
+        _count: { poolAnime: 2, poolComparisons: 0 }
+      })
+    ]);
+
+    const response = await LIST_POOLS(
+      new Request("http://test.local/api/pools?view=all&status=ARCHIVED")
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data.items).toHaveLength(1);
+    expect(payload.data.items[0].id).toBe("own-archived");
+  });
+
+  it("GET /api/pools?view=public does not return private or unlisted pools", async () => {
+    mockedGetCurrentUser.mockResolvedValue({
+      id: "user-1",
+      username: "user-1",
+      name: "User 1",
+      image: null
+    });
+
+    mockedCustomPool.findMany.mockResolvedValue([]);
+
+    const response = await LIST_POOLS(
+      new Request("http://test.local/api/pools?view=public")
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCustomPool.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          visibility: Visibility.PUBLIC,
+          deletedAt: null,
+          status: { not: PoolStatus.ARCHIVED }
+        })
+      })
+    );
+  });
+
+  it("GET /api/pools?status=ACTIVE filters within view scope without expanding it", async () => {
+    mockedGetCurrentUser.mockResolvedValue({
+      id: "user-1",
+      username: "user-1",
+      name: "User 1",
+      image: null
+    });
+
+    mockedCustomPool.findMany.mockResolvedValue([]);
+
+    const response = await LIST_POOLS(
+      new Request("http://test.local/api/pools?view=mine&status=ACTIVE")
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCustomPool.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          creatorId: "user-1",
+          deletedAt: null,
+          status: { not: PoolStatus.ARCHIVED }
+        })
+      })
+    );
+  });
 });
 

@@ -1,5 +1,6 @@
 import { badRequest, ok, serverError } from "@/lib/api-response";
 import { createManualAnime, toPublicAnime } from "@/lib/anime-service";
+import { requireCurrentUser } from "@/lib/auth-session";
 
 interface ManualBody {
   title?: string;
@@ -16,6 +17,8 @@ interface ManualBody {
 }
 
 export async function POST(request: Request) {
+  const user = await requireCurrentUser();
+
   const body = (await request.json().catch(() => null)) as ManualBody | null;
 
   if (!body || typeof body.title !== "string" || !body.title.trim()) {

@@ -137,7 +137,7 @@ describe("anime cover rendering", () => {
     expect(html).toContain('data-cover-fit="contain"');
   });
 
-  it("DuelAnimeCard prefers imageUrl over thumbnailUrl for hero covers", () => {
+  it("DuelAnimeCard prefers imageMediumUrl over imageUrl for hero covers", () => {
     const html = renderToStaticMarkup(
       React.createElement(DuelAnimeCard, {
         anime: baseAnime({
@@ -155,7 +155,7 @@ describe("anime cover rendering", () => {
       })
     );
 
-    expect(html).toContain('src="https://example.com/high.jpg"');
+    expect(html).toContain('src="https://example.com/medium.jpg"');
     expect(html).not.toContain('src="https://example.com/thumb.jpg"');
     expect(html).toContain('data-cover-fit="cover"');
     expect(html).toContain('referrerPolicy="no-referrer"');
@@ -216,7 +216,7 @@ describe("anime cover rendering", () => {
     expect(html).toContain('data-cover-fit="contain"');
   });
 
-  it("TierAnimeCard prefers imageUrl over thumbnailUrl for display covers", () => {
+  it("TierAnimeCard prefers imageMediumUrl over imageUrl for display covers", () => {
     const html = renderToStaticMarkup(
       React.createElement(TierAnimeCard, {
         item: tierItem({
@@ -233,7 +233,7 @@ describe("anime cover rendering", () => {
       })
     );
 
-    expect(html).toContain('src="https://example.com/high.jpg"');
+    expect(html).toContain('src="https://example.com/medium.jpg"');
     expect(html).not.toContain('src="https://example.com/thumb.jpg"');
     expect(html).toContain('data-cover-fit="cover"');
   });
