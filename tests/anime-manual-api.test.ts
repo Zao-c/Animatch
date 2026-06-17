@@ -1,12 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "../src/app/api/anime/manual/route";
 import { createManualAnime, toPublicAnime } from "../src/lib/anime-service";
-import { requireCurrentUser } from "../src/lib/auth-session";
-import { AppError } from "../src/lib/app-error";
+import { getCurrentUser } from "../src/lib/auth-session";
 
 vi.mock("../src/lib/auth-session", () => ({
-  requireCurrentUser: vi.fn(),
-  getCurrentUser: vi.fn()
+  getCurrentUser: vi.fn(),
+  requireCurrentUser: vi.fn()
 }));
 
 vi.mock("../src/lib/anime-service", () => ({
@@ -14,7 +13,7 @@ vi.mock("../src/lib/anime-service", () => ({
   toPublicAnime: vi.fn()
 }));
 
-const mockedRequireCurrentUser = vi.mocked(requireCurrentUser);
+const mockedGetCurrentUser = vi.mocked(getCurrentUser);
 const mockedCreateManualAnime = vi.mocked(createManualAnime);
 const mockedToPublicAnime = vi.mocked(toPublicAnime);
 
@@ -23,27 +22,29 @@ describe("POST /api/anime/manual", () => {
     vi.clearAllMocks();
   });
 
-  it("returns 401 for anonymous requests", async () => {
-    mockedRequireCurrentUser.mockRejectedValueOnce(
-      new AppError("请先登录。", 401, "AUTH_REQUIRED")
+  it("returns 401 JSON for anonymous requests", async () => {
+    mockedGetCurrentUser.mockResolvedValue(null);
+
+    const response = await POST(
+      new Request("http://test.local/api/anime/manual", {
+        method: "POST",
+        body: JSON.stringify({ title: "Test Anime" })
+      })
     );
 
-    await expect(
-      POST(
-        new Request("http://test.local/api/anime/manual", {
-          method: "POST",
-          body: JSON.stringify({ title: "Test Anime" })
-        })
-      )
-    ).rejects.toMatchObject({
-      statusCode: 401,
-      message: "请先登录。"
+    expect(response.status).toBe(401);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      ok: false,
+      error: {
+        message: "请先登录。"
+      }
     });
     expect(mockedCreateManualAnime).not.toHaveBeenCalled();
   });
 
-  it("succeeds for logged-in users", async () => {
-    mockedRequireCurrentUser.mockResolvedValue({
+  it("returns 201 for logged-in users", async () => {
+    mockedGetCurrentUser.mockResolvedValue({
       id: "user-1",
       username: "user-1",
       name: "User 1",
@@ -102,11 +103,18 @@ describe("POST /api/anime/manual", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(mockedCreateManualAnime).toHaveBeenCalled();
+    const body = await response.json();
+    expect(body).toMatchObject({
+      ok: true,
+      data: { id: "anime-1", title: "Test Anime" }
+    });
+    expect(mockedCreateManualAnime).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Test Anime" })
+    );
   });
 
   it("returns 400 when title is missing", async () => {
-    mockedRequireCurrentUser.mockResolvedValue({
+    mockedGetCurrentUser.mockResolvedValue({
       id: "user-1",
       username: "user-1",
       name: "User 1",
@@ -121,6 +129,31 @@ describe("POST /api/anime/manual", () => {
     );
 
     expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      ok: false,
+      error: {
+        message: "title is required"
+      }
+    });
     expect(mockedCreateManualAnime).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 when body is missing entirely", async () => {
+    mockedGetCurrentUser.mockResolvedValue({
+      id: "user-1",
+      username: "user-1",
+      name: "User 1",
+      image: null
+    });
+
+    const response = await POST(
+      new Request("http://test.local/api/anime/manual", {
+        method: "POST",
+        body: "not-json"
+      })
+    );
+
+    expect(response.status).toBe(400);
   });
 });

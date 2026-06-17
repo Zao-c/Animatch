@@ -1,6 +1,6 @@
-import { badRequest, ok, serverError } from "@/lib/api-response";
+import { badRequest, ok, serverError, unauthorized } from "@/lib/api-response";
 import { createManualAnime, toPublicAnime } from "@/lib/anime-service";
-import { requireCurrentUser } from "@/lib/auth-session";
+import { getCurrentUser } from "@/lib/auth-session";
 
 interface ManualBody {
   title?: string;
@@ -17,7 +17,8 @@ interface ManualBody {
 }
 
 export async function POST(request: Request) {
-  const user = await requireCurrentUser();
+  const user = await getCurrentUser();
+  if (!user) return unauthorized("请先登录。");
 
   const body = (await request.json().catch(() => null)) as ManualBody | null;
 
