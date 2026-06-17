@@ -5,6 +5,7 @@ import { searchBangumiAnime, type NormalizedBangumiSubject } from "@/lib/bangumi
 import { prisma } from "@/lib/db";
 import { canEditPoolContent } from "@/lib/pool-permissions";
 import { getEffectiveAnimeDisplay } from "@/lib/anime-display";
+import { prewarmCoverCacheBackground } from "@/lib/server/cover-cache-prewarm";
 
 export const runtime = "nodejs";
 
@@ -261,6 +262,11 @@ export async function POST(
       skipped.push(entry.animeId);
     }
   }
+
+  prewarmCoverCacheBackground(
+    applied.map((a) => a.coverUrl),
+    { limit: 30, concurrency: 5 }
+  );
 
   return ok({
     applied: applied.length,

@@ -7,6 +7,20 @@ import {
   type TierMakerUrlImportInput
 } from "@/lib/tiermaker-import";
 import { formatTierMakerAutoParseError } from "@/lib/tiermaker-url-list";
+import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { prewarmCoverCacheBackground } from "@/lib/server/cover-cache-prewarm";
+import type { PublicAnime } from "@/lib/anime-service";
+
+function prewarmImportResults(
+  added: Array<{ anime: PublicAnime; display?: { coverUrl?: string | null } }>
+): void {
+  const urls = added.flatMap((entry) => {
+    const primary = entry.display?.coverUrl ?? null;
+    const secondary = getAnimeCoverUrl(entry.anime, { intent: "export" });
+    return [primary, secondary];
+  });
+  prewarmCoverCacheBackground(urls, { limit: 60, concurrency: 5 });
+}
 
 interface RouteContext {
   params: {
@@ -31,6 +45,8 @@ export async function POST(request: Request, context: RouteContext) {
         input: body as unknown as TierMakerUrlImportInput
       });
 
+      prewarmImportResults(result.added);
+
       return ok({
         added: result.added,
         skipped: result.skipped,
@@ -44,6 +60,8 @@ export async function POST(request: Request, context: RouteContext) {
       userId: user.id,
       input: body as unknown as TierMakerImportInput
     });
+
+    prewarmImportResults(result.added);
 
     return ok(result, { status: result.importedCount > 0 ? 201 : 200 });
   } catch (error) {

@@ -6,6 +6,15 @@ import { isAdminEditSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 import { canAddAnime } from "@/lib/pool-permissions";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
+import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { prewarmCoverCacheBackground } from "@/lib/server/cover-cache-prewarm";
+import type { Anime } from "@prisma/client";
+
+function prewarmAnimeCover(anime: Anime): void {
+  const primary = getAnimeCoverUrl(anime, { intent: "display" });
+  const secondary = getAnimeCoverUrl(anime, { intent: "export" });
+  prewarmCoverCacheBackground([primary, secondary], { limit: 2 });
+}
 
 interface RouteContext {
   params: {
@@ -64,6 +73,7 @@ export async function POST(request: Request, context: RouteContext) {
     });
 
     if (existingEntry !== null) {
+      prewarmAnimeCover(existingEntry.anime);
       return ok({
         poolAnime: serializePoolAnime(existingEntry)
       });
@@ -88,6 +98,8 @@ export async function POST(request: Request, context: RouteContext) {
         anime: true
       }
     });
+
+    prewarmAnimeCover(anime);
 
     return ok(
       {

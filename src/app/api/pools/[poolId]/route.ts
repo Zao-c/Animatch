@@ -5,6 +5,8 @@ import { isAdminEditSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 import { canManagePool, getPoolPermissions } from "@/lib/pool-permissions";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
+import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { prewarmCoverCacheBackground } from "@/lib/server/cover-cache-prewarm";
 
 interface RouteContext {
   params: {
@@ -67,6 +69,17 @@ export async function GET(_request: Request, context: RouteContext) {
       return forbidden("你没有权限访问这个番组。");
     }
 
+    const animeEntries = pool.poolAnime.map(serializePoolAnime);
+
+    prewarmCoverCacheBackground(
+      animeEntries.slice(0, 30).flatMap((entry) => {
+        const primary = entry.display?.coverUrl ?? null;
+        const secondary = getAnimeCoverUrl(entry.anime, { intent: "export" });
+        return [primary, secondary];
+      }),
+      { limit: 60, concurrency: 3 }
+    );
+
     return ok({
       id: pool.id,
       creatorId: pool.creatorId,
@@ -84,7 +97,7 @@ export async function GET(_request: Request, context: RouteContext) {
       updatedAt: pool.updatedAt,
       deletedAt: pool.deletedAt,
       permissions,
-      anime: pool.poolAnime.map(serializePoolAnime)
+      anime: animeEntries
     });
   } catch (error) {
     return fromError(error);

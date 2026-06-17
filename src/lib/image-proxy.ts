@@ -40,3 +40,23 @@ export function warmImageProxyCache(url: string | null | undefined): void {
     });
   }, 0);
 }
+
+export function getProxiedCoverCandidates(
+  primary: string | null | undefined,
+  secondary: string | null | undefined
+): string[] {
+  const values = [
+    proxyExternalImageUrl(primary),
+    proxyExternalImageUrl(secondary),
+    primary,
+    secondary
+  ];
+
+  const seen = new Set<string>();
+  return values.flatMap((url) => {
+    if (!url) return [];
+    if (seen.has(url)) return [];
+    seen.add(url);
+    return [url];
+  });
+}
