@@ -1,0 +1,346 @@
+import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/db";
+import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { prewarmCoverCacheBackground } from "@/lib/server/cover-cache-prewarm";
+import { GLOBAL_SEARCH_EXCLUDED_SOURCES, toPublicAnime } from "@/lib/anime-service";
+import type { Anime } from "@prisma/client";
+
+export type ImportSource = "BANGUMI" | "MANAMI" | "MIXED";
+export type ImportMode = "YEAR" | "TAG" | "TOP" | "USER_COLLECTION";
+
+export interface QuickImportParams {
+  source: ImportSource;
+  mode: ImportMode;
+  year?: number;
+  yearFrom?: number;
+  yearTo?: number;
+  type?: string;
+  tags?: string[];
+  limit?: number;
+  sort?: string;
+  bangumiUserId?: string;
+  collectionType?: string;
+}
+
+export interface QuickImportCandidate {
+  animeId: string;
+  source: string;
+  bgmId: number | null;
+  title: string;
+  titleCn: string | null;
+  year: number | null;
+  animeType: string | null;
+  tags: string[];
+  score: number | null;
+  rank: number | null;
+  imageUrl: string | null;
+  imageMediumUrl: string | null;
+  imageLargeUrl: string | null;
+  thumbnailUrl: string | null;
+  coverUrl: string | null;
+  alreadyInPool?: boolean;
+}
+
+export interface QuickImportPreviewResult {
+  candidates: QuickImportCandidate[];
+  warnings: string[];
+  total: number;
+}
+
+export interface QuickImportCreateResult {
+  poolId: string;
+  poolName: string;
+  addedCount: number;
+  skippedCount: number;
+  failedCount: number;
+}
+
+export interface QuickImportAddResult {
+  addedCount: number;
+  skippedCount: number;
+  failedCount: number;
+  addedItems: { animeId: string; title: string }[];
+}
+
+const MAX_LIMIT = 100;
+
+function clampLimit(raw: number | undefined): number {
+  if (raw === undefined || raw === null) return 50;
+  return Math.max(1, Math.min(raw, MAX_LIMIT));
+}
+
+function resolveSources(source: ImportSource): string[] {
+  if (source === "BANGUMI") return ["BANGUMI"];
+  if (source === "MANAMI") return ["MANAMI"];
+  return ["BANGUMI", "MANAMI"];
+}
+
+function candidateFromAnime(anime: Anime, poolAnimeIds?: Set<string>): QuickImportCandidate {
+  return {
+    animeId: anime.id,
+    source: anime.source,
+    bgmId: anime.bgmId,
+    title: anime.title,
+    titleCn: anime.titleCn,
+    year: anime.year,
+    animeType: anime.animeType,
+    tags: anime.tags ?? [],
+    score: anime.bangumiScore,
+    rank: anime.bangumiRank,
+    imageUrl: anime.imageUrl,
+    imageMediumUrl: anime.imageMediumUrl,
+    imageLargeUrl: anime.imageLargeUrl,
+    thumbnailUrl: anime.thumbnailUrl,
+    coverUrl: getAnimeCoverUrl(anime, { intent: "display" }),
+    alreadyInPool: poolAnimeIds ? poolAnimeIds.has(anime.id) : undefined,
+  };
+}
+
+export async function previewQuickImport(
+  params: QuickImportParams,
+  poolAnimeIds?: Set<string>
+): Promise<QuickImportPreviewResult> {
+  const warnings: string[] = [];
+  const limit = clampLimit(params.limit);
+  const sources = resolveSources(params.source);
+  const sourceFilter = sources.includes("BANGUMI") && sources.includes("MANAMI")
+    ? { notIn: GLOBAL_SEARCH_EXCLUDED_SOURCES }
+    : { in: sources as Prisma.EnumAnimeSourceTypeFilter["in"] };
+
+  if (params.source === "MANAMI") {
+    if (!sources.includes("MANAMI")) {
+      return { candidates: [], warnings: ["未选择有效数据源"], total: 0 };
+    }
+  }
+
+  const where: Prisma.AnimeWhereInput = {
+    source: sourceFilter,
+    deletedAt: null,
+  };
+  const andConditions: Prisma.AnimeWhereInput[] = [];
+
+  if (params.mode === "YEAR") {
+    if (!params.year) {
+      warnings.push("年份模式需要指定 year 参数");
+    }
+    if (params.year) {
+      where.year = params.year;
+    }
+    if (params.type && params.type !== "ALL") {
+      where.animeType = params.type.toUpperCase();
+    }
+  }
+
+  if (params.mode === "TAG") {
+    if (!params.tags || params.tags.length === 0) {
+      warnings.push("标签模式需要指定至少一个标签");
+    } else {
+      andConditions.push(...params.tags.map((tag) => ({ tags: { has: tag } })));
+    }
+    if (params.yearFrom !== undefined || params.yearTo !== undefined) {
+      where.year = {};
+      if (params.yearFrom !== undefined) where.year.gte = params.yearFrom;
+      if (params.yearTo !== undefined) where.year.lte = params.yearTo;
+    }
+    if (params.type && params.type !== "ALL") {
+      where.animeType = params.type.toUpperCase();
+    }
+  }
+
+  if (params.mode === "TOP") {
+    if (params.type && params.type !== "ALL") {
+      where.animeType = params.type.toUpperCase();
+    }
+    if (params.year) {
+      where.year = params.year;
+    }
+  }
+
+  if (params.mode === "USER_COLLECTION") {
+    warnings.push("用户收藏导入功能暂未实现，已切换为本地搜索模式");
+    if (params.tags && params.tags.length > 0) {
+      andConditions.push(...params.tags.map((tag) => ({ tags: { has: tag } })));
+    }
+    if (params.year) {
+      where.year = params.year;
+    }
+    if (params.type && params.type !== "ALL") {
+      where.animeType = params.type.toUpperCase();
+    }
+  }
+
+  if (andConditions.length > 0) {
+    where.AND = andConditions;
+  }
+
+  let orderBy: Prisma.AnimeOrderByWithRelationInput | Prisma.AnimeOrderByWithRelationInput[];
+  if (params.mode === "TOP") {
+    orderBy = [{ bangumiRank: "asc" }, { bangumiScore: "desc" }];
+  } else if (params.sort === "year") {
+    orderBy = { year: "desc" };
+  } else if (params.sort === "score") {
+    orderBy = { bangumiScore: "desc" };
+  } else if (params.sort === "rank") {
+    orderBy = { bangumiRank: "asc" };
+  } else {
+    orderBy = { title: "asc" };
+  }
+
+  const items = await prisma.anime.findMany({
+    where,
+    orderBy,
+    take: limit,
+  });
+
+  const deduped = new Map<string, Anime>();
+  for (const item of items) {
+    if (!deduped.has(item.id)) {
+      deduped.set(item.id, item);
+    }
+  }
+
+  const candidates = Array.from(deduped.values()).map((a) => candidateFromAnime(a, poolAnimeIds));
+
+  const missingCovers = candidates.filter((c) => !c.coverUrl).length;
+  if (missingCovers > 0) {
+    warnings.push(`${missingCovers} 部作品缺少封面`);
+  }
+
+  return {
+    candidates,
+    warnings,
+    total: candidates.length,
+  };
+}
+
+export async function createPoolFromQuickImport(
+  params: QuickImportParams & { poolName: string; description?: string; visibility?: string },
+  userId: string
+): Promise<QuickImportCreateResult> {
+  const normalizedName = params.poolName.trim();
+  if (!normalizedName || normalizedName.length > 80) {
+    throw new Error("番组名不能为空且不超过80个字符");
+  }
+
+  const { candidates, warnings } = await previewQuickImport(params);
+
+  if (candidates.length === 0) {
+    throw new Error("没有找到符合条件的作品");
+  }
+
+  const visibility = params.visibility === "PUBLIC" || params.visibility === "UNLISTED"
+    ? params.visibility
+    : "PRIVATE";
+
+  const pool = await prisma.customPool.create({
+    data: {
+      name: normalizedName,
+      description: params.description?.trim() || null,
+      visibility: visibility as "PUBLIC" | "PRIVATE" | "UNLISTED",
+      creatorId: userId,
+    },
+  });
+
+  const result = await addAnimeToPoolBatch(pool.id, candidates.map((c) => c.animeId));
+
+  return {
+    poolId: pool.id,
+    poolName: normalizedName,
+    ...result,
+  };
+}
+
+export async function addQuickImportToPool(
+  poolId: string,
+  animeIds: string[],
+  userId: string
+): Promise<QuickImportAddResult> {
+  const pool = await prisma.customPool.findUnique({ where: { id: poolId } });
+  if (!pool || pool.deletedAt) {
+    throw new Error("番组不存在或已归档");
+  }
+
+  const result = await addAnimeToPoolBatch(poolId, animeIds);
+
+  return {
+    ...result,
+    addedItems: await getAddedTitles(poolId, animeIds.slice(0, result.addedCount)),
+  };
+}
+
+async function addAnimeToPoolBatch(
+  poolId: string,
+  animeIds: string[]
+): Promise<{ addedCount: number; skippedCount: number; failedCount: number }> {
+  let addedCount = 0;
+  let skippedCount = 0;
+  let failedCount = 0;
+
+  const existingEntries = await prisma.poolAnime.findMany({
+    where: { poolId, animeId: { in: animeIds } },
+    select: { animeId: true },
+  });
+  const existingIds = new Set(existingEntries.map((e) => e.animeId));
+
+  const maxPosition = await prisma.poolAnime.aggregate({
+    where: { poolId },
+    _max: { position: true },
+  });
+  let nextPosition = (maxPosition._max.position ?? 0) + 1;
+
+  const coversToPrewarm: string[] = [];
+
+  for (const animeId of animeIds) {
+    if (existingIds.has(animeId)) {
+      skippedCount++;
+      continue;
+    }
+
+    try {
+      const anime = await prisma.anime.findUnique({ where: { id: animeId } });
+      if (!anime) {
+        failedCount++;
+        continue;
+      }
+
+      await prisma.poolAnime.create({
+        data: {
+          poolId,
+          animeId,
+          position: nextPosition++,
+        },
+      });
+
+      const primary = getAnimeCoverUrl(anime, { intent: "display" });
+      const secondary = getAnimeCoverUrl(anime, { intent: "export" });
+      if (primary) coversToPrewarm.push(primary);
+      if (secondary) coversToPrewarm.push(secondary);
+
+      addedCount++;
+    } catch {
+      failedCount++;
+    }
+  }
+
+  if (coversToPrewarm.length > 0) {
+    prewarmCoverCacheBackground(coversToPrewarm, { limit: 60, concurrency: 5 });
+  }
+
+  return { addedCount, skippedCount, failedCount };
+}
+
+async function getAddedTitles(
+  poolId: string,
+  animeIds: string[]
+): Promise<{ animeId: string; title: string }[]> {
+  const existingEntries = await prisma.poolAnime.findMany({
+    where: { poolId, animeId: { in: animeIds } },
+    include: { anime: { select: { title: true, titleCn: true, titleJa: true } } },
+  });
+  return existingEntries.map((e) => ({
+    animeId: e.animeId,
+    title: e.anime.titleCn ?? e.anime.titleJa ?? e.anime.title,
+  }));
+}
+
+export { QUICK_IMPORT_PRESETS } from "./quick-import-presets";

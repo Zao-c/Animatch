@@ -8,6 +8,7 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
 import { createPool } from "@/lib/client-api";
+import { QuickImportPanel } from "@/components/QuickImportPanel";
 
 const NAME_CHIPS = ["四月新番", "2024 年度动画", "恋爱番对决", "JUMP 系作品", "我的补番清单"];
 
@@ -125,6 +126,8 @@ export default function NewPoolPage() {
             </AppButton>
           </form>
         </AppCard>
+
+        <QuickImportPanel />
 
         <aside className="rounded-3xl border border-white/10 bg-slate-950/24 p-5 sm:p-6">
           <div className="flex items-center justify-between gap-3">

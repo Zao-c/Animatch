@@ -1274,3 +1274,96 @@ export function submitSeasonVote(poolId: string, seasonId: string, data: {
 }) {
   return fetchJson<SeasonVoteResult>("/api/pools/" + poolId + "/seasons/" + seasonId + "/vote", { method: "POST", body: data });
 }
+
+export interface QuickImportCandidate {
+  animeId: string;
+  source: string;
+  bgmId: number | null;
+  title: string;
+  titleCn: string | null;
+  year: number | null;
+  animeType: string | null;
+  tags: string[];
+  score: number | null;
+  rank: number | null;
+  imageUrl: string | null;
+  imageMediumUrl: string | null;
+  imageLargeUrl: string | null;
+  thumbnailUrl: string | null;
+  coverUrl: string | null;
+  alreadyInPool?: boolean;
+}
+
+export interface QuickImportPreviewResult {
+  candidates: QuickImportCandidate[];
+  warnings: string[];
+  total: number;
+}
+
+export interface QuickImportCreateResult {
+  poolId: string;
+  poolName: string;
+  addedCount: number;
+  skippedCount: number;
+  failedCount: number;
+}
+
+export interface QuickImportAddResult {
+  addedCount: number;
+  skippedCount: number;
+  failedCount: number;
+  addedItems: { animeId: string; title: string }[];
+}
+
+export function previewQuickImport(data: {
+  params: {
+    source: string;
+    mode: string;
+    year?: number;
+    yearFrom?: number;
+    yearTo?: number;
+    type?: string;
+    tags?: string[];
+    limit?: number;
+    sort?: string;
+    bangumiUserId?: string;
+    collectionType?: string;
+  };
+  poolId?: string;
+}) {
+  return fetchJson<QuickImportPreviewResult>("/api/pools/quick-import/preview", {
+    method: "POST",
+    body: data
+  });
+}
+
+export function createPoolFromQuickImport(data: {
+  poolName: string;
+  description?: string;
+  visibility?: string;
+  params: {
+    source: string;
+    mode: string;
+    year?: number;
+    yearFrom?: number;
+    yearTo?: number;
+    type?: string;
+    tags?: string[];
+    limit?: number;
+    sort?: string;
+    bangumiUserId?: string;
+    collectionType?: string;
+  };
+}) {
+  return fetchJson<QuickImportCreateResult>("/api/pools/quick-import/create", {
+    method: "POST",
+    body: data
+  });
+}
+
+export function addQuickImportToPool(poolId: string, animeIds: string[]) {
+  return fetchJson<QuickImportAddResult>(`/api/pools/${poolId}/quick-import`, {
+    method: "POST",
+    body: { animeIds }
+  });
+}
