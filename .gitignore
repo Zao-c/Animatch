@@ -23,3 +23,7 @@ public/uploads/anime-covers/*
 !public/uploads/anime-covers/.gitkeep
 public/uploads/custom-items/*
 !public/uploads/custom-items/.gitkeep
+animatch-*.bundle
+mihomo-upload/
+screenshots/
+output/
