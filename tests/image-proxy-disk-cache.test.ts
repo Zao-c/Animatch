@@ -56,7 +56,7 @@ afterEach(() => {
 });
 
 function makePngResponse(data: Uint8Array = new Uint8Array([1, 2, 3])) {
-  return new Response(data, {
+  return new Response(new Uint8Array(data).buffer, {
     status: 200,
     headers: {
       "content-type": "image/png",

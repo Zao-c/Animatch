@@ -5,23 +5,23 @@ describe("preload-images cover candidate alignment", () => {
   const source = readFileSync("src/lib/preload-images.ts", "utf8");
   const coverSource = readFileSync("src/components/AnimeCover.tsx", "utf8");
 
-  it("preload candidate order matches AnimeCover candidate order", () => {
-    expect(source).toContain("proxyExternalImageUrl(heroUrl)");
+  it("preload candidate order matches AnimeCover raw-first order", () => {
     expect(source).toContain("heroUrl,");
-    expect(source).toContain("proxyExternalImageUrl(exportUrl)");
+    expect(source).toContain("proxyExternalImageUrl(heroUrl)");
     expect(source).toContain("exportUrl");
+    expect(source).toContain("proxyExternalImageUrl(exportUrl)");
   });
 
-  it("proxy URLs come before raw URLs, interleaved not consecutive", () => {
+  it("raw URLs come before proxy URLs, raw-primary first", () => {
     const candidateBlock = source.slice(source.indexOf("const values = ["));
-    const proxyHeroIdx = candidateBlock.indexOf("proxyExternalImageUrl(heroUrl)");
     const rawHeroIdx = candidateBlock.indexOf("heroUrl,");
-    const proxyExportIdx = candidateBlock.indexOf("proxyExternalImageUrl(exportUrl)");
+    const proxyHeroIdx = candidateBlock.indexOf("proxyExternalImageUrl(heroUrl)");
     const rawExportIdx = candidateBlock.indexOf("exportUrl");
+    const proxyExportIdx = candidateBlock.indexOf("proxyExternalImageUrl(exportUrl)");
 
-    expect(proxyHeroIdx).toBeLessThan(rawHeroIdx);
-    expect(rawHeroIdx).toBeLessThan(proxyExportIdx);
-    expect(proxyExportIdx).toBeLessThan(rawExportIdx);
+    expect(rawHeroIdx).toBeLessThan(proxyHeroIdx);
+    expect(proxyHeroIdx).toBeLessThan(rawExportIdx);
+    expect(rawExportIdx).toBeLessThan(proxyExportIdx);
   });
 
   it("deduplicates preload candidate values", () => {

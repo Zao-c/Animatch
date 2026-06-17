@@ -83,6 +83,7 @@ export interface PoolSummary {
   uiStatusLabel?: string;
   sourceType?: string;
   coverImages?: string[];
+  coverImageFallbacks?: (string | null)[];
   defaultRunId?: string | null;
   permissions?: PoolPermissions;
   communitySummary?: CommunityPoolSummary | null;

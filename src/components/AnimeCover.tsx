@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import React, { useEffect, useMemo, useState } from "react";
-import { proxyExternalImageUrl } from "@/lib/image-proxy";
+import { proxyExternalImageUrl, warmImageProxyCache } from "@/lib/image-proxy";
 
 const SIZE_CLASS = {
   sm: "h-20 w-14",
@@ -40,6 +40,11 @@ export function AnimeCover({
     setCandidateIndex(0);
     setState(candidates.length > 0 ? "loading" : "empty");
   }, [candidates, animeId]);
+
+  useEffect(() => {
+    warmImageProxyCache(src);
+    warmImageProxyCache(secondarySrc);
+  }, [src, secondarySrc]);
 
   const imageSrc = candidates[candidateIndex] ?? null;
 
@@ -109,7 +114,10 @@ export function AnimeCover({
           className={`relative z-10 h-full w-full ${imageFitClass} transition-opacity duration-300 ${
             state === "loaded" ? "opacity-100" : "opacity-0"
           }`}
-          onLoad={() => setState("loaded")}
+          onLoad={() => {
+            setState("loaded");
+            warmImageProxyCache(imageSrc);
+          }}
           onError={() => {
             if (candidateIndex < candidates.length - 1) {
               setCandidateIndex((current) => current + 1);
@@ -131,10 +139,10 @@ function buildImageCandidates(
   const rawPrimary = normalizeImageUrl(primary);
   const rawSecondary = normalizeImageUrl(secondary);
   const values = [
-    proxyExternalImageUrl(rawPrimary),
     rawPrimary,
-    proxyExternalImageUrl(rawSecondary),
-    rawSecondary
+    proxyExternalImageUrl(rawPrimary),
+    rawSecondary,
+    proxyExternalImageUrl(rawSecondary)
   ];
   const seen = new Set<string>();
 

@@ -115,7 +115,7 @@ describe("anime cover rendering", () => {
       })
     );
 
-    expect(html).toContain("src=\"/api/image-proxy?url=https%3A%2F%2Fimg.example.test%2Fbangumi.jpg\"");
+    expect(html).toContain("src=\"https://img.example.test/bangumi.jpg\"");
     expect(html).toContain('referrerPolicy="no-referrer"');
     expect(html).toContain('data-cover-fit="cover"');
   });
@@ -155,7 +155,7 @@ describe("anime cover rendering", () => {
       })
     );
 
-    expect(html).toContain("src=\"/api/image-proxy?url=https%3A%2F%2Fexample.com%2Fmedium.jpg\"");
+    expect(html).toContain("src=\"https://example.com/medium.jpg\"");
     expect(html).not.toContain("thumb.jpg");
     expect(html).toContain('data-cover-fit="cover"');
     expect(html).toContain('referrerPolicy="no-referrer"');
@@ -374,7 +374,7 @@ describe("match cover stability", () => {
     );
 
     expect(html).toContain(
-      "src=\"/api/image-proxy?url=https%3A%2F%2Fexample.com%2Flarge.jpg\""
+      "src=\"https://example.com/large.jpg\""
     );
   });
 
@@ -399,7 +399,7 @@ describe("match cover stability", () => {
     );
 
     expect(html).toContain(
-      "src=\"/api/image-proxy?url=https%3A%2F%2Fexample.com%2Flarge.jpg\""
+      "src=\"https://example.com/large.jpg\""
     );
   });
 
@@ -451,7 +451,7 @@ describe("match cover stability", () => {
     );
 
     expect(html).toContain(
-      "src=\"/api/image-proxy?url=https%3A%2F%2Fexample.com%2Fsmall.jpg\""
+      "src=\"https://example.com/small.jpg\""
     );
   });
 
@@ -477,7 +477,7 @@ describe("match cover stability", () => {
     );
 
     expect(html).toContain(
-      "src=\"/api/image-proxy?url=https%3A%2F%2Fexample.com%2Fthumb.jpg\""
+      "src=\"https://example.com/thumb.jpg\""
     );
   });
 
@@ -684,7 +684,7 @@ describe("match cover resilience", () => {
     );
 
     expect(html).toContain(
-      "src=\"/api/image-proxy?url=https%3A%2F%2Flain.bgm.tv%2Fr%2F400%2Fpic%2Fcover%2Fl%2Fabc.jpg\""
+      "src=\"https://lain.bgm.tv/r/400/pic/cover/l/abc.jpg\""
     );
     expect(html).not.toContain("/demo-covers/");
     expect(html).not.toContain("/brand/fallback");

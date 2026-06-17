@@ -7,21 +7,27 @@ import { AnimeCover } from "../src/components/AnimeCover";
 describe("AnimeCover candidate priority queue", () => {
   const source = readFileSync("src/components/AnimeCover.tsx", "utf8");
 
-  it("builds candidate queue: proxy primary before raw primary", () => {
+  it("builds candidate queue: raw primary before proxy primary", () => {
     expect(source).toContain("proxyExternalImageUrl(rawPrimary)");
-    expect(source).toContain("proxyExternalImageUrl(rawSecondary)");
-    const proxyPrimaryIndex = source.indexOf("proxyExternalImageUrl(rawPrimary)");
-    const rawPrimaryIndex = source.indexOf("rawPrimary,");
-    expect(proxyPrimaryIndex).toBeLessThan(rawPrimaryIndex);
+    const candidateArray = source.slice(source.indexOf("const values = ["));
+    const rawPrimaryIdx = candidateArray.indexOf("rawPrimary,");
+    const proxyIdx = candidateArray.indexOf("proxyExternalImageUrl(rawPrimary)");
+    expect(rawPrimaryIdx).toBeLessThan(proxyIdx);
   });
 
-  it("builds candidate queue: proxy secondary before raw secondary", () => {
-    expect(source).toContain("proxyExternalImageUrl(rawSecondary)");
+  it("builds candidate queue: proxy primary before raw secondary", () => {
     expect(source).toContain("rawSecondary");
     const candidateArray = source.slice(source.indexOf("const values = ["));
-    const proxyIdx = candidateArray.indexOf("proxyExternalImageUrl(rawSecondary)");
-    const rawIdx = candidateArray.indexOf("rawSecondary", proxyIdx + 1);
-    expect(proxyIdx).toBeLessThan(rawIdx);
+    const proxyIdx = candidateArray.indexOf("proxyExternalImageUrl(rawPrimary)");
+    const rawSecondaryIdx = candidateArray.indexOf("rawSecondary");
+    expect(proxyIdx).toBeLessThan(rawSecondaryIdx + 1);
+  });
+
+  it("builds candidate queue: raw secondary before proxy secondary", () => {
+    const candidateArray = source.slice(source.indexOf("const values = ["));
+    const rawSecIdx = candidateArray.indexOf("rawSecondary");
+    const proxySecIdx = candidateArray.indexOf("proxyExternalImageUrl(rawSecondary)");
+    expect(rawSecIdx).toBeLessThan(proxySecIdx);
   });
 
   it("deduplicates candidate URLs", () => {
@@ -72,7 +78,7 @@ describe("AnimeCover candidate priority queue", () => {
     expect(emptyHtml).toContain("无");
   });
 
-  it("renders primary proxy URL as first img src and passes secondarySrc to data attr", () => {
+  it("renders raw primary URL as first img src and passes secondarySrc to data attr", () => {
     const html = renderToStaticMarkup(
       React.createElement(AnimeCover, {
         src: "https://primary.example/a.jpg",
@@ -80,7 +86,7 @@ describe("AnimeCover candidate priority queue", () => {
         title: "Dual"
       })
     );
-    expect(html).toContain("/api/image-proxy?url=https%3A%2F%2Fprimary.example");
+    expect(html).toContain("src=\"https://primary.example/a.jpg\"");
     expect(html).toContain("data-export-secondary-src=\"https://secondary.example/b.jpg\"");
   });
 
@@ -98,7 +104,8 @@ describe("AnimeCover candidate priority queue", () => {
     expect(html).not.toContain('src=""');
   });
 
-  it("proxyExternalImageUrl is imported for candidate wrapping", () => {
-    expect(source).toContain('import { proxyExternalImageUrl } from "@/lib/image-proxy"');
+  it("proxyExternalImageUrl and warmImageProxyCache are imported from image-proxy", () => {
+    expect(source).toContain("proxyExternalImageUrl");
+    expect(source).toContain('from "@/lib/image-proxy"');
   });
 });

@@ -82,40 +82,43 @@ describe("AnimeCover timeout fallback", () => {
 describe("AnimeCover candidate order", () => {
   const source = readFileSync("src/components/AnimeCover.tsx", "utf8");
 
-  it("places proxy primary before raw primary", () => {
-    const proxyPrimaryIdx = source.indexOf("proxyExternalImageUrl(rawPrimary)");
-    const rawPrimaryIdx = source.indexOf("rawPrimary,");
-    expect(proxyPrimaryIdx).toBeLessThan(rawPrimaryIdx);
+  it("places raw primary before proxy primary", () => {
+    const candidateArray = source.slice(source.indexOf("const values = ["));
+    const rawPrimaryIdx = candidateArray.indexOf("rawPrimary,");
+    const proxyPrimaryIdx = candidateArray.indexOf("proxyExternalImageUrl(rawPrimary)");
+    expect(rawPrimaryIdx).toBeLessThan(proxyPrimaryIdx);
   });
 
-  it("places raw primary before proxy secondary", () => {
-    const rawPrimaryIdx = source.indexOf("rawPrimary,");
-    const proxySecondaryIdx = source.indexOf("proxyExternalImageUrl(rawSecondary)");
-    expect(rawPrimaryIdx).toBeLessThan(proxySecondaryIdx);
+  it("places proxy primary before raw secondary", () => {
+    const candidateArray = source.slice(source.indexOf("const values = ["));
+    const proxyIdx = candidateArray.indexOf("proxyExternalImageUrl(rawPrimary)");
+    const rawSecondaryIdx = candidateArray.indexOf("rawSecondary");
+    expect(proxyIdx).toBeLessThan(rawSecondaryIdx + 1);
   });
 
-  it("places proxy secondary before raw secondary", () => {
-    const proxySecondaryIdx = source.indexOf("proxyExternalImageUrl(rawSecondary)");
-    const rawSecondaryIdx = source.indexOf("rawSecondary", proxySecondaryIdx + 1);
-    expect(proxySecondaryIdx).toBeLessThan(rawSecondaryIdx);
+  it("places raw secondary before proxy secondary", () => {
+    const candidateArray = source.slice(source.indexOf("const values = ["));
+    const rawSecIdx = candidateArray.indexOf("rawSecondary");
+    const proxySecIdx = candidateArray.indexOf("proxyExternalImageUrl(rawSecondary)");
+    expect(rawSecIdx).toBeLessThan(proxySecIdx);
   });
 
-  it("does NOT place proxy secondary before raw primary (old order)", () => {
+  it("does NOT place proxy secondary before raw primary", () => {
     const rawPrimaryIdx = source.indexOf("rawPrimary");
     const proxySecondaryIdx = source.indexOf("proxyExternalImageUrl(rawSecondary)");
     expect(rawPrimaryIdx).toBeLessThan(proxySecondaryIdx);
   });
 
-  it("candidate order in values array matches: proxy-primary, raw-primary, proxy-secondary, raw-secondary", () => {
+  it("candidate order in values array matches: raw-primary, proxy-primary, raw-secondary, proxy-secondary", () => {
     const fragment = source.slice(source.indexOf("const values = ["));
-    const proxyPrimIdx = fragment.indexOf("proxyExternalImageUrl(rawPrimary)");
     const rawPrimIdx = fragment.indexOf("rawPrimary,");
-    const proxySecIdx = fragment.indexOf("proxyExternalImageUrl(rawSecondary)");
+    const proxyPrimIdx = fragment.indexOf("proxyExternalImageUrl(rawPrimary)");
     const rawSecIdx = fragment.indexOf("rawSecondary");
+    const proxySecIdx = fragment.indexOf("proxyExternalImageUrl(rawSecondary)");
 
-    expect(proxyPrimIdx).toBeLessThan(rawPrimIdx);
-    expect(rawPrimIdx).toBeLessThan(proxySecIdx);
-    expect(proxySecIdx).toBeLessThan(rawSecIdx);
+    expect(rawPrimIdx).toBeLessThan(proxyPrimIdx);
+    expect(proxyPrimIdx).toBeLessThan(rawSecIdx);
+    expect(rawSecIdx).toBeLessThan(proxySecIdx);
   });
 });
 

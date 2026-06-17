@@ -9,6 +9,7 @@ import { formatAnimeSource } from "@/lib/anime-source";
 import { formatPoolManagementStatus } from "@/lib/pool-labels";
 import { getPoolPermissions } from "@/lib/pool-permissions";
 import { buildRankingProgress } from "@/lib/ranking-progress";
+import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 
 const VISIBILITIES = new Set<string>(Object.values(Visibility));
 const LIST_STATUSES = new Set([
@@ -245,6 +246,8 @@ function serializePoolSummary(pool: Prisma.CustomPoolGetPayload<{
           ? "STABLE"
           : "IN_PROGRESS";
 
+  const coverImages = deriveCoverImages(pool.poolAnime);
+
   return {
     id: pool.id,
     creatorId: pool.creatorId,
@@ -267,7 +270,8 @@ function serializePoolSummary(pool: Prisma.CustomPoolGetPayload<{
     uiStatus,
     uiStatusLabel: labelForPoolStatus(uiStatus),
     sourceType: deriveSourceType(pool.poolAnime.map((entry) => entry.anime.source)),
-    coverImages: deriveCoverImages(pool.poolAnime),
+    coverImages: coverImages.map((image) => image.src),
+    coverImageFallbacks: coverImages.map((image) => image.secondarySrc),
     defaultRunId: pool.personalRuns[0]?.id ?? null,
     permissions: getPoolPermissions(pool, user),
     communitySummary: null as CommunityPoolSummary | null
@@ -284,17 +288,18 @@ function deriveCoverImages(
       imageLargeUrl: string | null;
     };
   }>
-): string[] {
+): Array<{ src: string; secondarySrc: string | null }> {
   return entries
-    .map(
-      (entry) =>
-        entry.anime.thumbnailUrl ??
-        entry.anime.imageUrl ??
-        entry.anime.imageMediumUrl ??
-        entry.anime.imageSmallUrl ??
-        entry.anime.imageLargeUrl
-    )
-    .filter((url): url is string => Boolean(url))
+    .map((entry) => {
+      const displayUrl = getAnimeCoverUrl(entry.anime, { intent: "display" });
+      const fallbackUrl = getAnimeCoverUrl(entry.anime, { intent: "export" });
+      if (displayUrl === null) return null;
+      return {
+        src: displayUrl,
+        secondarySrc: fallbackUrl !== displayUrl ? fallbackUrl : null
+      };
+    })
+    .filter((image): image is { src: string; secondarySrc: string | null } => image !== null)
     .slice(0, 5);
 }
 
