@@ -21,14 +21,16 @@ afterEach(() => {
 describe("image proxy LRU cache", () => {
   const source = readFileSync("src/app/api/image-proxy/route.ts", "utf8");
 
-  it("defines fresh TTL as 24h and stale TTL as 7d", () => {
+  it("defines fresh TTL as 24h and stale TTL as 30d", () => {
     expect(source).toContain("FRESH_TTL_MS = 24 * 60 * 60 * 1000");
-    expect(source).toContain("STALE_TTL_MS = 7 * 24 * 60 * 60 * 1000");
+    expect(source).toContain("STALE_TTL_MS = 30 * 24 * 60 * 60 * 1000");
   });
 
-  it("has max cache size limits", () => {
-    expect(source).toContain("MAX_CACHE_ENTRIES = 500");
-    expect(source).toContain("MAX_CACHE_BYTES = 128 * 1024 * 1024");
+  it("has separate memory and disk cache size limits", () => {
+    expect(source).toContain("MEM_MAX_CACHE_ENTRIES = 500");
+    expect(source).toContain("MEM_MAX_CACHE_BYTES = 128 * 1024 * 1024");
+    expect(source).toContain("DISK_MAX_CACHE_ENTRIES = 20000");
+    expect(source).toContain("DISK_MAX_CACHE_BYTES = 5 * 1024 * 1024 * 1024");
   });
 
   it("sets Cache-Control response header", () => {
@@ -125,10 +127,10 @@ describe("image proxy LRU cache", () => {
     expect(source).toContain("export async function GET");
   });
 
-  it("prunes oldest entries when cache exceeds limits", () => {
+  it("prunes oldest entries when memory cache exceeds limits", () => {
     expect(source).toContain("pruneImageCache");
-    expect(source).toContain("imageCache.entries.size > MAX_CACHE_ENTRIES");
-    expect(source).toContain("imageCache.totalBytes > MAX_CACHE_BYTES");
+    expect(source).toContain("imageCache.entries.size > MEM_MAX_CACHE_ENTRIES");
+    expect(source).toContain("imageCache.totalBytes > MEM_MAX_CACHE_BYTES");
   });
 
   it("sets CDN-Cache-Control response header on success", async () => {

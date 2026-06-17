@@ -5,12 +5,14 @@ import path from "path";
 
 export const runtime = "nodejs";
 
-const MAX_SIZE = 5 * 1024 * 1024;
+const MAX_SIZE = 10 * 1024 * 1024;
 const TIMEOUT_MS = 12000;
 const FRESH_TTL_MS = 24 * 60 * 60 * 1000;
-const STALE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const MAX_CACHE_ENTRIES = 500;
-const MAX_CACHE_BYTES = 128 * 1024 * 1024;
+const STALE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const MEM_MAX_CACHE_ENTRIES = 500;
+const MEM_MAX_CACHE_BYTES = 128 * 1024 * 1024;
+const DISK_MAX_CACHE_ENTRIES = 20000;
+const DISK_MAX_CACHE_BYTES = 5 * 1024 * 1024 * 1024;
 const DISK_CACHE_DIR =
   process.env.ANIMATCH_IMAGE_CACHE_DIR ??
   path.join(process.cwd(), "data", "image-cache");
@@ -263,8 +265,8 @@ function setCacheEntry(cacheKey: string, entry: ImageCacheEntry): ImageCacheEntr
 
 function pruneImageCache(): void {
   while (
-    imageCache.entries.size > MAX_CACHE_ENTRIES ||
-    imageCache.totalBytes > MAX_CACHE_BYTES
+    imageCache.entries.size > MEM_MAX_CACHE_ENTRIES ||
+    imageCache.totalBytes > MEM_MAX_CACHE_BYTES
   ) {
     const oldestKey = imageCache.entries.keys().next().value as string | undefined;
     if (oldestKey === undefined) {
@@ -406,7 +408,7 @@ async function pruneDiskCache(): Promise<void> {
   let totalBytes = entries.reduce((sum, entry) => sum + entry.byteLength, 0);
   entries.sort((left, right) => left.lastAccessedAt - right.lastAccessedAt);
 
-  while (entries.length > MAX_CACHE_ENTRIES || totalBytes > MAX_CACHE_BYTES) {
+  while (entries.length > DISK_MAX_CACHE_ENTRIES || totalBytes > DISK_MAX_CACHE_BYTES) {
     const oldest = entries.shift();
     if (oldest === undefined) {
       return;

@@ -209,8 +209,8 @@ describe("image proxy disk cache", () => {
     expect(files.length).toBe(0);
   });
 
-  it("rejects images exceeding MAX_SIZE", async () => {
-    const large = new Uint8Array(6 * 1024 * 1024);
+  it("rejects images exceeding MAX_SIZE (10MB)", async () => {
+    const large = new Uint8Array(11 * 1024 * 1024);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
@@ -253,10 +253,12 @@ describe("image proxy disk cache", () => {
     expect(second.headers.get("X-Animatch-Image-Cache")).toBe("MISS");
   });
 
-  it("prunes disk cache when size exceeds limit", () => {
+  it("prunes disk cache when size exceeds limit (5GB / 20000 entries)", () => {
     expect(source).toContain("pruneDiskCache");
-    expect(source).toContain("entries.length > MAX_CACHE_ENTRIES");
-    expect(source).toContain("totalBytes > MAX_CACHE_BYTES");
+    expect(source).toContain("entries.length > DISK_MAX_CACHE_ENTRIES");
+    expect(source).toContain("totalBytes > DISK_MAX_CACHE_BYTES");
+    expect(source).toContain("DISK_MAX_CACHE_ENTRIES = 20000");
+    expect(source).toContain("DISK_MAX_CACHE_BYTES = 5 * 1024 * 1024 * 1024");
     expect(source).toContain("entries.sort((left, right) => left.lastAccessedAt - right.lastAccessedAt)");
   });
 
