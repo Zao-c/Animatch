@@ -34,6 +34,13 @@ describe("Bangumi import tab UI", () => {
     expect(detailSource).toContain("已在番组中：${displayTitle}");
   });
 
+  it("paginates Bangumi results so the inspector stays readable", () => {
+    expect(detailSource).toContain("const BANGUMI_RESULT_PAGE_SIZE = 12");
+    expect(detailSource).toContain("visibleBangumiResults");
+    expect(detailSource).toContain("bangumiResults.slice(0, bangumiVisibleCount)");
+    expect(detailSource).toContain("显示更多 Bangumi 结果");
+  });
+
   it("keeps the Bangumi tab wrapped for a 390px viewport", () => {
     expect(detailSource).toContain("grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]");
     expect(detailSource).toContain("anime-field min-w-0 flex-1");

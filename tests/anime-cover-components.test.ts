@@ -177,7 +177,7 @@ describe("anime cover rendering", () => {
     );
 
     expect(html).toContain("flex h-full flex-col");
-    expect(html).toContain("min-h-[4rem]");
+    expect(html).toContain("min-h-[3.25rem]");
     expect(html).toContain("mt-auto w-full");
     expect(html).toContain("未命名作品");
     expect(html).not.toContain("17750273769085f154");

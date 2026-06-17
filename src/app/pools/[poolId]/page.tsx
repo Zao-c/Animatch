@@ -87,6 +87,7 @@ import { QuickImportPanel } from "@/components/QuickImportPanel";
 import type { PoolTierConfig } from "@/lib/tier-config";
 
 type AddTab = "search" | "browse" | "manual" | "custom" | "bangumi" | "tiermaker" | "quick";
+type PoolWorkspaceMode = "add" | "edit" | "settings" | "cover" | null;
 type DisplayOverrideForm = {
   displayTitleOverride: string;
   coverUrlOverride: string;
@@ -106,6 +107,7 @@ type CustomUploadDraft = {
 const ANIME_TYPE_OPTIONS = ["", "TV", "MOVIE", "OVA", "ONA", "SPECIAL", "MUSIC", "CM", "PV", "UNKNOWN"];
 const COVER_UPLOAD_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
 const COVER_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
+const BANGUMI_RESULT_PAGE_SIZE = 12;
 const TABS: { key: AddTab; label: string }[] = [
   { key: "search", label: "本地搜索" },
   { key: "browse", label: "分类浏览" },
@@ -154,7 +156,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [communityRankingUnavailable, setCommunityRankingUnavailable] = useState(false);
   const [communityView, setCommunityView] = useState<"ranking" | "tierlist">("ranking");
   const [activeTab, setActiveTab] = useState<AddTab>("search");
-  const [showMorePoolActions, setShowMorePoolActions] = useState(false);
+  const [workspaceMode, setWorkspaceMode] = useState<PoolWorkspaceMode>(null);
 
   const [batchMode, setBatchMode] = useState(false);
   const [selectedAnimeIds, setSelectedAnimeIds] = useState<Set<string>>(new Set());
@@ -205,6 +207,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [manualTags, setManualTags] = useState("");
   const [bangumiKeyword, setBangumiKeyword] = useState("");
   const [bangumiResults, setBangumiResults] = useState<BangumiSearchItem[]>([]);
+  const [bangumiVisibleCount, setBangumiVisibleCount] = useState(BANGUMI_RESULT_PAGE_SIZE);
   const [bangumiSearched, setBangumiSearched] = useState(false);
   const [isBangumiSearching, setIsBangumiSearching] = useState(false);
   const [bangumiAddingId, setBangumiAddingId] = useState<number | null>(null);
@@ -327,6 +330,13 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       })
       .finally(() => setIsLoading(false));
   }, [refreshPool]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash === "#add-anime") {
+      setWorkspaceMode("add");
+    }
+  }, []);
 
   useEffect(() => {
     if (pool === null || pool.anime.length === 0) return;
@@ -719,6 +729,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     try {
       const result = await searchBangumiAnime(bangumiKeyword.trim(), 20);
       setBangumiResults(result.items);
+      setBangumiVisibleCount(BANGUMI_RESULT_PAGE_SIZE);
     } catch {
       setBangumiResults([]);
       setError("搜索失败，请稍后重试。");
@@ -1037,6 +1048,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   function startEditingDisplay(entry: PoolAnimeEntry) {
     clearMessage();
     setEditingDisplayAnimeId(entry.animeId);
+    setWorkspaceMode("edit");
     setDisplayForm({
       displayTitleOverride: entry.displayTitleOverride ?? "",
       coverUrlOverride: entry.coverUrlOverride ?? "",
@@ -1069,6 +1081,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       });
       await refreshPool();
       setEditingDisplayAnimeId(null);
+      setWorkspaceMode(null);
       setNotice("动画显示信息已保存");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "保存显示修正失败");
@@ -1087,6 +1100,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       await clearPoolAnimeDisplayOverrides(pool.id, animeId);
       await refreshPool();
       setEditingDisplayAnimeId(null);
+      setWorkspaceMode(null);
       setNotice("显示修正已清除");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "清除显示修正失败");
@@ -1156,6 +1170,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       : pool.anime.find((entry) => entry.animeId === editingDisplayAnimeId) ?? null;
   const searchHadNoResults =
     (lastSearchKeyword.length > 0 || lastSearchTags.length > 0) && !isSearching && searchResults.length === 0;
+  const visibleBangumiResults = bangumiResults.slice(0, bangumiVisibleCount);
+  const remainingBangumiResults = Math.max(0, bangumiResults.length - bangumiVisibleCount);
   const poolOnboardingHint = canManagePool
     ? "你可以在番组设置里切换公开/私有，并继续维护作品墙。"
     : canPlayPool
@@ -1272,12 +1288,26 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 查看社区榜单
               </Link>
             ) : null}
-            {canManagePool ? (
+            {canAddAnimeToPool && !isArchived ? (
               <AppButton
-                onClick={() => setShowMorePoolActions((value) => !value)}
+                type="button"
+                onClick={() => {
+                  setEditingDisplayAnimeId(null);
+                  setWorkspaceMode("add");
+                  window.history.replaceState(null, "", "#add-anime");
+                }}
                 variant="quiet"
                 size="sm"
-                aria-expanded={showMorePoolActions}
+              >
+                添加动画
+              </AppButton>
+            ) : null}
+            {canManagePool ? (
+              <AppButton
+                onClick={() => setWorkspaceMode((value) => (value === "settings" ? null : "settings"))}
+                variant="quiet"
+                size="sm"
+                aria-expanded={workspaceMode === "settings"}
               >
                 更多番组操作
               </AppButton>
@@ -1316,7 +1346,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         {notice ? <ErrorAlert message={notice} tone="notice" /> : null}
       </div>
 
-      {showMorePoolActions && canManagePool ? (
+      {workspaceMode === "settings" && canManagePool ? (
         <AppCard className="mt-6 p-5" variant="soft">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -1482,7 +1512,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 type="button"
                 onClick={() => {
                   resetPoolSettingsDraft();
-                  setShowMorePoolActions(false);
+                  setWorkspaceMode(null);
                 }}
                 disabled={isMutating}
                 variant="ghost"
@@ -1498,12 +1528,21 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       ) : null}
 
       {canManagePool && !isArchived ? (
-        <section className="mt-8">
-          <PoolReadinessCard report={poolReadiness} />
-        </section>
+        <details className="mt-8 rounded-2xl border border-white/10 bg-white/[0.025] p-3">
+          <summary className="cursor-pointer select-none text-sm font-semibold text-slate-300">
+            公开检查
+          </summary>
+          <div className="mt-3">
+            <PoolReadinessCard report={poolReadiness} />
+          </div>
+        </details>
       ) : null}
 
-      <section className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_410px]">
+      <section className={`mt-8 grid gap-6 ${
+        workspaceMode === "add" || workspaceMode === "edit"
+          ? "lg:grid-cols-[minmax(0,1fr)_410px]"
+          : "lg:grid-cols-1"
+      }`}>
         <AppCard className="p-5">
           <SectionHeader
             eyebrow="Anime pool"
@@ -1540,6 +1579,19 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                     <option value="custom">Custom 上传</option>
                   </select>
                 </div>
+                {canAddAnimeToPool && !isArchived ? (
+                  <AppButton
+                    type="button"
+                    onClick={() => {
+                      setEditingDisplayAnimeId(null);
+                      setWorkspaceMode("add");
+                    }}
+                    variant="primary"
+                    size="sm"
+                  >
+                    添加动画
+                  </AppButton>
+                ) : null}
                 {canEditContent && !isArchived ? (
                   <div className="flex gap-2">
                     {batchMode ? (
@@ -1627,8 +1679,32 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           )}
         </AppCard>
 
-        <div className="space-y-5">
-        {selectedDisplayEntry !== null && canEditContent ? (
+        {workspaceMode === "add" || workspaceMode === "edit" ? (
+        <>
+        <button
+          type="button"
+          aria-label="关闭工作台"
+          className="fixed inset-0 z-30 bg-slate-950/60 backdrop-blur-sm lg:hidden"
+          onClick={() => {
+            setWorkspaceMode(null);
+            setEditingDisplayAnimeId(null);
+          }}
+        />
+        <div className="fixed inset-x-0 bottom-0 z-40 max-h-[85dvh] overflow-y-auto rounded-t-3xl border border-cyan-300/20 bg-slate-950 p-4 shadow-2xl shadow-cyan-950/30 lg:sticky lg:top-24 lg:z-auto lg:max-h-[calc(100dvh-7rem)] lg:rounded-2xl lg:bg-transparent lg:p-0 lg:shadow-none">
+        <div className="mb-3 flex items-center justify-between gap-3 lg:hidden">
+          <p className="text-sm font-semibold text-white">番组工作台</p>
+          <button
+            type="button"
+            onClick={() => {
+              setWorkspaceMode(null);
+              setEditingDisplayAnimeId(null);
+            }}
+            className="min-h-11 rounded-full border border-white/10 px-4 text-sm font-semibold text-slate-300"
+          >
+            关闭
+          </button>
+        </div>
+        {workspaceMode === "edit" && selectedDisplayEntry !== null && canEditContent ? (
           <PoolAnimeDisplayPanel
             entry={selectedDisplayEntry}
             isMutating={isMutating}
@@ -1636,12 +1712,15 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             setDisplayForm={setDisplayForm}
             onSave={handleSaveDisplay}
             onClear={() => handleClearDisplay(selectedDisplayEntry.animeId)}
-            onCancel={() => setEditingDisplayAnimeId(null)}
+            onCancel={() => {
+              setEditingDisplayAnimeId(null);
+              setWorkspaceMode(null);
+            }}
             onUploaded={refreshPool}
           />
         ) : null}
 
-        {canAddAnimeToPool && editingDisplayAnimeId === null ? (
+        {workspaceMode === "add" && canAddAnimeToPool && editingDisplayAnimeId === null ? (
         <AppCard id="add-anime" className="p-5">
           <SectionHeader eyebrow="Add anime" title="添加动画" />
           {isArchived ? (
@@ -2015,8 +2094,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                       tone="warning"
                     />
                   ) : null}
-                  <div className="space-y-3">
-                    {bangumiResults.map((item) => {
+                  <div className="grid gap-3">
+                    {visibleBangumiResults.map((item) => {
                       const alreadyJoined = joinedBangumiIds.has(item.bangumiId);
 
                       return (
@@ -2037,6 +2116,19 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                       );
                     })}
                   </div>
+                  {remainingBangumiResults > 0 ? (
+                    <AppButton
+                      type="button"
+                      onClick={() =>
+                        setBangumiVisibleCount((count) => count + BANGUMI_RESULT_PAGE_SIZE)
+                      }
+                      variant="quiet"
+                      size="sm"
+                      className="w-full"
+                    >
+                      显示更多 Bangumi 结果（剩余 {remainingBangumiResults}）
+                    </AppButton>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -2278,10 +2370,17 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         </AppCard>
         ) : null}
         </div>
+        </>
+        ) : null}
       </section>
 
       {canEditContent ? (
-        <CoverRepairCard poolId={params.poolId} className="mt-6" />
+        <details className="mt-6 rounded-2xl border border-white/10 bg-white/[0.025] p-3">
+          <summary className="cursor-pointer select-none text-sm font-semibold text-slate-300">
+            用 Bangumi 修复封面
+          </summary>
+          <CoverRepairCard poolId={params.poolId} className="mt-3" />
+        </details>
       ) : null}
 
       {canShowCommunityRanking ? (
@@ -2795,8 +2894,8 @@ function BangumiResultCard({
   ].filter((value): value is string => value !== null);
 
   return (
-    <div className="flex w-full min-w-0 gap-3 rounded-2xl border border-white/10 bg-slate-950/45 p-3">
-      <AnimeCover src={item.imageUrl} title={title} size="sm" className="shrink-0" />
+    <div className="flex w-full min-w-0 gap-3 min-h-[132px] rounded-2xl border border-white/10 bg-slate-950/55 p-3">
+      <AnimeCover src={item.imageUrl} title={title} size="sm" className="shrink-0 rounded-xl" />
       <div className="min-w-0 flex-1">
         <h3 className="line-clamp-2 break-words text-sm font-semibold text-white">{title}</h3>
         {subtitle ? (
@@ -2808,13 +2907,13 @@ function BangumiResultCard({
           ))}
         </div>
         {item.summary ? (
-          <p className="mt-2 line-clamp-3 break-words text-xs leading-5 text-slate-500">
+          <p className="mt-2 line-clamp-2 break-words text-xs leading-5 text-slate-500">
             {item.summary}
           </p>
         ) : null}
         {item.tags.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {item.tags.slice(0, 4).map((tag) => (
+            {item.tags.slice(0, 3).map((tag) => (
               <span
                 key={tag}
                 className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] font-medium text-slate-300"

@@ -57,7 +57,7 @@ describe("pool management UI", () => {
   it("keeps the pool detail settings entry owner-only", () => {
     expect(detailSource).toContain("const canManagePool = permissions?.canManage ?? false");
     expect(detailSource).toContain("{canManagePool ? (");
-    expect(detailSource).toContain("{showMorePoolActions && canManagePool ? (");
+    expect(detailSource).toContain('{workspaceMode === "settings" && canManagePool ? (');
     expect(detailSource).toContain("更多番组操作");
     expect(detailSource).toContain("番组设置");
     expect(detailSource).not.toContain("编辑番组");
@@ -113,6 +113,15 @@ describe("pool management UI", () => {
     expect(detailSource).toContain("poolReadiness");
     expect(detailSource).toContain("buildPoolReadinessReport");
     expect(detailSource).toContain("canManagePool && !isArchived");
+  });
+
+  it("uses an inspector workspace for add and display editing", () => {
+    expect(detailSource).toContain("type PoolWorkspaceMode");
+    expect(detailSource).toContain('setWorkspaceMode("add")');
+    expect(detailSource).toContain('setWorkspaceMode("edit")');
+    expect(detailSource).toContain('id="add-anime"');
+    expect(detailSource).toContain("fixed inset-x-0 bottom-0");
+    expect(detailSource).toContain("lg:sticky lg:top-24");
   });
 
   it("has batch management mode with toggle", () => {

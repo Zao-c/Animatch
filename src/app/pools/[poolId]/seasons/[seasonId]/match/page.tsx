@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AppBadge } from "@/components/ui/AppBadge";
@@ -9,7 +8,6 @@ import { AppCard } from "@/components/ui/AppCard";
 import { PageShell } from "@/components/PageShell";
 import { AnimeCover } from "@/components/AnimeCover";
 import { getSeasonDetail, getSeasonMatchQueue, submitSeasonVote } from "@/lib/client-api";
-import { proxyExternalImageUrl, getProxiedCoverCandidates } from "@/lib/image-proxy";
 import { getAnimeDisplayTitle } from "@/lib/anime-display";
 import type { SeasonDetail, SeasonMatchQueueItem, SeasonAnimeEntry } from "@/lib/client-api";
 
@@ -25,8 +23,8 @@ function SeasonDuelCard({
   highlighted: boolean;
 }) {
   const title = getAnimeDisplayTitle(anime);
-  const candidates = getProxiedCoverCandidates(anime.imageMediumUrl ?? anime.imageUrl, null);
-  const coverUrl = candidates[0] ?? null;
+  const coverUrl = anime.imageMediumUrl ?? anime.imageUrl;
+  const secondarySrc = anime.imageLargeUrl ?? anime.imageSmallUrl ?? anime.thumbnailUrl ?? anime.imageUrl;
 
   return (
     <button
@@ -38,25 +36,20 @@ function SeasonDuelCard({
           : "border-white/10 hover:border-white/20 active:border-amber-300/50"
       } ${disabled ? "pointer-events-none opacity-40" : ""}`}
     >
-      <div className="aspect-[3/4] w-full overflow-hidden bg-slate-800 relative">
-        {coverUrl ? (
-          <Image
-            src={coverUrl}
-            alt={title}
-            fill
-            sizes="(max-width: 768px) 100vw, 50vw"
-            className="object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-3xl font-black text-white/20">
-            {title.slice(0, 1)}
-          </div>
-        )}
+      <div className="aspect-[3/4] w-full overflow-hidden bg-slate-900 relative">
+        <AnimeCover
+          src={coverUrl}
+          secondarySrc={secondarySrc}
+          title={title}
+          size="lg"
+          fit="cover"
+          animeId={anime.animeId}
+          className="h-full w-full rounded-none border-0"
+        />
       </div>
-      <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
-      <div className="relative mt-auto p-4">
-        <h2 className="line-clamp-2 min-h-[3rem] text-lg font-black leading-7 tracking-tight text-white/90">
+      <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-t from-slate-950/35 via-transparent to-transparent" />
+      <div className="relative mt-auto border-t border-white/5 bg-slate-950/38 p-4 backdrop-blur-sm">
+        <h2 className="line-clamp-2 text-lg font-black leading-7 tracking-tight text-white/85">
           {title}
         </h2>
       </div>
