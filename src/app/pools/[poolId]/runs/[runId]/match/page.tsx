@@ -314,7 +314,7 @@ export default function MatchPage({
             </summary>
             <div className="absolute right-0 z-20 mt-3 w-72 rounded-2xl border border-white/10 bg-slate-950/92 p-3 shadow-anime-panel backdrop-blur-xl">
               <div className="mb-3 grid grid-cols-2 gap-2">
-                <Stat label="信心" value={confidenceScore.toFixed(1)} />
+                <Stat label="我的稳定度" value={confidenceScore.toFixed(1)} />
                 <Stat label="队列" value={String(queue.length)} />
               </div>
               <div className="grid gap-2">

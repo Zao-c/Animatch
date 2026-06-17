@@ -629,7 +629,7 @@ function PoolCard({
 
           <p className="mt-3 text-xs text-slate-500">
             更新于 {formatDateTimeStable(pool.updatedAt)}
-            {confidenceScore > 0 ? ` · 信心 ${confidenceScore.toFixed(1)}` : ""}
+            {confidenceScore > 0 ? ` · 榜单稳定度 ${confidenceScore.toFixed(1)}` : ""}
           </p>
           <div className="mt-auto pt-4">
             {canMatch || canPromptLoginToMatch ? (

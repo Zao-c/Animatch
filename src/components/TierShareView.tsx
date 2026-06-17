@@ -8,7 +8,6 @@ import { AppButton, appButtonClasses } from "./ui/AppButton";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import {
   getAnimeDisplayTitle,
-  isUserGeneratedImageSource,
   shouldUseContainCover
 } from "@/lib/anime-display";
 import type { PublicTierShare, TierShareSnapshotItem } from "@/lib/client-api";
@@ -217,7 +216,6 @@ function ShareItemCard({
   const coverFit = shouldUseContainCover(item) ? "contain" : "cover";
   const rawCoverUrl = getAnimeCoverUrl(item, { intent: "export" });
   const coverUrl = exportMode ? proxyExternalImageUrl(rawCoverUrl) : rawCoverUrl;
-  const shouldShowSourceBadge = !isUserGeneratedImageSource(item.source);
 
   return (
     <article className="w-28 rounded-xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_12px_36px_rgba(0,0,0,0.25)] sm:w-32">
@@ -229,13 +227,13 @@ function ShareItemCard({
         fit={coverFit}
         className="h-28 w-full rounded-lg sm:h-32"
       />
-      <h2 className="mt-2 line-clamp-2 text-xs font-semibold leading-snug text-white">
-        {title}
-      </h2>
-      <div className="mt-2 flex flex-wrap gap-1">
-        {shouldShowSourceBadge ? <AppBadge tone="source">{item.source}</AppBadge> : null}
-        {item.animeType ? <AppBadge tone="status">{item.animeType}</AppBadge> : null}
-      </div>
+      {!exportMode ? (
+        <h2 className="mt-2 line-clamp-2 text-[10px] font-semibold leading-snug text-slate-400">
+          {title}
+        </h2>
+      ) : (
+        <h2 className="sr-only">{title}</h2>
+      )}
     </article>
   );
 }

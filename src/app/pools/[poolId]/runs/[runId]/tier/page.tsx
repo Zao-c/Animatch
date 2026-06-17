@@ -745,13 +745,16 @@ export default function TierPage({
           </div>
 
           <div className="mb-4 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.025] p-3">
-            <Stat label="信心指数" value={tierList.confidenceScore.toFixed(1)} />
+            <Stat label="我的稳定度" value={tierList.confidenceScore.toFixed(1)} />
             <Stat label="当前阶段" value={tierList.progress.stageLabel} />
             <Stat
               label="有效对决"
               value={`${tierList.effectiveComparisons}/${tierList.progress.highConfidenceTarget}`}
             />
             <Stat label="总作品" value={String(tierList.totalAnime)} />
+            {communityRanking !== null && communityRanking.totalParticipants > 0 ? (
+              <Stat label="社区参与" value={`${communityRanking.totalParticipants} 人`} />
+            ) : null}
           </div>
           <div className="mb-5">
             <RankingProgressCard progress={tierList.progress} compact />
@@ -777,7 +780,7 @@ export default function TierPage({
                   <StatusHint
                     label="初始估计"
                     title="还没有对决记录"
-                    description="当前 Tier List 只是初始估计。完成几轮对决后，分数、分层和信心指数会更准确。"
+                    description="当前 Tier List 只是初始估计。完成几轮对决后，分数、分层和稳定度会更准确。"
                     tone="warning"
                   />
                 ) : null}

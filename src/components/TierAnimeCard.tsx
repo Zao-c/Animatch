@@ -27,6 +27,7 @@ export function TierAnimeCard({
 }) {
   const title = getAnimeDisplayTitle(item);
   const coverUrl = getAnimeCoverUrl(item, { intent: "display" });
+  const secondaryUrl = getAnimeCoverUrl(item, { intent: "export" });
   const coverFit = getAnimeImageFitMode(item);
   const aniScore = getAniScore(item.eloScore, scoreDistribution);
 
@@ -45,7 +46,7 @@ export function TierAnimeCard({
     >
       <AnimeCover
         src={coverUrl}
-        secondarySrc={item.imageSmallUrl ?? item.imageMediumUrl ?? item.imageLargeUrl}
+        secondarySrc={secondaryUrl}
         title={title}
         size="md"
         fit={coverFit}

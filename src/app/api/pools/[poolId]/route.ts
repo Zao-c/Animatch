@@ -7,6 +7,7 @@ import { canManagePool, getPoolPermissions } from "@/lib/pool-permissions";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { prewarmCoverCacheBackground } from "@/lib/server/cover-cache-prewarm";
+import type { PoolTierConfig } from "@/lib/tier-config";
 
 interface RouteContext {
   params: {
@@ -92,6 +93,7 @@ export async function GET(_request: Request, context: RouteContext) {
       allowPublicEdit: pool.allowPublicEdit,
       allowCommunityMatch: pool.allowCommunityMatch,
       isOfficialDemo: pool.isOfficialDemo,
+      tierConfig: pool.tierConfig as PoolTierConfig | null,
       tags: pool.tags,
       createdAt: pool.createdAt,
       updatedAt: pool.updatedAt,
