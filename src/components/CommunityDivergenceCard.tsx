@@ -13,7 +13,16 @@ export function CommunityDivergenceCard({
   className?: string;
 }) {
   if (result.insufficientCommunity) {
-    return null;
+    return (
+      <AppCard className={`p-5 ${className}`} variant="soft">
+        <h2 className="text-lg font-semibold text-white">
+          你和社区的最大分歧
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-slate-400">
+          社区样本还少，等更多人参与后才能看出分歧。
+        </p>
+      </AppCard>
+    );
   }
 
   if (result.insufficientPersonal) {

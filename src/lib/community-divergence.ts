@@ -94,7 +94,7 @@ export function computeCommunityDivergence(
       continue;
     }
 
-    const divergence = personal.tierIndex - community.tierIndex;
+    const divergence = community.tierIndex - personal.tierIndex;
     const communityItem = communityItems.find((item) => item.animeId === animeId);
     const communityLabel = communityItem?.title ?? animeId;
     const communityImageUrl = communityItem?.imageUrl ?? null;
@@ -123,11 +123,11 @@ export function computeCommunityDivergence(
   for (const d of divergences) {
     if (d.divergence > maxDivergence) {
       maxDivergence = d.divergence;
-      userLikesLess = d;
+      userLikesMore = d;
     }
     if (d.divergence < minDivergence) {
       minDivergence = d.divergence;
-      userLikesMore = d;
+      userLikesLess = d;
     }
     if (Math.abs(d.divergence) < minAbsDivergence) {
       minAbsDivergence = Math.abs(d.divergence);
@@ -135,10 +135,10 @@ export function computeCommunityDivergence(
     }
   }
 
-  if (userLikesMore !== null && userLikesMore.divergence >= 0) {
+  if (userLikesMore !== null && userLikesMore.divergence <= 0) {
     userLikesMore = null;
   }
-  if (userLikesLess !== null && userLikesLess.divergence <= 0) {
+  if (userLikesLess !== null && userLikesLess.divergence >= 0) {
     userLikesLess = null;
   }
 

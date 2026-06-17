@@ -27,7 +27,7 @@ function makeDivergenceItem(overrides: Record<string, unknown> = {}) {
     personalTierIndex: 0,
     communityTierLabel: "B",
     communityTierIndex: 2,
-    divergence: -2,
+    divergence: 2,
     participantCount: 5,
     ...overrides
   };
@@ -127,7 +127,7 @@ describe("CommunityDivergenceCard", () => {
               title: "进击的巨人",
               personalTierLabel: "C",
               communityTierLabel: "A",
-              divergence: 2
+              divergence: -2
             }) as DivergenceResult["userLikesLess"]
           })
         })
@@ -189,14 +189,15 @@ describe("CommunityDivergenceCard", () => {
       expect(html).toContain("data-cover-fit=\"cover\"");
     });
 
-    it("does not render when insufficientCommunity", () => {
+    it("shows community insufficient sample message", () => {
       const html = renderToStaticMarkup(
         React.createElement(CommunityDivergenceCard, {
           result: makeDivergenceResult({ insufficientCommunity: true })
         })
       );
 
-      expect(html).toBe("");
+      expect(html).toContain("社区样本还少");
+      expect(html).toContain("你和社区的最大分歧");
     });
 
     it("renders sample warning for low participant count", () => {
