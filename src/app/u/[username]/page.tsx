@@ -87,7 +87,7 @@ export default function UserProfilePage() {
       })
       .then((data) => {
         if (!cancelled) {
-          setProfile(data);
+          setProfile(data.data ?? null);
           setLoading(false);
         }
       })
