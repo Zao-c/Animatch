@@ -120,6 +120,9 @@ export function QuickImportPanel({
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
+  const [useRemote, setUseRemote] = useState(true);
+  const [bangumiUserId, setBangumiUserId] = useState("");
+  const [collectionType, setCollectionType] = useState("collect");
 
   function toggleTag(tag: string) {
     setSelectedTags((prev) =>
@@ -137,15 +140,17 @@ export function QuickImportPanel({
     if (year && year.trim()) p.year = parseInt(year, 10);
     if (type && type !== "ALL") p.type = type;
     if (selectedTags.length > 0) p.tags = selectedTags;
+    if (bangumiUserId.trim()) p.bangumiUserId = bangumiUserId.trim();
+    if (collectionType) p.collectionType = collectionType;
     return p;
-  }, [source, mode, year, type, selectedTags, limit, sort]);
+  }, [source, mode, year, type, selectedTags, limit, sort, bangumiUserId, collectionType]);
 
   async function handlePreview() {
     setError(null);
     setPreview(null);
     setIsLoading(true);
     try {
-      const result = await previewQuickImport({ params: buildParams(), poolId });
+      const result = await previewQuickImport({ params: buildParams(), poolId, useRemote });
       setPreview(result);
       setSelectedIds(new Set(result.candidates.filter((c) => !c.alreadyInPool).map((c) => c.animeId)));
     } catch (reason) {
@@ -398,6 +403,62 @@ export function QuickImportPanel({
           </div>
         </div>
 
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={useRemote}
+              onChange={(e) => setUseRemote(e.target.checked)}
+              className="h-4 w-4 accent-anime-purple"
+            />
+            <span className="text-xs text-slate-400">
+              本地不足时从 Bangumi 补全
+            </span>
+          </label>
+          <span className="text-[10px] text-slate-600">
+            {source === "MANAMI" ? "Manami 仅限本地库" : "本地优先 + Bangumi 实时拉取"}
+          </span>
+        </div>
+
+        {mode === "USER_COLLECTION" ? (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-xs font-semibold text-slate-400">Bangumi 用户 ID</span>
+              <input
+                value={bangumiUserId}
+                onChange={(e) => setBangumiUserId(e.target.value)}
+                className="anime-field mt-1.5"
+                placeholder="例如 Zao-c"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-semibold text-slate-400">收藏类型</span>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {[
+                  { key: "collect", label: "看过" },
+                  { key: "wish", label: "想看" },
+                  { key: "doing", label: "在看" },
+                  { key: "on_hold", label: "搁置" },
+                  { key: "dropped", label: "抛弃" },
+                ].map((ct) => (
+                  <button
+                    key={ct.key}
+                    type="button"
+                    onClick={() => setCollectionType(ct.key)}
+                    className={`min-h-7 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition ${
+                      collectionType === ct.key
+                        ? "border-anime-purple/50 bg-anime-purple/12 text-purple-100"
+                        : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    {ct.label}
+                  </button>
+                ))}
+              </div>
+            </label>
+          </div>
+        ) : null}
+
         {!poolId ? (
           <div className="mt-4 space-y-3">
             <label className="block">
@@ -460,6 +521,13 @@ export function QuickImportPanel({
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <AppBadge tone="source">{preview.total} 部</AppBadge>
+              {preview.remoteFetch?.attempted ? (
+                <span className="text-[10px] text-anime-cyan">
+                  {preview.remoteFetch.succeeded
+                    ? `Bangumi 补全 +${preview.remoteFetch.fetchedCount}`
+                    : "Bangumi 未返回结果"}
+                </span>
+              ) : null}
               {preview.warnings.length > 0 ? (
                 <span className="text-xs text-amber-300">{preview.warnings[0]}</span>
               ) : null}
@@ -485,7 +553,7 @@ export function QuickImportPanel({
           </div>
 
           {preview.candidates.length === 0 ? (
-            <p className="text-sm text-slate-400">没有找到符合条件的作品。</p>
+            <p className="text-sm text-slate-400">本地库没有命中，Bangumi 也没有拉到结果。可以换关键词、年份或类型试试。</p>
           ) : (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {preview.candidates.map((candidate) => {

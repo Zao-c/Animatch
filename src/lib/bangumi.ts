@@ -4,7 +4,7 @@ import * as https from "node:https";
 import * as tls from "node:tls";
 import type { Socket } from "node:net";
 
-const BANGUMI_BASE_URL = (process.env.BANGUMI_PROXY_URL || "").trim() || "https://api.bgm.tv/v0";
+export const BANGUMI_BASE_URL = (process.env.BANGUMI_PROXY_URL || "").trim() || "https://api.bgm.tv/v0";
 const DEFAULT_USER_AGENT = "AniMatch/0.1 (https://github.com/Zao-c/Animatch)";
 const FETCH_TIMEOUT_MS = 30_000;
 const BANGUMI_SUBJECT_PAGE_BASE_URL = "https://bgm.tv/subject";
@@ -23,7 +23,7 @@ interface BangumiResponse {
   json<T>(): Promise<T>;
 }
 
-function buildHeaders(extra: Record<string, string> = {}): Record<string, string> {
+export function buildHeaders(extra: Record<string, string> = {}): Record<string, string> {
   const accessToken = getBangumiAccessToken();
   const headers: Record<string, string> = {
     "User-Agent": DEFAULT_USER_AGENT,
@@ -211,7 +211,7 @@ function proxyDiagnostic(proxy: NormalizedProxyEnv): Record<string, unknown> {
   };
 }
 
-async function bangumiRequest(
+export async function bangumiRequest(
   url: string,
   init: BangumiRequestInit
 ): Promise<BangumiResponse> {

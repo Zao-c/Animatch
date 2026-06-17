@@ -1294,10 +1294,20 @@ export interface QuickImportCandidate {
   alreadyInPool?: boolean;
 }
 
+export interface RemoteFetchResult {
+  attempted: boolean;
+  succeeded: boolean;
+  insertedCount: number;
+  updatedCount: number;
+  fetchedCount: number;
+  source: "BANGUMI" | null;
+}
+
 export interface QuickImportPreviewResult {
   candidates: QuickImportCandidate[];
   warnings: string[];
   total: number;
+  remoteFetch?: RemoteFetchResult;
 }
 
 export interface QuickImportCreateResult {
@@ -1330,6 +1340,7 @@ export function previewQuickImport(data: {
     collectionType?: string;
   };
   poolId?: string;
+  useRemote?: boolean;
 }) {
   return fetchJson<QuickImportPreviewResult>("/api/pools/quick-import/preview", {
     method: "POST",

@@ -2,8 +2,18 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { prewarmCoverCacheBackground } from "@/lib/server/cover-cache-prewarm";
-import { GLOBAL_SEARCH_EXCLUDED_SOURCES, toPublicAnime } from "@/lib/anime-service";
+import { GLOBAL_SEARCH_EXCLUDED_SOURCES } from "@/lib/anime-service";
 import type { Anime } from "@prisma/client";
+import {
+  fetchBangumiSubjects,
+  shouldUseRemote,
+  upsertBangumiSubjects,
+  type RemoteFetchResult,
+} from "./bangumi-import-source";
+import {
+  getBangumiSubjectCache,
+  setBangumiSubjectCache,
+} from "./bangumi-import-cache";
 
 export type ImportSource = "BANGUMI" | "MANAMI" | "MIXED";
 export type ImportMode = "YEAR" | "TAG" | "TOP" | "USER_COLLECTION";
@@ -45,6 +55,7 @@ export interface QuickImportPreviewResult {
   candidates: QuickImportCandidate[];
   warnings: string[];
   total: number;
+  remoteFetch?: RemoteFetchResult;
 }
 
 export interface QuickImportCreateResult {
@@ -222,7 +233,7 @@ export async function createPoolFromQuickImport(
     throw new Error("番组名不能为空且不超过80个字符");
   }
 
-  const { candidates, warnings } = await previewQuickImport(params);
+  const { candidates, warnings } = await previewQuickImportWithRemoteFallback(params);
 
   if (candidates.length === 0) {
     throw new Error("没有找到符合条件的作品");
@@ -341,6 +352,87 @@ async function getAddedTitles(
     animeId: e.animeId,
     title: e.anime.titleCn ?? e.anime.titleJa ?? e.anime.title,
   }));
+}
+
+export async function previewQuickImportWithRemoteFallback(
+  params: QuickImportParams,
+  poolAnimeIds?: Set<string>,
+  useRemote = true
+): Promise<QuickImportPreviewResult> {
+  const warnings: string[] = [];
+
+  const localResult = await previewQuickImport(params, poolAnimeIds);
+  const limit = clampLimit(params.limit);
+
+  const shouldFetchRemote =
+    useRemote &&
+    shouldUseRemote(params) &&
+    localResult.candidates.length < limit;
+
+  if (!shouldFetchRemote) {
+    return {
+      ...localResult,
+      remoteFetch: {
+        attempted: false,
+        succeeded: false,
+        insertedCount: 0,
+        updatedCount: 0,
+        fetchedCount: 0,
+        source: null,
+      },
+    };
+  }
+
+  let remoteFetchResult: RemoteFetchResult = {
+    attempted: true,
+    succeeded: false,
+    insertedCount: 0,
+    updatedCount: 0,
+    fetchedCount: 0,
+    source: "BANGUMI",
+  };
+
+  try {
+    let subjects = getBangumiSubjectCache(params);
+
+    if (!subjects) {
+      subjects = await fetchBangumiSubjects(params);
+      if (subjects.length > 0) {
+        setBangumiSubjectCache(params, subjects);
+      }
+    }
+
+    if (subjects.length > 0) {
+      remoteFetchResult.fetchedCount = subjects.length;
+      remoteFetchResult.succeeded = true;
+
+      try {
+        const upsertResult = await upsertBangumiSubjects(subjects);
+        remoteFetchResult.insertedCount = upsertResult.inserted;
+        remoteFetchResult.updatedCount = upsertResult.updated;
+      } catch {
+        warnings.push("Bangumi 数据写入本地库失败");
+      }
+
+      const refreshedResult = await previewQuickImport(params, poolAnimeIds);
+      return {
+        ...refreshedResult,
+        warnings: [...warnings, ...refreshedResult.warnings],
+        remoteFetch: remoteFetchResult,
+      };
+    }
+
+    warnings.push("Bangumi 远程查询没有返回结果");
+  } catch {
+    warnings.push("Bangumi 暂时不可用，已返回本地结果");
+    remoteFetchResult.succeeded = false;
+  }
+
+  return {
+    ...localResult,
+    warnings: [...warnings, ...localResult.warnings],
+    remoteFetch: remoteFetchResult,
+  };
 }
 
 export { QUICK_IMPORT_PRESETS } from "./quick-import-presets";
