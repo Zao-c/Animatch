@@ -83,9 +83,10 @@ import {
   TIERMAKER_URL_LIST_TEMPLATE_NAME
 } from "@/lib/tiermaker-url-list";
 import { PoolTierConfigEditor } from "@/components/PoolTierConfigEditor";
+import { QuickImportPanel } from "@/components/QuickImportPanel";
 import type { PoolTierConfig } from "@/lib/tier-config";
 
-type AddTab = "search" | "browse" | "manual" | "custom" | "bangumi" | "tiermaker";
+type AddTab = "search" | "browse" | "manual" | "custom" | "bangumi" | "tiermaker" | "quick";
 type DisplayOverrideForm = {
   displayTitleOverride: string;
   coverUrlOverride: string;
@@ -112,6 +113,7 @@ const TABS: { key: AddTab; label: string }[] = [
   { key: "custom", label: "上传图片" },
   { key: "bangumi", label: "Bangumi 搜索" },
   { key: "tiermaker", label: "TierMaker 导入" },
+  { key: "quick", label: "批量添加作品" },
 ];
 const QUICK_SEARCH_TAG_KEYS = [
   "romance",
@@ -2259,6 +2261,18 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                   ) : null}
                 </div>
               ) : null}
+
+              {activeTab === "quick" ? (
+                <div className="mt-4">
+                  <QuickImportPanel
+                    poolId={params.poolId}
+                    onAdded={() => {
+                      refreshPool();
+                      setActiveTab("search");
+                    }}
+                  />
+                </div>
+              ) : null}
             </>
           )}
         </AppCard>
@@ -2280,7 +2294,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         />
       ) : null}
 
-      <PoolSeasonsSection poolId={pool.id} />
+      <PoolSeasonsSection poolId={pool.id} canEdit={canEditContent} />
 
       <p className="mt-10 text-center text-xs text-slate-600">
         Anime metadata powered by{" "}
