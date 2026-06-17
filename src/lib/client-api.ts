@@ -12,6 +12,7 @@ export interface PublicAnime {
   imageMediumUrl: string | null;
   imageLargeUrl: string | null;
   coverUrl: string | null;
+  coverUrlOverride?: string | null;
   thumbnailUrl: string | null;
   airDate?: string | Date | null;
   bangumiRank: number | null;
@@ -82,6 +83,7 @@ export interface PoolSummary {
   uiStatusLabel?: string;
   sourceType?: string;
   coverImages?: string[];
+  coverImageFallbacks?: (string | null)[];
   defaultRunId?: string | null;
   permissions?: PoolPermissions;
   communitySummary?: CommunityPoolSummary | null;

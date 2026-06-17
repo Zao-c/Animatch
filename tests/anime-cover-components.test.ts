@@ -115,7 +115,7 @@ describe("anime cover rendering", () => {
       })
     );
 
-    expect(html).toContain('src="https://img.example.test/bangumi.jpg"');
+    expect(html).toContain("src=\"https://img.example.test/bangumi.jpg\"");
     expect(html).toContain('referrerPolicy="no-referrer"');
     expect(html).toContain('data-cover-fit="cover"');
   });
@@ -155,8 +155,8 @@ describe("anime cover rendering", () => {
       })
     );
 
-    expect(html).toContain('src="https://example.com/medium.jpg"');
-    expect(html).not.toContain('src="https://example.com/thumb.jpg"');
+    expect(html).toContain("src=\"https://example.com/medium.jpg\"");
+    expect(html).not.toContain("thumb.jpg");
     expect(html).toContain('data-cover-fit="cover"');
     expect(html).toContain('referrerPolicy="no-referrer"');
   });
@@ -373,7 +373,9 @@ describe("match cover stability", () => {
       })
     );
 
-    expect(html).toContain('src="https://example.com/large.jpg"');
+    expect(html).toContain(
+      "src=\"https://example.com/large.jpg\""
+    );
   });
 
   it("DuelAnimeCard shows only primary cover when no other URLs differ (hero==export)", () => {
@@ -396,7 +398,9 @@ describe("match cover stability", () => {
       })
     );
 
-    expect(html).toContain('src="https://example.com/large.jpg"');
+    expect(html).toContain(
+      "src=\"https://example.com/large.jpg\""
+    );
   });
 
   it("DuelAnimeCard shows fallback when anime has no cover URLs at all", () => {
@@ -446,7 +450,9 @@ describe("match cover stability", () => {
       })
     );
 
-    expect(html).toContain('src="https://example.com/small.jpg"');
+    expect(html).toContain(
+      "src=\"https://example.com/small.jpg\""
+    );
   });
 
   it("DuelAnimeCard renders cover from thumbnailUrl when only thumbnail available", () => {
@@ -470,7 +476,9 @@ describe("match cover stability", () => {
       })
     );
 
-    expect(html).toContain('src="https://example.com/thumb.jpg"');
+    expect(html).toContain(
+      "src=\"https://example.com/thumb.jpg\""
+    );
   });
 
   it("DuelAnimeCard includes side badge LEFT/RIGHT", () => {
@@ -675,7 +683,9 @@ describe("match cover resilience", () => {
       })
     );
 
-    expect(html).toContain('src="https://lain.bgm.tv/r/400/pic/cover/l/abc.jpg"');
+    expect(html).toContain(
+      "src=\"https://lain.bgm.tv/r/400/pic/cover/l/abc.jpg\""
+    );
     expect(html).not.toContain("/demo-covers/");
     expect(html).not.toContain("/brand/fallback");
   });
