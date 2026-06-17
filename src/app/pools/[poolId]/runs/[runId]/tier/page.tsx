@@ -36,6 +36,8 @@ import { computeCommunityDivergence, buildPersonalItemList, type DivergenceResul
 import { exportShareCardAsPng } from "@/lib/share-export";
 import { formatTierExportTimestamp } from "@/lib/tier-export";
 import { DEFAULT_TIER_CONFIG, type TierRowConfig } from "@/lib/tier-config";
+import { isSlowNetwork, prewarmCoverUrls } from "@/lib/cover-prewarm";
+import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import {
   DEFAULT_TIER_LABELS,
   readTierLabels,
@@ -174,6 +176,23 @@ export default function TierPage({
     setTierLabels(labels);
     setDraftTierLabels(labels);
   }, [params.poolId, params.runId]);
+
+  useEffect(() => {
+    if (tierList === null) return;
+
+    const allItems = Object.values(tierList.tiers).flat();
+    if (allItems.length === 0) return;
+
+    const coverUrls = allItems.map((item) =>
+      getAnimeCoverUrl(item, { intent: "display" })
+    );
+
+    const limit = isSlowNetwork() ? 6 : 12;
+    const controller = new AbortController();
+    prewarmCoverUrls(coverUrls, { limit, signal: controller.signal });
+
+    return () => controller.abort();
+  }, [tierList]);
 
   useEffect(() => {
     if (tierList !== null && exportPreviewedAt === null) {

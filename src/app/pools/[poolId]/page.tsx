@@ -11,6 +11,7 @@ import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
+import { isSlowNetwork, prewarmCoverUrls } from "@/lib/cover-prewarm";
 import { formatAnimeSource } from "@/lib/anime-source";
 import { copyTextWithFallback } from "@/lib/browser-copy";
 import { isCommunityBattleVisiblePool } from "@/lib/community-battle-visibility";
@@ -323,6 +324,41 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       })
       .finally(() => setIsLoading(false));
   }, [refreshPool]);
+
+  useEffect(() => {
+    if (pool === null || pool.anime.length === 0) return;
+
+    const animeList = pool.anime;
+    const coverUrls = animeList.map((entry) => {
+      const display = { ...entry.anime, display: entry.display };
+      return getAnimeCoverUrl(
+        { ...display, coverUrlOverride: entry.coverUrlOverride },
+        { intent: "display" }
+      );
+    });
+
+    const slowNet = isSlowNetwork();
+    const limit = slowNet ? 6 : 12;
+
+    const controller = new AbortController();
+    prewarmCoverUrls(coverUrls, { limit, signal: controller.signal });
+
+    if (slowNet) return;
+
+    const idleId = window.requestIdleCallback
+      ? window.requestIdleCallback(() => {
+          const remaining = coverUrls.slice(12, 24);
+          if (remaining.length > 0) {
+            prewarmCoverUrls(remaining, { limit: 12, signal: controller.signal });
+          }
+        })
+      : undefined;
+
+    return () => {
+      controller.abort();
+      if (idleId !== undefined) window.cancelIdleCallback(idleId);
+    };
+  }, [pool, pool?.anime]);
 
   useEffect(() => {
     if (pool === null) return;

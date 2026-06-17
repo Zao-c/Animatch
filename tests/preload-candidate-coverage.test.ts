@@ -7,15 +7,21 @@ describe("preload-images cover candidate alignment", () => {
 
   it("preload candidate order matches AnimeCover candidate order", () => {
     expect(source).toContain("proxyExternalImageUrl(heroUrl)");
-    expect(source).toContain("proxyExternalImageUrl(exportUrl)");
     expect(source).toContain("heroUrl,");
+    expect(source).toContain("proxyExternalImageUrl(exportUrl)");
     expect(source).toContain("exportUrl");
   });
 
-  it("proxy URLs come before raw URLs in preload candidates", () => {
-    const proxyIndex = source.indexOf("proxyExternalImageUrl(heroUrl)");
-    const rawIndex = source.indexOf("heroUrl,");
-    expect(proxyIndex).toBeLessThan(rawIndex);
+  it("proxy URLs come before raw URLs, interleaved not consecutive", () => {
+    const candidateBlock = source.slice(source.indexOf("const values = ["));
+    const proxyHeroIdx = candidateBlock.indexOf("proxyExternalImageUrl(heroUrl)");
+    const rawHeroIdx = candidateBlock.indexOf("heroUrl,");
+    const proxyExportIdx = candidateBlock.indexOf("proxyExternalImageUrl(exportUrl)");
+    const rawExportIdx = candidateBlock.indexOf("exportUrl");
+
+    expect(proxyHeroIdx).toBeLessThan(rawHeroIdx);
+    expect(rawHeroIdx).toBeLessThan(proxyExportIdx);
+    expect(proxyExportIdx).toBeLessThan(rawExportIdx);
   });
 
   it("deduplicates preload candidate values", () => {

@@ -10,8 +10,8 @@ const SIZE_CLASS = {
   md: "h-36 w-24",
   lg: "aspect-[2/3] w-full sm:max-h-[420px]"
 } as const;
-const IMAGE_CANDIDATE_TIMEOUT_MS = 4500;
-const FINAL_IMAGE_TIMEOUT_MS = 12000;
+const IMAGE_CANDIDATE_TIMEOUT_MS = 2000;
+const FINAL_IMAGE_TIMEOUT_MS = 6000;
 
 export function AnimeCover({
   src,
