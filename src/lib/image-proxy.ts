@@ -1,5 +1,4 @@
 const PROXY_PATH = "/api/image-proxy";
-const warmedProxyUrls = new Set<string>();
 
 export function proxyExternalImageUrl(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -12,31 +11,4 @@ export function proxyExternalImageUrl(url: string | null | undefined): string | 
 
 export function isProxiedUrl(url: string): boolean {
   return url.startsWith(PROXY_PATH);
-}
-
-export function isRemoteImageUrl(url: string | null | undefined): url is string {
-  if (!url) return false;
-  const trimmed = url.trim();
-  return trimmed.startsWith("http://") || trimmed.startsWith("https://");
-}
-
-export function warmImageProxyCache(url: string | null | undefined): void {
-  if (typeof window === "undefined" || !isRemoteImageUrl(url)) {
-    return;
-  }
-
-  const proxiedUrl = proxyExternalImageUrl(url);
-  if (proxiedUrl === null || proxiedUrl === url || warmedProxyUrls.has(proxiedUrl)) {
-    return;
-  }
-
-  warmedProxyUrls.add(proxiedUrl);
-  window.setTimeout(() => {
-    fetch(proxiedUrl, {
-      cache: "force-cache",
-      credentials: "same-origin"
-    }).catch(() => {
-      warmedProxyUrls.delete(proxiedUrl);
-    });
-  }, 0);
 }

@@ -490,11 +490,7 @@ function PoolCard({
         isArchived ? "opacity-70 grayscale-[0.18]" : ""
       }`}
     >
-      <CoverStrip
-        images={pool.coverImages ?? []}
-        fallbacks={pool.coverImageFallbacks ?? []}
-        title={pool.name}
-      />
+      <CoverStrip images={pool.coverImages ?? []} title={pool.name} />
       <div className="flex flex-1 flex-col p-5">
       {isEditing ? (
         <div className="space-y-3">
@@ -710,15 +706,7 @@ function PoolCard({
   );
 }
 
-function CoverStrip({
-  images,
-  fallbacks,
-  title
-}: {
-  images: string[];
-  fallbacks: (string | null | undefined)[];
-  title: string;
-}) {
+function CoverStrip({ images, title }: { images: string[]; title: string }) {
   const visibleImages = images.slice(0, 5);
 
   if (visibleImages.length === 0) {
@@ -742,7 +730,6 @@ function CoverStrip({
         <AnimeCover
           key={`${image}-${index}`}
           src={image}
-          secondarySrc={fallbacks[index] ?? null}
           title={title}
           size="sm"
           className="h-full w-full rounded-xl"

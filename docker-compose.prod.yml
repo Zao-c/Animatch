@@ -47,9 +47,7 @@ services:
       - "3000:3000"
     volumes:
       - anime_uploads:/app/public/uploads
-      - animatch_image_cache:/app/data/image-cache
 
 volumes:
   animatch_postgres_data:
   anime_uploads:
-  animatch_image_cache:

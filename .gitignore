@@ -19,7 +19,6 @@ backups/
 data/anime-offline-database*.json
 data/anime-offline-database*.jsonl
 data/anime-offline-database*.zst
-data/image-cache/
 public/uploads/anime-covers/*
 !public/uploads/anime-covers/.gitkeep
 public/uploads/custom-items/*

@@ -1,6 +1,5 @@
 import type { MatchPair } from "./client-api";
 import { getAnimeCoverUrl, type AnimeCoverUrlFields } from "./anime-cover-url";
-import { proxyExternalImageUrl } from "./image-proxy";
 
 export function preloadImage(src: string | null | undefined): Promise<boolean> {
   if (!src) {
@@ -18,8 +17,8 @@ export function preloadImage(src: string | null | undefined): Promise<boolean> {
 
 export async function preloadPair(pair: MatchPair): Promise<boolean> {
   const [leftLoaded, rightLoaded] = await Promise.all([
-    preloadAnimeImage(pair.left),
-    preloadAnimeImage(pair.right)
+    preloadImage(bestImageSrc(pair.left)),
+    preloadImage(bestImageSrc(pair.right))
   ]);
 
   return leftLoaded || rightLoaded;
@@ -43,8 +42,8 @@ export async function preloadPairs(
 
   const results = await Promise.all(
     targetPairs.flatMap((pair) => [
-      preloadAnimeImage(pair.left),
-      preloadAnimeImage(pair.right)
+      preloadImage(bestImageSrc(pair.left)),
+      preloadImage(bestImageSrc(pair.right))
     ])
   );
 
@@ -54,32 +53,6 @@ export async function preloadPairs(
   };
 }
 
-async function preloadAnimeImage(anime: AnimeCoverUrlFields): Promise<boolean> {
-  for (const src of bestImageCandidates(anime)) {
-    const loaded = await preloadImage(src);
-    if (loaded) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function bestImageCandidates(anime: AnimeCoverUrlFields): string[] {
-  const heroUrl = getAnimeCoverUrl(anime, { intent: "hero" });
-  const exportUrl = getAnimeCoverUrl(anime, { intent: "export" });
-  const values = [
-    heroUrl,
-    proxyExternalImageUrl(heroUrl),
-    exportUrl,
-    proxyExternalImageUrl(exportUrl)
-  ];
-  const seen = new Set<string>();
-
-  return values.flatMap((value) => {
-    if (value === null) return [];
-    if (seen.has(value)) return [];
-    seen.add(value);
-    return [value];
-  });
+function bestImageSrc(anime: AnimeCoverUrlFields): string | null {
+  return getAnimeCoverUrl(anime, { intent: "hero" });
 }
