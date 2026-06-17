@@ -1,4 +1,5 @@
 import type { MatchPair } from "./client-api";
+import { getAnimeCoverUrl, type AnimeCoverUrlFields } from "./anime-cover-url";
 
 export function preloadImage(src: string | null | undefined): Promise<boolean> {
   if (!src) {
@@ -52,21 +53,6 @@ export async function preloadPairs(
   };
 }
 
-function bestImageSrc(anime: {
-  display?: {
-    coverUrl?: string | null;
-  };
-  imageLargeUrl?: string | null;
-  imageMediumUrl?: string | null;
-  imageUrl?: string | null;
-  imageSmallUrl?: string | null;
-}): string | null {
-  return (
-    anime.display?.coverUrl ??
-    anime.imageLargeUrl ??
-    anime.imageMediumUrl ??
-    anime.imageUrl ??
-    anime.imageSmallUrl ??
-    null
-  );
+function bestImageSrc(anime: AnimeCoverUrlFields): string | null {
+  return getAnimeCoverUrl(anime, { intent: "hero" });
 }

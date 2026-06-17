@@ -7,7 +7,7 @@ import React, { useEffect, useState } from "react";
 const SIZE_CLASS = {
   sm: "h-20 w-14",
   md: "h-36 w-24",
-  lg: "h-[420px] w-full"
+  lg: "aspect-[2/3] w-full sm:max-h-[420px]"
 } as const;
 
 export function AnimeCover({
@@ -72,7 +72,7 @@ export function AnimeCover({
           {size !== "sm" && (
             <>
               <span className="text-center text-[10px] font-semibold leading-tight text-zinc-400">
-                图片暂时无法加载
+                封面暂不可用
               </span>
               <span className="line-clamp-2 text-center text-[10px] font-medium leading-tight text-zinc-500">
                 {title}

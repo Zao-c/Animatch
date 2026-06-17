@@ -369,6 +369,7 @@ export default function MatchPage({
 
       <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_80px_minmax(0,1fr)]">
         <DuelAnimeCard
+          key={currentPair.left.id}
           anime={currentPair.left}
           side="left"
           disabled={isSubmitting}
@@ -384,6 +385,7 @@ export default function MatchPage({
           </div>
         </div>
         <DuelAnimeCard
+          key={currentPair.right.id}
           anime={currentPair.right}
           side="right"
           disabled={isSubmitting}

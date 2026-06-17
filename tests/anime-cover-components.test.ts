@@ -89,7 +89,7 @@ describe("anime cover rendering", () => {
 
     expect(html).not.toContain("<img");
     expect(html).toContain("Fallback Title");
-    expect(html).toContain("图片暂时无法加载");
+    expect(html).toContain("封面暂不可用");
   });
 
   it("AnimeCover renders every image with no-referrer and supports contain mode", () => {
@@ -285,5 +285,221 @@ describe("anime cover rendering", () => {
     expect(html).toContain("/ 10");
     expect(html).toContain("3 battles");
     expect(html).not.toContain("Elo 1554.3");
+  });
+});
+
+describe("match cover stability", () => {
+  it("AnimeCover size=lg uses aspect-ratio for responsive height", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(AnimeCover, {
+        src: "https://example.com/large.jpg",
+        title: "Responsive Test",
+        size: "lg"
+      })
+    );
+
+    expect(html).toContain("aspect-[2/3]");
+    expect(html).toContain("sm:max-h-[420px]");
+  });
+
+  it("AnimeCover size=sm and size=md keep fixed dimensions", () => {
+    const smHtml = renderToStaticMarkup(
+      React.createElement(AnimeCover, {
+        src: "https://example.com/small.jpg",
+        title: "Small",
+        size: "sm"
+      })
+    );
+    const mdHtml = renderToStaticMarkup(
+      React.createElement(AnimeCover, {
+        src: "https://example.com/medium.jpg",
+        title: "Medium",
+        size: "md"
+      })
+    );
+
+    expect(smHtml).toContain("h-20 w-14");
+    expect(mdHtml).toContain("h-36 w-24");
+  });
+
+  it("AnimeCover shows cover fallback when src is null and no secondarySrc", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(AnimeCover, {
+        src: null,
+        secondarySrc: null,
+        title: "冰菓",
+        size: "lg"
+      })
+    );
+
+    expect(html).not.toContain("<img");
+    expect(html).toContain("封面暂不可用");
+    expect(html).toContain("冰菓");
+  });
+
+  it("AnimeCover shows cover fallback when both src and secondarySrc are null", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(AnimeCover, {
+        src: null,
+        secondarySrc: null,
+        title: "葬送的芙莉莲",
+        size: "lg"
+      })
+    );
+
+    expect(html).not.toContain("<img");
+    expect(html).toContain("封面暂不可用");
+    expect(html).toContain("葬送的芙莉莲");
+    expect(html).toContain("aspect-[2/3]");
+  });
+
+  it("DuelAnimeCard renders imageLargeUrl when imageUrl is also present (hero intent)", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DuelAnimeCard, {
+        anime: baseAnime({
+          source: "BANGUMI",
+          imageUrl: "https://example.com/high.jpg",
+          imageLargeUrl: "https://example.com/large.jpg",
+          imageMediumUrl: "https://example.com/medium.jpg",
+          imageSmallUrl: null,
+          thumbnailUrl: null,
+          coverUrl: null
+        }),
+        side: "left",
+        disabled: false,
+        actionLabel: "Pick",
+        scoreDistribution,
+        onPick: () => undefined
+      })
+    );
+
+    expect(html).toContain('src="https://example.com/large.jpg"');
+  });
+
+  it("DuelAnimeCard shows only primary cover when no other URLs differ (hero==export)", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DuelAnimeCard, {
+        anime: baseAnime({
+          source: "BANGUMI",
+          imageUrl: null,
+          imageLargeUrl: "https://example.com/large.jpg",
+          imageMediumUrl: null,
+          imageSmallUrl: null,
+          thumbnailUrl: null,
+          coverUrl: null
+        }),
+        side: "left",
+        disabled: false,
+        actionLabel: "Pick",
+        scoreDistribution,
+        onPick: () => undefined
+      })
+    );
+
+    expect(html).toContain('src="https://example.com/large.jpg"');
+  });
+
+  it("DuelAnimeCard shows fallback when anime has no cover URLs at all", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DuelAnimeCard, {
+        anime: baseAnime({
+          source: "BANGUMI",
+          titleCn: "无封面作品",
+          imageUrl: null,
+          imageLargeUrl: null,
+          imageMediumUrl: null,
+          imageSmallUrl: null,
+          thumbnailUrl: null,
+          coverUrl: null
+        }),
+        side: "left",
+        disabled: false,
+        actionLabel: "Pick",
+        scoreDistribution,
+        onPick: () => undefined
+      })
+    );
+
+    expect(html).not.toContain("<img");
+    expect(html).toContain("封面暂不可用");
+    expect(html).toContain("无封面作品");
+  });
+
+  it("DuelAnimeCard renders cover from imageSmallUrl when no larger sizes available", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DuelAnimeCard, {
+        anime: baseAnime({
+          source: "BANGUMI",
+          titleCn: "小封面",
+          imageUrl: null,
+          imageLargeUrl: null,
+          imageMediumUrl: null,
+          imageSmallUrl: "https://example.com/small.jpg",
+          thumbnailUrl: null,
+          coverUrl: null
+        }),
+        side: "left",
+        disabled: false,
+        actionLabel: "Pick",
+        scoreDistribution,
+        onPick: () => undefined
+      })
+    );
+
+    expect(html).toContain('src="https://example.com/small.jpg"');
+  });
+
+  it("DuelAnimeCard renders cover from thumbnailUrl when only thumbnail available", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DuelAnimeCard, {
+        anime: baseAnime({
+          source: "BANGUMI",
+          titleCn: "缩略图作品",
+          imageUrl: null,
+          imageLargeUrl: null,
+          imageMediumUrl: null,
+          imageSmallUrl: null,
+          thumbnailUrl: "https://example.com/thumb.jpg",
+          coverUrl: null
+        }),
+        side: "left",
+        disabled: false,
+        actionLabel: "Pick",
+        scoreDistribution,
+        onPick: () => undefined
+      })
+    );
+
+    expect(html).toContain('src="https://example.com/thumb.jpg"');
+  });
+
+  it("DuelAnimeCard includes side badge LEFT/RIGHT", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DuelAnimeCard, {
+        anime: baseAnime(),
+        side: "left",
+        disabled: false,
+        actionLabel: "Pick",
+        scoreDistribution,
+        onPick: () => undefined
+      })
+    );
+
+    expect(html).toContain("LEFT");
+  });
+
+  it("DuelAnimeCard right side shows RIGHT badge", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DuelAnimeCard, {
+        anime: baseAnime(),
+        side: "right",
+        disabled: false,
+        actionLabel: "Pick",
+        scoreDistribution,
+        onPick: () => undefined
+      })
+    );
+
+    expect(html).toContain("RIGHT");
   });
 });

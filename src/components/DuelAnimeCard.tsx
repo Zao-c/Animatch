@@ -34,6 +34,8 @@ export function DuelAnimeCard({
   const title = getAnimeDisplayTitle(anime);
   const subtitle = getAnimeDisplaySubtitle(anime);
   const coverUrl = getAnimeCoverUrl(anime, { intent: "hero" });
+  const coverUrlFallback = getAnimeCoverUrl(anime, { intent: "export" });
+  const secondarySrc = coverUrlFallback !== coverUrl ? coverUrlFallback : null;
   const coverFit = getAnimeImageFitMode(anime);
   const animeType = anime.display?.animeType ?? anime.animeType;
   const aniScore = getAniScore(anime.eloScore, scoreDistribution);
@@ -68,7 +70,7 @@ export function DuelAnimeCard({
       <div className="relative">
         <AnimeCover
           src={coverUrl}
-          secondarySrc={anime.imageMediumUrl ?? anime.imageSmallUrl ?? anime.imageLargeUrl}
+          secondarySrc={secondarySrc}
           title={title}
           size="lg"
           fit={coverFit}
