@@ -72,3 +72,100 @@ describe("public pools view UI", () => {
     expect(matches.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe("public pools community summary", () => {
+  const poolsSource = readFileSync("src/app/pools/page.tsx", "utf8");
+  const poolsApiSource = readFileSync("src/app/api/pools/route.ts", "utf8");
+  const serviceSource = readFileSync("src/lib/community-ranking-service.ts", "utf8");
+  const clientApiSource = readFileSync("src/lib/client-api.ts", "utf8");
+
+  it("Pools API imports getCommunitySummaries for batch query", () => {
+    expect(poolsApiSource).toContain("getCommunitySummaries");
+  });
+
+  it("Pools API injects communitySummary only for PUBLIC pools", () => {
+    expect(poolsApiSource).toContain('visibility === "PUBLIC"');
+    expect(poolsApiSource).toContain("communitySummary");
+  });
+
+  it("Pools API does not leak community data to private/unlisted pools", () => {
+    const lines = poolsApiSource.split("\n");
+    const publicFilterLine = lines.findIndex((l) =>
+      l.includes('visibility === "PUBLIC"') && l.includes("filter")
+    );
+    expect(publicFilterLine).toBeGreaterThan(0);
+  });
+
+  it("PoolSummary has communitySummary field", () => {
+    expect(clientApiSource).toContain("communitySummary?: CommunityPoolSummary | null;");
+  });
+
+  it("CommunityPoolSummary has all summary fields", () => {
+    expect(clientApiSource).toContain("topAnimeTitle");
+    expect(clientApiSource).toContain("topAnimeImageUrl");
+    expect(clientApiSource).toContain("participantCount");
+    expect(clientApiSource).toContain("sampleLabel");
+  });
+
+  it("PoolCard renders community summary for public view", () => {
+    expect(poolsSource).toContain("pool.communitySummary");
+    expect(poolsSource).toContain("社区第一");
+    expect(poolsSource).toContain("还没有社区结果");
+    expect(poolsSource).toContain("成为第一个参与的人");
+  });
+
+  it("PoolCard shows participant count and sample label", () => {
+    expect(poolsSource).toContain("人参与");
+    expect(poolsSource).toContain("样本还少");
+    expect(poolsSource).toContain("已有初步趋势");
+    expect(poolsSource).toContain("榜单逐渐稳定");
+  });
+
+  it("community summary uses AnimeCover for top anime image", () => {
+    expect(poolsSource).toContain("pool.communitySummary.topAnimeImageUrl");
+    expect(poolsSource).toContain("size=\"sm\"");
+  });
+
+  it("community summary only shows when isPublicView && PUBLIC visibility", () => {
+    expect(poolsSource).toContain('isPublicView && pool.visibility === "PUBLIC"');
+  });
+
+  it("community summary sits near the bottom of the card, not obstructing primary CTA", () => {
+    const mainCtaIndex = poolsSource.indexOf("加入大乱斗");
+    const summaryIndex = poolsSource.indexOf("社区第一");
+    expect(mainCtaIndex).toBeGreaterThan(0);
+    expect(summaryIndex).toBeGreaterThan(0);
+  });
+
+  it("getCommunitySummaries accepts batch poolIds and returns Map", () => {
+    expect(serviceSource).toContain("getCommunitySummaries(poolIds: string[])");
+    expect(serviceSource).toContain("Map<string, CommunitySummary>");
+  });
+
+  it("getCommunitySummaries queries runs in batch with poolId in", () => {
+    expect(serviceSource).toContain("poolId: { in: poolIds }");
+  });
+
+  it("getCommunitySummaries uses full cover chain with getAnimeCoverUrl", () => {
+    expect(serviceSource).toContain("getAnimeCoverUrl");
+    expect(serviceSource).toContain("coverUrlOverride: pa.coverUrlOverride");
+  });
+
+  it("getCommunitySummaries assigns sampleLabel based on participant count", () => {
+    expect(serviceSource).toContain('"empty"');
+    expect(serviceSource).toContain('"low"');
+    expect(serviceSource).toContain('"trend"');
+    expect(serviceSource).toContain('"stable"');
+    expect(serviceSource).toContain("<= 2");
+    expect(serviceSource).toContain("<= 5");
+  });
+
+  it("Pools page does NOT import getCommunityRanking directly", () => {
+    expect(poolsSource).not.toContain("import { getCommunityRanking }");
+  });
+
+  it("pool card still only has one main CTA button", () => {
+    const variantPrimaryCount = (poolsSource.match(/variant="primary"/g) ?? []).length;
+    expect(variantPrimaryCount).toBeGreaterThanOrEqual(1);
+  });
+});

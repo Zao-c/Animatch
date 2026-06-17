@@ -84,6 +84,16 @@ export interface PoolSummary {
   coverImages?: string[];
   defaultRunId?: string | null;
   permissions?: PoolPermissions;
+  communitySummary?: CommunityPoolSummary | null;
+}
+
+export interface CommunityPoolSummary {
+  topAnimeTitle: string | null;
+  topAnimeImageUrl: string | null;
+  topAnimeId: string | null;
+  participantCount: number;
+  totalRuns: number;
+  sampleLabel: "empty" | "low" | "trend" | "stable";
 }
 
 export interface MiniMatchPreviewAnime {

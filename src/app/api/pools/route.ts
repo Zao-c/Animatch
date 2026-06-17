@@ -2,6 +2,8 @@ import { PoolStatus, Prisma, Visibility } from "@prisma/client";
 import { badRequest, ok, fromError } from "@/lib/api-response";
 import { AppError } from "@/lib/app-error";
 import { getCurrentUser, requireCurrentUser, type FriendAuthUser } from "@/lib/auth-session";
+import { getCommunitySummaries } from "@/lib/community-ranking-service";
+import type { CommunityPoolSummary } from "@/lib/client-api";
 import { prisma } from "@/lib/db";
 import { formatAnimeSource } from "@/lib/anime-source";
 import { formatPoolManagementStatus } from "@/lib/pool-labels";
@@ -148,9 +150,32 @@ export async function GET(request: Request) {
       })
       .sort((left, right) => comparePoolSummary(left, right, sort));
 
-    return ok({
-      items
-    });
+    const publicPoolIds = items
+      .filter((pool) => pool.visibility === "PUBLIC")
+      .map((pool) => pool.id);
+
+    if (publicPoolIds.length > 0) {
+      try {
+        const communityMap = await getCommunitySummaries(publicPoolIds);
+        for (const pool of items) {
+          const summary = communityMap.get(pool.id);
+          if (summary !== undefined) {
+            pool.communitySummary = {
+              topAnimeTitle: summary.topAnimeTitle,
+              topAnimeImageUrl: summary.topAnimeImageUrl,
+              topAnimeId: summary.topAnimeId,
+              participantCount: summary.participantCount,
+              totalRuns: summary.totalRuns,
+              sampleLabel: summary.sampleLabel
+            };
+          }
+        }
+      } catch {
+        // silently skip community summaries
+      }
+    }
+
+    return ok({ items });
   } catch (error) {
     return fromError(error);
   }
@@ -244,7 +269,8 @@ function serializePoolSummary(pool: Prisma.CustomPoolGetPayload<{
     sourceType: deriveSourceType(pool.poolAnime.map((entry) => entry.anime.source)),
     coverImages: deriveCoverImages(pool.poolAnime),
     defaultRunId: pool.personalRuns[0]?.id ?? null,
-    permissions: getPoolPermissions(pool, user)
+    permissions: getPoolPermissions(pool, user),
+    communitySummary: null as CommunityPoolSummary | null
   };
 }
 

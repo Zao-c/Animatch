@@ -585,6 +585,44 @@ function PoolCard({
               ))}
             </div>
           ) : null}
+
+          {isPublicView && pool.visibility === "PUBLIC" && pool.communitySummary ? (
+            <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.025] p-3">
+              {pool.communitySummary.sampleLabel === "empty" ? (
+                <p className="text-xs leading-5 text-slate-500">
+                  还没有社区结果。成为第一个参与的人。
+                </p>
+              ) : (
+                <>
+                  {pool.communitySummary.topAnimeTitle ? (
+                    <div className="flex items-start gap-2">
+                      <AnimeCover
+                        src={pool.communitySummary.topAnimeImageUrl}
+                        title={pool.communitySummary.topAnimeTitle}
+                        size="sm"
+                        className="h-16 w-11 shrink-0 rounded-lg"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-slate-400">社区第一</p>
+                        <p className="line-clamp-2 text-xs font-semibold text-white">
+                          {pool.communitySummary.topAnimeTitle}
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-slate-500">
+                          {pool.communitySummary.participantCount} 人参与
+                          {sampleLabelText(pool.communitySummary.sampleLabel)}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs leading-5 text-slate-400">
+                      {pool.communitySummary.participantCount} 人参与 · {sampleLabelText(pool.communitySummary.sampleLabel)}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          ) : null}
+
           <p className="mt-3 text-xs text-slate-500">
             更新于 {formatDateTimeStable(pool.updatedAt)}
             {confidenceScore > 0 ? ` · 信心 ${confidenceScore.toFixed(1)}` : ""}
@@ -798,6 +836,19 @@ function toneForStatus(status: PoolManagementStatus): "status" | "warning" | "da
       return "tier";
     case "STABLE":
       return "status";
+  }
+}
+
+function sampleLabelText(label: "empty" | "low" | "trend" | "stable"): string {
+  switch (label) {
+    case "empty":
+      return "";
+    case "low":
+      return " · 样本还少";
+    case "trend":
+      return " · 已有初步趋势";
+    case "stable":
+      return " · 榜单逐渐稳定";
   }
 }
 
