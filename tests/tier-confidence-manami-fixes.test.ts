@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { TierAnimeCard } from "@/components/TierAnimeCard";
 import { TierExportCanvas } from "@/components/TierExportCanvas";
 import { TierShareView } from "@/components/TierShareView";
+import type { RankingScoreDistribution, TierListItem } from "@/lib/client-api";
 
 function baseItem(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -115,10 +116,11 @@ describe("MANAMI image urls in TierAnimeCard", () => {
 
     const html = renderToStaticMarkup(
       React.createElement(TierAnimeCard, {
-        item: manamiItem,
+        item: manamiItem as unknown as TierListItem,
         editable: false,
-        scoreDistribution,
-        onDragStart: () => {}
+        scoreDistribution: scoreDistribution as unknown as RankingScoreDistribution,
+        onDragStart: () => {},
+        onDropBefore: () => {}
       })
     );
 

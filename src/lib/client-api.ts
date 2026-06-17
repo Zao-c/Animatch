@@ -1131,3 +1131,146 @@ export function updateAdminPool(
     body: data
   });
 }
+
+// ── Battle Seasons ──────────────────────────────────
+
+export type SeasonMode = "CLASSIC" | "BIAS";
+export type SeasonStatus = "DRAFT" | "ACTIVE" | "ENDED";
+
+export interface SeasonListItem {
+  id: string;
+  poolId: string;
+  title: string;
+  mode: SeasonMode;
+  status: SeasonStatus;
+  startsAt: string;
+  endsAt: string | null;
+  maxVotesPerUser: number;
+  biasVotesPerUser: number;
+  participantCount: number;
+  totalVotes: number;
+  createdAt: string;
+}
+
+export interface SeasonRankingItem {
+  animeId: string;
+  title: string;
+  score: number;
+  winCount: number;
+  lossCount: number;
+  biasWinCount: number;
+  imageUrl: string | null;
+}
+
+export interface RecentVoteEntry {
+  stepNumber: number;
+  username: string;
+  displayName: string;
+  winnerTitle: string;
+  loserTitle: string;
+  voteType: string;
+  weight: number;
+  createdAt: string;
+}
+
+export interface CurrentUserState {
+  votesUsed: number;
+  votesRemaining: number;
+  biasVotesUsed: number;
+  biasVotesRemaining: number;
+  dailyVotesUsed?: number;
+}
+
+export interface SeasonDetail {
+  id: string;
+  poolId: string;
+  title: string;
+  description: string | null;
+  mode: SeasonMode;
+  status: SeasonStatus;
+  startsAt: string;
+  endsAt: string | null;
+  maxVotesPerUser: number;
+  maxVotesPerUserPerDay: number | null;
+  biasVotesPerUser: number;
+  createdByUserId: string;
+  participantCount: number;
+  totalVotes: number;
+  biasVotesUsed: number;
+  ranking: SeasonRankingItem[];
+  recentVotes: RecentVoteEntry[];
+  currentUserState: CurrentUserState | null;
+  createdAt: string;
+}
+
+export interface SeasonAnimeEntry {
+  animeId: string;
+  title: string;
+  imageUrl: string | null;
+  imageLargeUrl: string | null;
+  imageMediumUrl: string | null;
+  imageSmallUrl: string | null;
+  thumbnailUrl: string | null;
+  source: string;
+  animeType: string | null;
+}
+
+export interface SeasonMatchQueueItem {
+  pairId: string;
+  left: SeasonAnimeEntry;
+  right: SeasonAnimeEntry;
+}
+
+export interface SeasonVoteResult {
+  id: string;
+  stepNumber: number;
+  voteType: string;
+  weight: number;
+  votesRemaining: number;
+}
+
+export function createSeason(poolId: string, data: {
+  title: string;
+  description?: string;
+  mode?: SeasonMode;
+  startsAt?: string;
+  endsAt?: string;
+  maxVotesPerUser?: number;
+  maxVotesPerUserPerDay?: number;
+  biasVotesPerUser?: number;
+}) {
+  return fetchJson<SeasonListItem>("/api/pools/" + poolId + "/seasons", { method: "POST", body: data });
+}
+
+export function getSeasons(poolId: string) {
+  return fetchJson<SeasonListItem[]>("/api/pools/" + poolId + "/seasons");
+}
+
+export function getSeasonDetail(poolId: string, seasonId: string) {
+  return fetchJson<SeasonDetail>("/api/pools/" + poolId + "/seasons/" + seasonId);
+}
+
+export function updateSeason(poolId: string, seasonId: string, data: Record<string, unknown>) {
+  return fetchJson<SeasonListItem>("/api/pools/" + poolId + "/seasons/" + seasonId, { method: "PUT", body: data });
+}
+
+export function startSeason(poolId: string, seasonId: string) {
+  return fetchJson<SeasonListItem>("/api/pools/" + poolId + "/seasons/" + seasonId + "/start", { method: "POST" });
+}
+
+export function endSeason(poolId: string, seasonId: string) {
+  return fetchJson<SeasonListItem>("/api/pools/" + poolId + "/seasons/" + seasonId + "/end", { method: "POST" });
+}
+
+export function getSeasonMatchQueue(poolId: string, seasonId: string) {
+  return fetchJson<SeasonMatchQueueItem[]>("/api/pools/" + poolId + "/seasons/" + seasonId + "/match-queue");
+}
+
+export function submitSeasonVote(poolId: string, seasonId: string, data: {
+  leftAnimeId: string;
+  rightAnimeId: string;
+  winnerAnimeId: string;
+  useBiasVote?: boolean;
+}) {
+  return fetchJson<SeasonVoteResult>("/api/pools/" + poolId + "/seasons/" + seasonId + "/vote", { method: "POST", body: data });
+}

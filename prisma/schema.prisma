@@ -104,6 +104,8 @@ model User {
   animeRecommendations AnimeRecommendation[]  @relation("UserAnimeRecommendations")
   similaritiesAsUserA  UserSimilarity[]       @relation("SimilarityUserA")
   similaritiesAsUserB  UserSimilarity[]       @relation("SimilarityUserB")
+  battleSeasons        BattleSeason[]
+  battleVotes          BattleVote[]
 }
 
 model Anime {
@@ -153,37 +155,38 @@ model Anime {
 }
 
 model CustomPool {
-  id                 String                 @id @default(cuid())
-  creatorId          String
-  name               String
-  description        String?
-  coverUrl           String?
-  visibility         Visibility             @default(PRIVATE)
-  status             PoolStatus             @default(DRAFT)
-  tags               String[]
-  sourcePoolId       String?
-  affectsGlobalTaste Boolean                @default(true)
-  allowPublicEdit    Boolean                @default(false)
-  allowCommunityMatch Boolean               @default(false)
-  isOfficialDemo     Boolean                @default(false)
-  tierConfig         Json?
-  cloneCount         Int                    @default(0)
-  useCount           Int                    @default(0)
-  likeCount          Int                    @default(0)
-  createdAt          DateTime               @default(now())
-  updatedAt          DateTime               @updatedAt
-  publishedAt        DateTime?
-  deletedAt          DateTime?
-  creator            User                   @relation("UserCustomPools", fields: [creatorId], references: [id])
-  sourcePool         CustomPool?            @relation("PoolClones", fields: [sourcePoolId], references: [id])
-  clonedPools        CustomPool[]           @relation("PoolClones")
-  poolAnime          PoolAnime[]            @relation("PoolAnimeEntries")
-  personalRuns       PersonalRun[]          @relation("PoolPersonalRuns")
-  poolScores         UserPoolScore[]        @relation("PoolScores")
-  poolComparisons    PoolComparison[]       @relation("PoolComparisons")
-  tierAdjustments    ManualTierAdjustment[] @relation("PoolTierAdjustments")
-  tagPreferences     UserTagPreference[]    @relation("PoolTagPreferences")
-  tierShares         TierShare[]            @relation("PoolTierShares")
+  id                  String                 @id @default(cuid())
+  creatorId           String
+  name                String
+  description         String?
+  coverUrl            String?
+  visibility          Visibility             @default(PRIVATE)
+  status              PoolStatus             @default(DRAFT)
+  tags                String[]
+  sourcePoolId        String?
+  affectsGlobalTaste  Boolean                @default(true)
+  allowPublicEdit     Boolean                @default(false)
+  allowCommunityMatch Boolean                @default(false)
+  isOfficialDemo      Boolean                @default(false)
+  tierConfig          Json?
+  cloneCount          Int                    @default(0)
+  useCount            Int                    @default(0)
+  likeCount           Int                    @default(0)
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  publishedAt         DateTime?
+  deletedAt           DateTime?
+  creator             User                   @relation("UserCustomPools", fields: [creatorId], references: [id])
+  sourcePool          CustomPool?            @relation("PoolClones", fields: [sourcePoolId], references: [id])
+  clonedPools         CustomPool[]           @relation("PoolClones")
+  poolAnime           PoolAnime[]            @relation("PoolAnimeEntries")
+  personalRuns        PersonalRun[]          @relation("PoolPersonalRuns")
+  poolScores          UserPoolScore[]        @relation("PoolScores")
+  poolComparisons     PoolComparison[]       @relation("PoolComparisons")
+  tierAdjustments     ManualTierAdjustment[] @relation("PoolTierAdjustments")
+  tagPreferences      UserTagPreference[]    @relation("PoolTagPreferences")
+  tierShares          TierShare[]            @relation("PoolTierShares")
+  battleSeasons       BattleSeason[]
 
   @@index([creatorId])
   @@index([status])
@@ -326,8 +329,8 @@ model PoolComparison {
   pairingVersion     String               @default("active-v1")
   tierRuleVersion    String               @default("percentile-v1")
   clientMutationId   String
-  undoneAt          DateTime?
-  undoneByUserId    String?
+  undoneAt           DateTime?
+  undoneByUserId     String?
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
   user               User                 @relation("UserPoolComparisons", fields: [userId], references: [id])
@@ -473,4 +476,71 @@ model RecalibrationSession {
 
   @@index([userId, poolId, runId])
   @@index([status])
+}
+
+enum BattleSeasonMode {
+  CLASSIC
+  BIAS
+}
+
+enum BattleSeasonStatus {
+  DRAFT
+  ACTIVE
+  ENDED
+}
+
+enum BattleVoteType {
+  NORMAL
+  BIAS
+}
+
+model BattleSeason {
+  id                    String             @id @default(cuid())
+  poolId                String
+  pool                  CustomPool         @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  title                 String
+  description           String?
+  mode                  BattleSeasonMode   @default(CLASSIC)
+  status                BattleSeasonStatus @default(DRAFT)
+  startsAt              DateTime           @default(now())
+  endsAt                DateTime?
+  maxVotesPerUser       Int                @default(50)
+  maxVotesPerUserPerDay Int?
+  biasVotesPerUser      Int                @default(3)
+  createdByUserId       String
+  createdBy             User               @relation(fields: [createdByUserId], references: [id])
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  votes BattleVote[]
+
+  @@index([poolId])
+  @@index([status])
+  @@index([createdByUserId])
+}
+
+model BattleVote {
+  id                String         @id @default(cuid())
+  seasonId          String
+  season            BattleSeason   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  poolId            String
+  userId            String
+  user              User           @relation(fields: [userId], references: [id])
+  leftAnimeId       String
+  rightAnimeId      String
+  winnerAnimeId     String
+  loserAnimeId      String
+  voteType          BattleVoteType @default(NORMAL)
+  weight            Int            @default(1)
+  stepNumber        Int
+  beforeWinnerScore Int            @default(0)
+  afterWinnerScore  Int            @default(0)
+  beforeLoserScore  Int            @default(0)
+  afterLoserScore   Int            @default(0)
+  createdAt         DateTime       @default(now())
+
+  @@unique([seasonId, userId, stepNumber])
+  @@index([seasonId, userId])
+  @@index([seasonId, createdAt])
+  @@index([poolId])
 }
