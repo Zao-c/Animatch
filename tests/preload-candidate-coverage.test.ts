@@ -5,7 +5,7 @@ describe("preload-images cover candidate alignment", () => {
   const source = readFileSync("src/lib/preload-images.ts", "utf8");
   const coverSource = readFileSync("src/components/AnimeCover.tsx", "utf8");
 
-  it("preload candidate order matches AnimeCover raw-first order", () => {
+  it("preload candidate order matches AnimeCover proxy-first order", () => {
     expect(source).toContain("heroUrl,");
     expect(source).toContain("proxyExternalImageUrl(heroUrl)");
     expect(source).toContain("exportUrl");
