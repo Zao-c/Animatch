@@ -2,7 +2,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { TierExportCanvas } from "../src/components/TierExportCanvas";
-import type { TierListItem } from "../src/lib/client-api";
+import type { TierListItem, TierRowConfig } from "../src/lib/client-api";
 
 function tierItem(overrides: Partial<TierListItem> = {}): TierListItem {
   return {
@@ -44,16 +44,26 @@ function tierItem(overrides: Partial<TierListItem> = {}): TierListItem {
   };
 }
 
+function defaultRows(): TierRowConfig[] {
+  return [
+    { id: "s", label: "S", color: "#ff747c", order: 0 },
+    { id: "a", label: "A", color: "#ffc078", order: 1 },
+    { id: "b", label: "B", color: "#ffe082", order: 2 },
+    { id: "c", label: "C", color: "#b6ff73", order: 3 },
+    { id: "d", label: "D", color: "#70f475", order: 4 }
+  ];
+}
+
 describe("TierExportCanvas", () => {
   it("renders a compact tier wall with logo and tier rows", () => {
     const html = renderToStaticMarkup(
       React.createElement(TierExportCanvas, {
         tiers: {
-          S: [tierItem()],
-          A: [],
-          B: [],
-          C: [],
-          D: [
+          s: [tierItem()],
+          a: [],
+          b: [],
+          c: [],
+          d: [
             tierItem({
               animeId: "anime-2",
               id: "anime-2",
@@ -62,7 +72,8 @@ describe("TierExportCanvas", () => {
               thumbnailUrl: null
             })
           ]
-        }
+        },
+        tierRows: defaultRows()
       })
     );
 
@@ -79,18 +90,19 @@ describe("TierExportCanvas", () => {
     expect(html).toContain("tiermaker-export-fallback");
   });
 
-  it("renders custom tier labels and uses export cover intent", () => {
+  it("renders custom tier rows and uses export cover intent", () => {
+    const customRows: TierRowConfig[] = [
+      { id: "s", label: "神作", color: "#ff747c", order: 0 },
+      { id: "a", label: "喜欢", color: "#ffc078", order: 1 },
+      { id: "b", label: "普通", color: "#ffe082", order: 2 },
+      { id: "c", label: "待定", color: "#b6ff73", order: 3 },
+      { id: "d", label: "跳过", color: "#70f475", order: 4 }
+    ];
     const html = renderToStaticMarkup(
       React.createElement(TierExportCanvas, {
-        labels: {
-          S: "神作",
-          A: "喜欢",
-          B: "普通",
-          C: "待定",
-          D: "跳过"
-        },
+        tierRows: customRows,
         tiers: {
-          S: [
+          s: [
             tierItem({
               source: "MANAMI",
               imageLargeUrl: "https://example.com/large.jpg",
@@ -99,10 +111,10 @@ describe("TierExportCanvas", () => {
               thumbnailUrl: "https://example.com/thumb.jpg"
             })
           ],
-          A: [],
-          B: [],
-          C: [],
-          D: []
+          a: [],
+          b: [],
+          c: [],
+          d: []
         }
       })
     );
@@ -118,17 +130,72 @@ describe("TierExportCanvas", () => {
     expect(html).not.toContain("tiermaker-export-image-contain");
   });
 
+  it("renders 3-row tier config correctly", () => {
+    const rows: TierRowConfig[] = [
+      { id: "like", label: "喜欢", color: "#ff747c", order: 0 },
+      { id: "meh", label: "一般", color: "#ffe082", order: 1 },
+      { id: "dislike", label: "不喜欢", color: "#70f475", order: 2 }
+    ];
+    const html = renderToStaticMarkup(
+      React.createElement(TierExportCanvas, {
+        tierRows: rows,
+        tiers: {
+          like: [tierItem({ animeId: "1" })],
+          meh: [tierItem({ animeId: "2" })],
+          dislike: []
+        }
+      })
+    );
+
+    expect(html).toContain("喜欢");
+    expect(html).toContain("一般");
+    expect(html).toContain("不喜欢");
+    expect(html).not.toContain(">S<");
+    expect(html).not.toContain(">D<");
+  });
+
+  it("renders 6-row tier config correctly", () => {
+    const rows: TierRowConfig[] = [
+      { id: "ss", label: "SS", color: "#ff5252", order: 0 },
+      { id: "s", label: "S", color: "#ff747c", order: 1 },
+      { id: "a", label: "A", color: "#ffc078", order: 2 },
+      { id: "b", label: "B", color: "#ffe082", order: 3 },
+      { id: "c", label: "C", color: "#b6ff73", order: 4 },
+      { id: "d", label: "D", color: "#70f475", order: 5 }
+    ];
+    const html = renderToStaticMarkup(
+      React.createElement(TierExportCanvas, {
+        tierRows: rows,
+        tiers: {
+          ss: [tierItem({ animeId: "1" })],
+          s: [tierItem({ animeId: "2" })],
+          a: [],
+          b: [],
+          c: [],
+          d: []
+        }
+      })
+    );
+
+    expect(html).toContain(">SS<");
+    expect(html).toContain(">S<");
+    expect(html).toContain(">D<");
+    const labelCount = (html.match(/class="tiermaker-export-label tiermaker-label-/g) ?? []).length;
+    expect(labelCount).toBe(6);
+  });
+
   it("hides noisy TierMaker titles in export aria labels", () => {
     const noisyTitle = "zzzzz 17750273769085f154 f2a3b4c5d6e7f8";
     const html = renderToStaticMarkup(
       React.createElement(TierExportCanvas, {
         tiers: {
-          S: [tierItem({ source: "TIERMAKER_IMPORT", title: noisyTitle })],
-          A: [],
-          B: [],
-          C: [],
-          D: []
-        }
+          s: [tierItem({ source: "TIERMAKER_IMPORT", title: noisyTitle })],
+          a: [],
+          b: [],
+          c: [],
+          d: []
+        },
+        tierRows: defaultRows()
       })
     );
 
@@ -140,7 +207,7 @@ describe("TierExportCanvas", () => {
     const html = renderToStaticMarkup(
       React.createElement(TierExportCanvas, {
         tiers: {
-          S: [
+          s: [
             tierItem({
               animeId: "anime-1",
               id: "anime-1",
@@ -160,11 +227,12 @@ describe("TierExportCanvas", () => {
               thumbnailUrl: null
             })
           ],
-          A: [],
-          B: [],
-          C: [],
-          D: []
-        }
+          a: [],
+          b: [],
+          c: [],
+          d: []
+        },
+        tierRows: defaultRows()
       })
     );
 
@@ -178,7 +246,7 @@ describe("TierExportCanvas", () => {
       React.createElement(TierExportCanvas, {
         failedImageIds: new Set(["anime-2"]),
         tiers: {
-          S: [
+          s: [
             tierItem({
               animeId: "anime-1",
               id: "anime-1",
@@ -196,11 +264,12 @@ describe("TierExportCanvas", () => {
               thumbnailUrl: null
             })
           ],
-          A: [],
-          B: [],
-          C: [],
-          D: []
-        }
+          a: [],
+          b: [],
+          c: [],
+          d: []
+        },
+        tierRows: defaultRows()
       })
     );
 
@@ -213,12 +282,13 @@ describe("TierExportCanvas", () => {
     const html = renderToStaticMarkup(
       React.createElement(TierExportCanvas, {
         tiers: {
-          S: [tierItem()],
-          A: [],
-          B: [],
-          C: [],
-          D: []
-        }
+          s: [tierItem()],
+          a: [],
+          b: [],
+          c: [],
+          d: []
+        },
+        tierRows: defaultRows()
       })
     );
 

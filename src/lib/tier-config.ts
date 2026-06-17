@@ -97,8 +97,8 @@ export function normalizeTierConfig(
     return { ok: false, error: "至少需要 2 行。" };
   }
 
-  if (rawRows.length > 10) {
-    return { ok: false, error: "最多支持 10 行。" };
+  if (rawRows.length > 7) {
+    return { ok: false, error: "最多支持 7 行。" };
   }
 
   const rows: TierRowConfig[] = [];

@@ -3,57 +3,62 @@ import React, { useMemo, useState } from "react";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { getAnimeDisplayTitle, getAnimeImageFitMode } from "@/lib/anime-display";
 import { proxyExternalImageUrl } from "@/lib/image-proxy";
-import type { TierListItem } from "@/lib/client-api";
-import { DEFAULT_TIER_LABELS, type TierLabels } from "@/lib/tier-labels";
+import type { TierListItem, TierRowConfig } from "@/lib/client-api";
+import { DEFAULT_TIER_CONFIG } from "@/lib/tier-config";
 
-const EXPORT_TIERS = ["S", "A", "B", "C", "D"] as const;
-type ExportTier = (typeof EXPORT_TIERS)[number];
+const TIER_LABEL_CLASS_KEYS = [
+  "tiermaker-label-s",
+  "tiermaker-label-a",
+  "tiermaker-label-b",
+  "tiermaker-label-c",
+  "tiermaker-label-d",
+  "tiermaker-label-e",
+  "tiermaker-label-f"
+];
 
-const TIER_LABEL_CLASS: Record<ExportTier, string> = {
-  S: "tiermaker-label-s",
-  A: "tiermaker-label-a",
-  B: "tiermaker-label-b",
-  C: "tiermaker-label-c",
-  D: "tiermaker-label-d"
-};
-
-export type TierExportCanvasTiers = Record<ExportTier, TierListItem[]>;
+export type TierExportCanvasTiers = Record<string, TierListItem[]>;
 
 export function TierExportCanvas({
   tiers,
-  labels = DEFAULT_TIER_LABELS,
+  tierRows,
   failedImageIds = new Set<string>()
 }: {
   tiers: TierExportCanvasTiers;
-  labels?: TierLabels;
+  tierRows?: TierRowConfig[];
   failedImageIds?: ReadonlySet<string>;
 }) {
+  const rows = tierRows ?? DEFAULT_TIER_CONFIG.rows;
+
   return (
     <div data-testid="tier-export-canvas" className="tiermaker-export-canvas">
       <div className="tiermaker-export-logo">AniMatch Tier Wall</div>
       <div className="tiermaker-export-board">
-        {EXPORT_TIERS.map((tier) => (
-          <div key={tier} className="tiermaker-export-row">
-            <div className={`tiermaker-export-label ${TIER_LABEL_CLASS[tier]}`}>
-              <span
-                className={`tiermaker-export-label-text ${
-                  labels[tier].length > 2 ? "tiermaker-export-label-long" : ""
-                }`}
-              >
-                {labels[tier]}
-              </span>
+        {rows.map((row, idx) => {
+          const labelClass = TIER_LABEL_CLASS_KEYS[idx % TIER_LABEL_CLASS_KEYS.length];
+          const rowItems = tiers[row.id] ?? [];
+          return (
+            <div key={row.id} className="tiermaker-export-row">
+              <div className={`tiermaker-export-label ${labelClass}`}>
+                <span
+                  className={`tiermaker-export-label-text ${
+                    row.label.length > 2 ? "tiermaker-export-label-long" : ""
+                  }`}
+                >
+                  {row.label}
+                </span>
+              </div>
+              <div className="tiermaker-export-items">
+                {rowItems.map((item) => (
+                  <TierExportItem
+                    key={item.animeId}
+                    item={item}
+                    initiallyFailed={failedImageIds.has(item.animeId)}
+                  />
+                ))}
+              </div>
             </div>
-            <div className="tiermaker-export-items">
-              {tiers[tier].map((item) => (
-                <TierExportItem
-                  key={item.animeId}
-                  item={item}
-                  initiallyFailed={failedImageIds.has(item.animeId)}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className="tiermaker-export-watermark">animatch</div>
     </div>

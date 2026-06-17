@@ -77,7 +77,7 @@ export function DuelAnimeCard({
           animeId={anime.id}
           className="rounded-2xl border-cyan-200/10"
         />
-        <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-t from-slate-950/82 via-transparent to-transparent" />
+        <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
         <div className="absolute left-3 top-3 flex flex-wrap gap-2">
           <AppBadge tone={side === "left" ? "source" : "status"}>
             {sideLabel}
@@ -88,10 +88,10 @@ export function DuelAnimeCard({
       </div>
 
       <div className="mt-4">
-        <h2 className="line-clamp-2 min-h-[4rem] text-xl font-black leading-8 tracking-tight text-white sm:text-2xl">
+        <h2 className="line-clamp-2 min-h-[4rem] text-lg font-black leading-7 tracking-tight text-white/90 sm:text-xl">
           {title}
         </h2>
-        {subtitle ? <p className="mt-2 line-clamp-1 text-sm text-slate-400">{subtitle}</p> : null}
+        {subtitle ? <p className="mt-2 line-clamp-1 text-xs text-slate-400/70">{subtitle}</p> : null}
         {anime.display?.isOverridden ? (
           <div className="mt-3">
             <AppBadge tone="source">已手动修正</AppBadge>
@@ -100,10 +100,10 @@ export function DuelAnimeCard({
       </div>
 
       <details
-        className="relative mb-4 mt-4 rounded-xl border border-white/10 bg-slate-950/28 px-3 py-2 text-sm text-slate-400"
+        className="relative mb-4 mt-4 rounded-xl border border-white/10 bg-slate-950/28 px-3 py-2 text-sm text-slate-500"
         onClick={(e) => e.stopPropagation()}
       >
-        <summary className="cursor-pointer select-none text-xs font-semibold text-slate-300">
+        <summary className="cursor-pointer select-none text-[10px] font-semibold tracking-wider text-slate-500 uppercase">
           详细指标
         </summary>
         <div className="absolute left-0 right-0 top-full z-20 mt-2 grid grid-cols-3 gap-1.5 rounded-xl border border-white/10 bg-slate-950/95 p-2 shadow-anime-panel">

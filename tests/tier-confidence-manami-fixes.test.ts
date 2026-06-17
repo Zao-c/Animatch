@@ -160,14 +160,14 @@ describe("TierShareView hides badges", () => {
 describe("Tier export canvas is cover-only", () => {
   it("does not render source badges in export canvas", () => {
     const items: Record<string, unknown[]> = {
-      S: [
+      s: [
         baseItem({ source: "BANGUMI", animeType: "TV" }) as unknown,
         baseItem({ source: "MANAMI", animeType: "TV" }) as unknown
       ],
-      A: [baseItem() as unknown],
-      B: [],
-      C: [],
-      D: []
+      a: [baseItem() as unknown],
+      b: [],
+      c: [],
+      d: []
     };
 
     const html = renderToStaticMarkup(

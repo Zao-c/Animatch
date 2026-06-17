@@ -26,6 +26,8 @@ export function PoolTierConfigEditor({ tierConfig, onSave, isSaving }: Props) {
   });
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const maxRows = 7;
+  const minRows = 2;
 
   function handleTemplateChange(templateName: string) {
     const template = TIER_TEMPLATES[templateName];
@@ -69,7 +71,7 @@ export function PoolTierConfigEditor({ tierConfig, onSave, isSaving }: Props) {
   }
 
   function handleAddRow() {
-    if (rows.length >= 10) return;
+    if (rows.length >= maxRows) return;
     setRows((prev) => [
       ...prev,
       {
@@ -186,7 +188,7 @@ export function PoolTierConfigEditor({ tierConfig, onSave, isSaving }: Props) {
               </AppButton>
               <AppButton
                 onClick={() => handleDeleteRow(index)}
-                disabled={rows.length <= 2}
+                disabled={rows.length <= minRows}
                 variant="ghost"
                 size="sm"
               >
@@ -198,10 +200,13 @@ export function PoolTierConfigEditor({ tierConfig, onSave, isSaving }: Props) {
       </div>
 
       <div className="mt-3 flex gap-2">
-        <AppButton onClick={handleAddRow} disabled={rows.length >= 10} variant="quiet" size="sm">
-          添加行
-        </AppButton>
-      </div>
+          <AppButton onClick={handleAddRow} disabled={rows.length >= maxRows} variant="quiet" size="sm">
+            添加行
+          </AppButton>
+          {rows.length >= maxRows ? (
+            <span className="self-center text-xs text-slate-500">最多 {maxRows} 行</span>
+          ) : null}
+        </div>
 
       {error ? (
         <p className="mt-3 text-sm text-red-400">{error}</p>
