@@ -49,9 +49,12 @@ export function AuthNav() {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="hidden max-w-[120px] truncate rounded-full border border-anime-purple/25 bg-anime-purple/10 px-3 py-2 text-xs font-semibold text-purple-100 sm:inline">
+      <Link
+        href={user.username ? `/u/${user.username}` : "#"}
+        className="hidden max-w-[120px] truncate rounded-full border border-anime-purple/25 bg-anime-purple/10 px-3 py-2 text-xs font-semibold text-purple-100 transition hover:border-anime-purple/50 hover:bg-anime-purple/20 sm:inline"
+      >
         {user.name ?? user.username}
-      </span>
+      </Link>
       <button
         type="button"
         onClick={handleLogout}

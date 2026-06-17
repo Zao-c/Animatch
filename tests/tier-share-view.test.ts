@@ -58,7 +58,9 @@ describe("TierShareView", () => {
     );
 
     expect(html).toContain("Shared Pool");
-    expect(html).toContain("由 zaoc 制作这套 Tier List");
+    expect(html).toContain('href="/u/zaoc"');
+    expect(html).toContain(">zaoc<");
+    expect(html).toContain("制作这套 Tier List");
     expect(html).toContain("神作");
     expect(html).toContain("Custom Upload");
     expect(html).toContain("/uploads/custom-items/item.png");
@@ -133,7 +135,8 @@ describe("TierShareView", () => {
       "/api/image-proxy?url=https%3A%2F%2Fcdn.tiermaker.com%2Fimages%2Fitem-large.png"
     );
     expect(html).toContain("Shared Pool");
-    expect(html).toContain("由 zaoc 制作");
+    expect(html).toContain('href="/u/zaoc"');
+    expect(html).toContain(">zaoc<");
     expect(html).not.toContain(">TIERMAKER_IMPORT<");
   });
 

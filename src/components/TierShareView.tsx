@@ -25,6 +25,7 @@ export function TierShareView({
   const [copied, setCopied] = useState(false);
   const [copyFallback, setCopyFallback] = useState(false);
   const creatorLabel = getShareCreatorLabel(share);
+  const creatorUsername = getShareCreatorUsername(share);
 
   async function copyLink() {
     const href = window.location.href;
@@ -56,7 +57,15 @@ export function TierShareView({
               </p>
               {creatorLabel ? (
                 <p className="mt-2 text-sm font-semibold text-cyan-100">
-                  由 {creatorLabel} 制作这套 Tier List
+                  由{" "}
+                  {creatorUsername ? (
+                    <Link href={`/u/${creatorUsername}`} className="underline decoration-cyan-400/40 hover:text-cyan-200">
+                      {creatorLabel}
+                    </Link>
+                  ) : (
+                    creatorLabel
+                  )}{" "}
+                  制作这套 Tier List
                 </p>
               ) : null}
               {share.description ? (
@@ -112,6 +121,7 @@ export function TierShareCard({
   exportMode?: boolean;
 }) {
   const creatorLabel = getShareCreatorLabel(share);
+  const creatorUsername = getShareCreatorUsername(share);
   const animeCount = share.snapshot.animeCount ?? share.snapshot.tiers.reduce((sum, t) => sum + t.items.length, 0);
   const comparisonCount = share.snapshot.comparisonCount ?? null;
 
@@ -132,7 +142,15 @@ export function TierShareCard({
               </h1>
               {creatorLabel ? (
                 <p className="mt-1.5 text-sm font-semibold text-slate-300">
-                  由 {creatorLabel} 制作
+                  由{" "}
+                  {creatorUsername ? (
+                    <Link href={`/u/${creatorUsername}`} className="underline decoration-slate-500/40 hover:text-white">
+                      {creatorLabel}
+                    </Link>
+                  ) : (
+                    creatorLabel
+                  )}{" "}
+                  制作
                 </p>
               ) : null}
             </div>
@@ -240,5 +258,10 @@ function ShareItemCard({
 
 function getShareCreatorLabel(share: PublicTierShare): string | null {
   const value = share.snapshot.creator?.displayName?.trim();
+  return value && value.length > 0 ? value : null;
+}
+
+function getShareCreatorUsername(share: PublicTierShare): string | null {
+  const value = share.snapshot.creator?.username?.trim();
   return value && value.length > 0 ? value : null;
 }

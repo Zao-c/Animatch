@@ -1184,7 +1184,20 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           </p>
           {pool.creator ? (
             <p className="mt-3 text-xs text-slate-500">
-              由 <span className="font-medium text-slate-300">{pool.creator.name ?? pool.creator.username}</span> 创建
+              由{" "}
+              {pool.creator.username ? (
+                <Link
+                  href={`/u/${pool.creator.username}`}
+                  className="font-medium text-slate-300 underline decoration-slate-600/40 hover:text-anime-purple"
+                >
+                  {pool.creator.name ?? pool.creator.username}
+                </Link>
+              ) : (
+                <span className="font-medium text-slate-300">
+                  {pool.creator.name ?? pool.creator.username}
+                </span>
+              )}{" "}
+              创建
             </p>
           ) : null}
           {pool.isOfficialDemo && canPlayPool ? (
