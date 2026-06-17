@@ -503,3 +503,209 @@ describe("match cover stability", () => {
     expect(html).toContain("RIGHT");
   });
 });
+
+describe("match cover resilience", () => {
+  it("AnimeCover always has visible skeleton layer with first letter", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(AnimeCover, {
+        src: "https://example.com/cover.jpg",
+        title: "冰菓",
+        size: "lg"
+      })
+    );
+
+    expect(html).toContain("absolute inset-0");
+    expect(html).toContain("冰");
+  });
+
+  it("AnimeCover shows skeleton even when img is present (loading state)", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(AnimeCover, {
+        src: "https://example.com/cover.jpg",
+        title: "葬送的芙莉莲",
+        size: "lg"
+      })
+    );
+
+    expect(html).toContain("<img");
+    expect(html).toContain("葬");
+  });
+
+  it("AnimeCover uses eager loading on img", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(AnimeCover, {
+        src: "https://example.com/cover.jpg",
+        title: "Eager Test",
+        size: "lg"
+      })
+    );
+
+    expect(html).toContain('loading="eager"');
+  });
+
+  it("AnimeCover has data-cover-state=loading when src present and not yet loaded", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(AnimeCover, {
+        src: "https://example.com/large.jpg",
+        title: "Loading State",
+        size: "lg"
+      })
+    );
+
+    expect(html).toContain('data-cover-state="loading"');
+    expect(html).toContain('data-cover-url-present="true"');
+    expect(html).toContain('opacity-0');
+  });
+
+  it("AnimeCover has data-cover-state=empty when no src", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(AnimeCover, {
+        src: null,
+        secondarySrc: null,
+        title: "Empty Cover",
+        size: "lg"
+      })
+    );
+
+    expect(html).toContain('data-cover-state="empty"');
+    expect(html).toContain('data-cover-url-present="false"');
+    expect(html).toContain("封面暂不可用");
+  });
+
+  it("AnimeCover passes animeId into data-anime-id", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(AnimeCover, {
+        src: "https://example.com/cover.jpg",
+        title: "With ID",
+        animeId: "anime-42"
+      })
+    );
+
+    expect(html).toContain('data-anime-id="anime-42"');
+  });
+
+  it("AnimeCover empty data-anime-id when no animeId prop", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(AnimeCover, {
+        src: "https://example.com/cover.jpg",
+        title: "No ID"
+      })
+    );
+
+    expect(html).toContain('data-anime-id=""');
+  });
+
+  it("AnimeCover skeleton hides fallback text when image is loading", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(AnimeCover, {
+        src: "https://example.com/cover.jpg",
+        title: "Some Anime Title",
+        size: "lg"
+      })
+    );
+
+    expect(html).toContain('data-cover-state="loading"');
+    expect(html).not.toContain("text-zinc-400\">封面暂不可用");
+  });
+
+  it("DuelAnimeCard has data-cover-state and data-anime-id on cover div", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DuelAnimeCard, {
+        anime: baseAnime({ id: "anime-match-99" }),
+        side: "left",
+        disabled: false,
+        actionLabel: "Pick",
+        scoreDistribution,
+        onPick: () => undefined
+      })
+    );
+
+    expect(html).toContain('data-anime-id="anime-match-99"');
+  });
+
+  it("img in DuelAnimeCard is not lazy loaded", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DuelAnimeCard, {
+        anime: baseAnime(),
+        side: "left",
+        disabled: false,
+        actionLabel: "Pick",
+        scoreDistribution,
+        onPick: () => undefined
+      })
+    );
+
+    expect(html).toContain('loading="eager"');
+    expect(html).not.toContain('loading="lazy"');
+  });
+
+  it("DuelAnimeCard cover area has stable aspect ratio on mobile", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DuelAnimeCard, {
+        anime: baseAnime(),
+        side: "left",
+        disabled: false,
+        actionLabel: "Pick",
+        scoreDistribution,
+        onPick: () => undefined
+      })
+    );
+
+    expect(html).toContain("aspect-[2/3]");
+  });
+
+  it("DuelAnimeCard with Bangumi CDN source still renders real remote image", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DuelAnimeCard, {
+        anime: baseAnime({
+          source: "BANGUMI",
+          imageUrl: null,
+          imageLargeUrl: "https://lain.bgm.tv/r/400/pic/cover/l/abc.jpg",
+          imageMediumUrl: null,
+          imageSmallUrl: null,
+          thumbnailUrl: null,
+          coverUrl: null,
+          titleCn: "葬送的芙莉莲"
+        }),
+        side: "left",
+        disabled: false,
+        actionLabel: "Pick",
+        scoreDistribution,
+        onPick: () => undefined
+      })
+    );
+
+    expect(html).toContain('src="https://lain.bgm.tv/r/400/pic/cover/l/abc.jpg"');
+    expect(html).not.toContain("/demo-covers/");
+    expect(html).not.toContain("/brand/fallback");
+  });
+
+  it("DuelAnimeCard fallback shows title when no cover URLs", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DuelAnimeCard, {
+        anime: baseAnime({
+          source: "BANGUMI",
+          titleCn: "无封面作品",
+          id: "no-cover-anime",
+          imageUrl: null,
+          imageLargeUrl: null,
+          imageMediumUrl: null,
+          imageSmallUrl: null,
+          thumbnailUrl: null,
+          coverUrl: null,
+          coverUrlOverride: null
+        }),
+        side: "left",
+        disabled: false,
+        actionLabel: "Pick",
+        scoreDistribution,
+        onPick: () => undefined
+      })
+    );
+
+    expect(html).toContain('data-cover-state="empty"');
+    expect(html).toContain('data-cover-url-present="false"');
+    expect(html).toContain("封面暂不可用");
+    expect(html).toContain("无封面作品");
+  });
+});
