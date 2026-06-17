@@ -1378,3 +1378,80 @@ export function addQuickImportToPool(poolId: string, animeIds: string[]) {
     body: { animeIds }
   });
 }
+
+export interface UserImpactEntry {
+  userId: string;
+  username: string | null;
+  displayName: string | null;
+  image: string | null;
+  voteCount: number;
+  normalVoteCount: number;
+  biasVoteCount: number;
+  totalWeight: number;
+  totalScoreSwing: number;
+  supportedAnimeTop3: { animeId: string; title: string; supportScore: number }[];
+  suppressedAnimeTop3: { animeId: string; title: string; suppressionScore: number }[];
+}
+
+export interface AnimeSupportEntry {
+  animeId: string;
+  title: string;
+  coverUrl: string | null;
+  supportScore: number;
+  supportVoteCount: number;
+  topSupporters: { userId: string; displayName: string | null; weight: number }[];
+}
+
+export interface AnimeSuppressionEntry {
+  animeId: string;
+  title: string;
+  coverUrl: string | null;
+  suppressionScore: number;
+  suppressionVoteCount: number;
+  topSuppressors: { userId: string; displayName: string | null; weight: number }[];
+}
+
+export interface KeyVoteEntry {
+  id: string;
+  stepNumber: number;
+  userId: string;
+  displayName: string | null;
+  winnerTitle: string;
+  loserTitle: string;
+  voteType: "NORMAL" | "BIAS";
+  weight: number;
+  winnerScoreDelta: number;
+  loserScoreDelta: number;
+  totalSwing: number;
+  createdAt: string;
+}
+
+export interface BiasVoteStats {
+  totalBiasVotes: number;
+  biasUsersCount: number;
+  topBiasUsers: { userId: string; displayName: string | null; biasCount: number }[];
+  topBiasSupportedAnime: { animeId: string; title: string; biasWinCount: number }[];
+}
+
+export interface BattleSeasonImpact {
+  season: { id: string; title: string; mode: string; status: string };
+  stats: {
+    totalVotes: number;
+    totalParticipants: number;
+    totalBiasVotes: number;
+    totalScoreSwing: number;
+    topInfluencerUser: { userId: string; displayName: string | null } | null;
+    mostSupportedAnime: { animeId: string; title: string } | null;
+    mostSuppressedAnime: { animeId: string; title: string } | null;
+  };
+  userImpactRanking: UserImpactEntry[];
+  animeSupportRanking: AnimeSupportEntry[];
+  animeSuppressionRanking: AnimeSuppressionEntry[];
+  keyVotes: KeyVoteEntry[];
+  biasVoteStats: BiasVoteStats | null;
+  currentUserImpact: UserImpactEntry | null;
+}
+
+export function getSeasonImpact(poolId: string, seasonId: string) {
+  return fetchJson<BattleSeasonImpact>(`/api/pools/${poolId}/seasons/${seasonId}/impact`);
+}

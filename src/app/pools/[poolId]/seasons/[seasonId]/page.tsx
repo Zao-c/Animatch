@@ -7,8 +7,9 @@ import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
 import { PageShell } from "@/components/PageShell";
-import { getSeasonDetail, startSeason, endSeason } from "@/lib/client-api";
+import { getSeasonDetail, startSeason, endSeason, getSeasonImpact } from "@/lib/client-api";
 import { formatDateTimeStable } from "@/lib/date-format";
+import { SeasonImpactPanel } from "@/components/SeasonImpactPanel";
 import type { SeasonDetail, SeasonRankingItem } from "@/lib/client-api";
 
 function SeasonSkeleton() {
@@ -130,6 +131,15 @@ export default function SeasonDetailPage() {
             </div>
           )}
         </AppCard>
+
+        <div className="mb-8">
+          <SeasonImpactPanel
+            poolId={poolId}
+            seasonId={seasonId}
+            status={detail.status}
+            fetchImpact={getSeasonImpact}
+          />
+        </div>
 
         <AppCard className="p-6">
           <h2 className="mb-4 text-lg font-bold text-white">最近投票</h2>
