@@ -1,4 +1,9 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
+import fs from "fs/promises";
+import path from "path";
+
+export const runtime = "nodejs";
 
 const MAX_SIZE = 5 * 1024 * 1024;
 const TIMEOUT_MS = 12000;
@@ -6,6 +11,9 @@ const FRESH_TTL_MS = 24 * 60 * 60 * 1000;
 const STALE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 500;
 const MAX_CACHE_BYTES = 128 * 1024 * 1024;
+const DISK_CACHE_DIR =
+  process.env.ANIMATCH_IMAGE_CACHE_DIR ??
+  path.join(process.cwd(), "data", "image-cache");
 const CACHE_CONTROL = "public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800";
 const CDN_CACHE_CONTROL = "public, max-age=604800, stale-while-revalidate=604800";
 const ERROR_CACHE_CONTROL = "no-store";
@@ -38,6 +46,13 @@ interface ImageCacheEntry {
 interface ImageCacheStore {
   entries: Map<string, ImageCacheEntry>;
   totalBytes: number;
+}
+
+interface DiskCacheMetadata {
+  contentType: string;
+  cachedAt: number;
+  lastAccessedAt: number;
+  byteLength: number;
 }
 
 declare global {
@@ -108,7 +123,18 @@ export async function GET(request: Request) {
     return cachedImageResponse(freshEntry, "HIT");
   }
 
+  const freshDiskEntry = await readDiskCacheEntry(cacheKey, FRESH_TTL_MS, {
+    deleteExpired: false
+  });
+  if (freshDiskEntry !== null) {
+    setCacheEntry(cacheKey, freshDiskEntry);
+    return cachedImageResponse(freshDiskEntry, "DISK-HIT");
+  }
+
   const staleEntry = getCacheEntry(cacheKey, STALE_TTL_MS, { deleteExpired: true });
+  const staleDiskEntry = await readDiskCacheEntry(cacheKey, STALE_TTL_MS, {
+    deleteExpired: true
+  });
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -134,6 +160,10 @@ export async function GET(request: Request) {
     if (staleEntry !== null) {
       return cachedImageResponse(staleEntry, "STALE");
     }
+    if (staleDiskEntry !== null) {
+      setCacheEntry(cacheKey, staleDiskEntry);
+      return cachedImageResponse(staleDiskEntry, "DISK-STALE");
+    }
     const message = error instanceof DOMException && error.name === "AbortError"
       ? "upstream timeout"
       : "fetch failed";
@@ -145,6 +175,10 @@ export async function GET(request: Request) {
   if (!response.ok) {
     if (staleEntry !== null) {
       return cachedImageResponse(staleEntry, "STALE");
+    }
+    if (staleDiskEntry !== null) {
+      setCacheEntry(cacheKey, staleDiskEntry);
+      return cachedImageResponse(staleDiskEntry, "DISK-STALE");
     }
     return errorResponse({ error: `upstream returned ${response.status}` }, 502);
   }
@@ -167,6 +201,10 @@ export async function GET(request: Request) {
     if (staleEntry !== null) {
       return cachedImageResponse(staleEntry, "STALE");
     }
+    if (staleDiskEntry !== null) {
+      setCacheEntry(cacheKey, staleDiskEntry);
+      return cachedImageResponse(staleDiskEntry, "DISK-STALE");
+    }
     return errorResponse({ error: "read failed" }, 502);
   }
 
@@ -181,6 +219,7 @@ export async function GET(request: Request) {
     cachedAt: Date.now(),
     lastAccessedAt: Date.now()
   });
+  await writeDiskCacheEntry(cacheKey, entry);
 
   return cachedImageResponse(entry, "MISS");
 }
@@ -239,7 +278,163 @@ function pruneImageCache(): void {
   }
 }
 
-function cachedImageResponse(entry: ImageCacheEntry, cacheStatus: "HIT" | "MISS" | "STALE") {
+async function readDiskCacheEntry(
+  cacheKey: string,
+  maxAgeMs: number,
+  options: { deleteExpired: boolean }
+): Promise<ImageCacheEntry | null> {
+  const paths = getDiskCachePaths(cacheKey);
+
+  try {
+    const [metadataRaw, buffer] = await Promise.all([
+      fs.readFile(paths.metaPath, "utf8"),
+      fs.readFile(paths.bodyPath)
+    ]);
+    const metadata = JSON.parse(metadataRaw) as Partial<DiskCacheMetadata>;
+
+    if (
+      typeof metadata.contentType !== "string" ||
+      typeof metadata.cachedAt !== "number" ||
+      typeof metadata.byteLength !== "number" ||
+      !metadata.contentType.startsWith("image/")
+    ) {
+      await deleteDiskCacheEntry(paths);
+      return null;
+    }
+
+    if (Date.now() - metadata.cachedAt > maxAgeMs) {
+      if (options.deleteExpired) {
+        await deleteDiskCacheEntry(paths);
+      }
+      return null;
+    }
+
+    if (buffer.byteLength !== metadata.byteLength || buffer.byteLength > MAX_SIZE) {
+      await deleteDiskCacheEntry(paths);
+      return null;
+    }
+
+    const entry = {
+      buffer,
+      contentType: metadata.contentType,
+      cachedAt: metadata.cachedAt,
+      lastAccessedAt: Date.now()
+    };
+    void writeDiskMetadata(paths.metaPath, {
+      contentType: entry.contentType,
+      cachedAt: entry.cachedAt,
+      lastAccessedAt: entry.lastAccessedAt,
+      byteLength: entry.buffer.byteLength
+    });
+    return entry;
+  } catch {
+    return null;
+  }
+}
+
+async function writeDiskCacheEntry(cacheKey: string, entry: ImageCacheEntry): Promise<void> {
+  const paths = getDiskCachePaths(cacheKey);
+  await fs.mkdir(DISK_CACHE_DIR, { recursive: true });
+  const tmpBodyPath = paths.bodyPath + ".tmp";
+  const tmpMetaPath = paths.metaPath + ".tmp";
+
+  try {
+    await fs.writeFile(tmpBodyPath, entry.buffer);
+    await writeDiskMetadata(tmpMetaPath, {
+      contentType: entry.contentType,
+      cachedAt: entry.cachedAt,
+      lastAccessedAt: entry.lastAccessedAt,
+      byteLength: entry.buffer.byteLength
+    });
+    await Promise.all([
+      fs.rename(tmpBodyPath, paths.bodyPath),
+      fs.rename(tmpMetaPath, paths.metaPath)
+    ]);
+    await pruneDiskCache();
+  } catch {
+    await Promise.allSettled([
+      fs.unlink(tmpBodyPath),
+      fs.unlink(tmpMetaPath)
+    ]);
+  }
+}
+
+async function writeDiskMetadata(metaPath: string, metadata: DiskCacheMetadata): Promise<void> {
+  await fs.mkdir(DISK_CACHE_DIR, { recursive: true });
+  await fs.writeFile(metaPath, JSON.stringify(metadata), "utf8");
+}
+
+async function pruneDiskCache(): Promise<void> {
+  let files: string[];
+
+  try {
+    files = await fs.readdir(DISK_CACHE_DIR);
+  } catch {
+    return;
+  }
+
+  const metadataFiles = files.filter((file) => file.endsWith(".json"));
+  const entries = (
+    await Promise.all(
+      metadataFiles.map(async (file) => {
+        const metaPath = path.join(DISK_CACHE_DIR, file);
+        const bodyPath = metaPath.replace(/\.json$/, ".bin");
+
+        try {
+          const metadata = JSON.parse(await fs.readFile(metaPath, "utf8")) as Partial<DiskCacheMetadata>;
+          const byteLength =
+            typeof metadata.byteLength === "number"
+              ? metadata.byteLength
+              : (await fs.stat(bodyPath)).size;
+          return {
+            metaPath,
+            bodyPath,
+            byteLength,
+            lastAccessedAt:
+              typeof metadata.lastAccessedAt === "number"
+                ? metadata.lastAccessedAt
+                : 0
+          };
+        } catch {
+          await deleteDiskCacheEntry({ metaPath, bodyPath });
+          return null;
+        }
+      })
+    )
+  ).filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+
+  let totalBytes = entries.reduce((sum, entry) => sum + entry.byteLength, 0);
+  entries.sort((left, right) => left.lastAccessedAt - right.lastAccessedAt);
+
+  while (entries.length > MAX_CACHE_ENTRIES || totalBytes > MAX_CACHE_BYTES) {
+    const oldest = entries.shift();
+    if (oldest === undefined) {
+      return;
+    }
+    await deleteDiskCacheEntry(oldest);
+    totalBytes -= oldest.byteLength;
+  }
+}
+
+function getDiskCachePaths(cacheKey: string): { metaPath: string; bodyPath: string } {
+  const hash = crypto.createHash("sha256").update(cacheKey).digest("hex");
+  return {
+    metaPath: path.join(DISK_CACHE_DIR, `${hash}.json`),
+    bodyPath: path.join(DISK_CACHE_DIR, `${hash}.bin`)
+  };
+}
+
+async function deleteDiskCacheEntry(paths: { metaPath: string; bodyPath: string }): Promise<void> {
+  await Promise.allSettled([
+    fs.unlink(paths.metaPath),
+    fs.unlink(paths.bodyPath)
+  ]);
+}
+
+function cachedImageResponse(
+  entry: ImageCacheEntry,
+  cacheStatus: "HIT" | "MISS" | "STALE" | "DISK-HIT" | "DISK-STALE"
+) {
   return new NextResponse(bufferToArrayBuffer(entry.buffer), {
     headers: {
       "Content-Type": entry.contentType,
