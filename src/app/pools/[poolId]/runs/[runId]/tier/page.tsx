@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { TierAnimeCard } from "@/components/TierAnimeCard";
 import { TierSharePanel } from "@/components/TierSharePanel";
 import { TierShareCard } from "@/components/TierShareView";
+import { CommunityDivergenceCard } from "@/components/CommunityDivergenceCard";
 import { PageShell } from "@/components/PageShell";
 import { RankingProgressCard } from "@/components/RankingProgressCard";
 import { StatusHint } from "@/components/StatusHint";
@@ -20,15 +21,18 @@ import {
   clearManualTier,
   createRecalibrationSession,
   createTierShare,
+  getCommunityRanking,
   getPool,
   getTierList,
   getTierShare,
   saveManualTierList,
+  type CommunityRankingResponse,
   type RecalibrationType,
   type TierListItem,
   type TierListResponse
 } from "@/lib/client-api";
 import { isCommunityBattleVisiblePool } from "@/lib/community-battle-visibility";
+import { computeCommunityDivergence, buildPersonalItemList, type DivergenceResult } from "@/lib/community-divergence";
 import { exportShareCardAsPng } from "@/lib/share-export";
 import { formatTierExportTimestamp } from "@/lib/tier-export";
 import { DEFAULT_TIER_CONFIG, type TierRowConfig } from "@/lib/tier-config";
@@ -115,6 +119,8 @@ export default function TierPage({
   const [showAdvancedActions, setShowAdvancedActions] = useState(false);
   const [showTierInfo, setShowTierInfo] = useState(false);
   const [canShowCommunityRanking, setCanShowCommunityRanking] = useState(false);
+  const [communityRanking, setCommunityRanking] = useState<CommunityRankingResponse | null>(null);
+  const [divergenceResult, setDivergenceResult] = useState<DivergenceResult | null>(null);
 
   const loadTierList = useCallback(async () => {
     setIsLoading(true);
@@ -141,6 +147,27 @@ export default function TierPage({
   useEffect(() => {
     void loadTierList();
   }, [loadTierList]);
+
+  useEffect(() => {
+    if (canShowCommunityRanking && tierList !== null) {
+      getCommunityRanking(params.poolId)
+        .then((data) => {
+          setCommunityRanking(data);
+          setDivergenceResult(
+            computeCommunityDivergence(
+              buildPersonalItemList(tierList.tiers),
+              tierList.tiers,
+              tierList.tierRows ?? DEFAULT_TIER_CONFIG.rows,
+              data.items
+            )
+          );
+        })
+        .catch(() => {
+          setCommunityRanking(null);
+          setDivergenceResult(null);
+        });
+    }
+  }, [canShowCommunityRanking, tierList, params.poolId]);
 
   useEffect(() => {
     const labels = readTierLabels(params.poolId, params.runId);
@@ -782,6 +809,13 @@ export default function TierPage({
             })}
           </div>
         </div>
+      ) : null}
+
+      {divergenceResult !== null && canShowCommunityRanking ? (
+        <CommunityDivergenceCard
+          result={divergenceResult}
+          className="mt-8"
+        />
       ) : null}
 
       {visibleTiers ? (
