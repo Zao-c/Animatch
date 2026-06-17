@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AppBadge } from "@/components/ui/AppBadge";
@@ -37,14 +38,15 @@ function SeasonDuelCard({
           : "border-white/10 hover:border-white/20 active:border-amber-300/50"
       } ${disabled ? "pointer-events-none opacity-40" : ""}`}
     >
-      <div className="aspect-[3/4] w-full overflow-hidden bg-slate-800">
+      <div className="aspect-[3/4] w-full overflow-hidden bg-slate-800 relative">
         {coverUrl ? (
-          <img
+          <Image
             src={coverUrl}
             alt={title}
-            className="h-full w-full object-cover"
+            fill
+            sizes="(max-width: 768px) 100vw, 50vw"
+            className="object-cover"
             loading="lazy"
-            referrerPolicy="no-referrer"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-3xl font-black text-white/20">

@@ -3,11 +3,10 @@ import { prisma } from "@/lib/db";
 import { ANIME_SOURCE } from "@/lib/anime-source";
 import {
   BANGUMI_BASE_URL,
-  bangumiRequest,
-  buildHeaders,
   normalizeBangumiSubject,
   type NormalizedBangumiSubject,
 } from "@/lib/bangumi";
+import { outboundFetch } from "@/lib/server/outbound-fetch";
 import type { QuickImportParams } from "./quick-pool-builder";
 
 export interface RemoteFetchResult {
@@ -23,11 +22,9 @@ export interface RemoteFetchMeta {
   remoteFetch: RemoteFetchResult;
 }
 
-const SOURCES_TO_SKIP_UPSERT: string[] = [
-  ANIME_SOURCE.CUSTOM_UPLOAD,
-  ANIME_SOURCE.MANUAL,
-  ANIME_SOURCE.TIERMAKER_IMPORT,
-];
+function isProtectedAnimeSource(source: string): boolean {
+  return source === ANIME_SOURCE.CUSTOM_UPLOAD || source === ANIME_SOURCE.MANUAL || source === ANIME_SOURCE.TIERMAKER_IMPORT;
+}
 
 export function shouldUseRemote(params: QuickImportParams): boolean {
   return params.source === "BANGUMI" || params.source === "MIXED";
@@ -73,26 +70,31 @@ async function fetchBySearch(
 
     const body = buildSearchBody(params, params.mode);
     const url = `${BANGUMI_BASE_URL}/search/subjects?limit=${pageLimit}&offset=${offset}`;
-    const response = await bangumiRequest(url, {
-      method: "POST",
-      headers: buildHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify(body),
-    });
+    try {
+      const response = await outboundFetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        timeoutMs: 8000,
+      });
 
-    if (!response.ok) break;
+      if (!response.ok) break;
 
-    const payload = await response.json<{ data?: unknown[] }>();
-    const rawItems = Array.isArray(payload.data) ? payload.data : [];
-    for (const item of rawItems) {
-      try {
-        allSubjects.push(normalizeBangumiSubject(item));
-      } catch {
-        continue;
+      const payload = await response.json<{ data?: unknown[] }>();
+      const rawItems = Array.isArray(payload.data) ? payload.data : [];
+      for (const item of rawItems) {
+        try {
+          allSubjects.push(normalizeBangumiSubject(item));
+        } catch {
+          continue;
+        }
       }
-    }
 
-    if (rawItems.length < pageLimit) break;
-    offset += pageLimit;
+      if (rawItems.length < pageLimit) break;
+      offset += pageLimit;
+    } catch {
+      break;
+    }
   }
 
   return filterAndSortCandidates(allSubjects, params);
@@ -152,10 +154,11 @@ async function fetchByTags(
     try {
       const url = `${BANGUMI_BASE_URL}/search/subjects?limit=30`;
       const body = buildSearchBody({ ...params, tags: [tag], mode: "TAG" }, "TAG");
-      const response = await bangumiRequest(url, {
+      const response = await outboundFetch(url, {
         method: "POST",
-        headers: buildHeaders({ "Content-Type": "application/json" }),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
+        timeoutMs: 8000,
       });
 
       if (!response.ok) continue;
@@ -192,10 +195,6 @@ function filterAndSortCandidates(
       if (!s.airDate) return false;
       return s.airDate.getUTCFullYear() === params.year;
     });
-  }
-
-  if (params.type && params.type !== "ALL") {
-    filtered = filtered;
   }
 
   if (params.mode === "TOP" || params.sort === "rank") {
@@ -236,9 +235,10 @@ async function fetchUserCollections(
 
     try {
       const url = `${BANGUMI_BASE_URL}/users/${encodeURIComponent(username)}/collections?subject_type=2&type=${type}&limit=${pageLimit}&offset=${offset}`;
-      const response = await bangumiRequest(url, {
+      const response = await outboundFetch(url, {
         method: "GET",
-        headers: buildHeaders(),
+        headers: {},
+        timeoutMs: 8000,
       });
 
       if (!response.ok) break;
@@ -301,7 +301,7 @@ export async function upsertBangumiSubjects(
     const existingRecord = existingMap.get(subject.bgmId);
 
     if (existingRecord) {
-      if (SOURCES_TO_SKIP_UPSERT.includes(existingRecord.source)) continue;
+      if (isProtectedAnimeSource(existingRecord.source)) continue;
 
       const updateData: Record<string, unknown> = {};
       addIfMissing(updateData, existingRecord, "title", subject.title);

@@ -38,9 +38,10 @@ services:
       NODE_OPTIONS: --dns-result-order=ipv4first
       BANGUMI_PROXY_URL: ${BANGUMI_PROXY_URL:-}
       BANGUMI_ACCESS_TOKEN: ${BANGUMI_ACCESS_TOKEN:-}
-      HTTP_PROXY: http://172.18.0.1:7890
-      HTTPS_PROXY: http://172.18.0.1:7890
-      NO_PROXY: localhost,127.0.0.1,postgres,animatch-postgres
+      ANIMATCH_OUTBOUND_PROXY_URL: ${ANIMATCH_OUTBOUND_PROXY_URL:-}
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1,postgres,animatch-postgres}
       SITE_ADMIN_USER_IDS: ${SITE_ADMIN_USER_IDS}
       SITE_ADMIN_CODE: ${SITE_ADMIN_CODE}
     ports:

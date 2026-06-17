@@ -149,7 +149,7 @@ describe("BattleSeasonImpact service", () => {
   });
 
   it("does not select email from user", () => {
-    const userSelect = source.match(/user.*select.*\{(.*?)\}/s);
+    const userSelect = source.match(/user.*select.*\{([\s\S]*?)\}/);
     if (userSelect) {
       expect(userSelect[1]).not.toContain("email");
     }

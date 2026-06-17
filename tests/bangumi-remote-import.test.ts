@@ -78,7 +78,7 @@ describe("Bangumi import source service", () => {
   });
 
   it("upsert skips CUSTOM_UPLOAD/MANUAL/TIERMAKER_IMPORT sources", () => {
-    expect(source).toContain("SOURCES_TO_SKIP_UPSERT");
+    expect(source).toContain("isProtectedAnimeSource");
     expect(source).toContain("CUSTOM_UPLOAD");
     expect(source).toContain("MANUAL");
     expect(source).toContain("TIERMAKER_IMPORT");

@@ -219,7 +219,7 @@ export function PoolTierConfigEditor({ tierConfig, onSave, isSaving }: Props) {
           </p>
           <div className="mt-3 flex gap-2">
             <AppButton onClick={handleSave} disabled={isSaving} variant="primary" size="sm">
-              {isSaving ? "保存中..." : "确定保存"}
+              {isSaving ? "保存中..." : "保存分层设置"}
             </AppButton>
             <AppButton onClick={() => setShowConfirm(false)} disabled={isSaving} variant="ghost" size="sm">
               取消
@@ -229,7 +229,7 @@ export function PoolTierConfigEditor({ tierConfig, onSave, isSaving }: Props) {
       ) : (
         <div className="mt-4">
           <AppButton onClick={handleShowConfirm} disabled={isSaving} variant="primary" size="sm">
-            {isSaving ? "保存中..." : "保存"}
+            {isSaving ? "保存中..." : "保存分层设置"}
           </AppButton>
         </div>
       )}

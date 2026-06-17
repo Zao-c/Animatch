@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppCard } from "@/components/ui/AppCard";
 import { AppButton } from "@/components/ui/AppButton";
@@ -22,14 +22,14 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
     getSeasons(poolId)
       .then((data) => { setSeasons(data); setLoading(false); })
       .catch(() => { setLoading(false); });
-  };
+  }, [poolId]);
 
-  useEffect(() => { load(); }, [poolId]);
+  useEffect(() => { load(); }, [load]);
 
   const handleCreate = async () => {
     if (!formData.title.trim()) return;

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppBadge } from "@/components/ui/AppBadge";
@@ -198,11 +199,13 @@ export default function UserProfilePage() {
                     >
                       <div className="mb-3 flex h-20 gap-1 overflow-hidden rounded-lg">
                         {tl.coverUrls.slice(0, 5).map((url, i) => (
-                          <div key={i} className="flex-1 overflow-hidden rounded bg-black/40">
-                            <img
+                          <div key={i} className="flex-1 overflow-hidden rounded bg-black/40 relative">
+                            <Image
                               src={proxyExternalImageUrl(url) ?? url}
                               alt=""
-                              className="h-full w-full object-cover"
+                              fill
+                              sizes="20vw"
+                              className="object-cover"
                               loading="lazy"
                             />
                           </div>
@@ -243,11 +246,13 @@ export default function UserProfilePage() {
                     >
                       <div className="mb-3 flex h-20 gap-1 overflow-hidden rounded-lg">
                         {pool.coverUrls.slice(0, 5).map((url, i) => (
-                          <div key={i} className="flex-1 overflow-hidden rounded bg-black/40">
-                            <img
+                          <div key={i} className="flex-1 overflow-hidden rounded bg-black/40 relative">
+                            <Image
                               src={proxyExternalImageUrl(url) ?? url}
                               alt=""
-                              className="h-full w-full object-cover"
+                              fill
+                              sizes="20vw"
+                              className="object-cover"
                               loading="lazy"
                             />
                           </div>

@@ -1476,7 +1476,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
             <div className="flex flex-wrap gap-2 border-t border-anime-border pt-5">
               <AppButton type="submit" disabled={isMutating} variant="primary">
-                保存设置
+                保存番组基础设置
               </AppButton>
               <AppButton
                 type="button"
