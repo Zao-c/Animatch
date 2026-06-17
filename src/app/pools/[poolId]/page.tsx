@@ -1646,18 +1646,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
               {activeTab === "search" ? (
                 <div className="mt-4">
-                  <StatusHint
-                    label="本地搜索"
-                    title="先选标签，再搜关键词"
-                    description="可以先选“恋爱 / 校园 / 异世界”等标签，再输入关键词二次检索。"
-                    tone="guide"
-                    className="mb-4"
-                  />
                   <form onSubmit={handleSearch} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                     <input
                       value={searchKeyword}
                       onChange={(event) => setSearchKeyword(event.target.value)}
-                      placeholder="输入动画名、别名或制作社"
+                      placeholder="搜索动画名称"
                       className="anime-field min-w-0 flex-1"
                     />
                     <AppButton type="submit" disabled={isSearching} variant="primary">
@@ -1853,12 +1846,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
               {activeTab === "custom" ? (
                 <div className="mt-4 space-y-4">
-                  <StatusHint
-                    label="自定义图片池"
-                    title="上传本地图片作为参赛项"
-                    description="适合角色图、头像、海报或场景图排序。每张图片会作为当前番组内的条目参与 Match 和 Tier List，不会进入 Manami 搜索。"
-                    tone="guide"
-                  />
+                  <p className="text-xs leading-5 text-slate-400">
+                    上传本地图片作为参赛项，会纳入 Match 和 Tier List 排序。
+                  </p>
                   <input
                     ref={customUploadInputRef}
                     type="file"
@@ -1947,12 +1937,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
               {activeTab === "bangumi" ? (
                 <div className="mt-4 space-y-4">
-                  <StatusHint
-                    label="Bangumi 搜索"
-                    title="从 Bangumi 添加公开条目"
-                    description="从 Bangumi 搜索公开条目并添加到当前番组。"
-                    tone="guide"
-                  />
+                  <p className="text-xs leading-5 text-slate-400">
+                    从 Bangumi 搜索公开条目并添加。
+                  </p>
                   <form onSubmit={handleBangumiSearch} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                     <input
                       value={bangumiKeyword}
@@ -2003,12 +1990,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
               {activeTab === "tiermaker" ? (
                 <div className="mt-4 space-y-4">
-                  <StatusHint
-                    label="TierMaker 导入"
-                    title="TierMaker 导入助手"
-                    description="如果自动解析失败，可以复制导入助手脚本，在 TierMaker 页面运行后粘贴图片链接。"
-                    tone="guide"
-                  />
+                  <p className="text-xs leading-5 text-slate-400">
+                    TierMaker 模板图片可能会失效。导入后可用「修复导入封面」回填 Bangumi 封面。
+                  </p>
 
                   <div className="rounded-2xl border border-anime-border bg-white/[0.03] p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">

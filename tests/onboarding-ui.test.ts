@@ -52,12 +52,13 @@ describe("onboarding guide copy", () => {
     expect(tierSource).toContain("不会改写对决历史");
   });
 
-  it("explains add-anime Chinese tag secondary search", () => {
-    expect(detailSource).toContain("可以先选“恋爱 / 校园 / 异世界”等标签，再输入关键词二次检索。");
+  it("explains add-anime search flow concisely", () => {
+    expect(detailSource).toContain("搜索动画名称");
   });
 
-  it("explains the TierMaker import assistant fallback", () => {
-    expect(detailSource).toContain("如果自动解析失败，可以复制导入助手脚本，在 TierMaker 页面运行后粘贴图片链接。");
+  it("warns about TierMaker import cover expiration and cover repair", () => {
+    expect(detailSource).toContain("TierMaker 模板图片可能会失效");
+    expect(detailSource).toContain("修复导入封面");
   });
 
   it("keeps onboarding surfaces wrapped for narrow mobile widths", () => {

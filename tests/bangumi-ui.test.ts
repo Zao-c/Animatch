@@ -7,7 +7,7 @@ describe("Bangumi import tab UI", () => {
 
   it("shows a dedicated Bangumi search tab", () => {
     expect(detailSource).toContain('{ key: "bangumi", label: "Bangumi 搜索" }');
-    expect(detailSource).toContain("从 Bangumi 搜索公开条目并添加到当前番组。");
+    expect(detailSource).toContain("从 Bangumi 搜索公开条目并添加。");
     expect(detailSource).toContain("输入 Bangumi 关键词");
   });
 

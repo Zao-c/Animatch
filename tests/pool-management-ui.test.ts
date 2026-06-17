@@ -91,7 +91,7 @@ describe("pool management UI", () => {
     expect(newPoolSource).toContain("创建并添加动画");
     expect(newPoolSource).toContain("#add-anime");
     expect(newPoolSource).toContain("四月新番");
-    expect(newPoolSource).toContain("添加 4-8 部动画");
+    expect(newPoolSource).toContain("添加动画后开始对决");
   });
 
   it("shows archived pools as read-only on detail while keeping restore available", () => {

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
@@ -143,8 +143,8 @@ export default function NewPoolPage() {
               </div>
             ))}
           </div>
-          <p className="mt-6 text-sm leading-6 text-slate-400">
-            建议先放入 4-8 部动画。数量足够后，AniMatch 会把它变成一场左右选择的轻竞技对决。
+          <p className="mt-6 text-xs leading-5 text-slate-400">
+            添加动画后开始对决，生成你的个人 Tier List。
           </p>
         </aside>
       </section>
