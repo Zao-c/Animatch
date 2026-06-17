@@ -6,6 +6,7 @@ import { ChangeEvent, DragEvent, FormEvent, useCallback, useEffect, useMemo, use
 import { AnimeCard } from "@/components/AnimeCard";
 import { AnimeCover } from "@/components/AnimeCover";
 import { CommunityAverageTierList } from "@/components/CommunityAverageTierList";
+import { CoverRepairCard } from "@/components/CoverRepairCard";
 import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
@@ -2230,6 +2231,10 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         ) : null}
         </div>
       </section>
+
+      {canEditContent ? (
+        <CoverRepairCard poolId={params.poolId} className="mt-6" />
+      ) : null}
 
       {canShowCommunityRanking ? (
         <CommunitySection

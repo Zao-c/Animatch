@@ -1,5 +1,6 @@
 import { PersonalRunStatus } from "@prisma/client";
 import { AppError } from "./app-error";
+import { getAnimeCoverUrl } from "./anime-cover-url";
 import { getEffectiveAnimeDisplay } from "./anime-display";
 import { prisma } from "./db";
 import { canReadCommunityRanking } from "./pool-permissions";
@@ -88,10 +89,23 @@ export async function getCommunityRanking(poolId: string): Promise<CommunityRank
 
   for (const entry of poolAnime) {
     const display = getEffectiveAnimeDisplay(entry);
+    const displayCoverUrl = getAnimeCoverUrl(
+      {
+        coverUrlOverride: entry.coverUrlOverride,
+        display: { coverUrl: display.coverUrl, isCoverOverridden: display.isCoverOverridden },
+        coverUrl: entry.anime.imageUrl,
+        imageUrl: entry.anime.imageUrl,
+        imageSmallUrl: entry.anime.imageSmallUrl,
+        imageMediumUrl: entry.anime.imageMediumUrl,
+        imageLargeUrl: entry.anime.imageLargeUrl,
+        thumbnailUrl: entry.anime.thumbnailUrl
+      },
+      { intent: "hero" }
+    );
     aggregates.set(entry.animeId, {
       animeId: entry.animeId,
       title: display.title,
-      imageUrl: display.coverUrl,
+      imageUrl: displayCoverUrl,
       ratingSum: 0,
       weightedEloSum: 0,
       weightSum: 0,
