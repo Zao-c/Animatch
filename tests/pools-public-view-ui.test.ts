@@ -114,6 +114,11 @@ describe("public pools community summary", () => {
     expect(poolsSource).toContain("成为第一个参与的人");
   });
 
+  it("does NOT concatenate '社区第一' as a prefix — no '社区第一：社区第一：' duplication", () => {
+    expect(poolsSource).toContain(">社区第一</p>");
+    expect(poolsSource).not.toContain("社区第一：社区第一：");
+  });
+
   it("PoolCard shows participant count and sample label", () => {
     expect(poolsSource).toContain("人参与");
     expect(poolsSource).toContain("样本还少");

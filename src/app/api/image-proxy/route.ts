@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 
 const MAX_SIZE = 5 * 1024 * 1024;
 const TIMEOUT_MS = 12000;
+const FRESH_TTL_MS = 24 * 60 * 60 * 1000;
+const STALE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const MAX_CACHE_ENTRIES = 500;
+const MAX_CACHE_BYTES = 128 * 1024 * 1024;
+const CACHE_CONTROL = "public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800";
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 
 const BLOCKED_HOSTNAMES = new Set([
@@ -20,6 +25,30 @@ const INTERNAL_IP_PATTERNS = [
   /^fd00:/i,
   /^fe80:/i,
 ];
+
+interface ImageCacheEntry {
+  buffer: Buffer;
+  contentType: string;
+  cachedAt: number;
+  lastAccessedAt: number;
+}
+
+interface ImageCacheStore {
+  entries: Map<string, ImageCacheEntry>;
+  totalBytes: number;
+}
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __animatchImageProxyCache: ImageCacheStore | undefined;
+}
+
+const imageCache =
+  globalThis.__animatchImageProxyCache ??
+  (globalThis.__animatchImageProxyCache = {
+    entries: new Map<string, ImageCacheEntry>(),
+    totalBytes: 0
+  });
 
 function isBlockedHostname(hostname: string): boolean {
   const lower = hostname.toLowerCase();
@@ -71,6 +100,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "hostname not allowed" }, { status: 400 });
   }
 
+  const cacheKey = parsed.toString();
+  const freshEntry = getCacheEntry(cacheKey, FRESH_TTL_MS, { deleteExpired: false });
+  if (freshEntry !== null) {
+    return cachedImageResponse(freshEntry, "HIT");
+  }
+
+  const staleEntry = getCacheEntry(cacheKey, STALE_TTL_MS, { deleteExpired: true });
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -93,6 +129,9 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     clearTimeout(timeoutId);
+    if (staleEntry !== null) {
+      return cachedImageResponse(staleEntry, "STALE");
+    }
     const message = error instanceof DOMException && error.name === "AbortError"
       ? "upstream timeout"
       : "fetch failed";
@@ -102,6 +141,9 @@ export async function GET(request: Request) {
   }
 
   if (!response.ok) {
+    if (staleEntry !== null) {
+      return cachedImageResponse(staleEntry, "STALE");
+    }
     return NextResponse.json({ error: `upstream returned ${response.status}` }, { status: 502 });
   }
 
@@ -120,6 +162,9 @@ export async function GET(request: Request) {
   try {
     buffer = await response.arrayBuffer();
   } catch {
+    if (staleEntry !== null) {
+      return cachedImageResponse(staleEntry, "STALE");
+    }
     return NextResponse.json({ error: "read failed" }, { status: 502 });
   }
 
@@ -127,11 +172,85 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "image too large" }, { status: 400 });
   }
 
-  return new NextResponse(Buffer.from(buffer), {
+  const cachedBuffer = Buffer.from(buffer);
+  const entry = setCacheEntry(cacheKey, {
+    buffer: cachedBuffer,
+    contentType,
+    cachedAt: Date.now(),
+    lastAccessedAt: Date.now()
+  });
+
+  return cachedImageResponse(entry, "MISS");
+}
+
+function getCacheEntry(
+  cacheKey: string,
+  maxAgeMs: number,
+  options: { deleteExpired: boolean }
+): ImageCacheEntry | null {
+  const entry = imageCache.entries.get(cacheKey);
+  if (entry === undefined) {
+    return null;
+  }
+
+  if (Date.now() - entry.cachedAt > maxAgeMs) {
+    if (options.deleteExpired) {
+      imageCache.entries.delete(cacheKey);
+      imageCache.totalBytes -= entry.buffer.byteLength;
+    }
+    return null;
+  }
+
+  entry.lastAccessedAt = Date.now();
+  imageCache.entries.delete(cacheKey);
+  imageCache.entries.set(cacheKey, entry);
+  return entry;
+}
+
+function setCacheEntry(cacheKey: string, entry: ImageCacheEntry): ImageCacheEntry {
+  const previous = imageCache.entries.get(cacheKey);
+  if (previous !== undefined) {
+    imageCache.totalBytes -= previous.buffer.byteLength;
+    imageCache.entries.delete(cacheKey);
+  }
+
+  imageCache.entries.set(cacheKey, entry);
+  imageCache.totalBytes += entry.buffer.byteLength;
+  pruneImageCache();
+  return entry;
+}
+
+function pruneImageCache(): void {
+  while (
+    imageCache.entries.size > MAX_CACHE_ENTRIES ||
+    imageCache.totalBytes > MAX_CACHE_BYTES
+  ) {
+    const oldestKey = imageCache.entries.keys().next().value as string | undefined;
+    if (oldestKey === undefined) {
+      return;
+    }
+    const oldest = imageCache.entries.get(oldestKey);
+    imageCache.entries.delete(oldestKey);
+    if (oldest !== undefined) {
+      imageCache.totalBytes -= oldest.buffer.byteLength;
+    }
+  }
+}
+
+function cachedImageResponse(entry: ImageCacheEntry, cacheStatus: "HIT" | "MISS" | "STALE") {
+  return new NextResponse(bufferToArrayBuffer(entry.buffer), {
     headers: {
-      "Content-Type": contentType,
-      "Cache-Control": "public, max-age=300, s-maxage=600",
-      "Content-Length": String(buffer.byteLength),
+      "Content-Type": entry.contentType,
+      "Cache-Control": CACHE_CONTROL,
+      "Content-Length": String(entry.buffer.byteLength),
+      "X-Animatch-Image-Cache": cacheStatus
     },
   });
+}
+
+function bufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
+  return buffer.buffer.slice(
+    buffer.byteOffset,
+    buffer.byteOffset + buffer.byteLength
+  ) as ArrayBuffer;
 }

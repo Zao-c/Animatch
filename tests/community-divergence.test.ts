@@ -18,6 +18,7 @@ function makeCommunityItem(
     animeId: "anime-1",
     title: "作品标题",
     imageUrl: "https://example.com/cover.jpg",
+    averageRating: 1500,
     communityScore: 1500,
     participantCount: 5,
     comparisonCount: 10,
