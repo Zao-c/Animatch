@@ -77,7 +77,7 @@ export function DuelAnimeCard({
           animeId={anime.id}
           className="rounded-2xl border-cyan-200/10"
         />
-        <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-t from-slate-950/35 via-transparent to-transparent" />
+        <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-t from-slate-950/18 via-transparent to-transparent" />
         <div className="absolute left-3 top-3 flex flex-wrap gap-2">
           <AppBadge tone={side === "left" ? "source" : "status"}>
             {sideLabel}
@@ -88,10 +88,10 @@ export function DuelAnimeCard({
       </div>
 
       <div className="mt-4">
-        <h2 className="line-clamp-2 min-h-[3.25rem] text-lg font-black leading-7 tracking-tight text-white/85 sm:text-xl">
+        <h2 className="line-clamp-2 min-h-[3.25rem] text-lg font-black leading-7 tracking-tight text-white/78 sm:text-xl">
           {title}
         </h2>
-        {subtitle ? <p className="mt-2 line-clamp-1 text-xs text-slate-400/60">{subtitle}</p> : null}
+        {subtitle ? <p className="mt-2 line-clamp-1 text-xs text-slate-400/50">{subtitle}</p> : null}
         {anime.display?.isOverridden ? (
           <div className="mt-3">
             <AppBadge tone="source">已手动修正</AppBadge>

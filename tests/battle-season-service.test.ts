@@ -150,6 +150,29 @@ describe("Season voting rules", () => {
   });
 });
 
+describe("Season match queue distribution", () => {
+  const source = readSource("src/lib/season-service.ts");
+
+  it("prioritizes pairs the current user has not seen recently", () => {
+    expect(source).toContain("userSeenAnimeIds");
+    expect(source).toContain("recentPairs");
+    expect(source).toContain("seenPenalty * 10000");
+  });
+
+  it("uses global exposure counts to spread limited votes", () => {
+    expect(source).toContain('by: ["leftAnimeId"]');
+    expect(source).toContain('by: ["rightAnimeId"]');
+    expect(source).toContain("exposureCount");
+    expect(source).toContain("exposure * 100");
+  });
+
+  it("keeps the season queue change out of scoring and vote submission", () => {
+    expect(source).toContain("buildSeasonPairCandidates");
+    expect(source).toContain("stablePairJitter");
+    expect(source).toContain("return candidates.slice(0, 5)");
+  });
+});
+
 describe("Season ranking calculation", () => {
   const source = readSource("src/lib/season-service.ts");
 

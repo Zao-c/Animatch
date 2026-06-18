@@ -154,6 +154,20 @@ describe("TierExportCanvas", () => {
     expect(html).not.toContain(">D<");
   });
 
+  it("uses custom tier row colors in the export wall", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(TierExportCanvas, {
+        tierRows: [{ id: "custom", label: "Custom", color: "#123456", order: 0 }],
+        tiers: {
+          custom: [tierItem({ animeId: "custom-1" })]
+        }
+      })
+    );
+
+    expect(html).toContain(">Custom<");
+    expect(html).toContain("background-color:#123456");
+  });
+
   it("renders 6-row tier config correctly", () => {
     const rows: TierRowConfig[] = [
       { id: "ss", label: "SS", color: "#ff5252", order: 0 },

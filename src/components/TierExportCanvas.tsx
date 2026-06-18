@@ -38,7 +38,10 @@ export function TierExportCanvas({
           const rowItems = tiers[row.id] ?? [];
           return (
             <div key={row.id} className="tiermaker-export-row">
-              <div className={`tiermaker-export-label ${labelClass}`}>
+              <div
+                className={`tiermaker-export-label ${labelClass}`}
+                style={{ backgroundColor: row.color }}
+              >
                 <span
                   className={`tiermaker-export-label-text ${
                     row.label.length > 2 ? "tiermaker-export-label-long" : ""

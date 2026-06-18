@@ -84,7 +84,7 @@ import {
 } from "@/lib/tiermaker-url-list";
 import { PoolTierConfigEditor } from "@/components/PoolTierConfigEditor";
 import { QuickImportPanel } from "@/components/QuickImportPanel";
-import type { PoolTierConfig } from "@/lib/tier-config";
+import type { PoolTierConfig, TierRowConfig } from "@/lib/tier-config";
 
 type AddTab = "search" | "browse" | "manual" | "custom" | "bangumi" | "tiermaker" | "quick";
 type PoolWorkspaceMode = "add" | "edit" | "settings" | "cover" | "community" | null;
@@ -1317,7 +1317,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 size="sm"
                 aria-expanded={workspaceMode === "cover"}
               >
-                淇灏侀潰
+                修复封面
               </AppButton>
             ) : null}
             {canManagePool ? (
@@ -2396,10 +2396,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             ranking={communityRanking}
             isLoading={isCommunityRankingLoading}
             error={communityRankingError}
-            view={communityView}
-            onViewChange={setCommunityView}
-            compact
-          />
+          view={communityView}
+          onViewChange={setCommunityView}
+          tierRows={pool?.tierConfig?.rows ?? null}
+          compact
+        />
         ) : null}
         </div>
         </>
@@ -2422,6 +2423,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           error={communityRankingError}
           view={communityView}
           onViewChange={setCommunityView}
+          tierRows={pool?.tierConfig?.rows ?? null}
         />
       ) : null}
 
@@ -2448,6 +2450,7 @@ function CommunitySection({
   error,
   view,
   onViewChange,
+  tierRows,
   compact = false
 }: {
   ranking: CommunityRankingResponse | null;
@@ -2455,6 +2458,7 @@ function CommunitySection({
   error: string | null;
   view: "ranking" | "tierlist";
   onViewChange: (v: "ranking" | "tierlist") => void;
+  tierRows?: TierRowConfig[] | null;
   compact?: boolean;
 }) {
   const hasItems = (ranking?.items.length ?? 0) > 0;
@@ -2562,6 +2566,7 @@ function CommunitySection({
             ranking={ranking}
             isLoading={isLoading && !ranking}
             error={error}
+            tierRows={tierRows}
           />
         )}
       </AppCard>

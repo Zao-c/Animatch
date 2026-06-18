@@ -406,12 +406,22 @@ export async function getSeasonMatchQueue(
   const animeIds = await getPoolAnimeIds(poolId);
   if (animeIds.length < 2) return [];
 
-  const [userVotes, animes] = await Promise.all([
+  const [userVotes, leftExposure, rightExposure, animes] = await Promise.all([
     prisma.battleVote.findMany({
       where: { seasonId, userId },
       select: { leftAnimeId: true, rightAnimeId: true, createdAt: true },
       orderBy: { createdAt: "desc" },
-      take: 10
+      take: Math.max(10, season.maxVotesPerUser)
+    }),
+    prisma.battleVote.groupBy({
+      by: ["leftAnimeId"],
+      where: { seasonId },
+      _count: { leftAnimeId: true }
+    }),
+    prisma.battleVote.groupBy({
+      by: ["rightAnimeId"],
+      where: { seasonId },
+      _count: { rightAnimeId: true }
     }),
     prisma.anime.findMany({
       where: { id: { in: animeIds } },
@@ -425,53 +435,118 @@ export async function getSeasonMatchQueue(
         imageMediumUrl: true,
         imageSmallUrl: true,
         thumbnailUrl: true,
-        source: true
+        source: true,
+        animeType: true
       }
     })
   ]);
 
-  const recentPairs = new Set(userVotes.map((v) => [v.leftAnimeId, v.rightAnimeId].sort().join(":")));
+  const recentPairs = new Set(userVotes.map((v) => pairKey(v.leftAnimeId, v.rightAnimeId)));
+  const userSeenAnimeIds = new Set(
+    userVotes.flatMap((vote) => [vote.leftAnimeId, vote.rightAnimeId])
+  );
+  const exposureCount = new Map<string, number>();
+  for (const item of leftExposure) {
+    exposureCount.set(item.leftAnimeId, (exposureCount.get(item.leftAnimeId) ?? 0) + item._count.leftAnimeId);
+  }
+  for (const item of rightExposure) {
+    exposureCount.set(item.rightAnimeId, (exposureCount.get(item.rightAnimeId) ?? 0) + item._count.rightAnimeId);
+  }
 
   const animeMap = new Map(animes.map((a) => [a.id, a]));
   const available = animeIds.filter((id) => animeMap.has(id));
+  const candidates = buildSeasonPairCandidates(available, {
+    recentPairs,
+    userSeenAnimeIds,
+    exposureCount,
+    seed: `${seasonId}:${userId}`
+  });
 
-  const pairs: SeasonMatchQueueItem[] = [];
+  return candidates.slice(0, 5).map(({ leftId, rightId }, index) => {
+    const left = animeMap.get(leftId)!;
+    const right = animeMap.get(rightId)!;
 
-  for (let i = 0; i < available.length - 1 && pairs.length < 5; i++) {
-    for (let j = i + 1; j < available.length && pairs.length < 5; j++) {
-      const key = [available[i], available[j]].sort().join(":");
-      if (recentPairs.has(key)) continue;
-      const left = animeMap.get(available[i])!;
-      const right = animeMap.get(available[j])!;
-      pairs.push({
-        pairId: `${seasonId}-${i}-${j}`,
-        left: {
-          animeId: left.id,
-          title: left.titleCn ?? left.titleJa ?? left.title ?? left.id,
-          imageUrl: left.imageUrl,
-          imageLargeUrl: left.imageLargeUrl,
-          imageMediumUrl: left.imageMediumUrl,
-          imageSmallUrl: left.imageSmallUrl,
-          thumbnailUrl: left.thumbnailUrl,
-          source: left.source,
-          animeType: null
-        },
-        right: {
-          animeId: right.id,
-          title: right.titleCn ?? right.titleJa ?? right.title ?? right.id,
-          imageUrl: right.imageUrl,
-          imageLargeUrl: right.imageLargeUrl,
-          imageMediumUrl: right.imageMediumUrl,
-          imageSmallUrl: right.imageSmallUrl,
-          thumbnailUrl: right.thumbnailUrl,
-          source: right.source,
-          animeType: null
-        }
-      });
+    return {
+      pairId: `${seasonId}-${pairKey(leftId, rightId)}-${index}`,
+      left: toSeasonAnimeEntry(left),
+      right: toSeasonAnimeEntry(right)
+    };
+  });
+}
+
+function buildSeasonPairCandidates(
+  animeIds: string[],
+  context: {
+    recentPairs: ReadonlySet<string>;
+    userSeenAnimeIds: ReadonlySet<string>;
+    exposureCount: ReadonlyMap<string, number>;
+    seed: string;
+  }
+): Array<{ leftId: string; rightId: string; score: number }> {
+  const unseenFirst: Array<{ leftId: string; rightId: string; score: number }> = [];
+  const fallback: Array<{ leftId: string; rightId: string; score: number }> = [];
+
+  for (let i = 0; i < animeIds.length - 1; i++) {
+    for (let j = i + 1; j < animeIds.length; j++) {
+      const leftId = animeIds[i];
+      const rightId = animeIds[j];
+      const key = pairKey(leftId, rightId);
+      const leftSeen = context.userSeenAnimeIds.has(leftId) ? 1 : 0;
+      const rightSeen = context.userSeenAnimeIds.has(rightId) ? 1 : 0;
+      const seenPenalty = leftSeen + rightSeen;
+      const exposure =
+        (context.exposureCount.get(leftId) ?? 0) + (context.exposureCount.get(rightId) ?? 0);
+      const score = seenPenalty * 10000 + exposure * 100 + stablePairJitter(key, context.seed);
+      const pair = { leftId, rightId, score };
+
+      if (context.recentPairs.has(key)) {
+        fallback.push({ ...pair, score: score + 50000 });
+      } else {
+        unseenFirst.push(pair);
+      }
     }
   }
 
-  return pairs;
+  return [...unseenFirst, ...fallback].sort((a, b) => a.score - b.score);
+}
+
+function toSeasonAnimeEntry(anime: {
+  id: string;
+  titleCn: string | null;
+  titleJa: string | null;
+  title: string;
+  imageUrl: string | null;
+  imageLargeUrl: string | null;
+  imageMediumUrl: string | null;
+  imageSmallUrl: string | null;
+  thumbnailUrl: string | null;
+  source: string;
+  animeType: string | null;
+}): SeasonAnimeEntry {
+  return {
+    animeId: anime.id,
+    title: anime.titleCn ?? anime.titleJa ?? anime.title ?? anime.id,
+    imageUrl: anime.imageUrl,
+    imageLargeUrl: anime.imageLargeUrl,
+    imageMediumUrl: anime.imageMediumUrl,
+    imageSmallUrl: anime.imageSmallUrl,
+    thumbnailUrl: anime.thumbnailUrl,
+    source: anime.source,
+    animeType: anime.animeType
+  };
+}
+
+function pairKey(leftAnimeId: string, rightAnimeId: string): string {
+  return [leftAnimeId, rightAnimeId].sort().join(":");
+}
+
+function stablePairJitter(pairKeyValue: string, seed: string): number {
+  let hash = 0;
+  const value = `${seed}:${pairKeyValue}`;
+  for (let index = 0; index < value.length; index++) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash % 97;
 }
 
 export async function submitVote(

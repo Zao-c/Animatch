@@ -12,8 +12,14 @@ describe("season match UI", () => {
   });
 
   it("keeps the title overlay light so covers remain primary", () => {
-    expect(source).toContain("from-slate-950/35");
-    expect(source).toContain("bg-slate-950/38");
+    expect(source).toContain("from-slate-950/18");
+    expect(source).toContain("bg-slate-950/24");
     expect(source).toContain("line-clamp-2");
+  });
+
+  it("lets users roll to another pair without submitting a vote", () => {
+    expect(source).toContain("function handleRollPair()");
+    expect(source).toContain("setCurrentIndex((current) => current + 1)");
+    expect(source).toContain("换一组");
   });
 });

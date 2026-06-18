@@ -125,8 +125,17 @@ describe("pool management UI", () => {
     expect(detailSource).toContain("fixed inset-x-0 bottom-0");
     expect(detailSource).toContain("lg:sticky lg:top-24");
     expect(detailSource).toContain('workspaceMode === "cover" && canEditContent');
+    expect(detailSource).toContain("修复封面");
     expect(detailSource).toContain('workspaceMode === "community" && canShowCommunityRanking');
     expect(detailSource).toContain("compact?: boolean");
+  });
+
+  it("exposes tier row editing and passes custom rows to community tier wall", () => {
+    expect(detailSource).toContain("PoolTierConfigEditor");
+    expect(detailSource).toContain("updatePoolTierConfig");
+    expect(detailSource).toContain("handleSaveTierConfig");
+    expect(detailSource).toContain("tierRows={pool?.tierConfig?.rows ?? null}");
+    expect(detailSource).toContain("tierRows={tierRows}");
   });
 
   it("has batch management mode with toggle", () => {

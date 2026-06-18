@@ -8,6 +8,7 @@ import { TierSharePanel } from "@/components/TierSharePanel";
 import { TierShareCard } from "@/components/TierShareView";
 import { CommunityDivergenceCard } from "@/components/CommunityDivergenceCard";
 import { PageShell } from "@/components/PageShell";
+import { PoolTierConfigEditor } from "@/components/PoolTierConfigEditor";
 import { RankingProgressCard } from "@/components/RankingProgressCard";
 import { StatusHint } from "@/components/StatusHint";
 import { AppBadge } from "@/components/ui/AppBadge";
@@ -26,7 +27,9 @@ import {
   getTierList,
   getTierShare,
   saveManualTierList,
+  updatePoolTierConfig,
   type CommunityRankingResponse,
+  type PoolTierConfig,
   type RecalibrationType,
   type TierListItem,
   type TierListResponse
@@ -89,12 +92,14 @@ export default function TierPage({
 }) {
   const router = useRouter();
   const [poolName, setPoolName] = useState("当前番组");
+  const [poolTierConfig, setPoolTierConfig] = useState<PoolTierConfig | null>(null);
   const [tierList, setTierList] = useState<TierListResponse | null>(null);
   const [editableTiers, setEditableTiers] = useState<Record<string, TierListItem[]> | null>(null);
   const [dragSource, setDragSource] = useState<{ tier: string; animeId: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [tierConfigSaving, setTierConfigSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRecalibration, setShowRecalibration] = useState(false);
   const [recalibrationType, setRecalibrationType] = useState<RecalibrationType>("SMART");
@@ -134,6 +139,7 @@ export default function TierPage({
         getTierList(params.poolId, params.runId)
       ]);
       setPoolName(pool.name);
+      setPoolTierConfig(pool.tierConfig ?? null);
       setCanShowCommunityRanking(isCommunityBattleVisiblePool(pool));
       setTierList(data);
       if (!isEditing) {
@@ -278,6 +284,24 @@ export default function TierPage({
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "创建校准会话失败");
       setIsSaving(false);
+    }
+  }
+
+  async function handleSaveTierConfig(config: PoolTierConfig) {
+    setTierConfigSaving(true);
+    setError(null);
+
+    try {
+      const result = await updatePoolTierConfig(params.poolId, config);
+      const data = await getTierList(params.poolId, params.runId);
+      setPoolTierConfig(result.tierConfig);
+      setTierList(data);
+      setEditableTiers(cloneTiers(data.tiers));
+      setIsEditing(false);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "保存 Tier 行配置失败");
+    } finally {
+      setTierConfigSaving(false);
     }
   }
 
@@ -583,6 +607,14 @@ export default function TierPage({
           <AppButton onClick={openTierLabelEditor} variant="ghost">
             编辑分层标签
           </AppButton>
+        </div>
+        <div className="mt-5 border-t border-anime-border pt-5">
+          <PoolTierConfigEditor
+            tierConfig={poolTierConfig}
+            onSave={handleSaveTierConfig}
+            isSaving={tierConfigSaving}
+            compact
+          />
         </div>
       </AppCard>
       ) : null}

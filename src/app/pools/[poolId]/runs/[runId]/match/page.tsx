@@ -294,10 +294,10 @@ export default function MatchPage({
             <AppBadge tone="source">{canShowCommunityBattle ? "社区大乱斗" : "普通对决"}</AppBadge>
             <AppBadge tone="status">{poolName}</AppBadge>
           </div>
-          <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
+          <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
             两两对决舞台
           </h1>
-          <p className="mt-3 text-sm leading-6 text-slate-400">
+          <p className="mt-2 text-sm leading-6 text-slate-500">
             点击整张卡或使用方向键快速选择。分数和统计已收进详细指标，先专注判断作品。
           </p>
         </div>
@@ -428,10 +428,10 @@ export default function MatchPage({
 
 function CommunityBattleMatchHint() {
   return (
-    <AppCard className="mb-5 p-4" variant="soft">
-      <div className="min-w-0">
+    <AppCard className="mb-4 px-4 py-3" variant="soft">
+      <div className="flex flex-wrap items-center gap-2">
         <AppBadge tone="source">社区大乱斗</AppBadge>
-        <p className="mt-2 text-sm leading-6 text-slate-300">
+        <p className="min-w-0 flex-1 text-xs leading-5 text-slate-400">
           你正在参与这个公开番组的社区大乱斗。你的选择只会更新你的个人榜单，并以匿名聚合方式贡献到社区榜单。
         </p>
       </div>

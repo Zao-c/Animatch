@@ -47,9 +47,9 @@ function SeasonDuelCard({
           className="h-full w-full rounded-none border-0"
         />
       </div>
-      <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-t from-slate-950/35 via-transparent to-transparent" />
-      <div className="relative mt-auto border-t border-white/5 bg-slate-950/38 p-4 backdrop-blur-sm">
-        <h2 className="line-clamp-2 text-lg font-black leading-7 tracking-tight text-white/85">
+      <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-t from-slate-950/18 via-transparent to-transparent" />
+      <div className="relative mt-auto border-t border-white/5 bg-slate-950/24 p-4 backdrop-blur-[2px]">
+        <h2 className="line-clamp-2 text-lg font-black leading-7 tracking-tight text-white/76">
           {title}
         </h2>
       </div>
@@ -95,6 +95,17 @@ export default function SeasonMatchPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const currentPair = queue.length > currentIndex ? queue[currentIndex] : null;
+
+  function handleRollPair() {
+    setFeedback(null);
+    setUseBias(false);
+    setVoteResult(null);
+    if (currentIndex < queue.length - 1) {
+      setCurrentIndex((current) => current + 1);
+    } else {
+      void fetchData();
+    }
+  }
 
   const handleVote = useCallback(async (winnerId: string) => {
     if (!currentPair || submitting) return;
@@ -154,7 +165,24 @@ export default function SeasonMatchPage() {
           </AppBadge>
           <AppBadge tone="source">{detail.mode === "BIAS" ? "偏爱模式" : "传统模式"}</AppBadge>
         </div>
-        <h1 className="text-2xl font-black text-white">{detail.title}</h1>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-black text-white">{detail.title}</h1>
+            <p className="mt-1 text-xs text-slate-500">
+              优先分配你没投过、全局曝光少的作品。可换一组，但不会消耗票数。
+            </p>
+          </div>
+          {currentPair ? (
+            <button
+              type="button"
+              onClick={handleRollPair}
+              disabled={submitting}
+              className="min-h-10 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/35 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              换一组
+            </button>
+          ) : null}
+        </div>
 
         {cs ? (
           <div className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
