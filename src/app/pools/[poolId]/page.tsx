@@ -87,7 +87,7 @@ import { QuickImportPanel } from "@/components/QuickImportPanel";
 import type { PoolTierConfig } from "@/lib/tier-config";
 
 type AddTab = "search" | "browse" | "manual" | "custom" | "bangumi" | "tiermaker" | "quick";
-type PoolWorkspaceMode = "add" | "edit" | "settings" | "cover" | null;
+type PoolWorkspaceMode = "add" | "edit" | "settings" | "cover" | "community" | null;
 type DisplayOverrideForm = {
   displayTitleOverride: string;
   coverUrlOverride: string;
@@ -1152,6 +1152,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     pool.anime.length >= 2 && !isArchived && !canPlayPool && (permissions?.canRead ?? false);
   const canShowCommunityRanking =
     pool.visibility === "PUBLIC" && !isArchived && !communityRankingUnavailable;
+  const isInspectorOpen =
+    workspaceMode === "add" ||
+    workspaceMode === "edit" ||
+    workspaceMode === "cover" ||
+    workspaceMode === "community";
   const joinedAnimeIds = new Set(pool.anime.map((entry) => entry.animeId));
   const joinedBangumiIds = new Set(
     pool.anime
@@ -1281,12 +1286,14 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
               查看 Tier List
             </AppButton>
             {canShowCommunityRanking ? (
-              <Link
-                href="#community-ranking"
-                className={appButtonClasses({ variant: "ghost" })}
+              <AppButton
+                type="button"
+                onClick={() => setWorkspaceMode((value) => (value === "community" ? null : "community"))}
+                variant="ghost"
+                aria-expanded={workspaceMode === "community"}
               >
                 查看社区榜单
-              </Link>
+              </AppButton>
             ) : null}
             {canAddAnimeToPool && !isArchived ? (
               <AppButton
@@ -1300,6 +1307,17 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 size="sm"
               >
                 添加动画
+              </AppButton>
+            ) : null}
+            {canEditContent ? (
+              <AppButton
+                type="button"
+                onClick={() => setWorkspaceMode((value) => (value === "cover" ? null : "cover"))}
+                variant="quiet"
+                size="sm"
+                aria-expanded={workspaceMode === "cover"}
+              >
+                淇灏侀潰
               </AppButton>
             ) : null}
             {canManagePool ? (
@@ -1539,7 +1557,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       ) : null}
 
       <section className={`mt-8 grid gap-6 ${
-        workspaceMode === "add" || workspaceMode === "edit"
+        isInspectorOpen
           ? "lg:grid-cols-[minmax(0,1fr)_410px]"
           : "lg:grid-cols-1"
       }`}>
@@ -1679,7 +1697,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           )}
         </AppCard>
 
-        {workspaceMode === "add" || workspaceMode === "edit" ? (
+        {isInspectorOpen ? (
         <>
         <button
           type="button"
@@ -2369,12 +2387,26 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           )}
         </AppCard>
         ) : null}
+        {workspaceMode === "cover" && canEditContent ? (
+          <CoverRepairCard poolId={params.poolId} />
+        ) : null}
+
+        {workspaceMode === "community" && canShowCommunityRanking ? (
+          <CommunitySection
+            ranking={communityRanking}
+            isLoading={isCommunityRankingLoading}
+            error={communityRankingError}
+            view={communityView}
+            onViewChange={setCommunityView}
+            compact
+          />
+        ) : null}
         </div>
         </>
         ) : null}
       </section>
 
-      {canEditContent ? (
+      {false && canEditContent ? (
         <details className="mt-6 rounded-2xl border border-white/10 bg-white/[0.025] p-3">
           <summary className="cursor-pointer select-none text-sm font-semibold text-slate-300">
             用 Bangumi 修复封面
@@ -2383,7 +2415,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         </details>
       ) : null}
 
-      {canShowCommunityRanking ? (
+      {false && canShowCommunityRanking ? (
         <CommunitySection
           ranking={communityRanking}
           isLoading={isCommunityRankingLoading}
@@ -2415,19 +2447,21 @@ function CommunitySection({
   isLoading,
   error,
   view,
-  onViewChange
+  onViewChange,
+  compact = false
 }: {
   ranking: CommunityRankingResponse | null;
   isLoading: boolean;
   error: string | null;
   view: "ranking" | "tierlist";
   onViewChange: (v: "ranking" | "tierlist") => void;
+  compact?: boolean;
 }) {
   const hasItems = (ranking?.items.length ?? 0) > 0;
 
   return (
-    <section id="community-ranking" className="mt-8 scroll-mt-24">
-      <AppCard className="p-5">
+    <section id="community-ranking" className={compact ? "scroll-mt-24" : "mt-8 scroll-mt-24"}>
+      <AppCard className={compact ? "p-4" : "p-5"}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <SectionHeader
             eyebrow="Community"

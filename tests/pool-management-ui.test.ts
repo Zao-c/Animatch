@@ -119,9 +119,14 @@ describe("pool management UI", () => {
     expect(detailSource).toContain("type PoolWorkspaceMode");
     expect(detailSource).toContain('setWorkspaceMode("add")');
     expect(detailSource).toContain('setWorkspaceMode("edit")');
+    expect(detailSource).toContain('value === "cover" ? null : "cover"');
+    expect(detailSource).toContain('value === "community" ? null : "community"');
     expect(detailSource).toContain('id="add-anime"');
     expect(detailSource).toContain("fixed inset-x-0 bottom-0");
     expect(detailSource).toContain("lg:sticky lg:top-24");
+    expect(detailSource).toContain('workspaceMode === "cover" && canEditContent');
+    expect(detailSource).toContain('workspaceMode === "community" && canShowCommunityRanking');
+    expect(detailSource).toContain("compact?: boolean");
   });
 
   it("has batch management mode with toggle", () => {

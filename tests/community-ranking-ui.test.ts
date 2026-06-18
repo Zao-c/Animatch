@@ -15,7 +15,8 @@ describe("community ranking UI wiring", () => {
     expect(detailSource).toContain("pool.deletedAt !== null");
     expect(detailSource).toContain("communityRankingUnavailable");
     expect(detailSource).toContain("查看社区榜单");
-    expect(detailSource).toContain('href="#community-ranking"');
+    expect(detailSource).toContain('value === "community" ? null : "community"');
+    expect(detailSource).toContain('workspaceMode === "community" && canShowCommunityRanking');
   });
 
   it("does not require login or play permission before showing public community ranking", () => {
