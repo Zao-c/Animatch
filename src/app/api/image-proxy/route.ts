@@ -150,31 +150,59 @@ export async function GET(request: Request) {
     headers["Referer"] = referer;
   }
 
-  let response: Response;
+  const maxAttempts = 2;
+  let response: Response | undefined;
+  let lastError: unknown;
 
-  try {
-    response = await fetch(parsed.toString(), {
-      signal: controller.signal,
-      headers,
-    });
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (staleEntry !== null) {
-      return cachedImageResponse(staleEntry, "STALE");
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const ctrl = attempt === 1 ? controller : new AbortController();
+    const ctrlTimeoutId = attempt === 1 ? timeoutId : setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+
+    try {
+      response = await fetch(parsed.toString(), {
+        signal: ctrl.signal,
+        headers,
+      });
+    } catch (error) {
+      clearTimeout(ctrlTimeoutId);
+      lastError = error;
+      // Retry on network error, but only if there's no stale cache to serve
+      if (staleEntry !== null || staleDiskEntry !== null) {
+        clearTimeout(timeoutId);
+        if (staleEntry !== null) {
+          return cachedImageResponse(staleEntry, "STALE");
+        }
+        if (staleDiskEntry !== null) {
+          setCacheEntry(cacheKey, staleDiskEntry);
+          return cachedImageResponse(staleDiskEntry, "DISK-STALE");
+        }
+      }
+      if (attempt < maxAttempts) {
+        await new Promise(r => setTimeout(r, 500 * attempt));
+        continue;
+      }
+      const message = lastError instanceof DOMException && lastError.name === "AbortError"
+        ? "upstream timeout"
+        : "fetch failed";
+      clearTimeout(timeoutId);
+      return errorResponse({ error: message }, 502);
+    } finally {
+      if (attempt > 1) clearTimeout(ctrlTimeoutId !== timeoutId ? ctrlTimeoutId : undefined);
     }
-    if (staleDiskEntry !== null) {
-      setCacheEntry(cacheKey, staleDiskEntry);
-      return cachedImageResponse(staleDiskEntry, "DISK-STALE");
+
+    // Retry on proxy 502/503
+    if (!response.ok && attempt < maxAttempts &&
+        (response.status === 502 || response.status === 503)) {
+      await new Promise(r => setTimeout(r, 500 * attempt));
+      continue;
     }
-    const message = error instanceof DOMException && error.name === "AbortError"
-      ? "upstream timeout"
-      : "fetch failed";
-    return errorResponse({ error: message }, 502);
-  } finally {
-    clearTimeout(timeoutId);
+
+    break;
   }
 
-  if (!response.ok) {
+  clearTimeout(timeoutId);
+
+  if (!response || !response.ok) {
     if (staleEntry !== null) {
       return cachedImageResponse(staleEntry, "STALE");
     }
@@ -182,7 +210,7 @@ export async function GET(request: Request) {
       setCacheEntry(cacheKey, staleDiskEntry);
       return cachedImageResponse(staleDiskEntry, "DISK-STALE");
     }
-    return errorResponse({ error: `upstream returned ${response.status}` }, 502);
+    return errorResponse({ error: response ? `upstream returned ${response.status}` : "fetch failed" }, 502);
   }
 
   const contentType = response.headers.get("content-type") ?? "";
