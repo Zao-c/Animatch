@@ -392,6 +392,14 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       return;
     }
 
+    if (workspaceMode !== "community") {
+      return;
+    }
+
+    if (communityRanking !== null || isCommunityRankingLoading) {
+      return;
+    }
+
     let cancelled = false;
 
     setIsCommunityRankingLoading(true);
@@ -427,7 +435,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     return () => {
       cancelled = true;
     };
-  }, [params.poolId, pool]);
+  }, [params.poolId, pool, workspaceMode, communityRanking, isCommunityRankingLoading]);
 
   useEffect(() => {
     customUploadDraftsRef.current = customUploadDrafts;

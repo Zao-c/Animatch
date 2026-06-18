@@ -22,4 +22,23 @@ describe("season match UI", () => {
     expect(source).toContain("setCurrentIndex((current) => current + 1)");
     expect(source).toContain("换一组");
   });
+
+  it("tracks skipped pair ids locally to avoid repeating same pairs", () => {
+    expect(source).toContain("skippedPairKeys");
+    expect(source).toContain("skippedPairKeys.has(item.pairId)");
+    expect(source).toContain('next.add(currentPair.pairId)');
+    expect(source).toContain("filtered.length > 0 ? filtered : q");
+  });
+
+  it("handleRollPair does not call submitSeasonVote", () => {
+    const preHandleRoll = source.indexOf("function handleRollPair()");
+    const rollBody = source.slice(preHandleRoll, preHandleRoll + 500);
+    expect(rollBody).not.toContain("submitSeasonVote");
+    expect(rollBody).toContain("setCurrentIndex");
+  });
+
+  it("shows hint when no more new pairs after rolling", () => {
+    expect(source).toContain("暂时没有更多可换组合");
+    expect(source).toContain("可以先投当前组或稍后再试");
+  });
 });

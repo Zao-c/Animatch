@@ -27,17 +27,17 @@ function normalizeCacheUrl(raw: string): string {
 /** Background re-fetch after all retries fail — so next visitor gets a cache hit */
 const pendingBgRefetch = new Set<string>();
 
-async function bgRefetch(url: string, headers: Record<string, string>): Promise<void> {
+async function bgRefetch(sourceUrl: string, cacheKey: string, headers: Record<string, string>): Promise<void> {
   try {
-    const resp = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
+    const resp = await fetch(sourceUrl, { headers, signal: AbortSignal.timeout(15000) });
     if (!resp.ok) return;
     const buf = Buffer.from(await resp.arrayBuffer());
     if (buf.byteLength > MAX_SIZE || buf.byteLength === 0) return;
     const ctype = resp.headers.get("content-type") ?? "";
     if (!ctype.startsWith("image/")) return;
     const entry = { buffer: buf, contentType: ctype, cachedAt: Date.now(), lastAccessedAt: Date.now() };
-    setCacheEntry(url, entry);
-    await writeDiskCacheEntry(url, entry);
+    setCacheEntry(cacheKey, entry);
+    await writeDiskCacheEntry(cacheKey, entry);
   } catch {
     // background retry failed — will be retried on next user request
   }
@@ -192,36 +192,15 @@ export async function GET(request: Request) {
   let response: Response | undefined;
   let lastError: unknown;
 
-  // MAL hosts are reachable directly from China — bypass the flaky proxy
-  const hostname = parsed.hostname.toLowerCase();
-  const isMalHost =
-    hostname === "myanimelist.net" ||
-    hostname.endsWith(".myanimelist.net");
-  const useDirect = isMalHost;
-
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const ctrl = attempt === 1 ? controller : new AbortController();
     const ctrlTimeoutId = attempt === 1 ? timeoutId : setTimeout(() => ctrl.abort(), TIMEOUT_MS);
 
     try {
-      if (useDirect) {
-        // Bypass proxy for directly-reachable hosts
-        const oldNoProxy = process.env.NO_PROXY;
-        process.env.NO_PROXY = "*";
-        try {
-          response = await fetch(parsed.toString(), {
-            signal: ctrl.signal,
-            headers,
-          });
-        } finally {
-          process.env.NO_PROXY = oldNoProxy ?? "";
-        }
-      } else {
-        response = await fetch(parsed.toString(), {
-          signal: ctrl.signal,
-          headers,
-        });
-      }
+      response = await fetch(parsed.toString(), {
+        signal: ctrl.signal,
+        headers,
+      });
     } catch (error) {
       clearTimeout(ctrlTimeoutId);
       lastError = error;
@@ -249,9 +228,9 @@ export async function GET(request: Request) {
       if (attempt > 1) clearTimeout(ctrlTimeoutId !== timeoutId ? ctrlTimeoutId : undefined);
     }
 
-    // Retry on proxy 502/503 (only when using proxy, not direct)
+    // Retry on proxy 502/503
     if (!response.ok && attempt < maxAttempts &&
-        (response.status === 502 || response.status === 503) && !useDirect) {
+        (response.status === 502 || response.status === 503)) {
       await new Promise(r => setTimeout(r, 500 * attempt));
       continue;
     }
@@ -270,11 +249,11 @@ export async function GET(request: Request) {
       return cachedImageResponse(staleDiskEntry, "DISK-STALE");
     }
     // Background refetch so next visitor gets a cache hit
-    if (!pendingBgRefetch.has(parsed.toString())) {
-      pendingBgRefetch.add(parsed.toString());
+    if (!pendingBgRefetch.has(cacheKey)) {
+      pendingBgRefetch.add(cacheKey);
       setTimeout(() => {
-        pendingBgRefetch.delete(parsed.toString());
-        bgRefetch(parsed.toString(), headers);
+        pendingBgRefetch.delete(cacheKey);
+        bgRefetch(parsed.toString(), cacheKey, headers);
       }, 3000);
     }
     return errorResponse({ error: response ? `upstream returned ${response.status}` : "fetch failed" }, 502);

@@ -324,12 +324,20 @@ describe("docker-compose and gitignore", () => {
     expect(compose).toContain("animatch_postgres_data:/var/lib/postgresql/data");
     expect(compose).not.toContain("/app/data/uploads");
   });
+
+  it("docker-compose.prod.yml does not hardcode proxy default addresses", () => {
+    const compose = readFileSync("docker-compose.prod.yml", "utf8");
+    expect(compose).not.toContain("172.18.0.1:7890");
+    expect(compose).toContain("HTTP_PROXY: ${HTTP_PROXY:-}");
+    expect(compose).toContain("HTTPS_PROXY: ${HTTPS_PROXY:-}");
+    expect(compose).toContain("ANIMATCH_OUTBOUND_PROXY_URL: ${ANIMATCH_OUTBOUND_PROXY_URL:-}");
+  });
 });
 
 describe("image proxy security boundaries", () => {
   const source = readFileSync("src/app/api/image-proxy/route.ts", "utf8");
 
-  it("blocks localhost and internal IPs", () => {
+  it("blocks internal-only IPs", () => {
     expect(source).toContain("BLOCKED_HOSTNAMES");
     expect(source).toContain('"localhost"');
     expect(source).toContain('"127.0.0.1"');
@@ -343,5 +351,10 @@ describe("image proxy security boundaries", () => {
       (l) => l.includes("console.log") || l.includes("console.error")
     );
     expect(consoleCalls.length).toBe(0);
+  });
+
+  it("bgRefetch uses cacheKey for disk write so normalized URLs share cache", () => {
+    expect(source).toContain("writeDiskCacheEntry(cacheKey, entry)");
+    expect(source).toContain("setCacheEntry(cacheKey, entry)");
   });
 });

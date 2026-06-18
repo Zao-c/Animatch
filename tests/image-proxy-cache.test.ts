@@ -208,4 +208,26 @@ describe("image proxy LRU cache", () => {
     expect(source).toContain("imageCache.entries.delete(cacheKey)");
     expect(source).toContain("imageCache.entries.set(cacheKey, entry)");
   });
+
+  it("does not modify process.env.NO_PROXY in request handler", () => {
+    expect(source).not.toContain("process.env.NO_PROXY");
+  });
+
+  it("does not use MAL-host special bypass path", () => {
+    expect(source).not.toContain("myanimelist.net");
+    expect(source).not.toContain("isMalHost");
+    expect(source).not.toContain("useDirect");
+  });
+
+  it("bgRefetch writes to cache using normalized cacheKey", () => {
+    expect(source).toContain("async function bgRefetch(sourceUrl: string, cacheKey: string");
+    expect(source).toContain("setCacheEntry(cacheKey, entry)");
+    expect(source).toContain("writeDiskCacheEntry(cacheKey, entry)");
+  });
+
+  it("pendingBgRefetch uses cacheKey for deduplication", () => {
+    expect(source).toContain("pendingBgRefetch.has(cacheKey)");
+    expect(source).toContain("pendingBgRefetch.add(cacheKey)");
+    expect(source).toContain("bgRefetch(parsed.toString(), cacheKey, headers)");
+  });
 });

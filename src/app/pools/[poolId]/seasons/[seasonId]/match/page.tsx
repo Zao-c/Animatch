@@ -74,6 +74,7 @@ export default function SeasonMatchPage() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [useBias, setUseBias] = useState(false);
   const [voteResult, setVoteResult] = useState<{ stepNumber: number; votesRemaining: number } | null>(null);
+  const [skippedPairKeys, setSkippedPairKeys] = useState<Set<string>>(new Set());
 
   const fetchData = useCallback(async () => {
     try {
@@ -82,7 +83,8 @@ export default function SeasonMatchPage() {
         getSeasonMatchQueue(poolId, seasonId)
       ]);
       setDetail(d);
-      setQueue(q);
+      const filtered = q.filter((item) => !skippedPairKeys.has(item.pairId));
+      setQueue(filtered.length > 0 ? filtered : q);
       setCurrentIndex(0);
       setVoteResult(null);
       setLoading(false);
@@ -90,7 +92,7 @@ export default function SeasonMatchPage() {
       setError(e instanceof Error ? e.message : "加载失败");
       setLoading(false);
     }
-  }, [poolId, seasonId]);
+  }, [poolId, seasonId, skippedPairKeys]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -100,6 +102,13 @@ export default function SeasonMatchPage() {
     setFeedback(null);
     setUseBias(false);
     setVoteResult(null);
+    if (currentPair) {
+      setSkippedPairKeys((prev) => {
+        const next = new Set(prev);
+        next.add(currentPair.pairId);
+        return next;
+      });
+    }
     if (currentIndex < queue.length - 1) {
       setCurrentIndex((current) => current + 1);
     } else {
@@ -263,8 +272,14 @@ export default function SeasonMatchPage() {
           </div>
         ) : (
           <AppCard className="mt-8 p-6 text-center">
-            <h2 className="text-xl font-black text-white">没有可用的投票对</h2>
-            <p className="mt-2 text-sm text-slate-400">需要至少 2 个作品才能生成投票对</p>
+            <h2 className="text-xl font-black text-white">
+              {skippedPairKeys.size > 0 ? "暂时没有更多可换组合" : "没有可用的投票对"}
+            </h2>
+            <p className="mt-2 text-sm text-slate-400">
+              {skippedPairKeys.size > 0
+                ? "可以先投当前组或稍后再试。"
+                : "需要至少 2 个作品才能生成投票对"}
+            </p>
           </AppCard>
         )}
       </main>

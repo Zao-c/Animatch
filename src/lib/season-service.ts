@@ -1,4 +1,4 @@
-﻿import { prisma } from "./db";
+import { prisma } from "./db";
 import { AppError } from "./app-error";
 import { canEditPoolContent } from "./pool-permissions";
 import { getAnimeCoverUrl } from "./anime-cover-url";
@@ -632,6 +632,7 @@ export async function submitVote(
           const beforeWinnerScore = beforeWinnerScoreRaw._sum.weight ?? 0;
           const beforeLoserScore = 0 - (beforeLoserLosses._sum.weight ?? 0);
           const afterWinnerScore = beforeWinnerScore + weight;
+          const afterLoserScore = beforeLoserScore - weight;
           const stepNumber = userVotes + 1;
 
           const vote = await tx.battleVote.create({
@@ -649,7 +650,7 @@ export async function submitVote(
               beforeWinnerScore,
               afterWinnerScore,
               beforeLoserScore,
-              afterLoserScore: beforeLoserScore
+              afterLoserScore
             }
           });
 

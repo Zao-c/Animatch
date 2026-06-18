@@ -156,6 +156,11 @@ describe("Season voting rules", () => {
     expect(source).toContain("beforeLoserScore");
     expect(source).toContain("afterLoserScore");
   });
+
+  it("subtracts weight from loser afterLoserScore", () => {
+    expect(source).toContain("const afterLoserScore = beforeLoserScore - weight");
+    expect(source).not.toContain("afterLoserScore: beforeLoserScore");
+  });
 });
 
 describe("Season match queue distribution", () => {

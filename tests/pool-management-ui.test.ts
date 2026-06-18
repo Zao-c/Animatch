@@ -130,6 +130,11 @@ describe("pool management UI", () => {
     expect(detailSource).toContain("compact?: boolean");
   });
 
+  it("community ranking loads only when workspaceMode community is active", () => {
+    expect(detailSource).toContain('if (workspaceMode !== "community")');
+    expect(detailSource).toContain("return");
+  });
+
   it("exposes tier row editing and passes custom rows to community tier wall", () => {
     expect(detailSource).toContain("PoolTierConfigEditor");
     expect(detailSource).toContain("updatePoolTierConfig");
