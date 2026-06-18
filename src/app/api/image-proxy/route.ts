@@ -5,6 +5,25 @@ import path from "path";
 
 export const runtime = "nodejs";
 
+/** Bangumi /r/XXX/ resize prefix pattern — strip for cache key normalization */
+const BANGUMI_RESIZE_RE = /^\/r\/\d+\//;
+
+function normalizeCacheUrl(raw: string): string {
+  try {
+    const u = new URL(raw);
+    if (
+      (u.hostname === "lain.bgm.tv" || u.hostname.endsWith(".bgm.tv")) &&
+      BANGUMI_RESIZE_RE.test(u.pathname)
+    ) {
+      u.pathname = u.pathname.replace(BANGUMI_RESIZE_RE, "/");
+      return u.toString();
+    }
+  } catch {
+    // fall through to raw
+  }
+  return raw;
+}
+
 const MAX_SIZE = 10 * 1024 * 1024;
 const TIMEOUT_MS = 12000;
 const FRESH_TTL_MS = 24 * 60 * 60 * 1000;
@@ -119,7 +138,7 @@ export async function GET(request: Request) {
     return errorResponse({ error: "hostname not allowed" }, 400);
   }
 
-  const cacheKey = parsed.toString();
+  const cacheKey = normalizeCacheUrl(parsed.toString());
   const freshEntry = getCacheEntry(cacheKey, FRESH_TTL_MS, { deleteExpired: false });
   if (freshEntry !== null) {
     return cachedImageResponse(freshEntry, "HIT");
