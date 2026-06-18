@@ -29,6 +29,10 @@ export function forbidden(message: string): NextResponse<ApiFailure> {
   return errorResponse(message, 403);
 }
 
+export function conflict(message: string): NextResponse<ApiFailure> {
+  return errorResponse(message, 409);
+}
+
 export function notFound(message: string): NextResponse<ApiFailure> {
   return errorResponse(message, 404);
 }

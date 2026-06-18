@@ -138,6 +138,19 @@ describe("pool management UI", () => {
     expect(detailSource).toContain("tierRows={tierRows}");
   });
 
+  it("saves tier config with the current pool update token", () => {
+    const tierPageSource = readFileSync("src/app/pools/[poolId]/runs/[runId]/tier/page.tsx", "utf8");
+    const clientApiSource = readFileSync("src/lib/client-api.ts", "utf8");
+    const routeSource = readFileSync("src/app/api/pools/[poolId]/tier-config/route.ts", "utf8");
+
+    expect(detailSource).toContain("updatePoolTierConfig(pool.id, config, pool.updatedAt)");
+    expect(tierPageSource).toContain("poolUpdatedAt");
+    expect(tierPageSource).toContain("updatePoolTierConfig(params.poolId, config, poolUpdatedAt)");
+    expect(clientApiSource).toContain("expectedUpdatedAt");
+    expect(routeSource).toContain("where: { id: pool.id, updatedAt: expectedUpdatedAt }");
+    expect(routeSource).toContain("return conflict");
+  });
+
   it("has batch management mode with toggle", () => {
     expect(detailSource).toContain("batchMode");
     expect(detailSource).toContain("selectedAnimeIds");

@@ -548,9 +548,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     clearMessage();
     setTierConfigSaving(true);
     try {
-      const { tierConfig } = await updatePoolTierConfig(pool.id, config);
+      const { tierConfig, updatedAt } = await updatePoolTierConfig(pool.id, config, pool.updatedAt);
       setPool((current) =>
-        current === null ? current : { ...current, tierConfig }
+        current === null ? current : { ...current, tierConfig, updatedAt }
       );
       setNotice("Tier 行配置已保存。");
     } catch (reason) {

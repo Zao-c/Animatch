@@ -305,6 +305,13 @@ describe("docker-compose and gitignore", () => {
     expect(gitignore).toContain("data/image-cache/");
   });
 
+  it(".gitignore excludes local cookie and tmp scratch files", () => {
+    const gitignore = readFileSync(".gitignore", "utf8");
+    expect(gitignore).toContain("cookies.txt");
+    expect(gitignore).toContain("tmp_*.js");
+    expect(gitignore).toContain("tmp_*.ts");
+  });
+
   it("docker-compose.prod.yml has animatch_image_cache volume", () => {
     const compose = readFileSync("docker-compose.prod.yml", "utf8");
     expect(compose).toContain("animatch_image_cache");

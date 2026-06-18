@@ -9,6 +9,9 @@ dist
 coverage
 .turbo
 *.log
+cookies.txt
+tmp_*.js
+tmp_*.ts
 docker-data
 backups
 backups/

@@ -134,6 +134,14 @@ describe("Season voting rules", () => {
     expect(source).toContain("const stepNumber = userVotes + 1");
   });
 
+  it("writes votes in a serializable transaction with retryable conflict handling", () => {
+    expect(source).toContain("MAX_VOTE_WRITE_ATTEMPTS");
+    expect(source).toContain("prisma.$transaction");
+    expect(source).toContain("Prisma.TransactionIsolationLevel.Serializable");
+    expect(source).toContain("isRetryableVoteWriteError");
+    expect(source).toContain("VOTE_WRITE_CONFLICT");
+  });
+
   it("bias vote uses weight 2", () => {
     expect(source).toContain("weight = 2");
   });

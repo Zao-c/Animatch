@@ -673,20 +673,21 @@ export function updatePool(
 }
 
 export function getPoolTierConfig(poolId: string) {
-  return fetchJson<{ tierConfig: PoolTierConfig | null }>(
+  return fetchJson<{ tierConfig: PoolTierConfig | null; updatedAt: string }>(
     `/api/pools/${poolId}/tier-config`
   );
 }
 
 export function updatePoolTierConfig(
   poolId: string,
-  tierConfig: PoolTierConfig
+  tierConfig: PoolTierConfig,
+  expectedUpdatedAt: string
 ) {
-  return fetchJson<{ tierConfig: PoolTierConfig }>(
+  return fetchJson<{ tierConfig: PoolTierConfig; updatedAt: string }>(
     `/api/pools/${poolId}/tier-config`,
     {
       method: "PUT",
-      body: JSON.stringify({ tierConfig })
+      body: { tierConfig, expectedUpdatedAt }
     }
   );
 }

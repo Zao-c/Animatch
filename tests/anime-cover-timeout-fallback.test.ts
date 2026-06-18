@@ -7,12 +7,12 @@ import { AnimeCover } from "../src/components/AnimeCover";
 describe("AnimeCover timeout fallback", () => {
   const source = readFileSync("src/components/AnimeCover.tsx", "utf8");
 
-  it("defines IMAGE_CANDIDATE_TIMEOUT_MS = 8000 for non-final candidates", () => {
-    expect(source).toContain("IMAGE_CANDIDATE_TIMEOUT_MS = 8000");
+  it("defines IMAGE_CANDIDATE_TIMEOUT_MS = 5000 for non-final candidates", () => {
+    expect(source).toContain("IMAGE_CANDIDATE_TIMEOUT_MS = 5000");
   });
 
-  it("defines FINAL_IMAGE_TIMEOUT_MS = 12000 for the last candidate", () => {
-    expect(source).toContain("FINAL_IMAGE_TIMEOUT_MS = 12000");
+  it("defines FINAL_IMAGE_TIMEOUT_MS = 8000 for the last candidate", () => {
+    expect(source).toContain("FINAL_IMAGE_TIMEOUT_MS = 8000");
   });
 
   it("sets a client-side setTimeout in a useEffect when state is loading", () => {

@@ -33,6 +33,12 @@ describe("image proxy LRU cache", () => {
     expect(source).toContain("DISK_MAX_CACHE_BYTES = 5 * 1024 * 1024 * 1024");
   });
 
+  it("bounds cold-cache upstream waits", () => {
+    expect(source).toContain("TIMEOUT_MS = 6000");
+    expect(source).toContain("const maxAttempts = 2");
+    expect(source).toContain("AbortSignal.timeout(15000)");
+  });
+
   it("sets Cache-Control response header", () => {
     expect(source).toContain("Cache-Control");
     expect(source).toContain("max-age=86400");

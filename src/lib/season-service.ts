@@ -2,7 +2,7 @@
 import { AppError } from "./app-error";
 import { canEditPoolContent } from "./pool-permissions";
 import { getAnimeCoverUrl } from "./anime-cover-url";
-import type { BattleSeason, BattleVote, BattleSeasonMode } from "@prisma/client";
+import { Prisma, type BattleSeason, type BattleSeasonMode } from "@prisma/client";
 
 export type SeasonMode = BattleSeasonMode;
 
@@ -126,6 +126,8 @@ export interface VoteResult {
   weight: number;
   votesRemaining: number;
 }
+
+const MAX_VOTE_WRITE_ATTEMPTS = 3;
 
 async function getPoolAnimeIds(poolId: string): Promise<string[]> {
   const entries = await prisma.poolAnime.findMany({
@@ -571,25 +573,6 @@ export async function submitVote(
     throw new AppError("作品不在当前番组中", 400, "ANIME_NOT_IN_POOL");
   }
 
-  const userVotes = await prisma.battleVote.count({ where: { seasonId, userId } });
-
-  if (userVotes >= season.maxVotesPerUser) {
-    throw new AppError("已达到最大投票次数", 400, "VOTE_LIMIT_REACHED");
-  }
-
-  if (season.maxVotesPerUserPerDay) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dailyUsed = await prisma.battleVote.count({
-      where: { seasonId, userId, createdAt: { gte: today, lt: tomorrow } }
-    });
-    if (dailyUsed >= season.maxVotesPerUserPerDay) {
-      throw new AppError("今日投票次数已用完", 400, "DAILY_VOTE_LIMIT_REACHED");
-    }
-  }
-
   let voteType: "NORMAL" | "BIAS" = "NORMAL";
   let weight = 1;
 
@@ -597,66 +580,108 @@ export async function submitVote(
     if (season.mode !== "BIAS") {
       throw new AppError("传统模式不能使用私心票", 400, "BIAS_NOT_ALLOWED");
     }
-    const biasUsed = await prisma.battleVote.count({
-      where: { seasonId, userId, voteType: "BIAS" }
-    });
-    if (biasUsed >= season.biasVotesPerUser) {
-      throw new AppError("私心票已用完", 400, "BIAS_VOTES_EXHAUSTED");
-    }
     voteType = "BIAS";
     weight = 2;
   }
 
-  const previousVote = await prisma.battleVote.findFirst({
-    where: { seasonId, userId },
-    orderBy: { stepNumber: "desc" },
-    select: { afterWinnerScore: true, afterLoserScore: true }
-  });
-
-  const beforeWinnerScoreRaw = await prisma.battleVote.aggregate({
-    where: { seasonId, winnerAnimeId: input.winnerAnimeId },
-    _sum: { weight: true }
-  });
-
   const loserAnimeId = input.winnerAnimeId === input.leftAnimeId ? input.rightAnimeId : input.leftAnimeId;
 
-  const beforeLoserLosses = await prisma.battleVote.aggregate({
-    where: { seasonId, loserAnimeId },
-    _sum: { weight: true }
-  });
+  for (let attempt = 1; attempt <= MAX_VOTE_WRITE_ATTEMPTS; attempt++) {
+    try {
+      return await prisma.$transaction(
+        async (tx) => {
+          const userVotes = await tx.battleVote.count({ where: { seasonId, userId } });
 
-  const beforeWinnerScore = beforeWinnerScoreRaw._sum.weight ?? 0;
-  const beforeLoserScore = 0 - (beforeLoserLosses._sum.weight ?? 0);
-  const afterWinnerScore = beforeWinnerScore + weight;
+          if (userVotes >= season.maxVotesPerUser) {
+            throw new AppError("已达到最大投票次数", 400, "VOTE_LIMIT_REACHED");
+          }
 
-  const stepNumber = userVotes + 1;
+          if (season.maxVotesPerUserPerDay) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const dailyUsed = await tx.battleVote.count({
+              where: { seasonId, userId, createdAt: { gte: today, lt: tomorrow } }
+            });
+            if (dailyUsed >= season.maxVotesPerUserPerDay) {
+              throw new AppError("今日投票次数已用完", 400, "DAILY_VOTE_LIMIT_REACHED");
+            }
+          }
 
-  const vote = await prisma.battleVote.create({
-    data: {
-      seasonId,
-      poolId,
-      userId,
-      leftAnimeId: input.leftAnimeId,
-      rightAnimeId: input.rightAnimeId,
-      winnerAnimeId: input.winnerAnimeId,
-      loserAnimeId,
-      voteType,
-      weight,
-      stepNumber,
-      beforeWinnerScore,
-      afterWinnerScore,
-      beforeLoserScore,
-      afterLoserScore: beforeLoserScore
+          if (voteType === "BIAS") {
+            const biasUsed = await tx.battleVote.count({
+              where: { seasonId, userId, voteType: "BIAS" }
+            });
+            if (biasUsed >= season.biasVotesPerUser) {
+              throw new AppError("私心票已用完", 400, "BIAS_VOTES_EXHAUSTED");
+            }
+          }
+
+          const [beforeWinnerScoreRaw, beforeLoserLosses] = await Promise.all([
+            tx.battleVote.aggregate({
+              where: { seasonId, winnerAnimeId: input.winnerAnimeId },
+              _sum: { weight: true }
+            }),
+            tx.battleVote.aggregate({
+              where: { seasonId, loserAnimeId },
+              _sum: { weight: true }
+            })
+          ]);
+
+          const beforeWinnerScore = beforeWinnerScoreRaw._sum.weight ?? 0;
+          const beforeLoserScore = 0 - (beforeLoserLosses._sum.weight ?? 0);
+          const afterWinnerScore = beforeWinnerScore + weight;
+          const stepNumber = userVotes + 1;
+
+          const vote = await tx.battleVote.create({
+            data: {
+              seasonId,
+              poolId,
+              userId,
+              leftAnimeId: input.leftAnimeId,
+              rightAnimeId: input.rightAnimeId,
+              winnerAnimeId: input.winnerAnimeId,
+              loserAnimeId,
+              voteType,
+              weight,
+              stepNumber,
+              beforeWinnerScore,
+              afterWinnerScore,
+              beforeLoserScore,
+              afterLoserScore: beforeLoserScore
+            }
+          });
+
+          return {
+            id: vote.id,
+            stepNumber: vote.stepNumber,
+            voteType: vote.voteType,
+            weight: vote.weight,
+            votesRemaining: Math.max(0, season.maxVotesPerUser - stepNumber)
+          };
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
+    } catch (error) {
+      if (isRetryableVoteWriteError(error) && attempt < MAX_VOTE_WRITE_ATTEMPTS) {
+        continue;
+      }
+      if (isRetryableVoteWriteError(error)) {
+        throw new AppError("投票正在处理中，请稍后重试", 409, "VOTE_WRITE_CONFLICT");
+      }
+      throw error;
     }
-  });
+  }
 
-  return {
-    id: vote.id,
-    stepNumber: vote.stepNumber,
-    voteType: vote.voteType,
-    weight: vote.weight,
-    votesRemaining: Math.max(0, season.maxVotesPerUser - stepNumber)
-  };
+  throw new AppError("投票正在处理中，请稍后重试", 409, "VOTE_WRITE_CONFLICT");
+}
+
+function isRetryableVoteWriteError(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === "P2002" || error.code === "P2034")
+  );
 }
 
 export async function updateSeason(

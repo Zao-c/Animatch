@@ -29,7 +29,7 @@ const pendingBgRefetch = new Set<string>();
 
 async function bgRefetch(url: string, headers: Record<string, string>): Promise<void> {
   try {
-    const resp = await fetch(url, { headers, signal: AbortSignal.timeout(30000) });
+    const resp = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
     if (!resp.ok) return;
     const buf = Buffer.from(await resp.arrayBuffer());
     if (buf.byteLength > MAX_SIZE || buf.byteLength === 0) return;
@@ -44,7 +44,7 @@ async function bgRefetch(url: string, headers: Record<string, string>): Promise<
 }
 
 const MAX_SIZE = 10 * 1024 * 1024;
-const TIMEOUT_MS = 12000;
+const TIMEOUT_MS = 6000;
 const FRESH_TTL_MS = 24 * 60 * 60 * 1000;
 const STALE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MEM_MAX_CACHE_ENTRIES = 500;
@@ -188,7 +188,7 @@ export async function GET(request: Request) {
     headers["Referer"] = referer;
   }
 
-  const maxAttempts = 3;
+  const maxAttempts = 2;
   let response: Response | undefined;
   let lastError: unknown;
 

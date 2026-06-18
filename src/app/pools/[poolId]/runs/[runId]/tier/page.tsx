@@ -93,6 +93,7 @@ export default function TierPage({
   const router = useRouter();
   const [poolName, setPoolName] = useState("当前番组");
   const [poolTierConfig, setPoolTierConfig] = useState<PoolTierConfig | null>(null);
+  const [poolUpdatedAt, setPoolUpdatedAt] = useState<string | null>(null);
   const [tierList, setTierList] = useState<TierListResponse | null>(null);
   const [editableTiers, setEditableTiers] = useState<Record<string, TierListItem[]> | null>(null);
   const [dragSource, setDragSource] = useState<{ tier: string; animeId: string } | null>(null);
@@ -140,6 +141,7 @@ export default function TierPage({
       ]);
       setPoolName(pool.name);
       setPoolTierConfig(pool.tierConfig ?? null);
+      setPoolUpdatedAt(pool.updatedAt);
       setCanShowCommunityRanking(isCommunityBattleVisiblePool(pool));
       setTierList(data);
       if (!isEditing) {
@@ -288,13 +290,15 @@ export default function TierPage({
   }
 
   async function handleSaveTierConfig(config: PoolTierConfig) {
+    if (poolUpdatedAt === null) return;
     setTierConfigSaving(true);
     setError(null);
 
     try {
-      const result = await updatePoolTierConfig(params.poolId, config);
+      const result = await updatePoolTierConfig(params.poolId, config, poolUpdatedAt);
       const data = await getTierList(params.poolId, params.runId);
       setPoolTierConfig(result.tierConfig);
+      setPoolUpdatedAt(result.updatedAt);
       setTierList(data);
       setEditableTiers(cloneTiers(data.tiers));
       setIsEditing(false);

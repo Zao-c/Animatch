@@ -23,6 +23,11 @@ describe("AnimeCover background warm proxy", () => {
     expect(source).toContain("}, [src, secondarySrc]);");
   });
 
+  it("uses bounded candidate and final image waits", () => {
+    expect(source).toContain("IMAGE_CANDIDATE_TIMEOUT_MS = 5000");
+    expect(source).toContain("FINAL_IMAGE_TIMEOUT_MS = 8000");
+  });
+
   it("calls warmImageProxyCache on img onLoad for the loaded imageSrc", () => {
     expect(source).toContain("warmImageProxyCache(imageSrc)");
   });

@@ -4,8 +4,8 @@ import { prisma } from "@/lib/db";
 import { requireCurrentUser } from "@/lib/auth-session";
 import { canManagePool } from "@/lib/pool-permissions";
 import { isAdminEditSession } from "@/lib/admin-auth";
-import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
-import { normalizeTierConfig, DEFAULT_TIER_CONFIG, type PoolTierConfig } from "@/lib/tier-config";
+import { badRequest, conflict, forbidden, notFound, ok, fromError } from "@/lib/api-response";
+import { normalizeTierConfig, type PoolTierConfig } from "@/lib/tier-config";
 
 export async function GET(
   _request: NextRequest,
@@ -16,6 +16,7 @@ export async function GET(
       where: { id: params.poolId },
       select: {
         tierConfig: true,
+        updatedAt: true,
         visibility: true,
         creatorId: true,
         deletedAt: true
@@ -35,7 +36,7 @@ export async function GET(
 
     const tierConfig = (pool.tierConfig ?? null) as PoolTierConfig | null;
 
-    return ok({ tierConfig });
+    return ok({ tierConfig, updatedAt: pool.updatedAt.toISOString() });
   } catch (error) {
     return fromError(error);
   }
@@ -66,20 +67,38 @@ export async function PUT(
 
     const body = await request.json().catch(() => null);
 
+    if (typeof body?.expectedUpdatedAt !== "string") {
+      return badRequest("tier config version is required");
+    }
+
+    const expectedUpdatedAt = new Date(body.expectedUpdatedAt);
+    if (Number.isNaN(expectedUpdatedAt.getTime())) {
+      return badRequest("tier config version is invalid");
+    }
+
     const result = normalizeTierConfig(body?.tierConfig);
 
     if (!result.ok) {
       return badRequest(result.error);
     }
 
-    await prisma.customPool.update({
-      where: { id: pool.id },
+    const updateResult = await prisma.customPool.updateMany({
+      where: { id: pool.id, updatedAt: expectedUpdatedAt },
       data: {
         tierConfig: result.config as unknown as Prisma.InputJsonValue
       }
     });
 
-    return ok({ tierConfig: result.config });
+    if (updateResult.count === 0) {
+      return conflict("Tier 配置已被其他操作更新，请刷新后再保存。");
+    }
+
+    const updated = await prisma.customPool.findUnique({
+      where: { id: pool.id },
+      select: { updatedAt: true }
+    });
+
+    return ok({ tierConfig: result.config, updatedAt: updated?.updatedAt.toISOString() ?? new Date().toISOString() });
   } catch (error) {
     return fromError(error);
   }
