@@ -169,23 +169,44 @@ export async function GET(request: Request) {
     headers["Referer"] = referer;
   }
 
-  const maxAttempts = 2;
+  const maxAttempts = 3;
   let response: Response | undefined;
   let lastError: unknown;
+
+  // MAL hosts are reachable directly from China — bypass the flaky proxy
+  const hostname = parsed.hostname.toLowerCase();
+  const isMalHost =
+    hostname === "myanimelist.net" ||
+    hostname.endsWith(".myanimelist.net");
+  const useDirect = isMalHost;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const ctrl = attempt === 1 ? controller : new AbortController();
     const ctrlTimeoutId = attempt === 1 ? timeoutId : setTimeout(() => ctrl.abort(), TIMEOUT_MS);
 
     try {
-      response = await fetch(parsed.toString(), {
-        signal: ctrl.signal,
-        headers,
-      });
+      if (useDirect) {
+        // Bypass proxy for directly-reachable hosts
+        const oldNoProxy = process.env.NO_PROXY;
+        process.env.NO_PROXY = "*";
+        try {
+          response = await fetch(parsed.toString(), {
+            signal: ctrl.signal,
+            headers,
+          });
+        } finally {
+          process.env.NO_PROXY = oldNoProxy ?? "";
+        }
+      } else {
+        response = await fetch(parsed.toString(), {
+          signal: ctrl.signal,
+          headers,
+        });
+      }
     } catch (error) {
       clearTimeout(ctrlTimeoutId);
       lastError = error;
-      // Retry on network error, but only if there's no stale cache to serve
+      // Serve stale cache immediately if available
       if (staleEntry !== null || staleDiskEntry !== null) {
         clearTimeout(timeoutId);
         if (staleEntry !== null) {
@@ -209,9 +230,9 @@ export async function GET(request: Request) {
       if (attempt > 1) clearTimeout(ctrlTimeoutId !== timeoutId ? ctrlTimeoutId : undefined);
     }
 
-    // Retry on proxy 502/503
+    // Retry on proxy 502/503 (only when using proxy, not direct)
     if (!response.ok && attempt < maxAttempts &&
-        (response.status === 502 || response.status === 503)) {
+        (response.status === 502 || response.status === 503) && !useDirect) {
       await new Promise(r => setTimeout(r, 500 * attempt));
       continue;
     }
