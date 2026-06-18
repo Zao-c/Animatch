@@ -24,6 +24,25 @@ function normalizeCacheUrl(raw: string): string {
   return raw;
 }
 
+/** Background re-fetch after all retries fail — so next visitor gets a cache hit */
+const pendingBgRefetch = new Set<string>();
+
+async function bgRefetch(url: string, headers: Record<string, string>): Promise<void> {
+  try {
+    const resp = await fetch(url, { headers, signal: AbortSignal.timeout(30000) });
+    if (!resp.ok) return;
+    const buf = Buffer.from(await resp.arrayBuffer());
+    if (buf.byteLength > MAX_SIZE || buf.byteLength === 0) return;
+    const ctype = resp.headers.get("content-type") ?? "";
+    if (!ctype.startsWith("image/")) return;
+    const entry = { buffer: buf, contentType: ctype, cachedAt: Date.now(), lastAccessedAt: Date.now() };
+    setCacheEntry(url, entry);
+    await writeDiskCacheEntry(url, entry);
+  } catch {
+    // background retry failed — will be retried on next user request
+  }
+}
+
 const MAX_SIZE = 10 * 1024 * 1024;
 const TIMEOUT_MS = 12000;
 const FRESH_TTL_MS = 24 * 60 * 60 * 1000;
@@ -249,6 +268,14 @@ export async function GET(request: Request) {
     if (staleDiskEntry !== null) {
       setCacheEntry(cacheKey, staleDiskEntry);
       return cachedImageResponse(staleDiskEntry, "DISK-STALE");
+    }
+    // Background refetch so next visitor gets a cache hit
+    if (!pendingBgRefetch.has(parsed.toString())) {
+      pendingBgRefetch.add(parsed.toString());
+      setTimeout(() => {
+        pendingBgRefetch.delete(parsed.toString());
+        bgRefetch(parsed.toString(), headers);
+      }, 3000);
     }
     return errorResponse({ error: response ? `upstream returned ${response.status}` : "fetch failed" }, 502);
   }
