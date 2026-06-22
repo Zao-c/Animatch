@@ -85,6 +85,7 @@ export interface SeasonRankingItem {
 }
 
 export interface RecentVoteEntry {
+  id: string;
   stepNumber: number;
   username: string;
   displayName: string;
@@ -384,6 +385,7 @@ export async function getSeasonDetail(
         prisma.anime.findUnique({ where: { id: v.loserAnimeId }, select: { titleCn: true, titleJa: true, title: true } })
       ]);
       return {
+        id: v.id,
         stepNumber: v.stepNumber,
         username: v.user.username ?? "unknown",
         displayName: v.user.name ?? v.user.username ?? "unknown",

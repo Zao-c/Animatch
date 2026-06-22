@@ -1168,6 +1168,7 @@ export interface SeasonRankingItem {
 }
 
 export interface RecentVoteEntry {
+  id: string;
   stepNumber: number;
   username: string;
   displayName: string;

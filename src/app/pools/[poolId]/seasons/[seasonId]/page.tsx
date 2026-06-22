@@ -126,7 +126,7 @@ export default function SeasonDetailPage() {
     <PageShell>
       <main className="mx-auto max-w-4xl px-4 py-8">
         <div className="mb-6 flex flex-wrap items-center gap-3">
-          <Link href={`/pools/${poolId}`} className="text-xs text-slate-500 hover:text-amber-200">← 返回番组</Link>
+          <Link href={`/pools/${poolId}`} className="inline-flex min-h-11 items-center text-sm text-slate-400 transition hover:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-300/60">← 返回番组</Link>
         </div>
 
         <AppCard className="mb-8 p-6">
@@ -279,7 +279,7 @@ export default function SeasonDetailPage() {
           <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-lg font-bold text-white">赛季共享榜单</h2>
-              <p className="mt-1 text-xs text-slate-500">基于本赛季所有 BattleVote 实时汇总，所有参与者看到同一份结果。</p>
+              <p className="mt-1 text-xs text-slate-500">聚合每位用户的个人赛季 Elo；私心票只在共享榜单阶段产生加成。</p>
             </div>
             <AppBadge tone="source">{detail.participantCount} 人 / {detail.totalVotes} 票</AppBadge>
           </div>
@@ -294,9 +294,10 @@ export default function SeasonDetailPage() {
                     <p className="truncate text-sm font-semibold text-white">{item.title}</p>
                   </div>
                   <div className="flex gap-3 text-xs text-slate-400">
-                    <span className="text-amber-200 font-semibold">{item.score} 分</span>
+                    <span className="text-amber-200 font-semibold">{Math.round(item.score)} Elo</span>
                     <span>{item.winCount} 胜</span>
                     {item.biasWinCount > 0 ? <span className="text-rose-300">{item.biasWinCount} 私心</span> : null}
+                    {item.insufficientSample ? <span className="text-slate-500">样本不足</span> : null}
                   </div>
                 </div>
               ))}
@@ -326,7 +327,7 @@ export default function SeasonDetailPage() {
           ) : (
             <div className="space-y-2">
               {detail.recentVotes.map((v) => (
-                <div key={v.stepNumber} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-white/[0.02] px-3 py-2 text-sm">
+                <div key={v.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-white/[0.02] px-3 py-2 text-sm">
                   <span className="text-xs text-slate-600">第 {v.stepNumber} 步</span>
                   <span className="font-medium text-white/80">{v.displayName}</span>
                   <span className="text-slate-400">
@@ -413,7 +414,7 @@ function SeasonSharedTierList({
       <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-lg font-bold text-white">赛季共享 TierList</h2>
-          <p className="mt-1 text-xs text-slate-500">按赛季共享榜单分数分桶展示，方便直接看当前 S/A/B/C/D 结果。</p>
+          <p className="mt-1 text-xs text-slate-500">按共享 Elo 的 S/A/B/C/D 百分位分档；样本不足作品会放在末档等待更多投票。</p>
         </div>
         <AppBadge tone="tier">{participantCount} 人 / {totalVotes} 票</AppBadge>
       </div>
@@ -461,7 +462,7 @@ function SeasonTierCard({ item }: { item: SeasonRankingItem }) {
         {item.title}
       </h3>
       <p className="mt-1 text-[10px] text-slate-500">
-        {item.score} 分 · {item.winCount} 胜
+        {Math.round(item.score)} Elo · {item.winCount} 胜{item.insufficientSample ? " · 样本不足" : ""}
       </p>
     </article>
   );

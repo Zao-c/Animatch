@@ -29,9 +29,11 @@ function SeasonDuelCard({
 
   return (
     <button
+      type="button"
+      aria-label={`投给 ${title}`}
       onClick={onPick}
       disabled={disabled}
-      className={`relative flex flex-col overflow-hidden rounded-2xl border-2 text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${
+      className={`relative flex min-h-44 cursor-pointer flex-col overflow-hidden rounded-2xl border-2 text-left transition-all duration-200 hover:border-amber-200/45 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-amber-300/60 focus:ring-offset-2 focus:ring-offset-slate-950 ${
         highlighted
           ? "border-amber-300 shadow-[0_0_40px_rgba(252,211,77,0.15)]"
           : "border-white/10 hover:border-white/20 active:border-amber-300/50"
@@ -131,13 +133,9 @@ export default function SeasonMatchPage() {
   const [skippedPairKeys, setSkippedPairKeys] = useState<Set<string>>(new Set());
   const [unseenAnimeIds, setUnseenAnimeIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    setUnseenAnimeIds(readSeasonUnseenAnimeIds(seasonId));
-  }, [seasonId]);
-
   const fetchData = useCallback(async (
-    skippedPairs: ReadonlySet<string> = skippedPairKeys,
-    hiddenAnimeIds: ReadonlySet<string> = unseenAnimeIds
+    skippedPairs: ReadonlySet<string>,
+    hiddenAnimeIds: ReadonlySet<string>
   ) => {
     try {
       const [d, q] = await Promise.all([
@@ -167,13 +165,21 @@ export default function SeasonMatchPage() {
       setError(e instanceof Error ? e.message : "加载失败");
       setLoading(false);
     }
-  }, [poolId, seasonId, skippedPairKeys, unseenAnimeIds]);
+  }, [poolId, seasonId]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    const hiddenIds = readSeasonUnseenAnimeIds(seasonId);
+    const skippedPairs = new Set<string>();
+    setUnseenAnimeIds(hiddenIds);
+    setSkippedPairKeys(skippedPairs);
+    setLoading(true);
+    void fetchData(skippedPairs, hiddenIds);
+  }, [fetchData, seasonId]);
 
   const currentPair = queue.length > currentIndex ? queue[currentIndex] : null;
 
   const handleRollPair = useCallback(() => {
+    if (feedback === "SKIP") return;
     setFeedback("SKIP");
     setUseBias(false);
     setVoteResult(null);
@@ -191,7 +197,7 @@ export default function SeasonMatchPage() {
       void fetchData(nextSkippedPairKeys, unseenAnimeIds);
     }
     window.setTimeout(() => setFeedback(null), 360);
-  }, [currentPair, fetchData, queue, skippedPairKeys, unseenAnimeIds]);
+  }, [currentPair, feedback, fetchData, queue, skippedPairKeys, unseenAnimeIds]);
 
   const handleMarkUnseen = useCallback(async (kind: Extract<SeasonFeedback, "LEFT_UNSEEN" | "RIGHT_UNSEEN" | "BOTH_UNSEEN">) => {
     if (!currentPair || submitting) return;
@@ -229,7 +235,7 @@ export default function SeasonMatchPage() {
         void fetchData(nextSkippedPairKeys, nextUnseenAnimeIds);
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "鎺掗櫎浣滃搧澶辫触");
+      setError(e instanceof Error ? e.message : "排除作品失败");
     } finally {
       setSubmitting(false);
     }
@@ -244,11 +250,13 @@ export default function SeasonMatchPage() {
         animeIds: [],
         isHidden: false
       });
+      const resetSkippedPairs = new Set<string>();
       writeSeasonUnseenAnimeIds(seasonId, emptySet);
       setUnseenAnimeIds(emptySet);
-      void fetchData(skippedPairKeys, emptySet);
+      setSkippedPairKeys(resetSkippedPairs);
+      void fetchData(resetSkippedPairs, emptySet);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "鎭㈠浣滃搧澶辫触");
+      setError(e instanceof Error ? e.message : "恢复作品失败");
       setLoading(false);
     }
   }
@@ -266,29 +274,37 @@ export default function SeasonMatchPage() {
       setVoteResult({ stepNumber: result.stepNumber, votesRemaining: result.votesRemaining });
       setFeedback(winnerId === currentPair.left.animeId ? "LEFT_WIN" : "RIGHT_WIN");
       setTimeout(() => {
-        setFeedback(null);
-        const shouldLoadNextBatch = currentIndex >= queue.length - 1;
-        if (result.votesRemaining <= 0 || shouldLoadNextBatch) {
-          setUseBias(false);
-          fetchData();
-        } else {
-          setCurrentIndex((prev) => prev + 1);
-          setUseBias(false);
-          setVoteResult(null);
-        }
+        void (async () => {
+          try {
+            setFeedback(null);
+            const shouldLoadNextBatch = currentIndex >= queue.length - 1;
+            if (result.votesRemaining <= 0 || shouldLoadNextBatch) {
+              setUseBias(false);
+              await fetchData(skippedPairKeys, unseenAnimeIds);
+            } else {
+              setCurrentIndex((prev) => prev + 1);
+              setUseBias(false);
+              setVoteResult(null);
+            }
+          } finally {
+            setSubmitting(false);
+          }
+        })();
       }, 600);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "投票失败");
-    } finally {
       setSubmitting(false);
     }
-  }, [currentPair, submitting, poolId, seasonId, detail, useBias, fetchData, currentIndex, queue.length]);
+  }, [currentPair, submitting, poolId, seasonId, detail, useBias, fetchData, currentIndex, queue.length, skippedPairKeys, unseenAnimeIds]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!currentPair || submitting) return;
       if (isEditableShortcutTarget(e.target)) return;
+      if (e.repeat) return;
 
+      const canUseBiasShortcut =
+        detail?.mode === "BIAS" && (detail.currentUserState?.biasVotesRemaining ?? 0) > 0;
       let handled = true;
       if (e.key === "ArrowLeft") {
         handleVote(currentPair.left.animeId);
@@ -296,7 +312,7 @@ export default function SeasonMatchPage() {
         handleVote(currentPair.right.animeId);
       } else if (e.key === "ArrowDown") {
         handleRollPair();
-      } else if (e.key === "ArrowUp" && detail?.mode === "BIAS" && (detail.currentUserState?.biasVotesRemaining ?? 0) > 0) {
+      } else if (e.key === "ArrowUp" && canUseBiasShortcut) {
         setUseBias((prev) => !prev);
       } else if (e.key === "1") {
         handleMarkUnseen("LEFT_UNSEEN");
@@ -304,7 +320,7 @@ export default function SeasonMatchPage() {
         handleMarkUnseen("RIGHT_UNSEEN");
       } else if (e.key === "3" || e.key === "0") {
         handleMarkUnseen("BOTH_UNSEEN");
-      } else if (e.key === "b" || e.key === "B" || e.key === "Shift") {
+      } else if ((e.key === "b" || e.key === "B" || e.key === "Shift") && canUseBiasShortcut) {
         setUseBias((prev) => !prev);
       } else {
         handled = false;
@@ -328,7 +344,7 @@ export default function SeasonMatchPage() {
     <PageShell>
       <main className="mx-auto max-w-4xl px-4 py-8">
         <div className="mb-4 flex flex-wrap items-center gap-3">
-          <Link href={`/pools/${poolId}/seasons/${seasonId}`} className="text-xs text-slate-500 hover:text-amber-200">← 返回赛季</Link>
+          <Link href={`/pools/${poolId}/seasons/${seasonId}`} className="inline-flex min-h-11 items-center text-sm text-slate-400 transition hover:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-300/60">← 返回赛季</Link>
           <AppBadge tone={detail.status === "ACTIVE" ? "success" : "muted"}>
             {detail.status === "ACTIVE" ? "进行中" : "已结束"}
           </AppBadge>
@@ -338,7 +354,7 @@ export default function SeasonMatchPage() {
           <div>
             <h1 className="text-2xl font-black text-white">{detail.title}</h1>
             <p className="mt-1 text-xs text-slate-500">
-              优先分配你没投过、全局曝光少的作品。可换一组，但不会消耗票数。
+              优先给你没比较过的组合；覆盖后继续用 Elo 接近、低置信度的组合做校准。换一组不会消耗票数。
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -347,7 +363,7 @@ export default function SeasonMatchPage() {
                 type="button"
                 onClick={handleResetUnseen}
                 disabled={loading}
-                className="min-h-10 rounded-full border border-amber-300/20 bg-amber-300/5 px-4 text-sm font-semibold text-amber-100 transition hover:border-amber-200/50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-11 rounded-full border border-amber-300/20 bg-amber-300/5 px-4 text-sm font-semibold text-amber-100 transition hover:border-amber-200/50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 恢复已排除 {unseenAnimeIds.size} 部
               </button>
@@ -356,8 +372,8 @@ export default function SeasonMatchPage() {
               <button
                 type="button"
                 onClick={handleRollPair}
-                disabled={submitting}
-                className="min-h-10 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/35 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={submitting || feedback === "SKIP"}
+                className="min-h-11 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/35 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 换一组
               </button>
@@ -431,14 +447,14 @@ export default function SeasonMatchPage() {
           <div className="mt-8">
             {detail.mode === "BIAS" && cs && cs.biasVotesRemaining > 0 ? (
               <div className="mb-4 flex items-center justify-center">
-                <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-rose-300/20 bg-rose-300/5 px-4 py-2 text-sm text-rose-200 select-none">
+                <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-rose-300/20 bg-rose-300/5 px-4 py-2 text-sm text-rose-200 select-none">
                   <input
                     type="checkbox"
                     checked={useBias}
                     onChange={(e) => setUseBias(e.target.checked)}
                     className="h-4 w-4 rounded accent-rose-400"
                   />
-                  使用私心票 (权重×2, 剩余 {cs.biasVotesRemaining})
+                  使用私心票 (共享榜单加成, 剩余 {cs.biasVotesRemaining})
                   <span className="ml-1 text-xs text-slate-500">或按 Shift</span>
                 </label>
               </div>
@@ -470,7 +486,7 @@ export default function SeasonMatchPage() {
               <button
                 type="button"
                 onClick={handleRollPair}
-                disabled={submitting}
+                disabled={submitting || feedback === "SKIP"}
                 className={`min-h-12 rounded-xl border px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                   feedback === "SKIP"
                     ? "border-cyan-300/50 bg-cyan-300/10 text-cyan-100"
