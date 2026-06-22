@@ -1160,6 +1160,10 @@ export interface SeasonRankingItem {
   winCount: number;
   lossCount: number;
   biasWinCount: number;
+  participantCount: number;
+  comparisonCount: number;
+  insufficientSample: boolean;
+  averageElo: number | null;
   imageUrl: string | null;
 }
 
@@ -1171,6 +1175,8 @@ export interface RecentVoteEntry {
   loserTitle: string;
   voteType: string;
   weight: number;
+  winnerEloDelta: number | null;
+  loserEloDelta: number | null;
   createdAt: string;
 }
 
@@ -1201,6 +1207,10 @@ export interface SeasonDetail {
   ranking: SeasonRankingItem[];
   recentVotes: RecentVoteEntry[];
   currentUserState: CurrentUserState | null;
+  minSampleThreshold: {
+    minUsers: number;
+    minComparisons: number;
+  };
   createdAt: string;
 }
 
@@ -1220,6 +1230,7 @@ export interface SeasonMatchQueueItem {
   pairId: string;
   left: SeasonAnimeEntry;
   right: SeasonAnimeEntry;
+  reason: "NEW_PAIR" | "RECALIBRATION";
 }
 
 export interface SeasonVoteResult {
@@ -1267,8 +1278,21 @@ export function endSeason(poolId: string, seasonId: string) {
   return fetchJson<SeasonListItem>("/api/pools/" + poolId + "/seasons/" + seasonId + "/end", { method: "POST" });
 }
 
-export function getSeasonMatchQueue(poolId: string, seasonId: string) {
-  return fetchJson<SeasonMatchQueueItem[]>("/api/pools/" + poolId + "/seasons/" + seasonId + "/match-queue");
+export function getSeasonMatchQueue(poolId: string, seasonId: string, params: {
+  limit?: number;
+  excludePairKeys?: string[];
+  hiddenAnimeIds?: string[];
+} = {}) {
+  const searchParams = new URLSearchParams();
+  if (params.limit !== undefined) searchParams.set("limit", String(params.limit));
+  if (params.excludePairKeys !== undefined && params.excludePairKeys.length > 0) {
+    searchParams.set("excludePairKeys", params.excludePairKeys.join(","));
+  }
+  if (params.hiddenAnimeIds !== undefined && params.hiddenAnimeIds.length > 0) {
+    searchParams.set("hiddenAnimeIds", params.hiddenAnimeIds.join(","));
+  }
+  const query = searchParams.toString();
+  return fetchJson<SeasonMatchQueueItem[]>("/api/pools/" + poolId + "/seasons/" + seasonId + "/match-queue" + (query ? `?${query}` : ""));
 }
 
 export function submitSeasonVote(poolId: string, seasonId: string, data: {
@@ -1278,6 +1302,13 @@ export function submitSeasonVote(poolId: string, seasonId: string, data: {
   useBiasVote?: boolean;
 }) {
   return fetchJson<SeasonVoteResult>("/api/pools/" + poolId + "/seasons/" + seasonId + "/vote", { method: "POST", body: data });
+}
+
+export function setSeasonAnimeHidden(poolId: string, seasonId: string, data: {
+  animeIds: string[];
+  isHidden?: boolean;
+}) {
+  return fetchJson<{ hiddenAnimeIds: string[] }>("/api/pools/" + poolId + "/seasons/" + seasonId + "/unseen", { method: "POST", body: data });
 }
 
 export interface QuickImportCandidate {

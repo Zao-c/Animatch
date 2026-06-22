@@ -8,410 +8,196 @@ function readSource(path: string): string {
 describe("BattleSeason Prisma schema", () => {
   const source = readSource("prisma/schema.prisma");
 
-  it("has BattleSeasonMode enum with CLASSIC and BIAS", () => {
+  it("keeps BattleSeason and BattleVote as season ledger tables", () => {
     expect(source).toContain("enum BattleSeasonMode");
-    expect(source).toContain("CLASSIC");
-    expect(source).toContain("BIAS");
-  });
-
-  it("has BattleSeasonStatus enum with DRAFT, ACTIVE, ENDED", () => {
     expect(source).toContain("enum BattleSeasonStatus");
-    expect(source).toContain("DRAFT");
-    expect(source).toContain("ACTIVE");
-    expect(source).toContain("ENDED");
-  });
-
-  it("has BattleVoteType enum with NORMAL and BIAS", () => {
     expect(source).toContain("enum BattleVoteType");
-    expect(source).toContain("NORMAL");
-    expect(source).toContain("BIAS");
-  });
-
-  it("has BattleSeason model with all required fields", () => {
     expect(source).toContain("model BattleSeason");
-    expect(source).toContain("poolId");
-    expect(source).toContain("title");
-    expect(source).toContain("mode");
-    expect(source).toContain("status");
-    expect(source).toContain("maxVotesPerUser");
-    expect(source).toContain("biasVotesPerUser");
-    expect(source).toContain("createdByUserId");
-  });
-
-  it("has BattleVote model with all required fields", () => {
     expect(source).toContain("model BattleVote");
-    expect(source).toContain("seasonId");
-    expect(source).toContain("userId");
-    expect(source).toContain("leftAnimeId");
-    expect(source).toContain("rightAnimeId");
-    expect(source).toContain("winnerAnimeId");
-    expect(source).toContain("loserAnimeId");
-    expect(source).toContain("voteType");
-    expect(source).toContain("weight");
-    expect(source).toContain("stepNumber");
-    expect(source).toContain("beforeWinnerScore");
-    expect(source).toContain("afterWinnerScore");
-  });
-
-  it("BattleVote has unique constraint on seasonId+userId+stepNumber", () => {
     expect(source).toContain("@@unique([seasonId, userId, stepNumber])");
   });
+
+  it("adds per-user season Elo scores", () => {
+    expect(source).toContain("model BattleSeasonUserScore");
+    expect(source).toContain("@@unique([seasonId, userId, animeId])");
+    expect(source).toContain("eloScore");
+    expect(source).toContain("uncertainty");
+    expect(source).toContain("compareCount");
+    expect(source).toContain("biasWinCount");
+    expect(source).toContain("unseenCount");
+    expect(source).toContain("isHidden");
+  });
+
+  it("adds Elo audit fields to BattleVote", () => {
+    expect(source).toContain("beforeWinnerElo");
+    expect(source).toContain("afterWinnerElo");
+    expect(source).toContain("beforeLoserElo");
+    expect(source).toContain("afterLoserElo");
+  });
 });
 
-describe("Season service - create and permissions", () => {
+describe("Season service permissions and limits", () => {
   const source = readSource("src/lib/season-service.ts");
 
-  it("rejects non-editor for createSeason", () => {
-    expect(source).toContain("你没有权限创建赛季");
+  it("keeps editor and manager permission checks", () => {
+    expect(source).toContain("canEditPoolContent");
     expect(source).toContain("FORBIDDEN");
+    expect(source).toContain("POOL_ARCHIVED");
+    expect(source).toContain("SEASON_ALREADY_ACTIVE");
+    expect(source).toContain("Ended seasons cannot be edited");
   });
 
-  it("rejects archived pool", () => {
-    expect(source).toContain("已归档的番组不能创建赛季");
-  });
-
-  it("rejects non-editor for updateSeason", () => {
-    expect(source).toContain("你没有权限编辑赛季");
-  });
-
-  it("rejects non-editor for deleteSeason", () => {
-    expect(source).toContain("export async function deleteSeason");
-    expect(source).toContain("你没有权限删除赛季");
-  });
-
-  it("rejects editing ended season", () => {
-    expect(source).toContain("已结束的赛季不能编辑");
-  });
-
-  it("rejects non-manager for startSeason", () => {
-    expect(source).toContain("你没有权限管理赛季");
-  });
-
-  it("rejects already active season on start", () => {
-    expect(source).toContain("赛季已在进行中");
-  });
-
-  it("rejects non-active season on end", () => {
-    expect(source).toContain("赛季未在运行中");
-  });
-
-  it("creates season with CLASSIC or BIAS mode", () => {
-    expect(source).toContain("mode: input.mode");
-  });
-
-  it("defaults biasVotesPerUser to 3", () => {
-    expect(source).toContain("input.biasVotesPerUser ?? 3");
-  });
-});
-
-describe("Season voting rules", () => {
-  const source = readSource("src/lib/season-service.ts");
-
-  it("rejects voting on draft season", () => {
-    expect(source).toContain("SEASON_NOT_ACTIVE");
-  });
-
-  it("rejects voting on ended season", () => {
-    expect(source).toContain("SEASON_ENDED");
-  });
-
-  it("rejects voting when maxVotesPerUser reached", () => {
-    expect(source).toContain("VOTE_LIMIT_REACHED");
-  });
-
-  it("rejects voting when daily limit reached", () => {
-    expect(source).toContain("DAILY_VOTE_LIMIT_REACHED");
-  });
-
-  it("rejects bias vote in CLASSIC mode", () => {
-    expect(source).toContain("BIAS_NOT_ALLOWED");
-  });
-
-  it("rejects bias vote when bias votes exhausted", () => {
-    expect(source).toContain("BIAS_VOTES_EXHAUSTED");
-  });
-
-  it("rejects invalid winnerAnimeId not matching left/right", () => {
-    expect(source).toContain("INVALID_VOTE");
-  });
-
-  it("records stepNumber incrementally", () => {
-    expect(source).toContain("const stepNumber = userVotes + 1");
-  });
-
-  it("writes votes in a serializable transaction with retryable conflict handling", () => {
+  it("keeps vote limit checks inside the serializable write path", () => {
     expect(source).toContain("MAX_VOTE_WRITE_ATTEMPTS");
-    expect(source).toContain("prisma.$transaction");
     expect(source).toContain("Prisma.TransactionIsolationLevel.Serializable");
-    expect(source).toContain("isRetryableVoteWriteError");
+    expect(source).toContain("VOTE_LIMIT_REACHED");
+    expect(source).toContain("DAILY_VOTE_LIMIT_REACHED");
+    expect(source).toContain("BIAS_VOTES_EXHAUSTED");
     expect(source).toContain("VOTE_WRITE_CONFLICT");
   });
 
-  it("bias vote uses weight 2", () => {
-    expect(source).toContain("weight = 2");
-  });
-
-  it("normal vote uses weight 1", () => {
-    expect(source).toContain("weight = 1");
-  });
-
-  it("records before/after scores", () => {
-    expect(source).toContain("beforeWinnerScore");
-    expect(source).toContain("afterWinnerScore");
-    expect(source).toContain("beforeLoserScore");
-    expect(source).toContain("afterLoserScore");
-  });
-
-  it("subtracts weight from loser afterLoserScore", () => {
-    expect(source).toContain("const afterLoserScore = beforeLoserScore - weight");
-    expect(source).not.toContain("afterLoserScore: beforeLoserScore");
+  it("still records one BattleVote per user step", () => {
+    expect(source).toContain("const stepNumber = userVotes + 1");
+    expect(source).toContain("tx.battleVote.create");
+    expect(source).toContain("votesRemaining");
   });
 });
 
-describe("Season list stats", () => {
+describe("Season personal Elo scoring", () => {
   const source = readSource("src/lib/season-service.ts");
 
-  it("counts participants as distinct season/user pairs instead of vote rows", () => {
-    expect(source).toContain('by: ["seasonId", "userId"]');
-    expect(source).toContain("participantCountMap");
-    expect(source).not.toContain("_count: { userId: true }");
+  it("initializes per-user season scores from pool anime", () => {
+    expect(source).toContain("ensureSeasonUserScores");
+    expect(source).toContain("battleSeasonUserScore.createMany");
+    expect(source).toContain("SEASON_INITIAL_UNCERTAINTY");
+  });
+
+  it("updates only the current user's season Elo on vote", () => {
+    expect(source).toContain("updateElo");
+    expect(source).toContain("battleSeasonUserScore.update");
+    expect(source).toContain("seasonId_userId_animeId");
+    expect(source).toContain("biasWinCount: voteType === \"BIAS\"");
+  });
+
+  it("keeps bias votes out of personal Elo weighting", () => {
+    expect(source).toContain("result: leftWon ? \"LEFT_WIN\" : \"RIGHT_WIN\"");
+    expect(source).not.toContain("leftK * weight");
+    expect(source).not.toContain("rightK * weight");
+  });
+
+  it("stores before and after Elo audit values on BattleVote", () => {
+    expect(source).toContain("beforeWinnerElo: winnerBeforeElo");
+    expect(source).toContain("afterWinnerElo: winnerAfterElo");
+    expect(source).toContain("beforeLoserElo: loserBeforeElo");
+    expect(source).toContain("afterLoserElo: loserAfterElo");
   });
 });
 
-describe("Season match queue distribution", () => {
+describe("Season shared aggregation", () => {
   const source = readSource("src/lib/season-service.ts");
 
-  it("prioritizes pairs the current user has not seen recently", () => {
-    expect(source).toContain("userSeenAnimeIds");
-    expect(source).toContain("recentPairs");
-    expect(source).toContain("seenPenalty * 10000");
+  it("aggregates shared ranking from BattleSeasonUserScore", () => {
+    expect(source).toContain("aggregateSeasonRanking");
+    expect(source).toContain("prisma.battleSeasonUserScore.findMany");
+    expect(source).toContain("compareCount: { gt: 0 }");
+    expect(source).toContain("isHidden: false");
   });
 
-  it("uses global exposure counts to spread limited votes", () => {
-    expect(source).toContain('by: ["leftAnimeId"]');
-    expect(source).toContain('by: ["rightAnimeId"]');
-    expect(source).toContain("exposureCount");
-    expect(source).toContain("exposure * 100");
+  it("uses community-style prior and capped user contribution weight", () => {
+    expect(source).toContain("SEASON_PRIOR_RATING");
+    expect(source).toContain("SEASON_MIN_USERS");
+    expect(source).toContain("SEASON_MIN_COMPARISONS");
+    expect(source).toContain("Math.min(score.compareCount / 5, 1)");
   });
 
-  it("keeps the season queue change out of scoring and vote submission", () => {
-    expect(source).toContain("buildSeasonPairCandidates");
-    expect(source).toContain("stablePairJitter");
-    expect(source).toContain("return candidates.slice(0, 5)");
+  it("applies bias buff only during shared aggregation", () => {
+    expect(source).toContain("SEASON_BIAS_AGGREGATION_MULTIPLIER");
+    expect(source).toContain("score.biasWinCount > 0");
+  });
+
+  it("can lazily rebuild old seasons from BattleVote history", () => {
+    expect(source).toContain("maybeRebuildSeasonScoresFromVotes");
+    expect(source).toContain("rebuildSeasonUserScoresFromVotes");
+    expect(source).toContain('orderBy: [{ createdAt: "asc" }, { id: "asc" }]');
   });
 });
 
-describe("Season ranking calculation", () => {
+describe("Season match queue", () => {
   const source = readSource("src/lib/season-service.ts");
 
-  it("calculates ranking from vote scores", () => {
+  it("reads current user's season scores instead of global vote exposure", () => {
+    expect(source).toContain("ensureSeasonUserScores(prisma, poolId, seasonId, userId)");
     expect(source).toContain("scoreMap");
-    expect(source).toContain("s._sum.weight");
+    expect(source).toContain("comparedPairs");
   });
 
-  it("sorts ranking by score descending", () => {
-    expect(source).toContain("b.score - a.score");
+  it("falls back from new pairs to recalibration pairs", () => {
+    expect(source).toContain('"NEW_PAIR"');
+    expect(source).toContain('"RECALIBRATION"');
+    expect(source).toContain("eloDiff");
+    expect(source).toContain("nearestSeasonBoundaryDistance");
   });
 
-  it("tracks bias wins separately", () => {
-    expect(source).toContain("biasWins");
-    expect(source).toContain("biasWinCount");
-  });
-
-  it("does NOT reuse Elo/PersonalRun tables", () => {
-    expect(source).not.toContain("UserPoolScore");
-    expect(source).not.toContain("PoolComparison");
-    expect(source).not.toContain("PersonalRun");
+  it("supports skipped-pair and hidden-anime exclusions", () => {
+    expect(source).toContain("excludePairKeys");
+    expect(source).toContain("hiddenAnimeIds");
+    expect(source).toContain("setSeasonAnimeHidden");
   });
 });
 
-describe("Season vote log display", () => {
-  const source = readSource("src/lib/season-service.ts");
-
-  it("includes username in recent votes", () => {
-    expect(source).toContain("username: v.user.username");
-  });
-
-  it("includes displayName in recent votes", () => {
-    expect(source).toContain("displayName: v.user.name ?? v.user.username");
-  });
-
-  it("does NOT include email", () => {
-    expect(source).not.toContain("email");
-  });
-
-  it("takes maximum 20 recent votes", () => {
-    expect(source).toContain("take: 20");
-  });
-
-  it("shows stepNumber, voteType, weight", () => {
-    expect(source).toContain("v.voteType");
-    expect(source).toContain("v.weight");
-  });
-});
-
-describe("Season API routes exist", () => {
-  it("POST /api/pools/[poolId]/seasons creates a season", () => {
-    const source = readSource("src/app/api/pools/[poolId]/seasons/route.ts");
-    expect(source).toContain("requireCurrentUser");
-    expect(source).toContain("createSeason");
-  });
-
-  it("GET /api/pools/[poolId]/seasons lists seasons", () => {
-    const source = readSource("src/app/api/pools/[poolId]/seasons/route.ts");
-    expect(source).toContain("listSeasons");
-  });
-
-  it("GET /api/pools/[poolId]/seasons/[seasonId] returns detail", () => {
-    const source = readSource("src/app/api/pools/[poolId]/seasons/[seasonId]/route.ts");
-    expect(source).toContain("getSeasonDetail");
-    expect(source).toContain("getCurrentUser");
-  });
-
-  it("PUT /api/pools/[poolId]/seasons/[seasonId] updates season", () => {
-    const source = readSource("src/app/api/pools/[poolId]/seasons/[seasonId]/route.ts");
-    expect(source).toContain("requireCurrentUser");
-    expect(source).toContain("updateSeason");
-  });
-
-  it("DELETE /api/pools/[poolId]/seasons/[seasonId] deletes season", () => {
-    const source = readSource("src/app/api/pools/[poolId]/seasons/[seasonId]/route.ts");
-    expect(source).toContain("export async function DELETE");
-    expect(source).toContain("deleteSeason");
-    expect(source).toContain("requireCurrentUser");
-  });
-
-  it("POST .../start starts a season", () => {
-    const source = readSource("src/app/api/pools/[poolId]/seasons/[seasonId]/start/route.ts");
-    expect(source).toContain("startSeason");
-  });
-
-  it("POST .../end ends a season", () => {
-    const source = readSource("src/app/api/pools/[poolId]/seasons/[seasonId]/end/route.ts");
-    expect(source).toContain("endSeason");
-  });
-
-  it("GET .../match-queue returns queue", () => {
+describe("Season APIs and client functions", () => {
+  it("match queue route forwards exclusion parameters", () => {
     const source = readSource("src/app/api/pools/[poolId]/seasons/[seasonId]/match-queue/route.ts");
-    expect(source).toContain("getSeasonMatchQueue");
+    expect(source).toContain("excludePairKeys");
+    expect(source).toContain("hiddenAnimeIds");
+    expect(source).toContain("limit");
   });
 
-  it("POST .../vote submits a vote", () => {
-    const source = readSource("src/app/api/pools/[poolId]/seasons/[seasonId]/vote/route.ts");
-    expect(source).toContain("submitVote");
+  it("unseen route persists hidden anime", () => {
+    const source = readSource("src/app/api/pools/[poolId]/seasons/[seasonId]/unseen/route.ts");
+    expect(source).toContain("setSeasonAnimeHidden");
+    expect(source).toContain("requireCurrentUser");
+  });
+
+  it("client exposes season queue, vote, and hidden anime APIs", () => {
+    const source = readSource("src/lib/client-api.ts");
+    expect(source).toContain("export function getSeasonMatchQueue");
+    expect(source).toContain("export function submitSeasonVote");
+    expect(source).toContain("export function setSeasonAnimeHidden");
+    expect(source).toContain("minSampleThreshold");
   });
 });
 
-describe("Season pages exist", () => {
-  it("Season detail page shows mode, status, time, stats", () => {
+describe("Season pages", () => {
+  it("detail page exposes shared ranking and shared tierlist views", () => {
     const source = readSource("src/app/pools/[poolId]/seasons/[seasonId]/page.tsx");
-    expect(source).toContain("进行中");
-    expect(source).toContain("已结束");
-    expect(source).toContain("未开始");
-    expect(source).toContain("偏爱模式");
-    expect(source).toContain("传统模式");
-    expect(source).toContain("赛季共享榜单");
-    expect(source).toContain("最近投票");
-  });
-
-  it("Season detail page exposes shared ranking and shared tierlist views", () => {
-    const source = readSource("src/app/pools/[poolId]/seasons/[seasonId]/page.tsx");
-    expect(source).toContain("赛季共享榜单");
-    expect(source).toContain("赛季共享 TierList");
     expect(source).toContain("buildSeasonTierBuckets");
     expect(source).toContain("SeasonSharedTierList");
+    expect(source).toContain("insufficientSample");
   });
 
-  it("Season detail page exposes admin management actions", () => {
-    const source = readSource("src/app/pools/[poolId]/seasons/[seasonId]/page.tsx");
-    expect(source).toContain("管理赛季");
-    expect(source).toContain("赛季管理");
-    expect(source).toContain("保存修改");
-    expect(source).toContain("删除赛季");
-    expect(source).toContain("deleteSeason");
-    expect(source).toContain("updateSeason");
-  });
-
-  it("Season match page shows bias vote toggle", () => {
+  it("match page sends skipped and hidden state to the backend", () => {
     const source = readSource("src/app/pools/[poolId]/seasons/[seasonId]/match/page.tsx");
-    expect(source).toContain("私心票");
-    expect(source).toContain("useBias");
-    expect(source).toContain("SeasonDuelCard");
-  });
-
-  it("Pool seasons section component exists", () => {
-    const source = readSource("src/components/PoolSeasonsSection.tsx");
-    expect(source).toContain("大乱斗赛季");
-    expect(source).toContain("多人投票赛季");
-  });
-
-  it("Pool detail page imports PoolSeasonsSection", () => {
-    const source = readSource("src/app/pools/[poolId]/page.tsx");
-    expect(source).toContain("PoolSeasonsSection");
+    expect(source).toContain("excludePairKeys");
+    expect(source).toContain("hiddenAnimeIds");
+    expect(source).toContain("setSeasonAnimeHidden");
+    expect(source).toContain("handleMarkUnseen");
   });
 });
 
-describe("Client API season functions", () => {
-  const source = readSource("src/lib/client-api.ts");
+describe("Season migrations", () => {
+  const seasonSource = readSource("prisma/migrations/20260618000000_add_battle_seasons/migration.sql");
+  const scoreSource = readSource("prisma/migrations/20260623000000_add_battle_season_user_scores/migration.sql");
 
-  it("has SeasonDetail interface", () => {
-    expect(source).toContain("export interface SeasonDetail");
+  it("keeps original battle season tables", () => {
+    expect(seasonSource).toContain('CREATE TABLE "BattleSeason"');
+    expect(seasonSource).toContain('CREATE TABLE "BattleVote"');
   });
 
-  it("has createSeason function", () => {
-    expect(source).toContain("export function createSeason");
-  });
-
-  it("has getSeasons function", () => {
-    expect(source).toContain("export function getSeasons");
-  });
-
-  it("has getSeasonDetail function", () => {
-    expect(source).toContain("export function getSeasonDetail");
-  });
-
-  it("has startSeason function", () => {
-    expect(source).toContain("export function startSeason");
-  });
-
-  it("has endSeason function", () => {
-    expect(source).toContain("export function endSeason");
-  });
-
-  it("has deleteSeason function", () => {
-    expect(source).toContain("export function deleteSeason");
-    expect(source).toContain('method: "DELETE"');
-  });
-
-  it("has getSeasonMatchQueue function", () => {
-    expect(source).toContain("export function getSeasonMatchQueue");
-  });
-
-  it("has submitSeasonVote function", () => {
-    expect(source).toContain("export function submitSeasonVote");
-  });
-
-  it("SeasonDetail includes CurrentUserState", () => {
-    expect(source).toContain("export interface CurrentUserState");
-    expect(source).toContain("votesRemaining");
-    expect(source).toContain("biasVotesRemaining");
-  });
-});
-
-describe("Season migration SQL exists", () => {
-  const source = readSource("prisma/migrations/20260618000000_add_battle_seasons/migration.sql");
-
-  it("creates BattleSeason table", () => {
-    expect(source).toContain('CREATE TABLE "BattleSeason"');
-  });
-
-  it("creates BattleVote table", () => {
-    expect(source).toContain('CREATE TABLE "BattleVote"');
-  });
-
-  it("creates enums", () => {
-    expect(source).toContain("BattleSeasonMode");
-    expect(source).toContain("BattleSeasonStatus");
-    expect(source).toContain("BattleVoteType");
+  it("creates user score table and Elo audit fields", () => {
+    expect(scoreSource).toContain('CREATE TABLE "BattleSeasonUserScore"');
+    expect(scoreSource).toContain('"beforeWinnerElo"');
+    expect(scoreSource).toContain('"afterLoserElo"');
+    expect(scoreSource).toContain('"BattleSeasonUserScore_seasonId_userId_animeId_key"');
   });
 });

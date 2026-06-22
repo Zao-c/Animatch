@@ -8,7 +8,7 @@ import { AppCard } from "@/components/ui/AppCard";
 import { AppButton } from "@/components/ui/AppButton";
 import { PageShell } from "@/components/PageShell";
 import { AnimeCover } from "@/components/AnimeCover";
-import { getSeasonDetail, getSeasonMatchQueue, submitSeasonVote } from "@/lib/client-api";
+import { getSeasonDetail, getSeasonMatchQueue, setSeasonAnimeHidden, submitSeasonVote } from "@/lib/client-api";
 import { getAnimeDisplayTitle } from "@/lib/anime-display";
 import type { SeasonDetail, SeasonMatchQueueItem, SeasonAnimeEntry } from "@/lib/client-api";
 
@@ -142,10 +142,23 @@ export default function SeasonMatchPage() {
     try {
       const [d, q] = await Promise.all([
         getSeasonDetail(poolId, seasonId),
-        getSeasonMatchQueue(poolId, seasonId)
+        getSeasonMatchQueue(poolId, seasonId, {
+          limit: 5,
+          excludePairKeys: [...skippedPairs],
+          hiddenAnimeIds: [...hiddenAnimeIds]
+        })
       ]);
       setDetail(d);
-      const filtered = filterSeasonQueue(q, skippedPairs, hiddenAnimeIds);
+      let filtered = filterSeasonQueue(q, skippedPairs, hiddenAnimeIds);
+      if (filtered.length === 0 && skippedPairs.size > 0) {
+        const resetSkippedPairs = new Set<string>();
+        const fallbackQueue = await getSeasonMatchQueue(poolId, seasonId, {
+          limit: 5,
+          hiddenAnimeIds: [...hiddenAnimeIds]
+        });
+        setSkippedPairKeys(resetSkippedPairs);
+        filtered = filterSeasonQueue(fallbackQueue, resetSkippedPairs, hiddenAnimeIds);
+      }
       setQueue(filtered);
       setCurrentIndex(0);
       setVoteResult(null);
@@ -180,7 +193,7 @@ export default function SeasonMatchPage() {
     window.setTimeout(() => setFeedback(null), 360);
   }, [currentPair, fetchData, queue, skippedPairKeys, unseenAnimeIds]);
 
-  const handleMarkUnseen = useCallback((kind: Extract<SeasonFeedback, "LEFT_UNSEEN" | "RIGHT_UNSEEN" | "BOTH_UNSEEN">) => {
+  const handleMarkUnseen = useCallback(async (kind: Extract<SeasonFeedback, "LEFT_UNSEEN" | "RIGHT_UNSEEN" | "BOTH_UNSEEN">) => {
     if (!currentPair || submitting) return;
 
     const hiddenIds =
@@ -190,34 +203,54 @@ export default function SeasonMatchPage() {
           ? [currentPair.right.animeId]
           : [currentPair.left.animeId, currentPair.right.animeId];
 
-    const nextUnseenAnimeIds = new Set(unseenAnimeIds);
-    for (const animeId of hiddenIds) nextUnseenAnimeIds.add(animeId);
-    writeSeasonUnseenAnimeIds(seasonId, nextUnseenAnimeIds);
-    setUnseenAnimeIds(nextUnseenAnimeIds);
+    setSubmitting(true);
+    try {
+      const result = await setSeasonAnimeHidden(poolId, seasonId, {
+        animeIds: hiddenIds,
+        isHidden: true
+      });
+      const nextUnseenAnimeIds = new Set(result.hiddenAnimeIds);
+      for (const animeId of hiddenIds) nextUnseenAnimeIds.add(animeId);
+      writeSeasonUnseenAnimeIds(seasonId, nextUnseenAnimeIds);
+      setUnseenAnimeIds(nextUnseenAnimeIds);
 
-    const nextSkippedPairKeys = new Set(skippedPairKeys);
-    nextSkippedPairKeys.add(seasonMatchPairKey(currentPair));
-    setSkippedPairKeys(nextSkippedPairKeys);
+      const nextSkippedPairKeys = new Set(skippedPairKeys);
+      nextSkippedPairKeys.add(seasonMatchPairKey(currentPair));
+      setSkippedPairKeys(nextSkippedPairKeys);
 
-    const filteredQueue = filterSeasonQueue(queue, nextSkippedPairKeys, nextUnseenAnimeIds);
-    setQueue(filteredQueue);
-    setCurrentIndex(0);
-    setUseBias(false);
-    setVoteResult(null);
-    setFeedback(kind);
+      const filteredQueue = filterSeasonQueue(queue, nextSkippedPairKeys, nextUnseenAnimeIds);
+      setQueue(filteredQueue);
+      setCurrentIndex(0);
+      setUseBias(false);
+      setVoteResult(null);
+      setFeedback(kind);
 
-    if (filteredQueue.length === 0) {
-      void fetchData(nextSkippedPairKeys, nextUnseenAnimeIds);
+      if (filteredQueue.length === 0) {
+        void fetchData(nextSkippedPairKeys, nextUnseenAnimeIds);
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "鎺掗櫎浣滃搧澶辫触");
+    } finally {
+      setSubmitting(false);
     }
     window.setTimeout(() => setFeedback(null), 420);
-  }, [currentPair, fetchData, queue, seasonId, skippedPairKeys, submitting, unseenAnimeIds]);
+  }, [currentPair, fetchData, poolId, queue, seasonId, skippedPairKeys, submitting]);
 
-  function handleResetUnseen() {
+  async function handleResetUnseen() {
     const emptySet = new Set<string>();
-    writeSeasonUnseenAnimeIds(seasonId, emptySet);
-    setUnseenAnimeIds(emptySet);
     setLoading(true);
-    void fetchData(skippedPairKeys, emptySet);
+    try {
+      await setSeasonAnimeHidden(poolId, seasonId, {
+        animeIds: [],
+        isHidden: false
+      });
+      writeSeasonUnseenAnimeIds(seasonId, emptySet);
+      setUnseenAnimeIds(emptySet);
+      void fetchData(skippedPairKeys, emptySet);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "鎭㈠浣滃搧澶辫触");
+      setLoading(false);
+    }
   }
 
   const handleVote = useCallback(async (winnerId: string) => {

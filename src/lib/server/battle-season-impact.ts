@@ -14,6 +14,10 @@ interface VoteRecord {
   afterWinnerScore: number;
   beforeLoserScore: number;
   afterLoserScore: number;
+  beforeWinnerElo: number | null;
+  afterWinnerElo: number | null;
+  beforeLoserElo: number | null;
+  afterLoserElo: number | null;
   createdAt: Date;
   user: { id: string; username: string | null; name: string | null; image: string | null };
   winnerAnime: Pick<Anime, "id" | "title" | "titleCn" | "titleJa" | "imageUrl" | "imageMediumUrl" | "imageLargeUrl"> | null;
@@ -99,12 +103,26 @@ export interface BattleSeasonImpact {
 }
 
 function computeSwing(v: VoteRecord): number {
-  const wd = v.afterWinnerScore - v.beforeWinnerScore;
-  const ld = v.afterLoserScore - v.beforeLoserScore;
+  const wd = winnerDelta(v);
+  const ld = loserDelta(v);
   if (wd !== 0 || ld !== 0) {
     return Math.abs(wd) + Math.abs(ld);
   }
   return v.weight * 2;
+}
+
+function winnerDelta(v: VoteRecord): number {
+  if (v.afterWinnerElo !== null && v.beforeWinnerElo !== null) {
+    return v.afterWinnerElo - v.beforeWinnerElo;
+  }
+  return v.afterWinnerScore - v.beforeWinnerScore;
+}
+
+function loserDelta(v: VoteRecord): number {
+  if (v.afterLoserElo !== null && v.beforeLoserElo !== null) {
+    return v.afterLoserElo - v.beforeLoserElo;
+  }
+  return v.afterLoserScore - v.beforeLoserScore;
 }
 
 function animeTitle(a: Pick<Anime, "title" | "titleCn" | "titleJa"> | null): string {
@@ -162,6 +180,10 @@ export async function getBattleSeasonImpact(
     afterWinnerScore: v.afterWinnerScore,
     beforeLoserScore: v.beforeLoserScore,
     afterLoserScore: v.afterLoserScore,
+    beforeWinnerElo: v.beforeWinnerElo,
+    afterWinnerElo: v.afterWinnerElo,
+    beforeLoserElo: v.beforeLoserElo,
+    afterLoserElo: v.afterLoserElo,
     createdAt: v.createdAt,
     user: {
       id: v.user.id,
@@ -322,8 +344,8 @@ export async function getBattleSeasonImpact(
       loserTitle: animeTitles.get(v.loserAnimeId) ?? "未知",
       voteType: v.voteType,
       weight: v.weight,
-      winnerScoreDelta: v.afterWinnerScore - v.beforeWinnerScore,
-      loserScoreDelta: v.afterLoserScore - v.beforeLoserScore,
+      winnerScoreDelta: winnerDelta(v),
+      loserScoreDelta: loserDelta(v),
       totalSwing: swing,
       createdAt: v.createdAt instanceof Date ? v.createdAt.toISOString() : String(v.createdAt),
     }));

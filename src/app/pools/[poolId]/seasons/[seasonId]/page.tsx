@@ -361,17 +361,38 @@ function buildSeasonTierBuckets(
   ranking: SeasonRankingItem[],
   rows: TierRowConfig[] = DEFAULT_TIER_CONFIG.rows
 ): SeasonTierBucket[] {
-  const sorted = [...ranking].sort((a, b) => b.score - a.score);
   const buckets = rows.map((row) => ({ row, items: [] as SeasonRankingItem[] }));
-  const total = sorted.length;
+  const formalItems = [...ranking]
+    .filter((item) => !item.insufficientSample)
+    .sort((a, b) => b.score - a.score);
+  const insufficientItems = [...ranking]
+    .filter((item) => item.insufficientSample)
+    .sort((a, b) => b.participantCount - a.participantCount || b.comparisonCount - a.comparisonCount);
+  const total = formalItems.length;
 
-  if (total === 0 || buckets.length === 0) return buckets;
-
-  const rowCount = buckets.length;
-  for (let index = 0; index < sorted.length; index++) {
-    const bucketIndex = Math.min(rowCount - 1, Math.floor((index / total) * rowCount));
-    buckets[bucketIndex].items.push(sorted[index]);
+  if (buckets.length === 0) return buckets;
+  if (total === 0) {
+    buckets[buckets.length - 1]?.items.push(...insufficientItems);
+    return buckets;
   }
+
+  for (let index = 0; index < formalItems.length; index++) {
+    const percentile = index / total;
+    const bucketIndex =
+      rows.length === 5
+        ? percentile < 0.1
+          ? 0
+          : percentile < 0.3
+            ? 1
+            : percentile < 0.6
+              ? 2
+              : percentile < 0.85
+                ? 3
+                : 4
+        : Math.min(rows.length - 1, Math.floor(percentile * rows.length));
+    buckets[bucketIndex].items.push(formalItems[index]);
+  }
+  buckets[buckets.length - 1]?.items.push(...insufficientItems);
 
   return buckets;
 }

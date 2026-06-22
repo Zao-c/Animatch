@@ -106,6 +106,7 @@ model User {
   similaritiesAsUserB  UserSimilarity[]       @relation("SimilarityUserB")
   battleSeasons        BattleSeason[]
   battleVotes          BattleVote[]
+  battleSeasonScores   BattleSeasonUserScore[]
 }
 
 model Anime {
@@ -152,6 +153,7 @@ model Anime {
   rightComparisons     PoolComparison[]       @relation("RightAnimeComparisons")
   wonComparisons       PoolComparison[]       @relation("WinnerAnimeComparisons")
   lostComparisons      PoolComparison[]       @relation("LoserAnimeComparisons")
+  battleSeasonScores   BattleSeasonUserScore[] @relation("AnimeBattleSeasonUserScores")
 }
 
 model CustomPool {
@@ -187,6 +189,7 @@ model CustomPool {
   tagPreferences      UserTagPreference[]    @relation("PoolTagPreferences")
   tierShares          TierShare[]            @relation("PoolTierShares")
   battleSeasons       BattleSeason[]
+  battleSeasonScores  BattleSeasonUserScore[] @relation("PoolBattleSeasonUserScores")
 
   @@index([creatorId])
   @@index([status])
@@ -512,7 +515,8 @@ model BattleSeason {
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 
-  votes BattleVote[]
+  votes      BattleVote[]
+  userScores BattleSeasonUserScore[]
 
   @@index([poolId])
   @@index([status])
@@ -537,10 +541,45 @@ model BattleVote {
   afterWinnerScore  Int            @default(0)
   beforeLoserScore  Int            @default(0)
   afterLoserScore   Int            @default(0)
+  beforeWinnerElo   Float?
+  afterWinnerElo    Float?
+  beforeLoserElo    Float?
+  afterLoserElo     Float?
   createdAt         DateTime       @default(now())
 
   @@unique([seasonId, userId, stepNumber])
   @@index([seasonId, userId])
   @@index([seasonId, createdAt])
   @@index([poolId])
+}
+
+model BattleSeasonUserScore {
+  id           String       @id @default(cuid())
+  seasonId     String
+  season       BattleSeason @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  poolId       String
+  pool         CustomPool   @relation("PoolBattleSeasonUserScores", fields: [poolId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  animeId      String
+  anime        Anime        @relation("AnimeBattleSeasonUserScores", fields: [animeId], references: [id])
+  eloScore     Float        @default(1500)
+  uncertainty  Float        @default(350)
+  compareCount Int          @default(0)
+  winCount     Int          @default(0)
+  lossCount    Int          @default(0)
+  biasWinCount Int          @default(0)
+  unseenCount  Int          @default(0)
+  isHidden     Boolean      @default(false)
+  lastVotedAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@unique([seasonId, userId, animeId])
+  @@index([seasonId, userId])
+  @@index([seasonId, animeId])
+  @@index([poolId])
+  @@index([userId])
+  @@index([animeId])
+  @@index([seasonId, eloScore])
 }
