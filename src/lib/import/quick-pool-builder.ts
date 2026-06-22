@@ -4,6 +4,7 @@ import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { prewarmCoverCacheBackground } from "@/lib/server/cover-cache-prewarm";
 import { GLOBAL_SEARCH_EXCLUDED_SOURCES } from "@/lib/anime-service";
 import type { Anime } from "@prisma/client";
+import type { NormalizedBangumiSubject } from "@/lib/bangumi";
 import {
   fetchBangumiSubjects,
   shouldUseRemote,
@@ -168,16 +169,12 @@ export async function previewQuickImport(
   }
 
   if (params.mode === "USER_COLLECTION") {
-    warnings.push("用户收藏导入功能暂未实现，已切换为本地搜索模式");
-    if (params.tags && params.tags.length > 0) {
-      andConditions.push(...params.tags.map((tag) => ({ tags: { has: tag } })));
+    if (!params.bangumiUserId?.trim()) {
+      warnings.push("用户收藏模式需要填写 Bangumi 用户 ID");
+    } else {
+      warnings.push("用户收藏模式需要开启 Bangumi 远程拉取");
     }
-    if (params.year) {
-      where.year = params.year;
-    }
-    if (params.type && params.type !== "ALL") {
-      where.animeType = params.type.toUpperCase();
-    }
+    return { candidates: [], warnings, total: 0 };
   }
 
   if (andConditions.length > 0) {
@@ -212,16 +209,22 @@ export async function previewQuickImport(
 
   const candidates = Array.from(deduped.values()).map((a) => candidateFromAnime(a, poolAnimeIds));
 
-  const missingCovers = candidates.filter((c) => !c.coverUrl).length;
-  if (missingCovers > 0) {
-    warnings.push(`${missingCovers} 部作品缺少封面`);
-  }
+  warnings.push(...candidateWarnings(candidates));
 
   return {
     candidates,
     warnings,
     total: candidates.length,
   };
+}
+
+function candidateWarnings(candidates: QuickImportCandidate[]): string[] {
+  const warnings: string[] = [];
+  const missingCovers = candidates.filter((c) => !c.coverUrl).length;
+  if (missingCovers > 0) {
+    warnings.push(`${missingCovers} 部作品缺少封面`);
+  }
+  return warnings;
 }
 
 export async function createPoolFromQuickImport(
@@ -354,6 +357,51 @@ async function getAddedTitles(
   }));
 }
 
+async function previewBangumiSubjects(
+  params: QuickImportParams,
+  subjects: NormalizedBangumiSubject[],
+  poolAnimeIds?: Set<string>
+): Promise<QuickImportPreviewResult> {
+  const limit = clampLimit(params.limit);
+  const bgmIds = Array.from(new Set(subjects.map((subject) => subject.bgmId)));
+  if (bgmIds.length === 0) {
+    return { candidates: [], warnings: [], total: 0 };
+  }
+
+  const items = await prisma.anime.findMany({
+    where: {
+      bgmId: { in: bgmIds },
+      deletedAt: null,
+      source: { notIn: GLOBAL_SEARCH_EXCLUDED_SOURCES }
+    }
+  });
+
+  const animeByBgmId = new Map<number, Anime>();
+  for (const item of items) {
+    if (item.bgmId !== null && !animeByBgmId.has(item.bgmId)) {
+      animeByBgmId.set(item.bgmId, item);
+    }
+  }
+
+  const ordered: Anime[] = [];
+  const seenAnimeIds = new Set<string>();
+  for (const subject of subjects) {
+    const anime = animeByBgmId.get(subject.bgmId);
+    if (!anime || seenAnimeIds.has(anime.id)) continue;
+    ordered.push(anime);
+    seenAnimeIds.add(anime.id);
+    if (ordered.length >= limit) break;
+  }
+
+  const candidates = ordered.map((anime) => candidateFromAnime(anime, poolAnimeIds));
+
+  return {
+    candidates,
+    warnings: candidateWarnings(candidates),
+    total: candidates.length
+  };
+}
+
 export async function previewQuickImportWithRemoteFallback(
   params: QuickImportParams,
   poolAnimeIds?: Set<string>,
@@ -364,10 +412,12 @@ export async function previewQuickImportWithRemoteFallback(
   const localResult = await previewQuickImport(params, poolAnimeIds);
   const limit = clampLimit(params.limit);
 
+  const shouldPreferRemote =
+    params.source === "BANGUMI" || params.mode === "USER_COLLECTION";
   const shouldFetchRemote =
     useRemote &&
     shouldUseRemote(params) &&
-    localResult.candidates.length < limit;
+    (shouldPreferRemote || localResult.candidates.length < limit);
 
   if (!shouldFetchRemote) {
     return {
@@ -414,7 +464,7 @@ export async function previewQuickImportWithRemoteFallback(
         warnings.push("Bangumi 数据写入本地库失败");
       }
 
-      const refreshedResult = await previewQuickImport(params, poolAnimeIds);
+      const refreshedResult = await previewBangumiSubjects(params, subjects, poolAnimeIds);
       return {
         ...refreshedResult,
         warnings: [...warnings, ...refreshedResult.warnings],

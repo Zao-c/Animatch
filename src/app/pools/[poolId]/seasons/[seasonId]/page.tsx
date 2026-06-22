@@ -7,10 +7,17 @@ import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
 import { PageShell } from "@/components/PageShell";
+import { AnimeCover } from "@/components/AnimeCover";
 import { getSeasonDetail, startSeason, endSeason, getSeasonImpact } from "@/lib/client-api";
 import { formatDateTimeStable } from "@/lib/date-format";
 import { SeasonImpactPanel } from "@/components/SeasonImpactPanel";
 import type { SeasonDetail, SeasonRankingItem } from "@/lib/client-api";
+import { DEFAULT_TIER_CONFIG, type TierRowConfig } from "@/lib/tier-config";
+
+interface SeasonTierBucket {
+  row: TierRowConfig;
+  items: SeasonRankingItem[];
+}
 
 function SeasonSkeleton() {
   return <div className="animate-pulse space-y-4"><div className="h-8 w-48 rounded bg-white/10" /><div className="h-64 rounded-2xl bg-white/5" /></div>;
@@ -46,6 +53,11 @@ export default function SeasonDetailPage() {
     catch (e: unknown) { setError(e instanceof Error ? e.message : "结束失败"); }
     finally { setActionLoading(false); }
   };
+
+  const seasonTierBuckets = useMemo(
+    () => buildSeasonTierBuckets(detail?.ranking ?? []),
+    [detail?.ranking]
+  );
 
   if (loading) return <PageShell><main className="mx-auto max-w-4xl px-4 py-8"><SeasonSkeleton /></main></PageShell>;
   if (error) return <PageShell><main className="mx-auto max-w-4xl px-4 py-8"><AppCard className="p-8 text-center"><AppBadge tone="tier">AniMatch</AppBadge><h1 className="mt-4 text-xl font-black text-white">加载失败</h1><p className="mt-2 text-sm text-slate-400">{error}</p></AppCard></main></PageShell>;
@@ -110,7 +122,13 @@ export default function SeasonDetailPage() {
         </AppCard>
 
         <AppCard className="mb-8 p-6">
-          <h2 className="mb-4 text-lg font-bold text-white">赛季榜单</h2>
+          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-white">赛季共享榜单</h2>
+              <p className="mt-1 text-xs text-slate-500">基于本赛季所有 BattleVote 实时汇总，所有参与者看到同一份结果。</p>
+            </div>
+            <AppBadge tone="source">{detail.participantCount} 人 / {detail.totalVotes} 票</AppBadge>
+          </div>
           {detail.ranking.length === 0 ? (
             <p className="text-sm text-slate-500">暂无投票数据</p>
           ) : (
@@ -131,6 +149,12 @@ export default function SeasonDetailPage() {
             </div>
           )}
         </AppCard>
+
+        <SeasonSharedTierList
+          buckets={seasonTierBuckets}
+          participantCount={detail.participantCount}
+          totalVotes={detail.totalVotes}
+        />
 
         <div className="mb-8">
           <SeasonImpactPanel
@@ -176,5 +200,94 @@ function StatCard({ label, value }: { label: string; value: string }) {
       <p className="text-xl font-black text-white">{value}</p>
       <p className="mt-0.5 text-xs text-slate-500">{label}</p>
     </div>
+  );
+}
+
+function buildSeasonTierBuckets(
+  ranking: SeasonRankingItem[],
+  rows: TierRowConfig[] = DEFAULT_TIER_CONFIG.rows
+): SeasonTierBucket[] {
+  const sorted = [...ranking].sort((a, b) => b.score - a.score);
+  const buckets = rows.map((row) => ({ row, items: [] as SeasonRankingItem[] }));
+  const total = sorted.length;
+
+  if (total === 0 || buckets.length === 0) return buckets;
+
+  const rowCount = buckets.length;
+  for (let index = 0; index < sorted.length; index++) {
+    const bucketIndex = Math.min(rowCount - 1, Math.floor((index / total) * rowCount));
+    buckets[bucketIndex].items.push(sorted[index]);
+  }
+
+  return buckets;
+}
+
+function SeasonSharedTierList({
+  buckets,
+  participantCount,
+  totalVotes
+}: {
+  buckets: SeasonTierBucket[];
+  participantCount: number;
+  totalVotes: number;
+}) {
+  const hasItems = buckets.some((bucket) => bucket.items.length > 0);
+
+  return (
+    <AppCard className="mb-8 p-6">
+      <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-white">赛季共享 TierList</h2>
+          <p className="mt-1 text-xs text-slate-500">按赛季共享榜单分数分桶展示，方便直接看当前 S/A/B/C/D 结果。</p>
+        </div>
+        <AppBadge tone="tier">{participantCount} 人 / {totalVotes} 票</AppBadge>
+      </div>
+
+      {!hasItems ? (
+        <p className="text-sm text-slate-500">暂无投票数据，开始对决后会生成赛季共享 TierList。</p>
+      ) : (
+        <section className="overflow-hidden rounded-2xl border border-black/80 bg-[#191d21] shadow-[0_20px_90px_rgba(0,0,0,0.35)]">
+          {buckets.map(({ row, items }) => (
+            <div
+              key={row.id}
+              className="grid min-h-20 grid-cols-[72px_1fr] border-b border-black/80 last:border-b-0 sm:grid-cols-[100px_1fr]"
+            >
+              <div className="flex items-center justify-center px-1" style={{ backgroundColor: row.color }}>
+                <span className="text-center text-xl font-extrabold text-slate-950 sm:text-3xl">
+                  {row.label}
+                </span>
+              </div>
+              <div className="flex min-h-20 flex-wrap content-start gap-2 bg-[#171b20] p-2 sm:gap-3 sm:p-3">
+                {items.length === 0 ? (
+                  <span className="self-center text-xs text-slate-600">暂无作品</span>
+                ) : (
+                  items.map((item) => <SeasonTierCard key={item.animeId} item={item} />)
+                )}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+    </AppCard>
+  );
+}
+
+function SeasonTierCard({ item }: { item: SeasonRankingItem }) {
+  return (
+    <article className="w-24 rounded-xl border border-white/10 bg-slate-950/72 p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.2)] sm:w-28 sm:p-2">
+      <AnimeCover
+        src={item.imageUrl}
+        title={item.title}
+        size="sm"
+        fit="cover"
+        className="h-24 w-full rounded-lg sm:h-28"
+      />
+      <h3 className="mt-1.5 line-clamp-2 text-[11px] font-semibold leading-snug text-white">
+        {item.title}
+      </h3>
+      <p className="mt-1 text-[10px] text-slate-500">
+        {item.score} 分 · {item.winCount} 胜
+      </p>
+    </article>
   );
 }

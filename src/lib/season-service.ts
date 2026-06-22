@@ -196,13 +196,20 @@ export async function listSeasons(poolId: string, userId: string | null): Promis
     orderBy: { createdAt: "desc" }
   });
 
-  const participantCounts = await prisma.battleVote.groupBy({
-    by: ["seasonId"],
-    _count: { userId: true },
-    where: { seasonId: { in: seasons.map((s) => s.id) } }
-  });
+  const participantGroups = seasons.length > 0
+    ? await prisma.battleVote.groupBy({
+        by: ["seasonId", "userId"],
+        where: { seasonId: { in: seasons.map((s) => s.id) } }
+      })
+    : [];
 
-  const pcMap = new Map(participantCounts.map((p) => [p.seasonId, p._count.userId]));
+  const participantCountMap = new Map<string, number>();
+  for (const participant of participantGroups) {
+    participantCountMap.set(
+      participant.seasonId,
+      (participantCountMap.get(participant.seasonId) ?? 0) + 1
+    );
+  }
 
   return seasons.map((s) => ({
     id: s.id,
@@ -214,7 +221,7 @@ export async function listSeasons(poolId: string, userId: string | null): Promis
     endsAt: s.endsAt instanceof Date ? s.endsAt.toISOString() : null,
     maxVotesPerUser: s.maxVotesPerUser,
     biasVotesPerUser: s.biasVotesPerUser,
-    participantCount: pcMap.get(s.id) ?? 0,
+    participantCount: participantCountMap.get(s.id) ?? 0,
     totalVotes: s._count.votes,
     createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : String(s.createdAt)
   }));

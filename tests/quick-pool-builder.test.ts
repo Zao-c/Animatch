@@ -49,11 +49,13 @@ describe("Quick import service", () => {
 
   it("supports USER_COLLECTION mode", () => {
     expect(source).toContain('params.mode === "USER_COLLECTION"');
-    expect(source).toContain("用户收藏导入功能暂未实现");
+    expect(source).toContain("用户收藏模式需要填写 Bangumi 用户 ID");
   });
 
-  it("USER_COLLECTION falls back to local search", () => {
-    expect(source).toContain("已切换为本地搜索模式");
+  it("USER_COLLECTION does not pretend local search is a collection filter", () => {
+    expect(source).toContain("用户收藏模式需要开启 Bangumi 远程拉取");
+    expect(source).not.toContain("用户收藏导入功能暂未实现");
+    expect(source).not.toContain("已切换为本地搜索模式");
   });
 
   it("resolves sources by source param", () => {

@@ -3,10 +3,11 @@ import { prisma } from "@/lib/db";
 import { ANIME_SOURCE } from "@/lib/anime-source";
 import {
   BANGUMI_BASE_URL,
+  bangumiRequest,
+  buildHeaders,
   normalizeBangumiSubject,
   type NormalizedBangumiSubject,
 } from "@/lib/bangumi";
-import { outboundFetch } from "@/lib/server/outbound-fetch";
 import type { QuickImportParams } from "./quick-pool-builder";
 
 export interface RemoteFetchResult {
@@ -33,6 +34,13 @@ export function shouldUseRemote(params: QuickImportParams): boolean {
 function clampLimit(limit: number | undefined): number {
   if (limit === undefined || limit === null) return 50;
   return Math.max(1, Math.min(limit, 100));
+}
+
+function remoteFetchTarget(params: QuickImportParams, limit: number): number {
+  if (params.type && params.type !== "ALL") {
+    return Math.min(100, Math.max(limit, limit * 3));
+  }
+  return limit;
 }
 
 function compareByField<T>(a: T, b: T, getter: (item: T) => number | null | undefined, preferLarger = false): number {
@@ -62,20 +70,20 @@ async function fetchBySearch(
 ): Promise<NormalizedBangumiSubject[]> {
   const allSubjects: NormalizedBangumiSubject[] = [];
   let offset = 0;
-  const maxPages = Math.ceil(Math.min(limit, 100) / 30);
+  const fetchTarget = remoteFetchTarget(params, limit);
+  const maxPages = Math.ceil(Math.min(fetchTarget, 100) / 30);
 
   for (let page = 0; page < maxPages; page++) {
-    const pageLimit = Math.min(30, limit - allSubjects.length);
+    const pageLimit = Math.min(30, fetchTarget - allSubjects.length);
     if (pageLimit <= 0) break;
 
     const body = buildSearchBody(params, params.mode);
     const url = `${BANGUMI_BASE_URL}/search/subjects?limit=${pageLimit}&offset=${offset}`;
     try {
-      const response = await outboundFetch(url, {
+      const response = await bangumiRequest(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        timeoutMs: 8000,
+        headers: buildHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify(body)
       });
 
       if (!response.ok) break;
@@ -110,16 +118,6 @@ function buildSearchBody(
     filter.air_date = [`>=${params.year}-01-01`, `<=${params.year}-12-31`];
   }
 
-  if (params.type && params.type !== "ALL") {
-    const subtypeMap: Record<string, string> = {
-      TV: "TV",
-      MOVIE: "MOVIE",
-      OVA: "OVA",
-    };
-    const subtype = subtypeMap[params.type.toUpperCase()] ?? params.type.toUpperCase();
-    filter.subject_type = subtype;
-  }
-
   if (mode === "TAG" && params.tags && params.tags.length === 1) {
     filter.tag = params.tags;
   }
@@ -146,19 +144,19 @@ async function fetchByTags(
 ): Promise<NormalizedBangumiSubject[]> {
   const tags = params.tags!;
   const limit = clampLimit(params.limit);
+  const fetchTarget = remoteFetchTarget(params, limit);
   const allSubjectsMap = new Map<number, NormalizedBangumiSubject>();
 
   for (const tag of tags.slice(0, 3)) {
-    if (allSubjectsMap.size >= limit) break;
+    if (allSubjectsMap.size >= fetchTarget) break;
 
     try {
       const url = `${BANGUMI_BASE_URL}/search/subjects?limit=30`;
       const body = buildSearchBody({ ...params, tags: [tag], mode: "TAG" }, "TAG");
-      const response = await outboundFetch(url, {
+      const response = await bangumiRequest(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        timeoutMs: 8000,
+        headers: buildHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify(body)
       });
 
       if (!response.ok) continue;
@@ -197,6 +195,19 @@ function filterAndSortCandidates(
     });
   }
 
+  if (params.type && params.type !== "ALL") {
+    const expectedType = params.type.toUpperCase();
+    filtered = filtered.filter((s) => s.animeType === expectedType);
+  }
+
+  if (params.tags && params.tags.length > 0) {
+    const expectedTags = params.tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean);
+    filtered = filtered.filter((subject) => {
+      const subjectTags = new Set(subject.tags.map((tag) => tag.trim().toLowerCase()));
+      return expectedTags.every((tag) => subjectTags.has(tag));
+    });
+  }
+
   if (params.mode === "TOP" || params.sort === "rank") {
     filtered.sort((a, b) => compareByField(a, b, (s) => s.bangumiRank));
   } else if (params.sort === "score") {
@@ -222,23 +233,23 @@ async function fetchUserCollections(
   if (!username) return [];
 
   const limit = clampLimit(params.limit);
+  const fetchTarget = remoteFetchTarget(params, limit);
   const validTypes = ["wish", "collect", "doing", "on_hold", "dropped"];
-  const type = validTypes.includes(collectionType) ? collectionType : "collect";
+  const type = toBangumiCollectionType(validTypes.includes(collectionType) ? collectionType : "collect");
 
   const subjects: NormalizedBangumiSubject[] = [];
   let offset = 0;
-  const maxPages = Math.ceil(Math.min(limit, 100) / 30);
+  const maxPages = Math.ceil(Math.min(fetchTarget, 100) / 30);
 
   for (let page = 0; page < maxPages; page++) {
-    const pageLimit = Math.min(30, limit - subjects.length);
+    const pageLimit = Math.min(30, fetchTarget - subjects.length);
     if (pageLimit <= 0) break;
 
     try {
       const url = `${BANGUMI_BASE_URL}/users/${encodeURIComponent(username)}/collections?subject_type=2&type=${type}&limit=${pageLimit}&offset=${offset}`;
-      const response = await outboundFetch(url, {
+      const response = await bangumiRequest(url, {
         method: "GET",
-        headers: {},
-        timeoutMs: 8000,
+        headers: buildHeaders(),
       });
 
       if (!response.ok) break;
@@ -269,6 +280,17 @@ async function fetchUserCollections(
   return filterAndSortCandidates(subjects, params);
 }
 
+function toBangumiCollectionType(type: string): number {
+  const collectionTypeMap: Record<string, number> = {
+    wish: 1,
+    collect: 2,
+    doing: 3,
+    on_hold: 4,
+    dropped: 5
+  };
+  return collectionTypeMap[type] ?? collectionTypeMap.collect;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -284,7 +306,7 @@ export async function upsertBangumiSubjects(
 
   const existing = await prisma.anime.findMany({
     where: { bgmId: { in: bgmIds } },
-    select: { id: true, bgmId: true, source: true, tags: true, aliases: true, imageUrl: true, imageLargeUrl: true, imageMediumUrl: true, imageSmallUrl: true },
+    select: { id: true, bgmId: true, source: true, tags: true, aliases: true, imageUrl: true, imageLargeUrl: true, imageMediumUrl: true, imageSmallUrl: true, animeType: true },
   });
   const existingMap = new Map<number, (typeof existing)[number]>();
   for (const e of existing) {
@@ -314,6 +336,7 @@ export async function upsertBangumiSubjects(
       addIfMissing(updateData, existingRecord, "bangumiRank", subject.bangumiRank);
       addIfMissing(updateData, existingRecord, "bangumiScore", subject.bangumiScore);
       addIfMissing(updateData, existingRecord, "bangumiVotes", subject.bangumiVotes);
+      addIfMissing(updateData, existingRecord, "animeType", subject.animeType);
 
       const normalizedTags = normalizeDedupedArray(subject.tags, existingRecord.tags, 30);
       if (normalizedTags !== null) updateData.tags = normalizedTags;
@@ -356,6 +379,7 @@ export async function upsertBangumiSubjects(
             bangumiRank: subject.bangumiRank,
             bangumiScore: subject.bangumiScore,
             bangumiVotes: subject.bangumiVotes,
+            animeType: subject.animeType ?? null,
             tags: normalizeDedupedTags(subject.tags, 30),
             aliases: subject.titleCn ? [subject.titleCn] : [],
             externalLinks: [sourceUrl],

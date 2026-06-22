@@ -271,6 +271,12 @@ describe("normalizeBangumiSubject", () => {
     expect(() => normalizeBangumiSubject({ name: "No id" })).toThrow();
     expect(() => normalizeBangumiSubject({ id: 1 })).toThrow();
   });
+
+  it("normalizes Bangumi platform into AniMatch animeType", () => {
+    expect(normalizeBangumiSubject({ id: 1, name: "TV Anime", platform: "TV" }).animeType).toBe("TV");
+    expect(normalizeBangumiSubject({ id: 2, name: "Movie Anime", platform: "剧场版" }).animeType).toBe("MOVIE");
+    expect(normalizeBangumiSubject({ id: 3, name: "OVA Anime", platform: "OAD" }).animeType).toBe("OVA");
+  });
 });
 
 describe("Bangumi request via node http", () => {

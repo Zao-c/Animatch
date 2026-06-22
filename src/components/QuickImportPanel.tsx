@@ -416,7 +416,11 @@ export function QuickImportPanel({
             </span>
           </label>
           <span className="text-[10px] text-slate-600">
-            {source === "MANAMI" ? "Manami 仅限本地库" : "本地优先 + Bangumi 实时拉取"}
+            {source === "MANAMI"
+              ? "Manami 仅限本地库"
+              : source === "BANGUMI"
+                ? "Bangumi 源会实时按筛选拉取"
+                : "混合模式本地不足时从 Bangumi 补全"}
           </span>
         </div>
 

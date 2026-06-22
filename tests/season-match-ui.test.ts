@@ -37,8 +37,20 @@ describe("season match UI", () => {
     expect(rollBody).toContain("setCurrentIndex");
   });
 
+  it("loads another queue batch after voting through the prefetched pairs", () => {
+    expect(source).toContain("shouldLoadNextBatch");
+    expect(source).toContain("currentIndex >= queue.length - 1");
+    expect(source).toContain("result.votesRemaining <= 0 || shouldLoadNextBatch");
+  });
+
   it("shows hint when no more new pairs after rolling", () => {
     expect(source).toContain("暂时没有更多可换组合");
     expect(source).toContain("可以先投当前组或稍后再试");
+  });
+
+  it("shows remaining-vote recovery when the local queue is empty", () => {
+    expect(source).toContain("当前批次已投完");
+    expect(source).toContain("获取下一批作品");
+    expect(source).toContain("本批投完会自动获取下一批作品");
   });
 });

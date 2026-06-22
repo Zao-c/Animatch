@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppCard } from "@/components/ui/AppCard";
+import { AppButton } from "@/components/ui/AppButton";
 import { PageShell } from "@/components/PageShell";
 import { AnimeCover } from "@/components/AnimeCover";
 import { getSeasonDetail, getSeasonMatchQueue, submitSeasonVote } from "@/lib/client-api";
@@ -130,7 +131,9 @@ export default function SeasonMatchPage() {
       setFeedback(winnerId === currentPair.left.animeId ? "LEFT_WIN" : "RIGHT_WIN");
       setTimeout(() => {
         setFeedback(null);
-        if (result.votesRemaining <= 0) {
+        const shouldLoadNextBatch = currentIndex >= queue.length - 1;
+        if (result.votesRemaining <= 0 || shouldLoadNextBatch) {
+          setUseBias(false);
           fetchData();
         } else {
           setCurrentIndex((prev) => prev + 1);
@@ -143,7 +146,7 @@ export default function SeasonMatchPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [currentPair, submitting, poolId, seasonId, detail, useBias, fetchData]);
+  }, [currentPair, submitting, poolId, seasonId, detail, useBias, fetchData, currentIndex, queue.length]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -214,6 +217,15 @@ export default function SeasonMatchPage() {
           </div>
         ) : null}
 
+        {currentPair && canVote ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <span className="rounded-full border border-white/10 bg-white/[0.025] px-3 py-1">
+              当前第 {currentIndex + 1} / {queue.length} 组
+            </span>
+            <span>本批投完会自动获取下一批作品，直到你的票数用完。</span>
+          </div>
+        ) : null}
+
         {voteResult ? (
           <div className="mt-5 rounded-xl border border-amber-300/20 bg-amber-300/5 px-4 py-2 text-sm text-amber-200">
             已投票！第 {voteResult.stepNumber} 票 · 剩余 {voteResult.votesRemaining} 票
@@ -273,13 +285,28 @@ export default function SeasonMatchPage() {
         ) : (
           <AppCard className="mt-8 p-6 text-center">
             <h2 className="text-xl font-black text-white">
-              {skippedPairKeys.size > 0 ? "暂时没有更多可换组合" : "没有可用的投票对"}
+              {canVote ? "当前批次已投完" : skippedPairKeys.size > 0 ? "暂时没有更多可换组合" : "没有可用的投票对"}
             </h2>
             <p className="mt-2 text-sm text-slate-400">
-              {skippedPairKeys.size > 0
-                ? "可以先投当前组或稍后再试。"
-                : "需要至少 2 个作品才能生成投票对"}
+              {canVote
+                ? "你还有剩余票数，可以继续获取下一批作品。"
+                : skippedPairKeys.size > 0
+                  ? "可以先投当前组或稍后再试。"
+                  : "需要至少 2 个作品才能生成投票对"}
             </p>
+            {canVote ? (
+              <div className="mt-4 flex justify-center">
+                <AppButton
+                  variant="primary"
+                  onClick={() => {
+                    setLoading(true);
+                    void fetchData();
+                  }}
+                >
+                  获取下一批作品
+                </AppButton>
+              </div>
+            ) : null}
           </AppCard>
         )}
       </main>

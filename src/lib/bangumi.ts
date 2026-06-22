@@ -504,6 +504,7 @@ export interface NormalizedBangumiSubject {
   bangumiRank: number | null;
   bangumiScore: number | null;
   bangumiVotes: number | null;
+  animeType?: string | null;
   tags: string[];
   rawJson: JsonValue;
 }
@@ -528,6 +529,7 @@ export interface BangumiRawSubject {
   summary?: unknown;
   date?: unknown;
   air_date?: unknown;
+  platform?: unknown;
   rank?: unknown;
   rating?: {
     score?: unknown;
@@ -633,6 +635,7 @@ export function normalizeBangumiSubject(raw: unknown): NormalizedBangumiSubject 
     bangumiRank: toPositiveInteger(subject.rank),
     bangumiScore: toNullableNumber(subject.rating?.score),
     bangumiVotes: toPositiveInteger(subject.rating?.total),
+    animeType: normalizeBangumiPlatform(toNullableString(subject.platform)),
     tags: normalizeTags(subject.tags),
     rawJson: toJsonValue(raw)
   };
@@ -696,6 +699,19 @@ function normalizeTags(value: unknown): string[] {
   }
 
   return tags;
+}
+
+function normalizeBangumiPlatform(platform: string | null): string | null {
+  if (platform === null) return null;
+  const value = platform.trim().toUpperCase();
+  if (!value) return null;
+  if (value === "TV") return "TV";
+  if (value === "OVA" || value === "OAD") return "OVA";
+  if (value === "MOVIE" || value === "剧场版" || value === "劇場版" || value === "映画") {
+    return "MOVIE";
+  }
+  if (value === "WEB") return "WEB";
+  return value;
 }
 
 function parseBangumiDate(value: unknown): Date | null {

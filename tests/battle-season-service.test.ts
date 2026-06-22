@@ -163,6 +163,16 @@ describe("Season voting rules", () => {
   });
 });
 
+describe("Season list stats", () => {
+  const source = readSource("src/lib/season-service.ts");
+
+  it("counts participants as distinct season/user pairs instead of vote rows", () => {
+    expect(source).toContain('by: ["seasonId", "userId"]');
+    expect(source).toContain("participantCountMap");
+    expect(source).not.toContain("_count: { userId: true }");
+  });
+});
+
 describe("Season match queue distribution", () => {
   const source = readSource("src/lib/season-service.ts");
 
@@ -288,8 +298,16 @@ describe("Season pages exist", () => {
     expect(source).toContain("未开始");
     expect(source).toContain("偏爱模式");
     expect(source).toContain("传统模式");
-    expect(source).toContain("赛季榜单");
+    expect(source).toContain("赛季共享榜单");
     expect(source).toContain("最近投票");
+  });
+
+  it("Season detail page exposes shared ranking and shared tierlist views", () => {
+    const source = readSource("src/app/pools/[poolId]/seasons/[seasonId]/page.tsx");
+    expect(source).toContain("赛季共享榜单");
+    expect(source).toContain("赛季共享 TierList");
+    expect(source).toContain("buildSeasonTierBuckets");
+    expect(source).toContain("SeasonSharedTierList");
   });
 
   it("Season match page shows bias vote toggle", () => {

@@ -59,6 +59,23 @@ describe("Bangumi import source service", () => {
     expect(source).toContain("filtered.slice(0, limit)");
   });
 
+  it("uses the shared Bangumi API client path for batch remote fetches", () => {
+    expect(source).toContain("bangumiRequest");
+    expect(source).toContain("buildHeaders");
+    expect(source).not.toContain("outboundFetch");
+  });
+
+  it("filters remote Bangumi subjects by normalized anime type", () => {
+    expect(source).toContain("s.animeType === expectedType");
+    expect(source).toContain("remoteFetchTarget");
+  });
+
+  it("filters remote Bangumi subjects by selected tags after fetch", () => {
+    expect(source).toContain("expectedTags");
+    expect(source).toContain("subjectTags");
+    expect(source).toContain("expectedTags.every");
+  });
+
   it("USER_COLLECTION fetches user collections API", () => {
     expect(source).toContain("fetchUserCollections");
     expect(source).toContain("/users/");
@@ -71,6 +88,15 @@ describe("Bangumi import source service", () => {
     expect(source).toContain("doing");
     expect(source).toContain("on_hold");
     expect(source).toContain("dropped");
+  });
+
+  it("USER_COLLECTION maps UI collection names to Bangumi numeric types", () => {
+    expect(source).toContain("toBangumiCollectionType");
+    expect(source).toContain("wish: 1");
+    expect(source).toContain("collect: 2");
+    expect(source).toContain("doing: 3");
+    expect(source).toContain("on_hold: 4");
+    expect(source).toContain("dropped: 5");
   });
 
   it("USER_COLLECTION returns empty for blank username", () => {
@@ -96,6 +122,11 @@ describe("Bangumi import source service", () => {
 
   it("upsert adds year from airDate", () => {
     expect(source).toContain("year: subject.airDate?.getUTCFullYear()");
+  });
+
+  it("upsert persists normalized Bangumi anime type", () => {
+    expect(source).toContain("animeType: subject.animeType ?? null");
+    expect(source).toContain('addIfMissing(updateData, existingRecord, "animeType", subject.animeType)');
   });
 
   it("upsert normalizes tags deduplication", () => {
@@ -186,8 +217,9 @@ describe("QuickImportPanel Bangumi UI", () => {
     expect(source).toContain("checked={useRemote}");
   });
 
-  it("shows local-first + Bangumi hint", () => {
-    expect(source).toContain("本地优先 + Bangumi 实时拉取");
+  it("shows accurate Bangumi remote mode hints", () => {
+    expect(source).toContain("Bangumi 源会实时按筛选拉取");
+    expect(source).toContain("混合模式本地不足时从 Bangumi 补全");
   });
 
   it("shows MANAMI local-only hint", () => {
@@ -266,6 +298,12 @@ describe("Remote fallback in quick-pool-builder", () => {
     expect(source).toContain("localResult.candidates.length < limit");
   });
 
+  it("prefers remote results for Bangumi source and user collection mode", () => {
+    expect(source).toContain("shouldPreferRemote");
+    expect(source).toContain('params.source === "BANGUMI"');
+    expect(source).toContain('params.mode === "USER_COLLECTION"');
+  });
+
   it("returns local result with attempted:false when not fetching remote", () => {
     expect(source).toContain("attempted: false");
   });
@@ -282,6 +320,12 @@ describe("Remote fallback in quick-pool-builder", () => {
     expect(source).toContain("upsertBangumiSubjects(subjects)");
     expect(source).toContain("insertedCount");
     expect(source).toContain("updatedCount");
+  });
+
+  it("builds preview candidates from the fetched Bangumi subject ids", () => {
+    expect(source).toContain("previewBangumiSubjects");
+    expect(source).toContain("bgmId: { in: bgmIds }");
+    expect(source).toContain("animeByBgmId.get(subject.bgmId)");
   });
 
   it("returns local result on fetch error", () => {
@@ -314,5 +358,10 @@ describe("Bangumi API client exports", () => {
 
   it("exports buildHeaders", () => {
     expect(source).toContain("export function buildHeaders");
+  });
+
+  it("normalizes Bangumi platform into animeType", () => {
+    expect(source).toContain("animeType?: string | null");
+    expect(source).toContain("normalizeBangumiPlatform");
   });
 });
