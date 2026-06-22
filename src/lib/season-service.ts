@@ -19,12 +19,12 @@ export interface SeasonCreateInput {
 
 export interface SeasonUpdateInput {
   title?: string;
-  description?: string;
+  description?: string | null;
   mode?: SeasonMode;
   startsAt?: Date;
-  endsAt?: Date;
+  endsAt?: Date | null;
   maxVotesPerUser?: number;
-  maxVotesPerUserPerDay?: number;
+  maxVotesPerUserPerDay?: number | null;
   biasVotesPerUser?: number;
 }
 
@@ -718,7 +718,7 @@ export async function updateSeason(
     where: { id: seasonId },
     data: {
       title: input.title?.trim(),
-      description: input.description?.trim(),
+      description: input.description === undefined ? undefined : input.description?.trim() || null,
       mode: input.mode,
       startsAt: input.startsAt,
       endsAt: input.endsAt,
@@ -727,6 +727,30 @@ export async function updateSeason(
       biasVotesPerUser: input.biasVotesPerUser
     }
   });
+}
+
+export async function deleteSeason(
+  poolId: string,
+  seasonId: string,
+  userId: string
+): Promise<{ id: string }> {
+  const pool = await prisma.customPool.findUnique({ where: { id: poolId } });
+  if (!pool || pool.deletedAt) throw new AppError("番组不存在", 404, "POOL_NOT_FOUND");
+
+  if (!canEditPoolContent(pool, { id: userId })) {
+    throw new AppError("你没有权限删除赛季", 403, "FORBIDDEN");
+  }
+
+  const season = await prisma.battleSeason.findFirst({
+    where: { id: seasonId, poolId }
+  });
+  if (!season) throw new AppError("赛季不存在", 404, "SEASON_NOT_FOUND");
+
+  await prisma.battleSeason.delete({
+    where: { id: seasonId }
+  });
+
+  return { id: seasonId };
 }
 
 export async function startSeason(

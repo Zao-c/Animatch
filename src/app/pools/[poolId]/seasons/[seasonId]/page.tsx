@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
 import { PageShell } from "@/components/PageShell";
 import { AnimeCover } from "@/components/AnimeCover";
-import { getSeasonDetail, startSeason, endSeason, getSeasonImpact } from "@/lib/client-api";
+import { deleteSeason, getSeasonDetail, startSeason, endSeason, getSeasonImpact, updateSeason } from "@/lib/client-api";
 import { formatDateTimeStable } from "@/lib/date-format";
 import { SeasonImpactPanel } from "@/components/SeasonImpactPanel";
 import type { SeasonDetail, SeasonRankingItem } from "@/lib/client-api";
@@ -26,11 +26,21 @@ function SeasonSkeleton() {
 export default function SeasonDetailPage() {
   const params = useParams<{ poolId: string; seasonId: string }>();
   const { poolId, seasonId } = params;
+  const router = useRouter();
 
   const [detail, setDetail] = useState<SeasonDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    description: "",
+    mode: "CLASSIC" as SeasonDetail["mode"],
+    maxVotesPerUser: 50,
+    maxVotesPerUserPerDay: "",
+    biasVotesPerUser: 3
+  });
 
   const fetchDetail = useCallback(() => {
     getSeasonDetail(poolId, seasonId)
@@ -39,6 +49,18 @@ export default function SeasonDetailPage() {
   }, [poolId, seasonId]);
 
   useEffect(() => { fetchDetail(); }, [fetchDetail]);
+
+  useEffect(() => {
+    if (!detail) return;
+    setEditForm({
+      title: detail.title,
+      description: detail.description ?? "",
+      mode: detail.mode,
+      maxVotesPerUser: detail.maxVotesPerUser,
+      maxVotesPerUserPerDay: detail.maxVotesPerUserPerDay ? String(detail.maxVotesPerUserPerDay) : "",
+      biasVotesPerUser: detail.biasVotesPerUser
+    });
+  }, [detail]);
 
   const handleStart = async () => {
     setActionLoading(true);
@@ -52,6 +74,43 @@ export default function SeasonDetailPage() {
     try { await endSeason(poolId, seasonId); fetchDetail(); }
     catch (e: unknown) { setError(e instanceof Error ? e.message : "结束失败"); }
     finally { setActionLoading(false); }
+  };
+
+  const handleSave = async () => {
+    setActionLoading(true);
+    try {
+      await updateSeason(poolId, seasonId, {
+        title: editForm.title,
+        description: editForm.description,
+        mode: editForm.mode,
+        maxVotesPerUser: Number(editForm.maxVotesPerUser),
+        maxVotesPerUserPerDay:
+          editForm.maxVotesPerUserPerDay.trim() === ""
+            ? null
+            : Number(editForm.maxVotesPerUserPerDay),
+        biasVotesPerUser: Number(editForm.biasVotesPerUser)
+      });
+      fetchDetail();
+      setManageOpen(false);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "保存赛季失败");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    const confirmed = window.confirm("删除赛季会同时删除该赛季的投票记录和共享榜单，确定删除吗？");
+    if (!confirmed) return;
+
+    setActionLoading(true);
+    try {
+      await deleteSeason(poolId, seasonId);
+      router.push(`/pools/${poolId}`);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "删除赛季失败");
+      setActionLoading(false);
+    }
   };
 
   const seasonTierBuckets = useMemo(
@@ -118,8 +177,103 @@ export default function SeasonDetailPage() {
             {detail.status === "ACTIVE" ? (
               <AppButton onClick={handleEnd} disabled={actionLoading} variant="danger">结束赛季</AppButton>
             ) : null}
+            <AppButton onClick={() => setManageOpen((open) => !open)} disabled={actionLoading} variant="secondary">
+              管理赛季
+            </AppButton>
           </div>
         </AppCard>
+
+        {manageOpen ? (
+          <AppCard className="mb-8 p-6">
+            <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-white">赛季管理</h2>
+                <p className="mt-1 text-xs text-slate-500">修改标题、票数和模式；删除会移除该赛季的投票记录。</p>
+              </div>
+              <AppBadge tone={detail.status === "ENDED" ? "muted" : "source"}>
+                {detail.status === "ENDED" ? "已结束赛季不可编辑" : "管理员操作"}
+              </AppBadge>
+            </div>
+
+            <div className="grid gap-4">
+              <label className="grid gap-1 text-sm">
+                <span className="text-xs font-semibold text-slate-400">标题</span>
+                <input
+                  value={editForm.title}
+                  onChange={(event) => setEditForm((form) => ({ ...form, title: event.target.value }))}
+                  className="min-h-11 rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
+                  disabled={detail.status === "ENDED" || actionLoading}
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="text-xs font-semibold text-slate-400">描述</span>
+                <textarea
+                  value={editForm.description}
+                  onChange={(event) => setEditForm((form) => ({ ...form, description: event.target.value }))}
+                  className="min-h-24 rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white outline-none transition focus:border-amber-300/50"
+                  disabled={detail.status === "ENDED" || actionLoading}
+                />
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <label className="grid gap-1 text-sm">
+                  <span className="text-xs font-semibold text-slate-400">模式</span>
+                  <select
+                    value={editForm.mode}
+                    onChange={(event) => setEditForm((form) => ({ ...form, mode: event.target.value as SeasonDetail["mode"] }))}
+                    className="min-h-11 rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
+                    disabled={detail.status === "ENDED" || actionLoading}
+                  >
+                    <option value="CLASSIC">传统模式</option>
+                    <option value="BIAS">偏爱模式</option>
+                  </select>
+                </label>
+                <label className="grid gap-1 text-sm">
+                  <span className="text-xs font-semibold text-slate-400">每人总票数</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={editForm.maxVotesPerUser}
+                    onChange={(event) => setEditForm((form) => ({ ...form, maxVotesPerUser: Number(event.target.value) }))}
+                    className="min-h-11 rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
+                    disabled={detail.status === "ENDED" || actionLoading}
+                  />
+                </label>
+                <label className="grid gap-1 text-sm">
+                  <span className="text-xs font-semibold text-slate-400">每日票数</span>
+                  <input
+                    type="number"
+                    min={1}
+                    placeholder="不限"
+                    value={editForm.maxVotesPerUserPerDay}
+                    onChange={(event) => setEditForm((form) => ({ ...form, maxVotesPerUserPerDay: event.target.value }))}
+                    className="min-h-11 rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
+                    disabled={detail.status === "ENDED" || actionLoading}
+                  />
+                </label>
+                <label className="grid gap-1 text-sm">
+                  <span className="text-xs font-semibold text-slate-400">私心票数</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={editForm.biasVotesPerUser}
+                    onChange={(event) => setEditForm((form) => ({ ...form, biasVotesPerUser: Number(event.target.value) }))}
+                    className="min-h-11 rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
+                    disabled={detail.status === "ENDED" || actionLoading}
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              <AppButton onClick={handleSave} disabled={detail.status === "ENDED" || actionLoading} variant="primary">
+                保存修改
+              </AppButton>
+              <AppButton onClick={handleDelete} disabled={actionLoading} variant="danger">
+                删除赛季
+              </AppButton>
+            </div>
+          </AppCard>
+        ) : null}
 
         <AppCard className="mb-8 p-6">
           <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">

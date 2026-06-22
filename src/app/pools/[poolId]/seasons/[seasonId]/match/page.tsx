@@ -58,8 +58,61 @@ function SeasonDuelCard({
   );
 }
 
+function filterSeasonQueue(
+  queue: SeasonMatchQueueItem[],
+  skippedPairs: ReadonlySet<string>,
+  hiddenAnimeIds: ReadonlySet<string>
+): SeasonMatchQueueItem[] {
+  return queue.filter(
+    (item) =>
+      !skippedPairs.has(seasonMatchPairKey(item)) &&
+      !hiddenAnimeIds.has(item.left.animeId) &&
+      !hiddenAnimeIds.has(item.right.animeId)
+  );
+}
+
+function seasonMatchPairKey(pair: SeasonMatchQueueItem): string {
+  return [pair.left.animeId, pair.right.animeId].sort().join(":");
+}
+
+function seasonUnseenStorageKey(seasonId: string): string {
+  return `animematch:season:${seasonId}:unseen-anime`;
+}
+
+function readSeasonUnseenAnimeIds(seasonId: string): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(seasonUnseenStorageKey(seasonId));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(parsed) ? parsed.filter((value) => typeof value === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeSeasonUnseenAnimeIds(seasonId: string, animeIds: ReadonlySet<string>): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(seasonUnseenStorageKey(seasonId), JSON.stringify([...animeIds]));
+}
+
+function isEditableShortcutTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tagName = target.tagName.toLowerCase();
+  return tagName === "input" || tagName === "textarea" || tagName === "select" || target.isContentEditable;
+}
+
 function SeasonMatchSkeleton() {
   return <div className="mx-auto max-w-4xl animate-pulse px-4 py-8"><div className="h-96 rounded-3xl bg-white/5" /></div>;
+}
+
+type SeasonFeedback = "LEFT_WIN" | "RIGHT_WIN" | "SKIP" | "LEFT_UNSEEN" | "RIGHT_UNSEEN" | "BOTH_UNSEEN";
+
+function ShortcutKey({ children }: { children: string }) {
+  return (
+    <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded-md border border-white/15 bg-slate-950/80 px-1.5 text-[10px] font-bold text-slate-200">
+      {children}
+    </kbd>
+  );
 }
 
 export default function SeasonMatchPage() {
@@ -72,20 +125,28 @@ export default function SeasonMatchPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<SeasonFeedback | null>(null);
   const [useBias, setUseBias] = useState(false);
   const [voteResult, setVoteResult] = useState<{ stepNumber: number; votesRemaining: number } | null>(null);
   const [skippedPairKeys, setSkippedPairKeys] = useState<Set<string>>(new Set());
+  const [unseenAnimeIds, setUnseenAnimeIds] = useState<Set<string>>(new Set());
 
-  const fetchData = useCallback(async () => {
+  useEffect(() => {
+    setUnseenAnimeIds(readSeasonUnseenAnimeIds(seasonId));
+  }, [seasonId]);
+
+  const fetchData = useCallback(async (
+    skippedPairs: ReadonlySet<string> = skippedPairKeys,
+    hiddenAnimeIds: ReadonlySet<string> = unseenAnimeIds
+  ) => {
     try {
       const [d, q] = await Promise.all([
         getSeasonDetail(poolId, seasonId),
         getSeasonMatchQueue(poolId, seasonId)
       ]);
       setDetail(d);
-      const filtered = q.filter((item) => !skippedPairKeys.has(item.pairId));
-      setQueue(filtered.length > 0 ? filtered : q);
+      const filtered = filterSeasonQueue(q, skippedPairs, hiddenAnimeIds);
+      setQueue(filtered);
       setCurrentIndex(0);
       setVoteResult(null);
       setLoading(false);
@@ -93,28 +154,70 @@ export default function SeasonMatchPage() {
       setError(e instanceof Error ? e.message : "加载失败");
       setLoading(false);
     }
-  }, [poolId, seasonId, skippedPairKeys]);
+  }, [poolId, seasonId, skippedPairKeys, unseenAnimeIds]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const currentPair = queue.length > currentIndex ? queue[currentIndex] : null;
 
-  function handleRollPair() {
-    setFeedback(null);
+  const handleRollPair = useCallback(() => {
+    setFeedback("SKIP");
     setUseBias(false);
     setVoteResult(null);
+    let nextSkippedPairKeys = skippedPairKeys;
     if (currentPair) {
-      setSkippedPairKeys((prev) => {
-        const next = new Set(prev);
-        next.add(currentPair.pairId);
-        return next;
-      });
+      nextSkippedPairKeys = new Set(skippedPairKeys);
+      nextSkippedPairKeys.add(seasonMatchPairKey(currentPair));
+      setSkippedPairKeys(nextSkippedPairKeys);
     }
-    if (currentIndex < queue.length - 1) {
-      setCurrentIndex((current) => current + 1);
+    const filteredQueue = filterSeasonQueue(queue, nextSkippedPairKeys, unseenAnimeIds);
+    if (filteredQueue.length > 0) {
+      setQueue(filteredQueue);
+      setCurrentIndex(0);
     } else {
-      void fetchData();
+      void fetchData(nextSkippedPairKeys, unseenAnimeIds);
     }
+    window.setTimeout(() => setFeedback(null), 360);
+  }, [currentPair, fetchData, queue, skippedPairKeys, unseenAnimeIds]);
+
+  const handleMarkUnseen = useCallback((kind: Extract<SeasonFeedback, "LEFT_UNSEEN" | "RIGHT_UNSEEN" | "BOTH_UNSEEN">) => {
+    if (!currentPair || submitting) return;
+
+    const hiddenIds =
+      kind === "LEFT_UNSEEN"
+        ? [currentPair.left.animeId]
+        : kind === "RIGHT_UNSEEN"
+          ? [currentPair.right.animeId]
+          : [currentPair.left.animeId, currentPair.right.animeId];
+
+    const nextUnseenAnimeIds = new Set(unseenAnimeIds);
+    for (const animeId of hiddenIds) nextUnseenAnimeIds.add(animeId);
+    writeSeasonUnseenAnimeIds(seasonId, nextUnseenAnimeIds);
+    setUnseenAnimeIds(nextUnseenAnimeIds);
+
+    const nextSkippedPairKeys = new Set(skippedPairKeys);
+    nextSkippedPairKeys.add(seasonMatchPairKey(currentPair));
+    setSkippedPairKeys(nextSkippedPairKeys);
+
+    const filteredQueue = filterSeasonQueue(queue, nextSkippedPairKeys, nextUnseenAnimeIds);
+    setQueue(filteredQueue);
+    setCurrentIndex(0);
+    setUseBias(false);
+    setVoteResult(null);
+    setFeedback(kind);
+
+    if (filteredQueue.length === 0) {
+      void fetchData(nextSkippedPairKeys, nextUnseenAnimeIds);
+    }
+    window.setTimeout(() => setFeedback(null), 420);
+  }, [currentPair, fetchData, queue, seasonId, skippedPairKeys, submitting, unseenAnimeIds]);
+
+  function handleResetUnseen() {
+    const emptySet = new Set<string>();
+    writeSeasonUnseenAnimeIds(seasonId, emptySet);
+    setUnseenAnimeIds(emptySet);
+    setLoading(true);
+    void fetchData(skippedPairKeys, emptySet);
   }
 
   const handleVote = useCallback(async (winnerId: string) => {
@@ -151,13 +254,34 @@ export default function SeasonMatchPage() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!currentPair || submitting) return;
-      if (e.key === "ArrowLeft") handleVote(currentPair.left.animeId);
-      if (e.key === "ArrowRight") handleVote(currentPair.right.animeId);
-      if (e.key === "b" || e.key === "B" || e.key === "Shift") setUseBias((prev) => !prev);
+      if (isEditableShortcutTarget(e.target)) return;
+
+      let handled = true;
+      if (e.key === "ArrowLeft") {
+        handleVote(currentPair.left.animeId);
+      } else if (e.key === "ArrowRight") {
+        handleVote(currentPair.right.animeId);
+      } else if (e.key === "ArrowDown") {
+        handleRollPair();
+      } else if (e.key === "ArrowUp" && detail?.mode === "BIAS" && (detail.currentUserState?.biasVotesRemaining ?? 0) > 0) {
+        setUseBias((prev) => !prev);
+      } else if (e.key === "1") {
+        handleMarkUnseen("LEFT_UNSEEN");
+      } else if (e.key === "2") {
+        handleMarkUnseen("RIGHT_UNSEEN");
+      } else if (e.key === "3" || e.key === "0") {
+        handleMarkUnseen("BOTH_UNSEEN");
+      } else if (e.key === "b" || e.key === "B" || e.key === "Shift") {
+        setUseBias((prev) => !prev);
+      } else {
+        handled = false;
+      }
+
+      if (handled) e.preventDefault();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [currentPair, submitting, handleVote]);
+  }, [currentPair, submitting, handleVote, detail, handleRollPair, handleMarkUnseen]);
 
   if (loading) return <PageShell><SeasonMatchSkeleton /></PageShell>;
   if (error) return <PageShell><main className="mx-auto max-w-4xl px-4 py-8"><AppCard className="p-8 text-center"><h1 className="text-xl font-black text-white">加载失败</h1><p className="mt-2 text-sm text-slate-400">{error}</p><Link href={`/pools/${poolId}/seasons/${seasonId}`} className="mt-4 inline-block text-sm text-amber-200 underline">返回赛季详情</Link></AppCard></main></PageShell>;
@@ -184,16 +308,28 @@ export default function SeasonMatchPage() {
               优先分配你没投过、全局曝光少的作品。可换一组，但不会消耗票数。
             </p>
           </div>
-          {currentPair ? (
-            <button
-              type="button"
-              onClick={handleRollPair}
-              disabled={submitting}
-              className="min-h-10 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/35 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              换一组
-            </button>
-          ) : null}
+          <div className="flex flex-wrap gap-2">
+            {unseenAnimeIds.size > 0 ? (
+              <button
+                type="button"
+                onClick={handleResetUnseen}
+                disabled={loading}
+                className="min-h-10 rounded-full border border-amber-300/20 bg-amber-300/5 px-4 text-sm font-semibold text-amber-100 transition hover:border-amber-200/50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                恢复已排除 {unseenAnimeIds.size} 部
+              </button>
+            ) : null}
+            {currentPair ? (
+              <button
+                type="button"
+                onClick={handleRollPair}
+                disabled={submitting}
+                className="min-h-10 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/35 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                换一组
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {cs ? (
@@ -221,6 +357,21 @@ export default function SeasonMatchPage() {
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <span className="rounded-full border border-white/10 bg-white/[0.025] px-3 py-1">
               当前第 {currentIndex + 1} / {queue.length} 组
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.025] px-3 py-1">
+              <ShortcutKey>←</ShortcutKey>
+              <ShortcutKey>→</ShortcutKey>
+              投票
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.025] px-3 py-1">
+              <ShortcutKey>↓</ShortcutKey>
+              跳过
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.025] px-3 py-1">
+              <ShortcutKey>1</ShortcutKey>
+              <ShortcutKey>2</ShortcutKey>
+              <ShortcutKey>3</ShortcutKey>
+              没看过
             </span>
             <span>本批投完会自动获取下一批作品，直到你的票数用完。</span>
           </div>
@@ -281,26 +432,90 @@ export default function SeasonMatchPage() {
                 highlighted={feedback === "RIGHT_WIN"}
               />
             </div>
+
+            <div className="mt-5 grid gap-2 sm:grid-cols-4">
+              <button
+                type="button"
+                onClick={handleRollPair}
+                disabled={submitting}
+                className={`min-h-12 rounded-xl border px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                  feedback === "SKIP"
+                    ? "border-cyan-300/50 bg-cyan-300/10 text-cyan-100"
+                    : "border-white/10 bg-white/[0.035] text-slate-200 hover:border-cyan-300/35"
+                }`}
+              >
+                <span className="inline-flex items-center gap-2"><ShortcutKey>↓</ShortcutKey> 跳过 / 换一组</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMarkUnseen("LEFT_UNSEEN")}
+                disabled={submitting}
+                className={`min-h-12 rounded-xl border px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                  feedback === "LEFT_UNSEEN"
+                    ? "border-amber-300/50 bg-amber-300/10 text-amber-100"
+                    : "border-white/10 bg-white/[0.035] text-slate-200 hover:border-amber-300/35"
+                }`}
+              >
+                <span className="inline-flex items-center gap-2"><ShortcutKey>1</ShortcutKey> 左边没看过</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMarkUnseen("RIGHT_UNSEEN")}
+                disabled={submitting}
+                className={`min-h-12 rounded-xl border px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                  feedback === "RIGHT_UNSEEN"
+                    ? "border-amber-300/50 bg-amber-300/10 text-amber-100"
+                    : "border-white/10 bg-white/[0.035] text-slate-200 hover:border-amber-300/35"
+                }`}
+              >
+                <span className="inline-flex items-center gap-2"><ShortcutKey>2</ShortcutKey> 右边没看过</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMarkUnseen("BOTH_UNSEEN")}
+                disabled={submitting}
+                className={`min-h-12 rounded-xl border px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                  feedback === "BOTH_UNSEEN"
+                    ? "border-amber-300/50 bg-amber-300/10 text-amber-100"
+                    : "border-white/10 bg-white/[0.035] text-slate-200 hover:border-amber-300/35"
+                }`}
+              >
+                <span className="inline-flex items-center gap-2"><ShortcutKey>3</ShortcutKey> 都没看过</span>
+              </button>
+            </div>
           </div>
         ) : (
           <AppCard className="mt-8 p-6 text-center">
             <h2 className="text-xl font-black text-white">
-              {canVote ? "当前批次已投完" : skippedPairKeys.size > 0 ? "暂时没有更多可换组合" : "没有可用的投票对"}
+              {canVote && unseenAnimeIds.size > 0
+                ? "当前筛选后没有可投组合"
+                : canVote
+                  ? "当前批次已投完"
+                  : skippedPairKeys.size > 0
+                    ? "暂时没有更多可换组合"
+                    : "没有可用的投票对"}
             </h2>
             <p className="mt-2 text-sm text-slate-400">
-              {canVote
+              {canVote && unseenAnimeIds.size > 0
+                ? `你已排除 ${unseenAnimeIds.size} 部没看过的作品，可以恢复后继续，或稍后再获取新组合。`
+                : canVote
                 ? "你还有剩余票数，可以继续获取下一批作品。"
                 : skippedPairKeys.size > 0
                   ? "可以先投当前组或稍后再试。"
                   : "需要至少 2 个作品才能生成投票对"}
             </p>
             {canVote ? (
-              <div className="mt-4 flex justify-center">
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {unseenAnimeIds.size > 0 ? (
+                  <AppButton variant="secondary" onClick={handleResetUnseen}>
+                    恢复已排除作品
+                  </AppButton>
+                ) : null}
                 <AppButton
                   variant="primary"
                   onClick={() => {
                     setLoading(true);
-                    void fetchData();
+                    void fetchData(skippedPairKeys, unseenAnimeIds);
                   }}
                 >
                   获取下一批作品

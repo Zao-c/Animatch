@@ -74,6 +74,11 @@ describe("Season service - create and permissions", () => {
     expect(source).toContain("你没有权限编辑赛季");
   });
 
+  it("rejects non-editor for deleteSeason", () => {
+    expect(source).toContain("export async function deleteSeason");
+    expect(source).toContain("你没有权限删除赛季");
+  });
+
   it("rejects editing ended season", () => {
     expect(source).toContain("已结束的赛季不能编辑");
   });
@@ -269,6 +274,13 @@ describe("Season API routes exist", () => {
     expect(source).toContain("updateSeason");
   });
 
+  it("DELETE /api/pools/[poolId]/seasons/[seasonId] deletes season", () => {
+    const source = readSource("src/app/api/pools/[poolId]/seasons/[seasonId]/route.ts");
+    expect(source).toContain("export async function DELETE");
+    expect(source).toContain("deleteSeason");
+    expect(source).toContain("requireCurrentUser");
+  });
+
   it("POST .../start starts a season", () => {
     const source = readSource("src/app/api/pools/[poolId]/seasons/[seasonId]/start/route.ts");
     expect(source).toContain("startSeason");
@@ -308,6 +320,16 @@ describe("Season pages exist", () => {
     expect(source).toContain("赛季共享 TierList");
     expect(source).toContain("buildSeasonTierBuckets");
     expect(source).toContain("SeasonSharedTierList");
+  });
+
+  it("Season detail page exposes admin management actions", () => {
+    const source = readSource("src/app/pools/[poolId]/seasons/[seasonId]/page.tsx");
+    expect(source).toContain("管理赛季");
+    expect(source).toContain("赛季管理");
+    expect(source).toContain("保存修改");
+    expect(source).toContain("删除赛季");
+    expect(source).toContain("deleteSeason");
+    expect(source).toContain("updateSeason");
   });
 
   it("Season match page shows bias vote toggle", () => {
@@ -354,6 +376,11 @@ describe("Client API season functions", () => {
 
   it("has endSeason function", () => {
     expect(source).toContain("export function endSeason");
+  });
+
+  it("has deleteSeason function", () => {
+    expect(source).toContain("export function deleteSeason");
+    expect(source).toContain('method: "DELETE"');
   });
 
   it("has getSeasonMatchQueue function", () => {

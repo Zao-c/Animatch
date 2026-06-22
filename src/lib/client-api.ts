@@ -1255,6 +1255,10 @@ export function updateSeason(poolId: string, seasonId: string, data: Record<stri
   return fetchJson<SeasonListItem>("/api/pools/" + poolId + "/seasons/" + seasonId, { method: "PUT", body: data });
 }
 
+export function deleteSeason(poolId: string, seasonId: string) {
+  return fetchJson<{ id: string }>("/api/pools/" + poolId + "/seasons/" + seasonId, { method: "DELETE" });
+}
+
 export function startSeason(poolId: string, seasonId: string) {
   return fetchJson<SeasonListItem>("/api/pools/" + poolId + "/seasons/" + seasonId + "/start", { method: "POST" });
 }
