@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { badRequest, forbidden, fromError, ok } from "@/lib/api-response";
-import { requireCurrentUser } from "@/lib/auth-session";
+import { getCurrentUser, requireCurrentUser } from "@/lib/auth-session";
 import { createSeason, listSeasons } from "@/lib/season-service";
 
 export async function GET(
@@ -8,7 +8,8 @@ export async function GET(
   { params }: { params: { poolId: string } }
 ) {
   try {
-    const seasons = await listSeasons(params.poolId, null);
+    const user = await getCurrentUser();
+    const seasons = await listSeasons(params.poolId, user?.id ?? null);
     return ok(seasons);
   } catch (error) {
     return fromError(error);

@@ -1,5 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import {
+  getBangumiTagQueryVariants,
+  subjectMatchesSelectedTag
+} from "../src/lib/import/bangumi-import-source";
 
 function readSource(path: string): string {
   return readFileSync(path, "utf8");
@@ -26,6 +30,10 @@ describe("Bangumi import source service", () => {
 
   it("shouldUseRemote returns true for MIXED source", () => {
     expect(source).toContain('params.source === "MIXED"');
+  });
+
+  it("shouldUseRemote treats user collections as remote-only", () => {
+    expect(source).toContain('params.mode === "USER_COLLECTION"');
   });
 
   it("YEAR mode builds air_date filter", () => {
@@ -71,9 +79,20 @@ describe("Bangumi import source service", () => {
   });
 
   it("filters remote Bangumi subjects by selected tags after fetch", () => {
-    expect(source).toContain("expectedTags");
-    expect(source).toContain("subjectTags");
-    expect(source).toContain("expectedTags.every");
+    expect(source).toContain("subjectMatchesSelectedTag");
+    expect(source).toContain("params.tags!.every");
+    expect(source).toContain("matchTagAliases");
+  });
+
+  it("expands app tag keys into Bangumi tag query variants", () => {
+    const variants = getBangumiTagQueryVariants("romance").map((tag) => tag.toLowerCase());
+    expect(variants).toContain("romance");
+    expect(variants.length).toBeGreaterThan(1);
+  });
+
+  it("matches selected app tags against Bangumi alias tags semantically", () => {
+    expect(subjectMatchesSelectedTag({ tags: ["love"] }, "romance")).toBe(true);
+    expect(subjectMatchesSelectedTag({ tags: ["school"] }, "romance")).toBe(false);
   });
 
   it("USER_COLLECTION fetches user collections API", () => {
@@ -214,12 +233,18 @@ describe("QuickImportPanel Bangumi UI", () => {
 
   it("has remote toggle checkbox", () => {
     expect(source).toContain("本地不足时从 Bangumi 补全");
-    expect(source).toContain("checked={useRemote}");
+    expect(source).toContain("checked={effectiveUseRemote}");
+    expect(source).toContain("disabled={remoteRequired}");
   });
 
   it("shows accurate Bangumi remote mode hints", () => {
-    expect(source).toContain("Bangumi 源会实时按筛选拉取");
+    expect(source).toContain("Bangumi 源会按标签、榜单或用户收藏实时拉取");
     expect(source).toContain("混合模式本地不足时从 Bangumi 补全");
+  });
+
+  it("defaults quick import to Bangumi and forces it for user collections", () => {
+    expect(source).toContain('useState<string>("BANGUMI")');
+    expect(source).toContain('if (m.key === "USER_COLLECTION") setSource("BANGUMI")');
   });
 
   it("shows MANAMI local-only hint", () => {
@@ -238,7 +263,7 @@ describe("QuickImportPanel Bangumi UI", () => {
   });
 
   it("passes useRemote to preview API", () => {
-    expect(source).toContain("useRemote,");
+    expect(source).toContain("useRemote: effectiveUseRemote");
   });
 
   it("shows remoteFetch info in preview header", () => {
@@ -285,8 +310,9 @@ describe("Remote fallback in quick-pool-builder", () => {
     expect(source).toContain("export async function previewQuickImportWithRemoteFallback");
   });
 
-  it("calls local preview first", () => {
-    expect(source).toContain("const localResult = await previewQuickImport(params");
+  it("does not call local preview first when Bangumi should be authoritative", () => {
+    expect(source).toContain("let localResult: QuickImportPreviewResult | null = null");
+    expect(source).toContain("if (!shouldPreferRemote)");
   });
 
   it("checks useRemote and shouldUseRemote", () => {
@@ -295,7 +321,7 @@ describe("Remote fallback in quick-pool-builder", () => {
   });
 
   it("checks local candidates < limit before fetching remote", () => {
-    expect(source).toContain("localResult.candidates.length < limit");
+    expect(source).toContain("(localResult?.candidates.length ?? 0) < limit");
   });
 
   it("prefers remote results for Bangumi source and user collection mode", () => {

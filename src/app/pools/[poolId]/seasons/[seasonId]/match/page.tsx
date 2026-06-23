@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppCard } from "@/components/ui/AppCard";
 import { AppButton } from "@/components/ui/AppButton";
@@ -97,6 +97,13 @@ function writeSeasonUnseenAnimeIds(seasonId: string, animeIds: ReadonlySet<strin
   window.localStorage.setItem(seasonUnseenStorageKey(seasonId), JSON.stringify([...animeIds]));
 }
 
+function createVoteMutationId(seasonId: string): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${seasonId}:${crypto.randomUUID()}`;
+  }
+  return `${seasonId}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
+}
+
 function isEditableShortcutTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const tagName = target.tagName.toLowerCase();
@@ -132,6 +139,7 @@ export default function SeasonMatchPage() {
   const [voteResult, setVoteResult] = useState<{ stepNumber: number; votesRemaining: number } | null>(null);
   const [skippedPairKeys, setSkippedPairKeys] = useState<Set<string>>(new Set());
   const [unseenAnimeIds, setUnseenAnimeIds] = useState<Set<string>>(new Set());
+  const voteMutationIdsRef = useRef(new Map<string, string>());
 
   const fetchData = useCallback(async (
     skippedPairs: ReadonlySet<string>,
@@ -147,15 +155,20 @@ export default function SeasonMatchPage() {
         })
       ]);
       setDetail(d);
-      let filtered = filterSeasonQueue(q, skippedPairs, hiddenAnimeIds);
+      const serverHiddenAnimeIds = new Set(d.currentUserState?.hiddenAnimeIds ?? []);
+      const mergedHiddenAnimeIds = new Set([...hiddenAnimeIds, ...serverHiddenAnimeIds]);
+      writeSeasonUnseenAnimeIds(seasonId, mergedHiddenAnimeIds);
+      setUnseenAnimeIds(mergedHiddenAnimeIds);
+
+      let filtered = filterSeasonQueue(q, skippedPairs, mergedHiddenAnimeIds);
       if (filtered.length === 0 && skippedPairs.size > 0) {
         const resetSkippedPairs = new Set<string>();
         const fallbackQueue = await getSeasonMatchQueue(poolId, seasonId, {
           limit: 5,
-          hiddenAnimeIds: [...hiddenAnimeIds]
+          hiddenAnimeIds: [...mergedHiddenAnimeIds]
         });
         setSkippedPairKeys(resetSkippedPairs);
-        filtered = filterSeasonQueue(fallbackQueue, resetSkippedPairs, hiddenAnimeIds);
+        filtered = filterSeasonQueue(fallbackQueue, resetSkippedPairs, mergedHiddenAnimeIds);
       }
       setQueue(filtered);
       setCurrentIndex(0);
@@ -263,16 +276,24 @@ export default function SeasonMatchPage() {
 
   const handleVote = useCallback(async (winnerId: string) => {
     if (!currentPair || submitting) return;
+    const mutationKey = `${seasonMatchPairKey(currentPair)}:${winnerId}:${detail?.mode === "BIAS" && useBias ? "bias" : "normal"}`;
+    const clientMutationId = voteMutationIdsRef.current.get(mutationKey) ?? createVoteMutationId(seasonId);
+    voteMutationIdsRef.current.set(mutationKey, clientMutationId);
     setSubmitting(true);
     try {
       const result = await submitSeasonVote(poolId, seasonId, {
         leftAnimeId: currentPair.left.animeId,
         rightAnimeId: currentPair.right.animeId,
         winnerAnimeId: winnerId,
-        useBiasVote: detail?.mode === "BIAS" && useBias
+        useBiasVote: detail?.mode === "BIAS" && useBias,
+        clientMutationId
       });
+      voteMutationIdsRef.current.delete(mutationKey);
       setVoteResult({ stepNumber: result.stepNumber, votesRemaining: result.votesRemaining });
       setFeedback(winnerId === currentPair.left.animeId ? "LEFT_WIN" : "RIGHT_WIN");
+      const nextSkippedPairKeys = new Set(skippedPairKeys);
+      nextSkippedPairKeys.add(seasonMatchPairKey(currentPair));
+      setSkippedPairKeys(nextSkippedPairKeys);
       setTimeout(() => {
         void (async () => {
           try {
@@ -280,7 +301,7 @@ export default function SeasonMatchPage() {
             const shouldLoadNextBatch = currentIndex >= queue.length - 1;
             if (result.votesRemaining <= 0 || shouldLoadNextBatch) {
               setUseBias(false);
-              await fetchData(skippedPairKeys, unseenAnimeIds);
+              await fetchData(nextSkippedPairKeys, unseenAnimeIds);
             } else {
               setCurrentIndex((prev) => prev + 1);
               setUseBias(false);
@@ -427,7 +448,11 @@ export default function SeasonMatchPage() {
         ) : null}
 
         {voteResult ? (
-          <div className="mt-5 rounded-xl border border-amber-300/20 bg-amber-300/5 px-4 py-2 text-sm text-amber-200">
+          <div
+            role="status"
+            aria-live="polite"
+            className="mt-5 rounded-xl border border-amber-300/20 bg-amber-300/5 px-4 py-2 text-sm text-amber-200"
+          >
             已投票！第 {voteResult.stepNumber} 票 · 剩余 {voteResult.votesRemaining} 票
           </div>
         ) : null}

@@ -34,7 +34,12 @@ export function StatusHint({
   className?: string;
 }) {
   return (
-    <AppCard soft className={[TONE_CLASS[tone], "p-4", className].filter(Boolean).join(" ")}>
+    <AppCard
+      soft
+      role={tone === "warning" ? "alert" : "status"}
+      aria-live={tone === "warning" ? "assertive" : "polite"}
+      className={[TONE_CLASS[tone], "p-4", className].filter(Boolean).join(" ")}
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <AppBadge tone={BADGE_TONE[tone]}>{label}</AppBadge>

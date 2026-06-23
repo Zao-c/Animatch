@@ -14,7 +14,8 @@ export async function POST(
       leftAnimeId: String(body.leftAnimeId ?? ""),
       rightAnimeId: String(body.rightAnimeId ?? ""),
       winnerAnimeId: String(body.winnerAnimeId ?? ""),
-      useBiasVote: body.useBiasVote === true
+      useBiasVote: body.useBiasVote === true,
+      clientMutationId: typeof body.clientMutationId === "string" ? body.clientMutationId : undefined
     });
     return ok(result);
   } catch (error) {

@@ -51,7 +51,7 @@ export function AuthNav() {
     <div className="flex items-center gap-2">
       <Link
         href={user.username ? `/u/${user.username}` : "#"}
-        className="hidden max-w-[120px] truncate rounded-full border border-anime-purple/25 bg-anime-purple/10 px-3 py-2 text-xs font-semibold text-purple-100 transition hover:border-anime-purple/50 hover:bg-anime-purple/20 sm:inline"
+        className="hidden min-h-11 max-w-[120px] items-center truncate rounded-full border border-anime-purple/25 bg-anime-purple/10 px-4 py-2 text-xs font-semibold text-purple-100 transition hover:border-anime-purple/50 hover:bg-anime-purple/20 focus:outline-none focus:ring-2 focus:ring-anime-purple/40 sm:inline-flex"
       >
         {user.name ?? user.username}
       </Link>

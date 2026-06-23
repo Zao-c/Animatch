@@ -408,18 +408,23 @@ export async function previewQuickImportWithRemoteFallback(
   useRemote = true
 ): Promise<QuickImportPreviewResult> {
   const warnings: string[] = [];
-
-  const localResult = await previewQuickImport(params, poolAnimeIds);
   const limit = clampLimit(params.limit);
 
   const shouldPreferRemote =
     params.source === "BANGUMI" || params.mode === "USER_COLLECTION";
+  let localResult: QuickImportPreviewResult | null = null;
+
+  if (!shouldPreferRemote) {
+    localResult = await previewQuickImport(params, poolAnimeIds);
+  }
+
   const shouldFetchRemote =
     useRemote &&
     shouldUseRemote(params) &&
-    (shouldPreferRemote || localResult.candidates.length < limit);
+    (shouldPreferRemote || (localResult?.candidates.length ?? 0) < limit);
 
   if (!shouldFetchRemote) {
+    localResult ??= await previewQuickImport(params, poolAnimeIds);
     return {
       ...localResult,
       remoteFetch: {
@@ -477,6 +482,8 @@ export async function previewQuickImportWithRemoteFallback(
     warnings.push("Bangumi 暂时不可用，已返回本地结果");
     remoteFetchResult.succeeded = false;
   }
+
+  localResult ??= await previewQuickImport(params, poolAnimeIds);
 
   return {
     ...localResult,

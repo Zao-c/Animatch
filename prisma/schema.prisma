@@ -545,9 +545,11 @@ model BattleVote {
   afterWinnerElo    Float?
   beforeLoserElo    Float?
   afterLoserElo     Float?
+  clientMutationId  String?
   createdAt         DateTime       @default(now())
 
   @@unique([seasonId, userId, stepNumber])
+  @@unique([seasonId, userId, clientMutationId])
   @@index([seasonId, userId])
   @@index([seasonId, createdAt])
   @@index([poolId])

@@ -1187,6 +1187,7 @@ export interface CurrentUserState {
   biasVotesUsed: number;
   biasVotesRemaining: number;
   dailyVotesUsed?: number;
+  hiddenAnimeIds: string[];
 }
 
 export interface SeasonDetail {
@@ -1208,6 +1209,7 @@ export interface SeasonDetail {
   ranking: SeasonRankingItem[];
   recentVotes: RecentVoteEntry[];
   currentUserState: CurrentUserState | null;
+  tierRows: TierRowConfig[];
   minSampleThreshold: {
     minUsers: number;
     minComparisons: number;
@@ -1301,6 +1303,7 @@ export function submitSeasonVote(poolId: string, seasonId: string, data: {
   rightAnimeId: string;
   winnerAnimeId: string;
   useBiasVote?: boolean;
+  clientMutationId?: string;
 }) {
   return fetchJson<SeasonVoteResult>("/api/pools/" + poolId + "/seasons/" + seasonId + "/vote", { method: "POST", body: data });
 }

@@ -17,7 +17,11 @@ export function ErrorAlert({
         : "border-rose-300/25 bg-rose-400/10 text-rose-100";
 
   return (
-    <div className={`rounded-2xl border px-4 py-3 text-sm ${toneClass} ${className}`}>
+    <div
+      role={tone === "error" ? "alert" : "status"}
+      aria-live={tone === "error" ? "assertive" : "polite"}
+      className={`rounded-2xl border px-4 py-3 text-sm ${toneClass} ${className}`}
+    >
       {message}
     </div>
   );

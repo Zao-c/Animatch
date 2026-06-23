@@ -104,7 +104,7 @@ export function QuickImportPanel({
   onAdded?: () => void;
 }) {
   const router = useRouter();
-  const [source, setSource] = useState<string>("MIXED");
+  const [source, setSource] = useState<string>("BANGUMI");
   const [mode, setMode] = useState<string>("YEAR");
   const [year, setYear] = useState<string>("2026");
   const [type, setType] = useState<string>("ALL");
@@ -123,6 +123,8 @@ export function QuickImportPanel({
   const [useRemote, setUseRemote] = useState(true);
   const [bangumiUserId, setBangumiUserId] = useState("");
   const [collectionType, setCollectionType] = useState("collect");
+  const remoteRequired = source === "BANGUMI" || mode === "USER_COLLECTION";
+  const effectiveUseRemote = remoteRequired || useRemote;
 
   function toggleTag(tag: string) {
     setSelectedTags((prev) =>
@@ -150,7 +152,7 @@ export function QuickImportPanel({
     setPreview(null);
     setIsLoading(true);
     try {
-      const result = await previewQuickImport({ params: buildParams(), poolId, useRemote });
+      const result = await previewQuickImport({ params: buildParams(), poolId, useRemote: effectiveUseRemote });
       setPreview(result);
       setSelectedIds(new Set(result.candidates.filter((c) => !c.alreadyInPool).map((c) => c.animeId)));
     } catch (reason) {
@@ -255,7 +257,7 @@ export function QuickImportPanel({
               key={preset.label}
               type="button"
               onClick={() => applyPreset(preset)}
-              className="min-h-9 rounded-full border border-anime-purple/25 bg-anime-purple/10 px-3 text-xs font-semibold text-purple-100 transition hover:border-anime-pink/40 hover:bg-anime-pink/12"
+              className="min-h-11 rounded-full border border-anime-purple/25 bg-anime-purple/10 px-4 text-xs font-semibold text-purple-100 transition hover:border-anime-pink/40 hover:bg-anime-pink/12 focus:outline-none focus:ring-2 focus:ring-anime-pink/40"
             >
               {preset.label}
             </button>
@@ -271,10 +273,12 @@ export function QuickImportPanel({
                   key={s.key}
                   type="button"
                   onClick={() => setSource(s.key)}
-                  className={`min-h-8 rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                  disabled={mode === "USER_COLLECTION" && s.key === "MANAMI"}
+                  aria-pressed={source === s.key}
+                  className={`min-h-11 rounded-full border px-4 py-1 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-anime-cyan/40 ${
                     source === s.key
                       ? "border-anime-cyan/50 bg-anime-cyan/12 text-cyan-100"
-                      : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
+                      : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                   }`}
                 >
                   {s.label}
@@ -290,8 +294,12 @@ export function QuickImportPanel({
                 <button
                   key={m.key}
                   type="button"
-                  onClick={() => setMode(m.key)}
-                  className={`min-h-8 rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                  onClick={() => {
+                    setMode(m.key);
+                    if (m.key === "USER_COLLECTION") setSource("BANGUMI");
+                  }}
+                  aria-pressed={mode === m.key}
+                  className={`min-h-11 rounded-full border px-4 py-1 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-anime-pink/40 ${
                     mode === m.key
                       ? "border-anime-pink/50 bg-anime-pink/12 text-pink-100"
                       : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
@@ -325,7 +333,8 @@ export function QuickImportPanel({
                   key={t.key}
                   type="button"
                   onClick={() => setType(t.key)}
-                  className={`min-h-7 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition ${
+                  aria-pressed={type === t.key}
+                  className={`min-h-11 rounded-full border px-3 py-1 text-[11px] font-semibold transition focus:outline-none focus:ring-2 focus:ring-amber-300/40 ${
                     type === t.key
                       ? "border-amber-400/50 bg-amber-400/12 text-amber-100"
                       : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
@@ -345,7 +354,8 @@ export function QuickImportPanel({
                   key={l}
                   type="button"
                   onClick={() => setLimit(l)}
-                  className={`min-h-7 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition ${
+                  aria-pressed={limit === l}
+                  className={`min-h-11 rounded-full border px-3 py-1 text-[11px] font-semibold transition focus:outline-none focus:ring-2 focus:ring-amber-300/40 ${
                     limit === l
                       ? "border-amber-400/50 bg-amber-400/12 text-amber-100"
                       : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
@@ -369,7 +379,8 @@ export function QuickImportPanel({
                     key={tag.key}
                     type="button"
                     onClick={() => toggleTag(tag.key)}
-                    className={`min-h-7 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition ${
+                    aria-pressed={active}
+                    className={`min-h-11 rounded-full border px-3 py-1 text-[11px] font-semibold transition focus:outline-none focus:ring-2 focus:ring-emerald-300/40 ${
                       active
                         ? "border-emerald-400/50 bg-emerald-400/12 text-emerald-100"
                         : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
@@ -391,7 +402,8 @@ export function QuickImportPanel({
                 key={s.key}
                 type="button"
                 onClick={() => setSort(s.key)}
-                className={`min-h-7 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition ${
+                aria-pressed={sort === s.key}
+                className={`min-h-11 rounded-full border px-3 py-1 text-[11px] font-semibold transition focus:outline-none focus:ring-2 focus:ring-amber-300/40 ${
                   sort === s.key
                     ? "border-amber-400/50 bg-amber-400/12 text-amber-100"
                     : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
@@ -407,19 +419,20 @@ export function QuickImportPanel({
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
-              checked={useRemote}
+              checked={effectiveUseRemote}
               onChange={(e) => setUseRemote(e.target.checked)}
+              disabled={remoteRequired}
               className="h-4 w-4 accent-anime-purple"
             />
             <span className="text-xs text-slate-400">
-              本地不足时从 Bangumi 补全
+              {remoteRequired ? "从 Bangumi 实时拉取" : "本地不足时从 Bangumi 补全"}
             </span>
           </label>
           <span className="text-[10px] text-slate-600">
             {source === "MANAMI"
               ? "Manami 仅限本地库"
               : source === "BANGUMI"
-                ? "Bangumi 源会实时按筛选拉取"
+                ? "Bangumi 源会按标签、榜单或用户收藏实时拉取"
                 : "混合模式本地不足时从 Bangumi 补全"}
           </span>
         </div>
@@ -449,7 +462,8 @@ export function QuickImportPanel({
                     key={ct.key}
                     type="button"
                     onClick={() => setCollectionType(ct.key)}
-                    className={`min-h-7 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition ${
+                    aria-pressed={collectionType === ct.key}
+                    className={`min-h-11 rounded-full border px-3 py-1 text-[11px] font-semibold transition focus:outline-none focus:ring-2 focus:ring-anime-purple/40 ${
                       collectionType === ct.key
                         ? "border-anime-purple/50 bg-anime-purple/12 text-purple-100"
                         : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
@@ -515,7 +529,11 @@ export function QuickImportPanel({
 
       {error ? <ErrorAlert message={error} /> : null}
       {resultMessage ? (
-        <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/8 p-3 text-sm text-emerald-100">
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-xl border border-emerald-400/30 bg-emerald-400/8 p-3 text-sm text-emerald-100"
+        >
           {resultMessage}
         </div>
       ) : null}
@@ -540,7 +558,7 @@ export function QuickImportPanel({
               <button
                 type="button"
                 onClick={selectAll}
-                className="text-xs font-semibold text-slate-400 transition hover:text-white"
+                className="min-h-11 rounded-lg px-3 text-xs font-semibold text-slate-400 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-anime-cyan/40"
               >
                 全选
               </button>
@@ -548,7 +566,7 @@ export function QuickImportPanel({
                 <button
                   type="button"
                   onClick={deselectExisting}
-                  className="text-xs font-semibold text-slate-400 transition hover:text-white"
+                  className="min-h-11 rounded-lg px-3 text-xs font-semibold text-slate-400 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-anime-cyan/40"
                 >
                   取消已存在
                 </button>
@@ -563,13 +581,21 @@ export function QuickImportPanel({
               {preview.candidates.map((candidate) => {
                 const selected = selectedIds.has(candidate.animeId);
                 const covUrl = makeCandidateCoverUrl(candidate);
+                const displayTitle = getAnimeDisplayTitle({
+                  title: candidate.title,
+                  titleCn: candidate.titleCn,
+                  titleJa: null,
+                  titleEn: null,
+                } as Parameters<typeof getAnimeDisplayTitle>[0]);
                 return (
                   <button
                     key={candidate.animeId}
                     type="button"
                     onClick={() => toggleCandidate(candidate.animeId)}
                     disabled={candidate.alreadyInPool}
-                    className={`group relative overflow-hidden rounded-xl border text-left transition ${
+                    aria-pressed={selected}
+                    aria-label={`${candidate.alreadyInPool ? "已存在，" : selected ? "已选择，" : "未选择，"}${displayTitle}`}
+                    className={`group relative overflow-hidden rounded-xl border text-left transition focus:outline-none focus:ring-2 focus:ring-anime-cyan/50 ${
                       selected
                         ? "border-anime-cyan/70 ring-1 ring-anime-cyan/40"
                         : candidate.alreadyInPool
@@ -588,12 +614,7 @@ export function QuickImportPanel({
                     </div>
                     <div className="p-2">
                       <p className="truncate text-[11px] font-semibold text-slate-200 group-hover:text-white">
-                        {getAnimeDisplayTitle({
-                          title: candidate.title,
-                          titleCn: candidate.titleCn,
-                          titleJa: null,
-                          titleEn: null,
-                        } as Parameters<typeof getAnimeDisplayTitle>[0])}
+                        {displayTitle}
                       </p>
                       <div className="mt-0.5 flex items-center gap-1.5">
                         {candidate.year ? (

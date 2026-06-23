@@ -1,8 +1,9 @@
 import { prisma } from "./db";
 import { AppError } from "./app-error";
-import { canEditPoolContent } from "./pool-permissions";
+import { canEditPoolContent, canPlayPool, canReadPool } from "./pool-permissions";
 import { getAnimeCoverUrl } from "./anime-cover-url";
 import { updateElo } from "./elo";
+import { resolveTierRows, type PoolTierConfig, type TierRowConfig } from "./tier-config";
 import { Prisma, type BattleSeason, type BattleSeasonMode, type BattleSeasonUserScore } from "@prisma/client";
 
 export type SeasonMode = BattleSeasonMode;
@@ -63,6 +64,7 @@ export interface SeasonDetail {
   ranking: SeasonRankingItem[];
   recentVotes: RecentVoteEntry[];
   currentUserState: CurrentUserState | null;
+  tierRows: TierRowConfig[];
   minSampleThreshold: {
     minUsers: number;
     minComparisons: number;
@@ -104,6 +106,7 @@ export interface CurrentUserState {
   biasVotesUsed: number;
   biasVotesRemaining: number;
   dailyVotesUsed?: number;
+  hiddenAnimeIds: string[];
 }
 
 export interface SeasonMatchQueueItem {
@@ -136,6 +139,7 @@ export interface VoteInput {
   rightAnimeId: string;
   winnerAnimeId: string;
   useBiasVote?: boolean;
+  clientMutationId?: string;
 }
 
 export interface VoteResult {
@@ -145,6 +149,13 @@ export interface VoteResult {
   weight: number;
   votesRemaining: number;
 }
+
+type ExistingBattleVoteResult = {
+  id: string;
+  stepNumber: number;
+  voteType: "NORMAL" | "BIAS";
+  weight: number;
+};
 
 const MAX_VOTE_WRITE_ATTEMPTS = 3;
 const SEASON_PRIOR_RATING = 1500;
@@ -272,6 +283,27 @@ function validateSeasonAccess(season: BattleSeason, now: Date): void {
   }
 }
 
+async function getReadableSeasonPool(poolId: string, userId: string | null) {
+  const pool = await prisma.customPool.findUnique({ where: { id: poolId } });
+  if (!pool || pool.deletedAt) throw new AppError("Pool not found", 404, "POOL_NOT_FOUND");
+  if (!canReadPool(pool, userId ? { id: userId } : null)) {
+    throw new AppError("Forbidden", 403, "FORBIDDEN");
+  }
+  return pool;
+}
+
+async function getPlayableSeasonPool(poolId: string, userId: string) {
+  const pool = await prisma.customPool.findUnique({ where: { id: poolId } });
+  if (!pool || pool.deletedAt) throw new AppError("Pool not found", 404, "POOL_NOT_FOUND");
+  if (pool.status === "ARCHIVED") {
+    throw new AppError("Archived pools cannot accept season votes", 400, "POOL_ARCHIVED");
+  }
+  if (!canPlayPool(pool, { id: userId })) {
+    throw new AppError("Forbidden", 403, "FORBIDDEN");
+  }
+  return pool;
+}
+
 export async function createSeason(
   poolId: string,
   userId: string,
@@ -302,11 +334,7 @@ export async function createSeason(
 }
 
 export async function listSeasons(poolId: string, userId: string | null): Promise<SeasonListItem[]> {
-  const pool = await prisma.customPool.findUnique({
-    where: { id: poolId },
-    select: { creatorId: true, isOfficialDemo: true, allowPublicEdit: true, deletedAt: true }
-  });
-  if (!pool || pool.deletedAt) throw new AppError("Pool not found", 404, "POOL_NOT_FOUND");
+  await getReadableSeasonPool(poolId, userId);
 
   const seasons = await prisma.battleSeason.findMany({
     where: { poolId },
@@ -352,6 +380,8 @@ export async function getSeasonDetail(
   seasonId: string,
   userId: string | null
 ): Promise<SeasonDetail> {
+  const pool = await getReadableSeasonPool(poolId, userId);
+
   const season = await prisma.battleSeason.findFirst({
     where: { id: seasonId, poolId }
   });
@@ -414,6 +444,10 @@ export async function getSeasonDetail(
     const biasUsed = await prisma.battleVote.count({
       where: { seasonId, userId, voteType: "BIAS" }
     });
+    const hiddenRows = await prisma.battleSeasonUserScore.findMany({
+      where: { seasonId, userId, isHidden: true },
+      select: { animeId: true }
+    });
 
     let dailyUsed: number | undefined = undefined;
     if (season.maxVotesPerUserPerDay) {
@@ -435,7 +469,8 @@ export async function getSeasonDetail(
       votesRemaining: Math.max(0, season.maxVotesPerUser - userVotes),
       biasVotesUsed: biasUsed,
       biasVotesRemaining: Math.max(0, season.biasVotesPerUser - biasUsed),
-      dailyVotesUsed: dailyUsed
+      dailyVotesUsed: dailyUsed,
+      hiddenAnimeIds: hiddenRows.map((row) => row.animeId)
     };
   }
 
@@ -458,6 +493,7 @@ export async function getSeasonDetail(
     ranking,
     recentVotes,
     currentUserState,
+    tierRows: resolveTierRows(pool.tierConfig as PoolTierConfig | null),
     minSampleThreshold: {
       minUsers: SEASON_MIN_USERS,
       minComparisons: SEASON_MIN_COMPARISONS
@@ -600,6 +636,8 @@ export async function getSeasonMatchQueue(
   userId: string,
   options: SeasonMatchQueueOptions = {}
 ): Promise<SeasonMatchQueueItem[]> {
+  await getPlayableSeasonPool(poolId, userId);
+
   const season = await prisma.battleSeason.findFirst({
     where: { id: seasonId, poolId }
   });
@@ -921,6 +959,8 @@ export async function setSeasonAnimeHidden(
   animeIds: string[],
   isHidden: boolean
 ): Promise<{ hiddenAnimeIds: string[] }> {
+  await getPlayableSeasonPool(poolId, userId);
+
   const season = await prisma.battleSeason.findFirst({
     where: { id: seasonId, poolId }
   });
@@ -961,12 +1001,41 @@ export async function setSeasonAnimeHidden(
   return { hiddenAnimeIds: hiddenRows.map((row) => row.animeId) };
 }
 
+function toVoteResult(vote: ExistingBattleVoteResult, maxVotesPerUser: number): VoteResult {
+  return {
+    id: vote.id,
+    stepNumber: vote.stepNumber,
+    voteType: vote.voteType,
+    weight: vote.weight,
+    votesRemaining: Math.max(0, maxVotesPerUser - vote.stepNumber)
+  };
+}
+
+async function findExistingBattleVoteResult(
+  tx: SeasonTx,
+  seasonId: string,
+  userId: string,
+  clientMutationId: string
+): Promise<ExistingBattleVoteResult | null> {
+  return tx.battleVote.findFirst({
+    where: { seasonId, userId, clientMutationId },
+    select: {
+      id: true,
+      stepNumber: true,
+      voteType: true,
+      weight: true
+    }
+  });
+}
+
 export async function submitVote(
   poolId: string,
   seasonId: string,
   userId: string,
   input: VoteInput
 ): Promise<VoteResult> {
+  await getPlayableSeasonPool(poolId, userId);
+
   const season = await prisma.battleSeason.findFirst({
     where: { id: seasonId, poolId }
   });
@@ -1000,6 +1069,13 @@ export async function submitVote(
     try {
       return await prisma.$transaction(
         async (tx) => {
+          if (input.clientMutationId) {
+            const existingVote = await findExistingBattleVoteResult(tx, seasonId, userId, input.clientMutationId);
+            if (existingVote) {
+              return toVoteResult(existingVote, season.maxVotesPerUser);
+            }
+          }
+
           const userVotes = await tx.battleVote.count({ where: { seasonId, userId } });
 
           if (userVotes >= season.maxVotesPerUser) {
@@ -1033,6 +1109,9 @@ export async function submitVote(
           const rightScore = scores.find((score) => score.animeId === input.rightAnimeId);
           if (!leftScore || !rightScore) {
             throw new AppError("Anime is not in this pool", 400, "ANIME_NOT_IN_POOL");
+          }
+          if (leftScore.isHidden || rightScore.isHidden) {
+            throw new AppError("Hidden anime cannot be voted", 400, "ANIME_HIDDEN");
           }
 
           const leftWon = input.winnerAnimeId === input.leftAnimeId;
@@ -1076,6 +1155,7 @@ export async function submitVote(
               afterWinnerElo: winnerAfterElo,
               beforeLoserElo: loserBeforeElo,
               afterLoserElo: loserAfterElo,
+              clientMutationId: input.clientMutationId ?? null,
               createdAt: votedAt
             }
           });
@@ -1130,6 +1210,20 @@ export async function submitVote(
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
       );
     } catch (error) {
+      if (isClientMutationConflict(error) && input.clientMutationId) {
+        const existingVote = await prisma.battleVote.findFirst({
+          where: { seasonId, userId, clientMutationId: input.clientMutationId },
+          select: {
+            id: true,
+            stepNumber: true,
+            voteType: true,
+            weight: true
+          }
+        });
+        if (existingVote) {
+          return toVoteResult(existingVote, season.maxVotesPerUser);
+        }
+      }
       if (isRetryableVoteWriteError(error) && attempt < MAX_VOTE_WRITE_ATTEMPTS) {
         continue;
       }
@@ -1148,6 +1242,14 @@ function isRetryableVoteWriteError(error: unknown): boolean {
     error instanceof Prisma.PrismaClientKnownRequestError &&
     (error.code === "P2002" || error.code === "P2034")
   );
+}
+
+function isClientMutationConflict(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
+    return false;
+  }
+  const target = error.meta?.target;
+  return Array.isArray(target) && target.includes("clientMutationId");
 }
 
 export async function updateSeason(

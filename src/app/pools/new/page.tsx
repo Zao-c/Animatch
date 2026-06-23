@@ -83,7 +83,7 @@ export default function NewPoolPage() {
                   key={chip}
                   type="button"
                   onClick={() => applyNameChip(chip)}
-                  className="min-h-9 rounded-full border border-anime-purple/25 bg-anime-purple/10 px-3 text-xs font-semibold text-purple-100 transition hover:border-anime-pink/40 hover:bg-anime-pink/12"
+                  className="min-h-11 rounded-full border border-anime-purple/25 bg-anime-purple/10 px-4 text-xs font-semibold text-purple-100 transition hover:border-anime-pink/40 hover:bg-anime-pink/12 focus:outline-none focus:ring-2 focus:ring-anime-pink/40"
                 >
                   {chip}
                 </button>

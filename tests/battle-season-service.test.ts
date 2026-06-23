@@ -15,6 +15,8 @@ describe("BattleSeason Prisma schema", () => {
     expect(source).toContain("model BattleSeason");
     expect(source).toContain("model BattleVote");
     expect(source).toContain("@@unique([seasonId, userId, stepNumber])");
+    expect(source).toContain("clientMutationId");
+    expect(source).toContain("@@unique([seasonId, userId, clientMutationId])");
   });
 
   it("adds per-user season Elo scores", () => {
@@ -41,6 +43,10 @@ describe("Season service permissions and limits", () => {
 
   it("keeps editor and manager permission checks", () => {
     expect(source).toContain("canEditPoolContent");
+    expect(source).toContain("canReadPool");
+    expect(source).toContain("canPlayPool");
+    expect(source).toContain("getReadableSeasonPool");
+    expect(source).toContain("getPlayableSeasonPool");
     expect(source).toContain("FORBIDDEN");
     expect(source).toContain("POOL_ARCHIVED");
     expect(source).toContain("SEASON_ALREADY_ACTIVE");
@@ -50,6 +56,9 @@ describe("Season service permissions and limits", () => {
   it("keeps vote limit checks inside the serializable write path", () => {
     expect(source).toContain("MAX_VOTE_WRITE_ATTEMPTS");
     expect(source).toContain("Prisma.TransactionIsolationLevel.Serializable");
+    expect(source).toContain("findExistingBattleVoteResult");
+    expect(source).toContain("toVoteResult(existingVote, season.maxVotesPerUser)");
+    expect(source).toContain("isClientMutationConflict");
     expect(source).toContain("VOTE_LIMIT_REACHED");
     expect(source).toContain("DAILY_VOTE_LIMIT_REACHED");
     expect(source).toContain("BIAS_VOTES_EXHAUSTED");
@@ -59,6 +68,7 @@ describe("Season service permissions and limits", () => {
   it("still records one BattleVote per user step", () => {
     expect(source).toContain("const stepNumber = userVotes + 1");
     expect(source).toContain("tx.battleVote.create");
+    expect(source).toContain("clientMutationId: input.clientMutationId ?? null");
     expect(source).toContain("votesRemaining");
   });
 });
@@ -142,6 +152,8 @@ describe("Season match queue", () => {
     expect(source).toContain("excludePairKeys");
     expect(source).toContain("hiddenAnimeIds");
     expect(source).toContain("setSeasonAnimeHidden");
+    expect(source).toContain("ANIME_HIDDEN");
+    expect(source).toContain("Hidden anime cannot be voted");
   });
 });
 
@@ -164,7 +176,10 @@ describe("Season APIs and client functions", () => {
     expect(source).toContain("export function getSeasonMatchQueue");
     expect(source).toContain("export function submitSeasonVote");
     expect(source).toContain("export function setSeasonAnimeHidden");
+    expect(source).toContain("clientMutationId?: string");
     expect(source).toContain("minSampleThreshold");
+    expect(source).toContain("hiddenAnimeIds: string[]");
+    expect(source).toContain("tierRows: TierRowConfig[]");
   });
 });
 
@@ -172,6 +187,7 @@ describe("Season pages", () => {
   it("detail page exposes shared ranking and shared tierlist views", () => {
     const source = readSource("src/app/pools/[poolId]/seasons/[seasonId]/page.tsx");
     expect(source).toContain("buildSeasonTierBuckets");
+    expect(source).toContain("detail?.tierRows ?? DEFAULT_TIER_CONFIG.rows");
     expect(source).toContain("SeasonSharedTierList");
     expect(source).toContain("insufficientSample");
   });
@@ -182,6 +198,10 @@ describe("Season pages", () => {
     expect(source).toContain("hiddenAnimeIds");
     expect(source).toContain("setSeasonAnimeHidden");
     expect(source).toContain("handleMarkUnseen");
+    expect(source).toContain("createVoteMutationId");
+    expect(source).toContain("clientMutationId");
+    expect(source).toContain("serverHiddenAnimeIds");
+    expect(source).toContain("nextSkippedPairKeys.add(seasonMatchPairKey(currentPair))");
   });
 });
 
@@ -199,5 +219,11 @@ describe("Season migrations", () => {
     expect(scoreSource).toContain('"beforeWinnerElo"');
     expect(scoreSource).toContain('"afterLoserElo"');
     expect(scoreSource).toContain('"BattleSeasonUserScore_seasonId_userId_animeId_key"');
+  });
+
+  it("adds season vote idempotency migration", () => {
+    const idempotencySource = readSource("prisma/migrations/20260624000000_add_battle_vote_client_mutation_id/migration.sql");
+    expect(idempotencySource).toContain('ADD COLUMN "clientMutationId" TEXT');
+    expect(idempotencySource).toContain('"BattleVote_seasonId_userId_clientMutationId_key"');
   });
 });

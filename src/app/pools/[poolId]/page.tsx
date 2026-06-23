@@ -2101,6 +2101,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                     <input
                       value={bangumiKeyword}
                       onChange={(event) => setBangumiKeyword(event.target.value)}
+                      aria-label="Bangumi keyword"
                       placeholder="输入 Bangumi 关键词"
                       className="anime-field min-w-0 flex-1"
                     />
@@ -2109,9 +2110,14 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                       disabled={isBangumiSearching || bangumiKeyword.trim().length < 2}
                       variant="primary"
                     >
-                      搜索
+                      {isBangumiSearching ? "搜索中..." : "搜索"}
                     </AppButton>
                   </form>
+                  {isBangumiSearching ? (
+                    <p role="status" aria-live="polite" className="text-xs text-slate-500">
+                      正在搜索 Bangumi...
+                    </p>
+                  ) : null}
                   {bangumiSearched && !isBangumiSearching && bangumiResults.length === 0 ? (
                     <StatusHint
                       label="无结果"
@@ -2120,7 +2126,12 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                       tone="warning"
                     />
                   ) : null}
-                  <div className="grid gap-3">
+                  <div
+                    className="grid gap-3"
+                    role="status"
+                    aria-live="polite"
+                    aria-busy={isBangumiSearching}
+                  >
                     {visibleBangumiResults.map((item) => {
                       const alreadyJoined = joinedBangumiIds.has(item.bangumiId);
 
@@ -2866,8 +2877,9 @@ function PoolAnimeCard({
       />
       {batchMode ? (
         <label
+          aria-label={`${isBatchSelected ? "取消选择" : "选择"} ${title}`}
           className={
-            "absolute right-2 top-2 flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border-2 " +
+            "absolute right-2 top-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg border-2 transition focus-within:ring-2 focus-within:ring-cyan-300/60 " +
             (isBatchSelected
               ? "border-cyan-400 bg-cyan-400/30"
               : "border-white/40 bg-slate-950/60")

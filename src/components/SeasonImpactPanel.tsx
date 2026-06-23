@@ -98,7 +98,7 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
         </div>
       )}
 
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="mt-5 flex flex-wrap gap-2" role="tablist" aria-label="Season impact views">
         {(
           [
             ["players", "玩家影响力"],
@@ -110,8 +110,10 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
           <button
             key={key}
             type="button"
+            role="tab"
+            aria-selected={tab === key}
             onClick={() => setTab(key)}
-            className={`min-h-8 rounded-full border px-3 py-1 text-xs font-semibold transition ${
+            className={`min-h-11 rounded-full border px-4 py-1 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-anime-purple/40 ${
               tab === key
                 ? "border-anime-purple/50 bg-anime-purple/12 text-purple-100"
                 : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"

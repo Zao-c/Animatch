@@ -13,7 +13,7 @@ export function AppShell({
   return (
     <div className="anime-shell min-h-screen text-slate-50">
       <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/50 backdrop-blur-2xl">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <Link href="/" className="group flex items-center gap-3" aria-label="AniMatch home">
             <span className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-anime-pink/30 bg-slate-950 shadow-[0_16px_42px_rgba(255,122,182,0.14)] transition duration-anime group-hover:border-anime-cyan/40 group-hover:shadow-anime-focus">
               <Image
@@ -35,7 +35,7 @@ export function AppShell({
               </span>
             </span>
           </Link>
-          <nav className="flex items-center gap-2 text-sm text-slate-300">
+          <nav className="flex w-full flex-wrap items-center gap-2 text-sm text-slate-300 sm:w-auto sm:justify-end">
             <NavLink href="/pools/new">创建番组</NavLink>
             <NavLink href="/pools">我的番组</NavLink>
             <AuthNav />

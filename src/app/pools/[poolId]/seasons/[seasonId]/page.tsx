@@ -114,8 +114,8 @@ export default function SeasonDetailPage() {
   };
 
   const seasonTierBuckets = useMemo(
-    () => buildSeasonTierBuckets(detail?.ranking ?? []),
-    [detail?.ranking]
+    () => buildSeasonTierBuckets(detail?.ranking ?? [], detail?.tierRows ?? DEFAULT_TIER_CONFIG.rows),
+    [detail?.ranking, detail?.tierRows]
   );
 
   if (loading) return <PageShell><main className="mx-auto max-w-4xl px-4 py-8"><SeasonSkeleton /></main></PageShell>;

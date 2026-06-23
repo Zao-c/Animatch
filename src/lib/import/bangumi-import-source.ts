@@ -8,6 +8,11 @@ import {
   normalizeBangumiSubject,
   type NormalizedBangumiSubject,
 } from "@/lib/bangumi";
+import {
+  expandTagQuery,
+  matchTagAliases,
+  normalizeTagKey
+} from "@/lib/anime-tag-dictionary";
 import type { QuickImportParams } from "./quick-pool-builder";
 
 export interface RemoteFetchResult {
@@ -28,7 +33,7 @@ function isProtectedAnimeSource(source: string): boolean {
 }
 
 export function shouldUseRemote(params: QuickImportParams): boolean {
-  return params.source === "BANGUMI" || params.source === "MIXED";
+  return params.source === "BANGUMI" || params.source === "MIXED" || params.mode === "USER_COLLECTION";
 }
 
 function clampLimit(limit: number | undefined): number {
@@ -150,31 +155,35 @@ async function fetchByTags(
   for (const tag of tags.slice(0, 3)) {
     if (allSubjectsMap.size >= fetchTarget) break;
 
-    try {
-      const url = `${BANGUMI_BASE_URL}/search/subjects?limit=30`;
-      const body = buildSearchBody({ ...params, tags: [tag], mode: "TAG" }, "TAG");
-      const response = await bangumiRequest(url, {
-        method: "POST",
-        headers: buildHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify(body)
-      });
+    for (const queryTag of getBangumiTagQueryVariants(tag).slice(0, 4)) {
+      if (allSubjectsMap.size >= fetchTarget) break;
 
-      if (!response.ok) continue;
+      try {
+        const url = `${BANGUMI_BASE_URL}/search/subjects?limit=30`;
+        const body = buildSearchBody({ ...params, tags: [queryTag], mode: "TAG" }, "TAG");
+        const response = await bangumiRequest(url, {
+          method: "POST",
+          headers: buildHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify(body)
+        });
 
-      const payload = await response.json<{ data?: unknown[] }>();
-      const rawItems = Array.isArray(payload.data) ? payload.data : [];
-      for (const item of rawItems) {
-        try {
-          const subj = normalizeBangumiSubject(item);
-          if (!allSubjectsMap.has(subj.bgmId)) {
-            allSubjectsMap.set(subj.bgmId, subj);
+        if (!response.ok) continue;
+
+        const payload = await response.json<{ data?: unknown[] }>();
+        const rawItems = Array.isArray(payload.data) ? payload.data : [];
+        for (const item of rawItems) {
+          try {
+            const subj = normalizeBangumiSubject(item);
+            if (!allSubjectsMap.has(subj.bgmId)) {
+              allSubjectsMap.set(subj.bgmId, subj);
+            }
+          } catch {
+            continue;
           }
-        } catch {
-          continue;
         }
+      } catch {
+        continue;
       }
-    } catch {
-      continue;
     }
   }
 
@@ -201,10 +210,8 @@ function filterAndSortCandidates(
   }
 
   if (params.tags && params.tags.length > 0) {
-    const expectedTags = params.tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean);
     filtered = filtered.filter((subject) => {
-      const subjectTags = new Set(subject.tags.map((tag) => tag.trim().toLowerCase()));
-      return expectedTags.every((tag) => subjectTags.has(tag));
+      return params.tags!.every((tag) => subjectMatchesSelectedTag(subject, tag));
     });
   }
 
@@ -222,6 +229,45 @@ function filterAndSortCandidates(
 
   const limit = clampLimit(params.limit);
   return filtered.slice(0, limit);
+}
+
+export function getBangumiTagQueryVariants(tag: string): string[] {
+  const values = expandTagQuery(tag);
+  const direct = tag.trim();
+  const variants = direct ? [direct, ...values] : values;
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const value of variants) {
+    const normalized = normalizeTagKey(value);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    result.push(value);
+  }
+
+  return result;
+}
+
+export function subjectMatchesSelectedTag(
+  subject: Pick<NormalizedBangumiSubject, "tags">,
+  selectedTag: string
+): boolean {
+  const selectedCanonical = matchTagAliases(selectedTag) ?? normalizeTagKey(selectedTag);
+  const selectedVariants = new Set(
+    getBangumiTagQueryVariants(selectedTag).map((tag) => normalizeTagKey(tag))
+  );
+
+  for (const subjectTag of subject.tags) {
+    const subjectCanonical = matchTagAliases(subjectTag);
+    if (subjectCanonical !== null && subjectCanonical === selectedCanonical) {
+      return true;
+    }
+    if (selectedVariants.has(normalizeTagKey(subjectTag))) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 async function fetchUserCollections(
