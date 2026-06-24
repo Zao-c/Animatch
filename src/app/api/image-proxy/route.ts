@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
+import { getDispatcher } from "@/lib/server/outbound-fetch";
 
 export const runtime = "nodejs";
 
@@ -29,7 +30,12 @@ const pendingBgRefetch = new Set<string>();
 
 async function bgRefetch(sourceUrl: string, cacheKey: string, headers: Record<string, string>): Promise<void> {
   try {
-    const resp = await fetch(sourceUrl, { headers, signal: AbortSignal.timeout(15000) });
+    const dispatcher = await getDispatcher(sourceUrl).catch(() => undefined);
+    const fetchOptions: RequestInit & { dispatcher?: unknown } = { headers, signal: AbortSignal.timeout(15000) };
+    if (dispatcher !== undefined) {
+      fetchOptions.dispatcher = dispatcher;
+    }
+    const resp = await fetch(sourceUrl, fetchOptions);
     if (!resp.ok) return;
     const buf = Buffer.from(await resp.arrayBuffer());
     if (buf.byteLength > MAX_SIZE || buf.byteLength === 0) return;
@@ -197,10 +203,15 @@ export async function GET(request: Request) {
     const ctrlTimeoutId = attempt === 1 ? timeoutId : setTimeout(() => ctrl.abort(), TIMEOUT_MS);
 
     try {
-      response = await fetch(parsed.toString(), {
+      const dispatcher = await getDispatcher(parsed.toString()).catch(() => undefined);
+      const fetchOptions: RequestInit & { dispatcher?: unknown } = {
         signal: ctrl.signal,
         headers,
-      });
+      };
+      if (dispatcher !== undefined) {
+        fetchOptions.dispatcher = dispatcher;
+      }
+      response = await fetch(parsed.toString(), fetchOptions);
     } catch (error) {
       clearTimeout(ctrlTimeoutId);
       lastError = error;

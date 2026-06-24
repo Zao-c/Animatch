@@ -48,7 +48,7 @@ function isLoopback(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]";
 }
 
-async function getDispatcher(targetUrl: string): Promise<unknown | undefined> {
+export async function getDispatcher(targetUrl: string): Promise<unknown | undefined> {
   const proxyUrl = resolveProxyUrl();
   if (!proxyUrl) return undefined;
 
