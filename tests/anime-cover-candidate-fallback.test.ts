@@ -7,24 +7,17 @@ import { AnimeCover } from "../src/components/AnimeCover";
 describe("AnimeCover candidate priority queue", () => {
   const source = readFileSync("src/components/AnimeCover.tsx", "utf8");
 
-  it("builds candidate queue: proxy primary before raw primary", () => {
-    expect(source).toContain("proxyExternalImageUrl(rawPrimary)");
-    const candidateArray = source.slice(source.indexOf("const values = ["));
-    const proxyIdx = candidateArray.indexOf("proxyExternalImageUrl(rawPrimary)");
-    const rawPrimaryIdx = candidateArray.indexOf("rawPrimary,");
-    expect(proxyIdx).toBeLessThan(rawPrimaryIdx);
+  it("builds candidate queue through the proxy-only helper", () => {
+    expect(source).toContain("getProxiedCoverCandidates(rawPrimary, rawSecondary)");
   });
 
-  it("builds candidate queue: proxy secondary before raw secondary", () => {
-    const candidateArray = source.slice(source.indexOf("const values = ["));
-    const proxySecIdx = candidateArray.indexOf("proxyExternalImageUrl(rawSecondary)");
-    const rawSecIdx = candidateArray.indexOf("rawSecondary", proxySecIdx + 1);
-    expect(proxySecIdx).toBeLessThan(rawSecIdx);
+  it("does not fall back to direct remote URLs in the component queue", () => {
+    expect(source).not.toContain("proxyExternalImageUrl(rawPrimary)");
+    expect(source).not.toContain("proxyExternalImageUrl(rawSecondary)");
   });
 
   it("deduplicates candidate URLs", () => {
-    expect(source).toContain("const seen = new Set");
-    expect(source).toContain("if (seen.has(value)) return []");
+    expect(source).toContain("getProxiedCoverCandidates");
   });
 
   it("resets state on src change via useEffect dependency array", () => {
@@ -83,9 +76,9 @@ describe("AnimeCover candidate priority queue", () => {
   });
 
   it("does not produce empty src attributes", () => {
-    expect(source).toContain("const values = [");
     expect(source).toContain("const rawPrimary = normalizeImageUrl(primary)");
     expect(source).toContain("normalizeImageUrl");
+    expect(source).toContain("getProxiedCoverCandidates(rawPrimary, rawSecondary)");
     const html = renderToStaticMarkup(
       React.createElement(AnimeCover, {
         src: null,
@@ -97,7 +90,7 @@ describe("AnimeCover candidate priority queue", () => {
   });
 
   it("proxyExternalImageUrl and warmImageProxyCache are imported from image-proxy", () => {
-    expect(source).toContain("proxyExternalImageUrl");
+    expect(source).toContain("getProxiedCoverCandidates");
     expect(source).toContain('from "@/lib/image-proxy"');
   });
 });

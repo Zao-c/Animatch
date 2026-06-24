@@ -9,7 +9,7 @@ import { AppCard } from "@/components/ui/AppCard";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
-import { getAnimeDisplayTitle } from "@/lib/anime-display";
+import { getAnimeDisplayTitle, getAnimeImageFitMode } from "@/lib/anime-display";
 import {
   addQuickImportToPool,
   createPoolFromQuickImport,
@@ -581,12 +581,15 @@ export function QuickImportPanel({
               {preview.candidates.map((candidate) => {
                 const selected = selectedIds.has(candidate.animeId);
                 const covUrl = makeCandidateCoverUrl(candidate);
+                const candidateAnime = makeAnimeForCover(candidate);
                 const displayTitle = getAnimeDisplayTitle({
+                  ...candidateAnime,
                   title: candidate.title,
                   titleCn: candidate.titleCn,
                   titleJa: null,
                   titleEn: null,
                 } as Parameters<typeof getAnimeDisplayTitle>[0]);
+                const coverFit = getAnimeImageFitMode({ source: candidate.source });
                 return (
                   <button
                     key={candidate.animeId}
@@ -609,7 +612,7 @@ export function QuickImportPanel({
                         src={covUrl}
                         title={candidate.titleCn ?? candidate.title}
                         size="lg"
-                        fit="cover"
+                        fit={coverFit}
                       />
                     </div>
                     <div className="p-2">

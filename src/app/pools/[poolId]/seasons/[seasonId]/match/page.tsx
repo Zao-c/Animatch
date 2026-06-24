@@ -9,7 +9,7 @@ import { AppButton } from "@/components/ui/AppButton";
 import { PageShell } from "@/components/PageShell";
 import { AnimeCover } from "@/components/AnimeCover";
 import { getSeasonDetail, getSeasonMatchQueue, setSeasonAnimeHidden, submitSeasonVote } from "@/lib/client-api";
-import { getAnimeDisplayTitle } from "@/lib/anime-display";
+import { getAnimeDisplayTitle, getAnimeImageFitMode } from "@/lib/anime-display";
 import type { SeasonDetail, SeasonMatchQueueItem, SeasonAnimeEntry } from "@/lib/client-api";
 
 function SeasonDuelCard({
@@ -26,6 +26,7 @@ function SeasonDuelCard({
   const title = getAnimeDisplayTitle(anime);
   const coverUrl = anime.imageMediumUrl ?? anime.imageUrl;
   const secondarySrc = anime.imageLargeUrl ?? anime.imageSmallUrl ?? anime.thumbnailUrl ?? anime.imageUrl;
+  const coverFit = getAnimeImageFitMode(anime);
 
   return (
     <button
@@ -45,7 +46,7 @@ function SeasonDuelCard({
           secondarySrc={secondarySrc}
           title={title}
           size="lg"
-          fit="cover"
+          fit={coverFit}
           animeId={anime.animeId}
           className="h-full w-full rounded-none border-0"
         />

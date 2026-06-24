@@ -160,10 +160,10 @@ describe("anime display helpers", () => {
     ).toBe("Miku");
   });
 
-  it("keeps user image sources on the contain cover strategy", () => {
+  it("keeps image-focused and Bangumi sources on the contain cover strategy", () => {
     expect(shouldUseContainCover({ source: "TIERMAKER_IMPORT" })).toBe(true);
     expect(shouldUseContainCover({ source: "CUSTOM_UPLOAD" })).toBe(true);
-    expect(shouldUseContainCover({ source: "BANGUMI" })).toBe(false);
+    expect(shouldUseContainCover({ source: "BANGUMI" })).toBe(true);
   });
 
   it("does not repeat noisy titles as subtitles", () => {

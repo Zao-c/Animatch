@@ -47,9 +47,7 @@ export function getProxiedCoverCandidates(
 ): string[] {
   const values = [
     proxyExternalImageUrl(primary),
-    proxyExternalImageUrl(secondary),
-    primary,
-    secondary
+    proxyExternalImageUrl(secondary)
   ];
 
   const seen = new Set<string>();

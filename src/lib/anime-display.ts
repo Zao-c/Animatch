@@ -165,7 +165,7 @@ export function getAnimeDisplaySubtitle(anime: AnimeDisplaySource): string | nul
 }
 
 export function shouldUseContainCover(anime: AnimeDisplaySource): boolean {
-  return isUserGeneratedImageSource(anime.source);
+  return isUserGeneratedImageSource(anime.source) || anime.source === "BANGUMI";
 }
 
 export function getAnimeImageFitMode(anime: AnimeDisplaySource): "cover" | "contain" {

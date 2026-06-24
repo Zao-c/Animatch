@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import React, { useEffect, useMemo, useState } from "react";
-import { proxyExternalImageUrl, warmImageProxyCache } from "@/lib/image-proxy";
+import { getProxiedCoverCandidates, warmImageProxyCache } from "@/lib/image-proxy";
 
 const SIZE_CLASS = {
   sm: "h-20 w-14",
@@ -138,20 +138,7 @@ function buildImageCandidates(
 ): string[] {
   const rawPrimary = normalizeImageUrl(primary);
   const rawSecondary = normalizeImageUrl(secondary);
-  const values = [
-    proxyExternalImageUrl(rawPrimary),
-    proxyExternalImageUrl(rawSecondary),
-    rawPrimary,
-    rawSecondary
-  ];
-  const seen = new Set<string>();
-
-  return values.flatMap((value) => {
-    if (value === null) return [];
-    if (seen.has(value)) return [];
-    seen.add(value);
-    return [value];
-  });
+  return getProxiedCoverCandidates(rawPrimary, rawSecondary);
 }
 
 function normalizeImageUrl(value: string | null | undefined): string | null {

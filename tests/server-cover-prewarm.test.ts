@@ -65,16 +65,14 @@ describe("getProxiedCoverCandidates in image-proxy.ts", () => {
     expect(source).toContain("export function getProxiedCoverCandidates");
   });
 
-  it("returns proxy primary first, then proxy secondary, then raw primary, then raw secondary", () => {
+  it("returns proxy primary first, then proxy secondary without direct raw remote fallbacks", () => {
     const slice = source.slice(source.indexOf("const values = ["));
     const proxyPrimaryIdx = slice.indexOf("proxyExternalImageUrl(primary)");
     const proxySecondaryIdx = slice.indexOf("proxyExternalImageUrl(secondary)");
-    const rawPrimaryIdx = slice.indexOf("primary,", proxySecondaryIdx + 1);
-    const rawSecondaryIdx = slice.indexOf("secondary", rawPrimaryIdx + 1);
 
     expect(proxyPrimaryIdx).toBeLessThan(proxySecondaryIdx);
-    expect(proxySecondaryIdx).toBeLessThan(rawPrimaryIdx);
-    expect(rawPrimaryIdx).toBeLessThan(rawSecondaryIdx);
+    expect(slice).not.toContain("primary,");
+    expect(slice).not.toContain("secondary\n");
   });
 
   it("deduplicates results via Set", () => {

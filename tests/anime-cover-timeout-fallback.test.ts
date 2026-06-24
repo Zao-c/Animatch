@@ -82,36 +82,22 @@ describe("AnimeCover timeout fallback", () => {
 describe("AnimeCover candidate order", () => {
   const source = readFileSync("src/components/AnimeCover.tsx", "utf8");
 
-  it("places proxy primary before raw primary", () => {
-    const candidateArray = source.slice(source.indexOf("const values = ["));
-    const proxyPrimaryIdx = candidateArray.indexOf("proxyExternalImageUrl(rawPrimary)");
-    const rawPrimaryIdx = candidateArray.indexOf("rawPrimary,");
-    expect(proxyPrimaryIdx).toBeLessThan(rawPrimaryIdx);
+  it("uses the shared proxy-only candidate helper", () => {
+    expect(source).toContain("getProxiedCoverCandidates(rawPrimary, rawSecondary)");
   });
 
-  it("places proxy secondary before raw secondary", () => {
-    const candidateArray = source.slice(source.indexOf("const values = ["));
-    const proxySecIdx = candidateArray.indexOf("proxyExternalImageUrl(rawSecondary)");
-    const rawSecIdx = candidateArray.indexOf("rawSecondary", proxySecIdx + 1);
-    expect(proxySecIdx).toBeLessThan(rawSecIdx);
+  it("does not add direct raw remote URLs after proxy candidates", () => {
+    expect(source).not.toContain("proxyExternalImageUrl(rawPrimary)");
+    expect(source).not.toContain("proxyExternalImageUrl(rawSecondary)");
   });
 
   it("does NOT place raw primary before proxy primary", () => {
-    const proxyPrimaryIdx = source.indexOf("proxyExternalImageUrl(rawPrimary)");
-    const rawPrimaryIdx = source.indexOf("rawPrimary,");
-    expect(proxyPrimaryIdx).toBeLessThan(rawPrimaryIdx);
+    expect(source).not.toContain("proxyExternalImageUrl(rawPrimary)");
   });
 
-  it("candidate order in values array matches: proxy-primary, proxy-secondary, raw-primary, raw-secondary", () => {
-    const fragment = source.slice(source.indexOf("const values = ["));
-    const proxyPrimIdx = fragment.indexOf("proxyExternalImageUrl(rawPrimary)");
-    const proxySecIdx = fragment.indexOf("proxyExternalImageUrl(rawSecondary)");
-    const rawPrimIdx = fragment.indexOf("rawPrimary,");
-    const rawSecIdx = fragment.lastIndexOf("rawSecondary");
-
-    expect(proxyPrimIdx).toBeLessThan(proxySecIdx);
-    expect(proxySecIdx).toBeLessThan(rawPrimIdx);
-    expect(rawPrimIdx).toBeLessThan(rawSecIdx);
+  it("candidate order no longer includes raw remote fallbacks", () => {
+    expect(source).toContain("getProxiedCoverCandidates");
+    expect(source).not.toContain("const values = [");
   });
 });
 
@@ -128,8 +114,9 @@ describe("AnimeCover existing fallback not degraded", () => {
   });
 
   it("still has candidate deduplication", () => {
-    expect(source).toContain("const seen = new Set");
-    expect(source).toContain("seen.has(value)");
+    const helperSource = readFileSync("src/lib/image-proxy.ts", "utf8");
+    expect(helperSource).toContain("const seen = new Set");
+    expect(helperSource).toContain("seen.has(url)");
   });
 
   it("still has onError advance-to-next-candidate logic", () => {

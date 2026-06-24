@@ -187,7 +187,7 @@ describe("anime cover rendering", () => {
     expect(isImageFocusedSource("TIERMAKER_IMPORT")).toBe(true);
     expect(isImageFocusedSource("CUSTOM_UPLOAD")).toBe(true);
     expect(getAnimeImageFitMode({ source: "TIERMAKER_IMPORT" })).toBe("contain");
-    expect(getAnimeImageFitMode({ source: "BANGUMI" })).toBe("cover");
+    expect(getAnimeImageFitMode({ source: "BANGUMI" })).toBe("contain");
     expect(isGeneratedOrNoisyTitle("https://tiermaker.com/create/abc-17750273769085")).toBe(true);
     expect(
       getAnimeDisplayTitle({
