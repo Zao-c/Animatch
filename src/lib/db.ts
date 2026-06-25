@@ -5,14 +5,20 @@ const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
 };
 
+const databaseUrl = buildPrismaDatabaseUrl(process.env.DATABASE_URL);
+
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
-    datasources: {
-      db: {
-        url: buildPrismaDatabaseUrl(process.env.DATABASE_URL)
-      }
-    },
+    ...(databaseUrl
+      ? {
+          datasources: {
+            db: {
+              url: databaseUrl
+            }
+          }
+        }
+      : {}),
     log:
       process.env.NODE_ENV === "development"
         ? ["query", "error", "warn"]
