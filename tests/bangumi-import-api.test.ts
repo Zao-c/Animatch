@@ -4,6 +4,7 @@ import {
   GET as SEARCH_BANGUMI,
   runtime as BANGUMI_SEARCH_RUNTIME
 } from "../src/app/api/anime/bangumi/search/route";
+import { resetBangumiSearchCircuitForTest } from "../src/lib/bangumi-search-circuit";
 import { POST as IMPORT_TO_POOL } from "../src/app/api/pools/[poolId]/anime/bulk-import/route";
 import { upsertAnimeFromBangumiSubject } from "../src/lib/anime-service";
 import { ANIME_SOURCE } from "../src/lib/anime-source";
@@ -166,6 +167,7 @@ function poolAnime(overrides: Record<string, unknown> = {}) {
 describe("Bangumi anime upsert", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetBangumiSearchCircuitForTest();
     mockedAnime.upsert.mockResolvedValue(animeRecord() as any);
   });
 
@@ -198,6 +200,7 @@ describe("Bangumi anime upsert", () => {
 describe("Bangumi search API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetBangumiSearchCircuitForTest();
     mockedRequireCurrentUser.mockResolvedValue({
       id: "user-1",
       username: "user-1",
@@ -323,6 +326,35 @@ describe("Bangumi search API", () => {
     expect(response.status).toBe(502);
     expect(payload.error.message).toBe("Bangumi 搜索暂时不可用，请稍后重试。");
     expect(JSON.stringify(consoleError.mock.calls)).toContain("HTTP 500");
+    consoleError.mockRestore();
+  });
+
+  it("opens a short circuit after repeated Bangumi upstream failures before auth hits Prisma", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mockedBangumi.searchBangumiAnime.mockRejectedValue(
+      Object.assign(new Error("connect ECONNRESET"), { code: "ECONNRESET" })
+    );
+
+    for (let i = 0; i < 3; i += 1) {
+      const response = await SEARCH_BANGUMI(
+        new Request(`http://test.local/api/anime/bangumi/search?q=frieren-${i}`)
+      );
+      expect(response.status).toBe(502);
+    }
+
+    mockedRequireCurrentUser.mockClear();
+    mockedBangumi.searchBangumiAnime.mockClear();
+
+    const response = await SEARCH_BANGUMI(
+      new Request("http://test.local/api/anime/bangumi/search?q=frieren-open")
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Retry-After")).toBe("30");
+    expect(payload.error.message).toBe("Bangumi 搜索暂时不可用，请稍后重试。");
+    expect(mockedRequireCurrentUser).not.toHaveBeenCalled();
+    expect(mockedBangumi.searchBangumiAnime).not.toHaveBeenCalled();
     consoleError.mockRestore();
   });
 });

@@ -3,6 +3,14 @@ import { badRequest, fromError, ok } from "@/lib/api-response";
 import { isAppError } from "@/lib/app-error";
 import { requireCurrentUser } from "@/lib/auth-session";
 import { searchBangumiAnime, toBangumiSearchItem } from "@/lib/bangumi";
+import {
+  BANGUMI_SEARCH_CIRCUIT_MS,
+  beginBangumiSearch,
+  canStartBangumiSearch,
+  endBangumiSearch,
+  recordBangumiSearchFailure,
+  recordBangumiSearchSuccess
+} from "@/lib/bangumi-search-circuit";
 
 export const runtime = "nodejs";
 
@@ -19,9 +27,16 @@ export async function GET(request: Request) {
     return badRequest("q must be at least 2 characters");
   }
 
+  if (!canStartBangumiSearch()) {
+    return bangumiUnavailableResponse(503);
+  }
+
+  beginBangumiSearch();
+
   try {
     await requireCurrentUser();
     const subjects = await searchBangumiAnime(query, { limit });
+    recordBangumiSearchSuccess();
 
     return ok({
       items: subjects.map(toBangumiSearchItem)
@@ -31,18 +46,27 @@ export async function GET(request: Request) {
       return fromError(error);
     }
 
+    recordBangumiSearchFailure();
     console.error("[Bangumi search route]", sanitizeBangumiRouteError(error));
 
-    return NextResponse.json(
-      {
-        ok: false,
-        error: {
-          message: "Bangumi 搜索暂时不可用，请稍后重试。"
-        }
-      },
-      { status: 502 }
-    );
+    return bangumiUnavailableResponse(502);
+  } finally {
+    endBangumiSearch();
   }
+}
+
+function bangumiUnavailableResponse(status: 502 | 503) {
+  const headers = status === 503 ? { "Retry-After": String(Math.ceil(BANGUMI_SEARCH_CIRCUIT_MS / 1000)) } : undefined;
+
+  return NextResponse.json(
+    {
+      ok: false,
+      error: {
+        message: "Bangumi 搜索暂时不可用，请稍后重试。"
+      }
+    },
+    { status, headers }
+  );
 }
 
 function sanitizeBangumiRouteError(error: unknown): Record<string, unknown> {
@@ -52,7 +76,7 @@ function sanitizeBangumiRouteError(error: unknown): Record<string, unknown> {
 
   const sanitized: Record<string, unknown> = {
     name: error.name,
-    message: sanitizeErrorMessage(error.message),
+    message: sanitizeErrorMessage(error.message)
   };
 
   if ("code" in error && typeof (error as NodeJS.ErrnoException).code === "string") {
@@ -70,12 +94,12 @@ function sanitizeBangumiRouteError(error: unknown): Record<string, unknown> {
   }
 
   if (error.cause instanceof Error) {
-    (sanitized as Record<string, unknown>).cause = {
+    sanitized.cause = {
       name: error.cause.name,
-      message: sanitizeErrorMessage(error.cause.message),
+      message: sanitizeErrorMessage(error.cause.message)
     };
     if ("code" in error.cause && typeof (error.cause as NodeJS.ErrnoException).code === "string") {
-      ((sanitized as Record<string, unknown>).cause as Record<string, unknown>).code = (error.cause as NodeJS.ErrnoException).code;
+      (sanitized.cause as Record<string, unknown>).code = (error.cause as NodeJS.ErrnoException).code;
     }
   }
 
