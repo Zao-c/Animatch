@@ -39,6 +39,18 @@ describe("community ranking UI wiring", () => {
     expect(detailSource).not.toContain("stack");
   });
 
+  it("does not cancel the community ranking request when the loading flag changes", () => {
+    const requestStart = detailSource.indexOf("getCommunityRanking(params.poolId)");
+    const nextEffectStart = detailSource.indexOf("useEffect(() => {", requestStart);
+    const requestEffect = detailSource.slice(requestStart - 600, nextEffectStart);
+
+    expect(requestEffect).toContain("setIsCommunityRankingLoading(true)");
+    expect(requestEffect).toContain("setIsCommunityRankingLoading(false)");
+    expect(requestEffect).not.toContain("communityRanking !== null || isCommunityRankingLoading");
+    expect(requestEffect).not.toContain("isCommunityRankingLoading]");
+    expect(requestEffect).toContain("[params.poolId, pool, workspaceMode]");
+  });
+
   it("renders community ranking summary and item metrics from the API payload", () => {
     expect(detailSource).toContain("CommunitySection");
     expect(detailSource).toContain("CommunityAverageTierList");
