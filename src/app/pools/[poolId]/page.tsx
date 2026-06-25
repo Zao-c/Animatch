@@ -1163,8 +1163,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const isInspectorOpen =
     workspaceMode === "add" ||
     workspaceMode === "edit" ||
-    workspaceMode === "cover" ||
-    workspaceMode === "community";
+    workspaceMode === "cover";
   const joinedAnimeIds = new Set(pool.anime.map((entry) => entry.animeId));
   const joinedBangumiIds = new Set(
     pool.anime
@@ -1190,6 +1189,19 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     : canPlayPool
       ? "你的对决和榜单只属于你，不会影响创建者。"
       : "你可以先浏览作品墙，登录后开始自己的个人对决。";
+  const communityTierPreviewItems = pool.anime.slice(0, 12).map((entry) => ({
+    animeId: entry.animeId,
+    title: entry.display.title || getAnimeDisplayTitle(entry.anime),
+    imageUrl: getAnimeCoverUrl(
+      {
+        ...entry.anime,
+        coverUrlOverride: entry.coverUrlOverride,
+        display: entry.display
+      },
+      { intent: "display" }
+    ),
+    fit: shouldUseContainCover(entry.anime) ? "contain" as const : "cover" as const
+  }));
 
   return (
     <PageShell>
@@ -2410,17 +2422,6 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           <CoverRepairCard poolId={params.poolId} />
         ) : null}
 
-        {workspaceMode === "community" && canShowCommunityRanking ? (
-          <CommunitySection
-            ranking={communityRanking}
-            isLoading={isCommunityRankingLoading}
-            error={communityRankingError}
-          view={communityView}
-          onViewChange={setCommunityView}
-          tierRows={pool?.tierConfig?.rows ?? null}
-          compact
-        />
-        ) : null}
         </div>
         </>
         ) : null}
@@ -2435,7 +2436,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         </details>
       ) : null}
 
-      {false && canShowCommunityRanking ? (
+      {workspaceMode === "community" && canShowCommunityRanking ? (
         <CommunitySection
           ranking={communityRanking}
           isLoading={isCommunityRankingLoading}
@@ -2443,6 +2444,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           view={communityView}
           onViewChange={setCommunityView}
           tierRows={pool?.tierConfig?.rows ?? null}
+          previewItems={communityTierPreviewItems}
         />
       ) : null}
 
@@ -2470,6 +2472,7 @@ function CommunitySection({
   view,
   onViewChange,
   tierRows,
+  previewItems,
   compact = false
 }: {
   ranking: CommunityRankingResponse | null;
@@ -2478,6 +2481,12 @@ function CommunitySection({
   view: "ranking" | "tierlist";
   onViewChange: (v: "ranking" | "tierlist") => void;
   tierRows?: TierRowConfig[] | null;
+  previewItems?: {
+    animeId: string;
+    title: string;
+    imageUrl: string | null;
+    fit: "cover" | "contain";
+  }[];
   compact?: boolean;
 }) {
   const hasItems = (ranking?.items.length ?? 0) > 0;
@@ -2586,6 +2595,7 @@ function CommunitySection({
             isLoading={isLoading && !ranking}
             error={error}
             tierRows={tierRows}
+            previewItems={previewItems}
           />
         )}
       </AppCard>
