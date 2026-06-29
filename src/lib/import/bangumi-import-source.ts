@@ -42,6 +42,9 @@ function clampLimit(limit: number | undefined): number {
 }
 
 function remoteFetchTarget(params: QuickImportParams, limit: number): number {
+  if (params.mode === "TAG" && params.tags && params.tags.length > 1) {
+    return Math.min(100, Math.max(limit, limit * (params.tags.length + 1)));
+  }
   if (params.type && params.type !== "ALL") {
     return Math.min(100, Math.max(limit, limit * 3));
   }
@@ -151,12 +154,11 @@ async function fetchByTags(
   const limit = clampLimit(params.limit);
   const fetchTarget = remoteFetchTarget(params, limit);
   const allSubjectsMap = new Map<number, NormalizedBangumiSubject>();
+  const tagsToQuery = tags.slice(0, 3);
 
-  for (const tag of tags.slice(0, 3)) {
-    if (allSubjectsMap.size >= fetchTarget) break;
-
+  for (const tag of tagsToQuery) {
     for (const queryTag of getBangumiTagQueryVariants(tag).slice(0, 4)) {
-      if (allSubjectsMap.size >= fetchTarget) break;
+      if (tagsToQuery.length === 1 && allSubjectsMap.size >= fetchTarget) break;
 
       try {
         const url = `${BANGUMI_BASE_URL}/search/subjects?limit=30`;
@@ -196,6 +198,7 @@ function filterAndSortCandidates(
   params: QuickImportParams
 ): NormalizedBangumiSubject[] {
   let filtered = subjects;
+  const tagMatchScores = new Map<number, number>();
 
   if (params.year && params.mode !== "YEAR") {
     filtered = filtered.filter((s) => {
@@ -210,21 +213,42 @@ function filterAndSortCandidates(
   }
 
   if (params.tags && params.tags.length > 0) {
-    filtered = filtered.filter((subject) => {
-      return params.tags!.every((tag) => subjectMatchesSelectedTag(subject, tag));
+    const scored = filtered.map((subject) => {
+      const matchCount = params.tags!.filter((tag) => subjectMatchesSelectedTag(subject, tag)).length;
+      return {
+        subject,
+        matchCount,
+        matchesAll: matchCount === params.tags!.length
+      };
+    });
+    const strictMatches = scored.filter((item) => item.matchesAll);
+    const usableMatches = strictMatches.length > 0
+      ? strictMatches
+      : scored.filter((item) => item.matchCount > 0);
+
+    filtered = usableMatches.map((item) => {
+      tagMatchScores.set(item.subject.bgmId, item.matchCount);
+      return item.subject;
     });
   }
 
+  const compareTagRelevance = (a: NormalizedBangumiSubject, b: NormalizedBangumiSubject) =>
+    (tagMatchScores.get(b.bgmId) ?? 0) - (tagMatchScores.get(a.bgmId) ?? 0);
+
   if (params.mode === "TOP" || params.sort === "rank") {
-    filtered.sort((a, b) => compareByField(a, b, (s) => s.bangumiRank));
+    filtered.sort((a, b) => compareTagRelevance(a, b) || compareByField(a, b, (s) => s.bangumiRank));
   } else if (params.sort === "score") {
-    filtered.sort((a, b) => compareByField(a, b, (s) => s.bangumiScore, true));
+    filtered.sort((a, b) => compareTagRelevance(a, b) || compareByField(a, b, (s) => s.bangumiScore, true));
   } else if (params.sort === "year") {
     filtered.sort((a, b) => {
+      const tagComparison = compareTagRelevance(a, b);
+      if (tagComparison !== 0) return tagComparison;
       const ya = a.airDate?.getTime() ?? 0;
       const yb = b.airDate?.getTime() ?? 0;
       return yb - ya;
     });
+  } else if (tagMatchScores.size > 0) {
+    filtered.sort(compareTagRelevance);
   }
 
   const limit = clampLimit(params.limit);
@@ -273,7 +297,7 @@ export function subjectMatchesSelectedTag(
 async function fetchUserCollections(
   params: QuickImportParams
 ): Promise<NormalizedBangumiSubject[]> {
-  const username = params.bangumiUserId?.trim();
+  const username = normalizeBangumiCollectionUserId(params.bangumiUserId);
   const collectionType = params.collectionType?.trim() ?? "collect";
 
   if (!username) return [];
@@ -324,6 +348,26 @@ async function fetchUserCollections(
   }
 
   return filterAndSortCandidates(subjects, params);
+}
+
+export function normalizeBangumiCollectionUserId(input: string | null | undefined): string | null {
+  const raw = input?.trim();
+  if (!raw) return null;
+
+  const withoutMention = raw.replace(/^@+/, "").trim();
+  const urlLike = /^https?:\/\//i.test(withoutMention)
+    ? withoutMention
+    : `https://bgm.tv/${withoutMention.replace(/^\/+/, "")}`;
+
+  try {
+    const url = new URL(urlLike);
+    const segments = url.pathname.split("/").filter(Boolean);
+    const userIndex = segments.findIndex((segment) => segment === "user" || segment === "users");
+    const value = userIndex >= 0 ? segments[userIndex + 1] : segments[0];
+    return value ? decodeURIComponent(value).trim() || null : null;
+  } catch {
+    return withoutMention.split(/[/?#]/)[0]?.trim() || null;
+  }
 }
 
 function toBangumiCollectionType(type: string): number {

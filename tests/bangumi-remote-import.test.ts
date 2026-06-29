@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   getBangumiTagQueryVariants,
+  normalizeBangumiCollectionUserId,
   subjectMatchesSelectedTag
 } from "../src/lib/import/bangumi-import-source";
 
@@ -80,8 +81,8 @@ describe("Bangumi import source service", () => {
 
   it("filters remote Bangumi subjects by selected tags after fetch", () => {
     expect(source).toContain("subjectMatchesSelectedTag");
-    expect(source).toContain("params.tags!.every");
     expect(source).toContain("matchTagAliases");
+    expect(source).toContain("strictMatches.length > 0");
   });
 
   it("expands app tag keys into Bangumi tag query variants", () => {
@@ -120,6 +121,24 @@ describe("Bangumi import source service", () => {
 
   it("USER_COLLECTION returns empty for blank username", () => {
     expect(source).toContain("if (!username) return []");
+  });
+
+  it("USER_COLLECTION accepts Bangumi profile URLs and @mentions", () => {
+    expect(normalizeBangumiCollectionUserId("https://bgm.tv/user/example")).toBe("example");
+    expect(normalizeBangumiCollectionUserId("https://bangumi.tv/user/example/")).toBe("example");
+    expect(normalizeBangumiCollectionUserId("@example")).toBe("example");
+    expect(normalizeBangumiCollectionUserId("")).toBeNull();
+  });
+
+  it("TAG remote fetch does not stop after the first selected tag fills the pool", () => {
+    expect(source).toContain("const tagsToQuery = tags.slice(0, 3)");
+    expect(source).toContain("tagsToQuery.length === 1 && allSubjectsMap.size >= fetchTarget");
+  });
+
+  it("TAG filtering falls back to partial tag relevance when Bangumi tags are incomplete", () => {
+    expect(source).toContain("strictMatches.length > 0");
+    expect(source).toContain("tagMatchScores");
+    expect(source).toContain("compareTagRelevance");
   });
 
   it("upsert skips CUSTOM_UPLOAD/MANUAL/TIERMAKER_IMPORT sources", () => {
@@ -253,7 +272,7 @@ describe("QuickImportPanel Bangumi UI", () => {
 
   it("has Bangumi user ID input for USER_COLLECTION mode", () => {
     expect(source).toContain("Bangumi 用户 ID");
-    expect(source).toContain('placeholder="例如 Zao-c"');
+    expect(source).toContain('placeholder="用户名或 https://bgm.tv/user/xxx"');
   });
 
   it("has collection type selector for USER_COLLECTION", () => {

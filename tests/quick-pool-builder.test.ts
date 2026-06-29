@@ -229,6 +229,17 @@ describe("QuickImportPanel UI", () => {
     expect(source).toContain("setSelectedTags(p.tags)");
   });
 
+  it("supports custom Bangumi tag input in quick import", () => {
+    expect(source).toContain("customTagInput");
+    expect(source).toContain("mergeTags(selectedTags, customTagInput)");
+    expect(source).toContain("自定义 Bangumi 标签");
+    expect(source).toContain("用逗号分隔");
+  });
+
+  it("accepts Bangumi profile URLs for user collection import", () => {
+    expect(source).toContain("用户名或 https://bgm.tv/user/xxx");
+  });
+
   it("has preview button", () => {
     expect(source).toContain("handlePreview");
     expect(source).toContain("预览");

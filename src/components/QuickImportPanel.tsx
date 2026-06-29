@@ -67,6 +67,27 @@ const COMMON_TAGS = [
   { key: "sports", label: "运动" },
 ];
 
+function parseCustomTags(input: string): string[] {
+  return input
+    .split(/[,，;；\n]+/)
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
+
+function mergeTags(tags: string[], customInput: string): string[] {
+  const seen = new Set<string>();
+  const merged: string[] = [];
+
+  for (const tag of [...tags, ...parseCustomTags(customInput)]) {
+    const key = tag.toLocaleLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(tag);
+  }
+
+  return merged;
+}
+
 function makeCandidateCoverUrl(candidate: QuickImportCandidate): string | null {
   const fakeAnime = {
     id: candidate.animeId,
@@ -123,6 +144,7 @@ export function QuickImportPanel({
   const [useRemote, setUseRemote] = useState(true);
   const [bangumiUserId, setBangumiUserId] = useState("");
   const [collectionType, setCollectionType] = useState("collect");
+  const [customTagInput, setCustomTagInput] = useState("");
   const remoteRequired = source === "BANGUMI" || mode === "USER_COLLECTION";
   const effectiveUseRemote = remoteRequired || useRemote;
 
@@ -139,13 +161,14 @@ export function QuickImportPanel({
       limit,
       sort,
     };
+    const tags = mergeTags(selectedTags, customTagInput);
     if (year && year.trim()) p.year = parseInt(year, 10);
     if (type && type !== "ALL") p.type = type;
-    if (selectedTags.length > 0) p.tags = selectedTags;
+    if (tags.length > 0) p.tags = tags;
     if (bangumiUserId.trim()) p.bangumiUserId = bangumiUserId.trim();
     if (collectionType) p.collectionType = collectionType;
     return p;
-  }, [source, mode, year, type, selectedTags, limit, sort, bangumiUserId, collectionType]);
+  }, [source, mode, year, type, selectedTags, customTagInput, limit, sort, bangumiUserId, collectionType]);
 
   async function handlePreview() {
     setError(null);
@@ -237,6 +260,7 @@ export function QuickImportPanel({
     if (p.year) setYear(String(p.year));
     if (p.type) setType(p.type);
     if (p.tags) setSelectedTags(p.tags);
+    setCustomTagInput("");
     if (p.limit) setLimit(p.limit);
     if (p.sort) setSort(p.sort);
     setPreview(null);
@@ -391,6 +415,18 @@ export function QuickImportPanel({
                 );
               })}
             </div>
+            <label className="mt-3 block">
+              <span className="text-xs font-semibold text-slate-400">自定义 Bangumi 标签</span>
+              <input
+                value={customTagInput}
+                onChange={(e) => setCustomTagInput(e.target.value)}
+                className="anime-field mt-1.5"
+                placeholder="例如：百合、恋爱、校园，用逗号分隔"
+              />
+              <span className="mt-1 block text-[10px] text-slate-600">
+                会直接访问 Bangumi 标签结果；固定标签和自定义标签会一起参与筛选。
+              </span>
+            </label>
           </div>
         ) : null}
 
@@ -445,7 +481,7 @@ export function QuickImportPanel({
                 value={bangumiUserId}
                 onChange={(e) => setBangumiUserId(e.target.value)}
                 className="anime-field mt-1.5"
-                placeholder="例如 Zao-c"
+                placeholder="用户名或 https://bgm.tv/user/xxx"
               />
             </label>
             <label className="block">
