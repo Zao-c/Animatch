@@ -67,6 +67,9 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
   return (
     <AppCard className="p-6">
       <SectionHeader eyebrow="Impact" title={isEnded ? "赛季影响分析" : "当前影响分析"} />
+      <p className="mt-2 max-w-3xl text-xs leading-relaxed text-slate-500">
+        影响力按每次投票造成的 Elo 变动量累计，用来衡量玩家对本赛季排序的推动程度；它不是作品评分，也不会替代共享 Elo。
+      </p>
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <StatMini label="总投票数" value={impact.stats.totalVotes} />
@@ -82,7 +85,7 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
           <p className="text-sm font-semibold text-anime-cyan">我的影响力</p>
           <div className="mt-1.5 grid grid-cols-2 gap-2 text-xs text-slate-300 sm:grid-cols-4">
             <span>已投 {impact.currentUserImpact.voteCount} 票</span>
-            <span>影响力 {impact.currentUserImpact.totalScoreSwing}</span>
+            <span>影响力 {formatImpactNumber(impact.currentUserImpact.totalScoreSwing)}</span>
             {impact.currentUserImpact.biasVoteCount > 0 ? (
               <span className="text-rose-300">私心票 {impact.currentUserImpact.biasVoteCount}</span>
             ) : null}
@@ -160,9 +163,11 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
 }
 
 function StatMini({ label, value, em }: { label: string; value: string | number; em?: boolean }) {
+  const displayValue = typeof value === "number" ? formatImpactNumber(value) : value;
+
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.025] p-3 text-center">
-      <p className={`text-lg font-black ${em ? "text-amber-200" : "text-white"}`}>{value}</p>
+      <p className={`text-lg font-black ${em ? "text-amber-200" : "text-white"}`}>{displayValue}</p>
       <p className="mt-0.5 text-[10px] text-slate-500">{label}</p>
     </div>
   );
@@ -189,7 +194,7 @@ function PlayerImpactTable({ ranking }: { ranking: NonNullable<BattleSeasonImpac
               <td className="py-2.5 font-medium text-white/80">{u.displayName}</td>
               <td className="py-2.5 text-right text-slate-300">{u.voteCount}</td>
               <td className="py-2.5 text-right text-rose-300">{u.biasVoteCount || "-"}</td>
-              <td className="py-2.5 text-right font-semibold text-amber-200">{u.totalScoreSwing}</td>
+              <td className="py-2.5 text-right font-semibold text-amber-200">{formatImpactNumber(u.totalScoreSwing)}</td>
               <td className="py-2.5 hidden sm:table-cell">
                 <div className="flex flex-wrap gap-1">
                   {u.supportedAnimeTop3.map((a) => (
@@ -232,7 +237,7 @@ function AnimeSupportTable({ items }: { items: NonNullable<BattleSeasonImpact>["
                   <span className="truncate font-medium text-white/80">{a.title}</span>
                 </div>
               </td>
-              <td className="py-2.5 text-right font-semibold text-emerald-300">{a.supportScore}</td>
+              <td className="py-2.5 text-right font-semibold text-emerald-300">{formatImpactNumber(a.supportScore)}</td>
               <td className="py-2.5 text-right text-slate-400">{a.supportVoteCount}</td>
               <td className="py-2.5 hidden sm:table-cell">
                 <div className="flex flex-wrap gap-1">
@@ -274,7 +279,7 @@ function AnimeSuppressTable({ items }: { items: NonNullable<BattleSeasonImpact>[
                   <span className="truncate font-medium text-white/80">{a.title}</span>
                 </div>
               </td>
-              <td className="py-2.5 text-right font-semibold text-rose-300">{a.suppressionScore}</td>
+              <td className="py-2.5 text-right font-semibold text-rose-300">{formatImpactNumber(a.suppressionScore)}</td>
               <td className="py-2.5 text-right text-slate-400">{a.suppressionVoteCount}</td>
               <td className="py-2.5 hidden sm:table-cell">
                 <div className="flex flex-wrap gap-1">
@@ -307,7 +312,7 @@ function KeyVotesTable({ votes }: { votes: NonNullable<BattleSeasonImpact>["keyV
           <span className="font-semibold text-amber-200">{v.winnerTitle}</span>
           <span className="text-slate-500">战胜</span>
           <span className="text-slate-400">{v.loserTitle}</span>
-          <span className="ml-auto text-xs font-semibold text-amber-200">影响力 {v.totalSwing}</span>
+          <span className="ml-auto text-xs font-semibold text-amber-200">影响力 {formatImpactNumber(v.totalSwing)}</span>
           {v.voteType === "BIAS" ? (
             <span className="text-[10px] text-rose-400/70">权重 {v.weight}</span>
           ) : null}
@@ -315,4 +320,13 @@ function KeyVotesTable({ votes }: { votes: NonNullable<BattleSeasonImpact>["keyV
       ))}
     </div>
   );
+}
+
+function formatImpactNumber(value: number): string {
+  if (!Number.isFinite(value)) return "-";
+
+  return value.toLocaleString("zh-CN", {
+    maximumFractionDigits: Math.abs(value) >= 100 ? 0 : 1,
+    minimumFractionDigits: 0
+  });
 }

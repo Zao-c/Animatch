@@ -117,6 +117,9 @@ export default function SeasonDetailPage() {
     () => buildSeasonTierBuckets(detail?.ranking ?? [], detail?.tierRows ?? DEFAULT_TIER_CONFIG.rows),
     [detail?.ranking, detail?.tierRows]
   );
+  const recentVotesPreview = detail?.recentVotes.slice(0, 10) ?? [];
+  const hiddenRecentVoteCount = Math.max(0, (detail?.recentVotes.length ?? 0) - recentVotesPreview.length);
+  const insufficientRankingCount = detail?.ranking.filter((item) => item.insufficientSample).length ?? 0;
 
   if (loading) return <PageShell><main className="mx-auto max-w-4xl px-4 py-8"><SeasonSkeleton /></main></PageShell>;
   if (error) return <PageShell><main className="mx-auto max-w-4xl px-4 py-8"><AppCard className="p-8 text-center"><AppBadge tone="tier">AniMatch</AppBadge><h1 className="mt-4 text-xl font-black text-white">加载失败</h1><p className="mt-2 text-sm text-slate-400">{error}</p></AppCard></main></PageShell>;
@@ -285,6 +288,11 @@ export default function SeasonDetailPage() {
             </div>
             <AppBadge tone="source">{detail.participantCount} 人 / {detail.totalVotes} 票</AppBadge>
           </div>
+          {insufficientRankingCount > 0 ? (
+            <div className="mb-4 rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 text-xs leading-relaxed text-slate-400">
+              {insufficientRankingCount} 部作品还未达到 {detail.minSampleThreshold.minUsers} 人、{detail.minSampleThreshold.minComparisons} 次比较的正式排名门槛，当前分数仅作实时参考。
+            </div>
+          ) : null}
           {detail.ranking.length === 0 ? (
             <p className="text-sm text-slate-500">暂无投票数据</p>
           ) : (
@@ -311,6 +319,7 @@ export default function SeasonDetailPage() {
           buckets={seasonTierBuckets}
           participantCount={detail.participantCount}
           totalVotes={detail.totalVotes}
+          minSampleThreshold={detail.minSampleThreshold}
         />
 
         <div className="mb-8">
@@ -323,12 +332,20 @@ export default function SeasonDetailPage() {
         </div>
 
         <AppCard className="p-6">
-          <h2 className="mb-4 text-lg font-bold text-white">最近投票</h2>
+          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-white">最近投票</h2>
+              <p className="mt-1 text-xs text-slate-500">只展示最新 10 条，完整流水仍保留在赛季记录中。</p>
+            </div>
+            {hiddenRecentVoteCount > 0 ? (
+              <AppBadge tone="muted">已收起 {hiddenRecentVoteCount} 条</AppBadge>
+            ) : null}
+          </div>
           {detail.recentVotes.length === 0 ? (
             <p className="text-sm text-slate-500">暂无投票记录</p>
           ) : (
             <div className="space-y-2">
-              {detail.recentVotes.map((v) => (
+              {recentVotesPreview.map((v) => (
                 <div key={v.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-white/[0.02] px-3 py-2 text-sm">
                   <span className="text-xs text-slate-600">第 {v.stepNumber} 步</span>
                   <span className="font-medium text-white/80">{v.displayName}</span>
@@ -403,20 +420,32 @@ function buildSeasonTierBuckets(
 function SeasonSharedTierList({
   buckets,
   participantCount,
-  totalVotes
+  totalVotes,
+  minSampleThreshold
 }: {
   buckets: SeasonTierBucket[];
   participantCount: number;
   totalVotes: number;
+  minSampleThreshold: SeasonDetail["minSampleThreshold"];
 }) {
   const hasItems = buckets.some((bucket) => bucket.items.length > 0);
+  const formalBuckets = buckets.map((bucket) => ({
+    row: bucket.row,
+    items: bucket.items.filter((item) => !item.insufficientSample)
+  }));
+  const formalItemCount = formalBuckets.reduce((sum, bucket) => sum + bucket.items.length, 0);
+  const insufficientItems = buckets
+    .flatMap((bucket) => bucket.items)
+    .filter((item) => item.insufficientSample);
 
   return (
     <AppCard className="mb-8 p-6">
       <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-lg font-bold text-white">赛季共享 TierList</h2>
-          <p className="mt-1 text-xs text-slate-500">按共享 Elo 的 S/A/B/C/D 百分位分档；样本不足作品会放在末档等待更多投票。</p>
+          <p className="mt-1 text-xs text-slate-500">
+            达到 {minSampleThreshold.minUsers} 人、{minSampleThreshold.minComparisons} 次比较后才进入 S/A/B/C/D，样本不足会先单独暂存。
+          </p>
         </div>
         <AppBadge tone="tier">{participantCount} 人 / {totalVotes} 票</AppBadge>
       </div>
@@ -424,27 +453,53 @@ function SeasonSharedTierList({
       {!hasItems ? (
         <p className="text-sm text-slate-500">暂无投票数据，开始对决后会生成赛季共享 TierList。</p>
       ) : (
-        <section className="overflow-hidden rounded-2xl border border-black/80 bg-[#191d21] shadow-[0_20px_90px_rgba(0,0,0,0.35)]">
-          {buckets.map(({ row, items }) => (
-            <div
-              key={row.id}
-              className="grid min-h-20 grid-cols-[72px_1fr] border-b border-black/80 last:border-b-0 sm:grid-cols-[100px_1fr]"
-            >
-              <div className="flex items-center justify-center px-1" style={{ backgroundColor: row.color }}>
-                <span className="text-center text-xl font-extrabold text-slate-950 sm:text-3xl">
-                  {row.label}
-                </span>
-              </div>
-              <div className="flex min-h-20 flex-wrap content-start gap-2 bg-[#171b20] p-2 sm:gap-3 sm:p-3">
-                {items.length === 0 ? (
-                  <span className="self-center text-xs text-slate-600">暂无作品</span>
-                ) : (
-                  items.map((item) => <SeasonTierCard key={item.animeId} item={item} />)
-                )}
-              </div>
+        <div className="space-y-4">
+          {formalItemCount > 0 ? (
+            <section className="overflow-hidden rounded-2xl border border-black/80 bg-[#191d21] shadow-[0_20px_90px_rgba(0,0,0,0.35)]">
+              {formalBuckets.map(({ row, items }) => (
+                <div
+                  key={row.id}
+                  className="grid min-h-20 grid-cols-[72px_1fr] border-b border-black/80 last:border-b-0 sm:grid-cols-[100px_1fr]"
+                >
+                  <div className="flex items-center justify-center px-1" style={{ backgroundColor: row.color }}>
+                    <span className="text-center text-xl font-extrabold text-slate-950 sm:text-3xl">
+                      {row.label}
+                    </span>
+                  </div>
+                  <div className="flex min-h-20 flex-wrap content-start gap-2 bg-[#171b20] p-2 sm:gap-3 sm:p-3">
+                    {items.length === 0 ? (
+                      <span className="self-center text-xs text-slate-600">等待达标作品</span>
+                    ) : (
+                      items.map((item) => <SeasonTierCard key={item.animeId} item={item} />)
+                    )}
+                  </div>
+                </div>
+              ))}
+            </section>
+          ) : (
+            <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.04] p-4">
+              <p className="text-sm font-semibold text-amber-100">社区样本还不够，暂不划分 S/A/B/C/D。</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                当前结果更接近个人赛季 Elo 的实时预览。等更多玩家参与后，作品会自动进入正式分档。
+              </p>
             </div>
-          ))}
-        </section>
+          )}
+
+          {insufficientItems.length > 0 ? (
+            <section className="rounded-2xl border border-white/10 bg-slate-950/35 p-3">
+              <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-white">样本不足区</h3>
+                  <p className="mt-1 text-xs text-slate-500">这些作品已有投票，但还没达到正式社区分档门槛。</p>
+                </div>
+                <AppBadge tone="muted">{insufficientItems.length} 部等待更多投票</AppBadge>
+              </div>
+              <div className="flex flex-wrap gap-2 sm:gap-3">
+                {insufficientItems.map((item) => <SeasonTierCard key={item.animeId} item={item} />)}
+              </div>
+            </section>
+          ) : null}
+        </div>
       )}
     </AppCard>
   );
