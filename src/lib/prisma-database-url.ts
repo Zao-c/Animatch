@@ -1,5 +1,5 @@
-const DEFAULT_PRISMA_CONNECTION_LIMIT = "10";
-const DEFAULT_PRISMA_POOL_TIMEOUT = "5";
+const DEFAULT_PRISMA_CONNECTION_LIMIT = "20";
+const DEFAULT_PRISMA_POOL_TIMEOUT = "10";
 
 export function buildPrismaDatabaseUrl(rawUrl: string | undefined): string | undefined {
   if (!rawUrl) return rawUrl;
