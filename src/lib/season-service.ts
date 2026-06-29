@@ -64,6 +64,7 @@ export interface SeasonDetail {
   ranking: SeasonRankingItem[];
   recentVotes: RecentVoteEntry[];
   currentUserState: CurrentUserState | null;
+  currentUserCanManage: boolean;
   tierRows: TierRowConfig[];
   minSampleThreshold: {
     minUsers: number;
@@ -494,6 +495,7 @@ export async function getSeasonDetail(
     recentVotes,
     currentUserState,
     tierRows: resolveTierRows(pool.tierConfig as PoolTierConfig | null),
+    currentUserCanManage: false,
     minSampleThreshold: {
       minUsers: SEASON_MIN_USERS,
       minComparisons: SEASON_MIN_COMPARISONS

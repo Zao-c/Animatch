@@ -1209,6 +1209,7 @@ export interface SeasonDetail {
   ranking: SeasonRankingItem[];
   recentVotes: RecentVoteEntry[];
   currentUserState: CurrentUserState | null;
+  currentUserCanManage: boolean;
   tierRows: TierRowConfig[];
   minSampleThreshold: {
     minUsers: number;

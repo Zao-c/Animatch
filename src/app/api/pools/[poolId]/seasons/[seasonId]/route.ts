@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { fromError, ok } from "@/lib/api-response";
+import { isAdminEditSession } from "@/lib/admin-auth";
 import { deleteSeason, getSeasonDetail, updateSeason } from "@/lib/season-service";
 import { getCurrentUser, requireCurrentUser } from "@/lib/auth-session";
 
@@ -11,7 +12,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const user = await getCurrentUser();
     const detail = await getSeasonDetail(context.params.poolId, context.params.seasonId, user?.id ?? null);
-    return ok(detail);
+    const currentUserCanManage =
+      user !== null &&
+      (detail.createdByUserId === user.id || await isAdminEditSession(user));
+    return ok({ ...detail, currentUserCanManage });
   } catch (error) {
     return fromError(error);
   }

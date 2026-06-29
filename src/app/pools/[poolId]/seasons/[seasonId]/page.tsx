@@ -174,16 +174,18 @@ export default function SeasonDetailPage() {
             {detail.status === "DRAFT" ? (
               <AppButton onClick={handleStart} disabled={actionLoading} variant="primary">启动赛季</AppButton>
             ) : null}
-            {detail.status === "ACTIVE" ? (
+            {detail.currentUserCanManage && detail.status === "ACTIVE" ? (
               <AppButton onClick={handleEnd} disabled={actionLoading} variant="danger">结束赛季</AppButton>
             ) : null}
-            <AppButton onClick={() => setManageOpen((open) => !open)} disabled={actionLoading} variant="secondary">
-              管理赛季
-            </AppButton>
+            {detail.currentUserCanManage ? (
+              <AppButton onClick={() => setManageOpen((open) => !open)} disabled={actionLoading} variant="secondary">
+                管理赛季
+              </AppButton>
+            ) : null}
           </div>
         </AppCard>
 
-        {manageOpen ? (
+        {detail.currentUserCanManage && manageOpen ? (
           <AppCard className="mb-8 p-6">
             <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <div>
