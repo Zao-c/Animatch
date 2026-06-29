@@ -167,7 +167,15 @@ function StatMini({ label, value, em }: { label: string; value: string | number;
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.025] p-3 text-center">
-      <p className={`text-lg font-black ${em ? "text-amber-200" : "text-white"}`}>{displayValue}</p>
+      <p
+        className={
+          em
+            ? "line-clamp-3 min-h-[3rem] break-words text-sm font-black leading-snug text-amber-200"
+            : "text-lg font-black text-white"
+        }
+      >
+        {displayValue}
+      </p>
       <p className="mt-0.5 text-[10px] text-slate-500">{label}</p>
     </div>
   );
