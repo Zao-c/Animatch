@@ -23,4 +23,12 @@ describe("season detail UI", () => {
     expect(source).toContain("sm:w-32");
     expect(source).toContain("h-32 w-full rounded-lg sm:h-36");
   });
+
+  it("offers a one-click season share action", () => {
+    expect(source).toContain("handleCopySeasonShare");
+    expect(source).toContain("AniMatch 大乱斗赛季《");
+    expect(source).toContain("打开后登录即可开始对决。");
+    expect(source).toContain("分享赛季");
+    expect(source).toContain("已复制赛季分享链接。");
+  });
 });

@@ -456,6 +456,25 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     setNotice(null);
   }
 
+  async function handleCopyPoolShare() {
+    if (pool === null) return;
+
+    clearMessage();
+    const poolUrl = `${window.location.origin}/pools/${params.poolId}`;
+    const shareText = [
+      `AniMatch 番组《${pool.name}》`,
+      poolUrl,
+      "打开后登录即可开始对决。"
+    ].join("\n");
+    const result = await copyTextWithFallback(shareText);
+
+    setNotice(
+      result === "copied"
+        ? "已复制番组分享链接。"
+        : `浏览器禁止自动复制，请手动复制地址：${poolUrl}`
+    );
+  }
+
   function archived() {
     return (
       pool === null ||
@@ -1301,6 +1320,14 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             >
               查看 Tier List
             </AppButton>
+            <AppButton
+              type="button"
+              onClick={handleCopyPoolShare}
+              variant="secondary"
+              size="sm"
+            >
+              分享番组
+            </AppButton>
             {canShowCommunityRanking ? (
               <AppButton
                 type="button"
@@ -1590,21 +1617,21 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             </div>
           ) : (
             <>
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-1 items-center gap-2">
+              <div className="mt-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                <div className="grid flex-1 gap-2 sm:grid-cols-[minmax(16rem,1fr)_12rem]">
                   <input
                     type="text"
                     placeholder="搜索当前作品..."
                     value={animeWallSearch}
                     onChange={(e) => setAnimeWallSearch(e.target.value)}
-                    className="anime-field flex-1 text-sm"
+                    className="anime-field text-sm"
                   />
                   <select
                     value={animeWallFilter}
                     onChange={(e) =>
                       setAnimeWallFilter(e.target.value as typeof animeWallFilter)
                     }
-                    className="anime-field w-auto text-sm"
+                    className="anime-field text-sm"
                   >
                     <option value="all">全部</option>
                     <option value="missingCover">缺封面</option>
@@ -1627,7 +1654,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                   </AppButton>
                 ) : null}
                 {canEditContent && !isArchived ? (
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {batchMode ? (
                       <>
                         <AppButton

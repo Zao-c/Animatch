@@ -12,6 +12,7 @@ import { deleteSeason, getSeasonDetail, startSeason, endSeason, getSeasonImpact,
 import { formatDateTimeStable } from "@/lib/date-format";
 import { SeasonImpactPanel } from "@/components/SeasonImpactPanel";
 import type { SeasonDetail, SeasonRankingItem } from "@/lib/client-api";
+import { copyTextWithFallback } from "@/lib/browser-copy";
 import { DEFAULT_TIER_CONFIG, type TierRowConfig } from "@/lib/tier-config";
 
 interface SeasonTierBucket {
@@ -33,6 +34,7 @@ export default function SeasonDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
+  const [shareNotice, setShareNotice] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     title: "",
     description: "",
@@ -113,6 +115,24 @@ export default function SeasonDetailPage() {
     }
   };
 
+  const handleCopySeasonShare = async () => {
+    if (!detail) return;
+
+    const seasonUrl = `${window.location.origin}/pools/${poolId}/seasons/${seasonId}`;
+    const shareText = [
+      `AniMatch 大乱斗赛季《${detail.title}》`,
+      seasonUrl,
+      "打开后登录即可开始对决。"
+    ].join("\n");
+    const result = await copyTextWithFallback(shareText);
+
+    setShareNotice(
+      result === "copied"
+        ? "已复制赛季分享链接。"
+        : `浏览器禁止自动复制，请手动复制地址：${seasonUrl}`
+    );
+  };
+
   const seasonTierBuckets = useMemo(
     () => buildSeasonTierBuckets(detail?.ranking ?? [], detail?.tierRows ?? DEFAULT_TIER_CONFIG.rows),
     [detail?.ranking, detail?.tierRows]
@@ -185,7 +205,15 @@ export default function SeasonDetailPage() {
                 管理赛季
               </AppButton>
             ) : null}
+            <AppButton type="button" onClick={handleCopySeasonShare} variant="secondary">
+              分享赛季
+            </AppButton>
           </div>
+          {shareNotice ? (
+            <p className="mt-3 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.06] px-3 py-2 text-xs font-medium text-cyan-100">
+              {shareNotice}
+            </p>
+          ) : null}
         </AppCard>
 
         {detail.currentUserCanManage && manageOpen ? (

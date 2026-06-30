@@ -72,6 +72,7 @@ export function AnimeCover({
   const shouldShowImage = Boolean(imageSrc) && state !== "empty" && state !== "error";
   const coverState: "loading" | "loaded" | "error" | "empty" =
     candidates.length === 0 ? "empty" : state;
+  const isCoverUnavailable = coverState === "error" || coverState === "empty";
 
   const imageFitClass =
     fit === "contain"
@@ -86,6 +87,8 @@ export function AnimeCover({
       data-cover-url-present={String(candidates.length > 0)}
       data-cover-candidate-count={candidates.length}
       data-anime-id={animeId ?? ""}
+      title={isCoverUnavailable ? "封面加载失败，刷新页面或稍后再试。" : undefined}
+      aria-label={isCoverUnavailable ? `${title}：封面加载失败，刷新页面或稍后再试。` : undefined}
     >
       <div className="absolute inset-0 flex h-full w-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-cyan-900/30 via-zinc-900 to-purple-900/20 p-3">
         <span className="text-lg font-bold text-cyan-400/60">
@@ -94,10 +97,13 @@ export function AnimeCover({
         {size !== "sm" && (
           <>
             <span className="text-center text-[10px] font-semibold leading-tight text-zinc-400">
-              {coverState === "error" || coverState === "empty" ? "封面暂不可用" : ""}
+              {isCoverUnavailable ? "封面加载失败" : ""}
             </span>
             <span className="line-clamp-2 text-center text-[10px] font-medium leading-tight text-zinc-500">
-              {coverState === "error" || coverState === "empty" ? title : ""}
+              {isCoverUnavailable ? "刷新页面或稍后再试" : ""}
+            </span>
+            <span className="line-clamp-1 text-center text-[10px] font-medium leading-tight text-zinc-600">
+              {isCoverUnavailable ? title : ""}
             </span>
           </>
         )}

@@ -168,10 +168,19 @@ describe("pool management UI", () => {
     expect(detailSource).toContain("搜索当前作品...");
     expect(detailSource).toContain("animeWallSearch");
     expect(detailSource).toContain("animeWallFilter");
+    expect(detailSource).toContain("sm:grid-cols-[minmax(16rem,1fr)_12rem]");
     expect(detailSource).toContain("缺封面");
     expect(detailSource).toContain("疑似脏标题");
     expect(detailSource).toContain("TierMaker 导入");
     expect(detailSource).toContain("Custom 上传");
+  });
+
+  it("offers a one-click pool share action", () => {
+    expect(detailSource).toContain("handleCopyPoolShare");
+    expect(detailSource).toContain("AniMatch 番组《");
+    expect(detailSource).toContain("打开后登录即可开始对决。");
+    expect(detailSource).toContain("分享番组");
+    expect(detailSource).toContain("已复制番组分享链接。");
   });
 
   it("has batch confirmation dialog", () => {

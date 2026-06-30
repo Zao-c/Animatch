@@ -89,7 +89,8 @@ describe("anime cover rendering", () => {
 
     expect(html).not.toContain("<img");
     expect(html).toContain("Fallback Title");
-    expect(html).toContain("封面暂不可用");
+    expect(html).toContain("封面加载失败");
+    expect(html).toContain("刷新页面或稍后再试");
   });
 
   it("AnimeCover renders every image with no-referrer and supports contain mode", () => {
@@ -333,7 +334,8 @@ describe("match cover stability", () => {
     );
 
     expect(html).not.toContain("<img");
-    expect(html).toContain("封面暂不可用");
+    expect(html).toContain("封面加载失败");
+    expect(html).toContain("刷新页面或稍后再试");
     expect(html).toContain("冰菓");
   });
 
@@ -348,7 +350,8 @@ describe("match cover stability", () => {
     );
 
     expect(html).not.toContain("<img");
-    expect(html).toContain("封面暂不可用");
+    expect(html).toContain("封面加载失败");
+    expect(html).toContain("刷新页面或稍后再试");
     expect(html).toContain("葬送的芙莉莲");
     expect(html).toContain("aspect-[2/3]");
   });
@@ -425,7 +428,8 @@ describe("match cover stability", () => {
     );
 
     expect(html).not.toContain("<img");
-    expect(html).toContain("封面暂不可用");
+    expect(html).toContain("封面加载失败");
+    expect(html).toContain("刷新页面或稍后再试");
     expect(html).toContain("无封面作品");
   });
 
@@ -577,7 +581,8 @@ describe("match cover resilience", () => {
 
     expect(html).toContain('data-cover-state="empty"');
     expect(html).toContain('data-cover-url-present="false"');
-    expect(html).toContain("封面暂不可用");
+    expect(html).toContain("封面加载失败");
+    expect(html).toContain("刷新页面或稍后再试");
   });
 
   it("AnimeCover passes animeId into data-anime-id", () => {
@@ -613,7 +618,7 @@ describe("match cover resilience", () => {
     );
 
     expect(html).toContain('data-cover-state="loading"');
-    expect(html).not.toContain("text-zinc-400\">封面暂不可用");
+    expect(html).not.toContain("text-zinc-400\">封面加载失败");
   });
 
   it("DuelAnimeCard has data-cover-state and data-anime-id on cover div", () => {
@@ -715,7 +720,8 @@ describe("match cover resilience", () => {
 
     expect(html).toContain('data-cover-state="empty"');
     expect(html).toContain('data-cover-url-present="false"');
-    expect(html).toContain("封面暂不可用");
+    expect(html).toContain("封面加载失败");
+    expect(html).toContain("刷新页面或稍后再试");
     expect(html).toContain("无封面作品");
   });
 });
