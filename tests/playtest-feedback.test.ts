@@ -47,8 +47,9 @@ describe("PlaytestFeedbackButton", () => {
       );
     });
 
-    it("uses fixed positioning for the trigger button", () => {
-      expect(source).toContain("fixed bottom-4 right-4");
+    it("uses compact fixed positioning for the trigger button", () => {
+      expect(source).toContain("fixed bottom-3 right-3");
+      expect(source).toContain("h-10 min-h-10 w-10 min-w-10");
     });
 
     it("closes on Escape key", () => {

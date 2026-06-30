@@ -117,7 +117,7 @@ export function PlaytestFeedbackButton() {
         type="button"
         onClick={handleOpen}
         aria-label="反馈试玩体验"
-        className="fixed bottom-4 right-4 z-30 flex h-11 min-h-[44px] min-w-[44px] items-center gap-1.5 rounded-2xl border border-white/10 bg-slate-900/80 px-3.5 py-2 text-xs font-medium text-slate-400 shadow-[0_8px_30px_rgba(0,0,0,0.35)] backdrop-blur-xl transition duration-anime hover:border-anime-purple/35 hover:text-purple-200 hover:shadow-[0_12px_40px_rgba(167,139,250,0.12)] active:scale-[0.97] sm:gap-2 sm:px-4 sm:text-sm"
+        className="fixed bottom-3 right-3 z-30 flex h-10 min-h-10 w-10 min-w-10 items-center justify-center rounded-full border border-white/10 bg-slate-950/70 text-slate-400 opacity-70 shadow-[0_8px_26px_rgba(0,0,0,0.28)] backdrop-blur-xl transition duration-anime hover:border-anime-purple/35 hover:text-purple-200 hover:opacity-100 hover:shadow-[0_12px_34px_rgba(167,139,250,0.12)] active:scale-[0.96] sm:bottom-5 sm:right-5"
       >
         <svg
           className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4"
@@ -132,7 +132,7 @@ export function PlaytestFeedbackButton() {
             d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 01-.923 1.785A5.969 5.969 0 006 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337z"
           />
         </svg>
-        <span className="hidden sm:inline">反馈</span>
+        <span className="sr-only">反馈</span>
       </button>
 
       {open && (
