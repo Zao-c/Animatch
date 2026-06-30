@@ -237,6 +237,7 @@ describe("normalizeBangumiSubject", () => {
       air_date: "2023-09-29",
       rank: 1,
       rating: {
+        rank: 2,
         score: 8.9,
         total: 12345
       },
@@ -258,10 +259,25 @@ describe("normalizeBangumiSubject", () => {
     expect(subject.imageMediumUrl).toBe("https://img.example/medium.jpg");
     expect(subject.imageLargeUrl).toBe("https://img.example/large.jpg");
     expect(subject.airDate?.toISOString()).toBe("2023-09-29T00:00:00.000Z");
-    expect(subject.bangumiRank).toBe(1);
+    expect(subject.bangumiRank).toBe(2);
     expect(subject.bangumiScore).toBe(8.9);
     expect(subject.bangumiVotes).toBe(12345);
     expect(subject.tags).toEqual(["奇幻", "旅行"]);
+  });
+
+  it("reads rank from Bangumi v0 rating.rank and falls back to legacy top-level rank", () => {
+    expect(normalizeBangumiSubject({
+      id: 326,
+      name: "Ghost in the Shell",
+      rating: { rank: 1, score: 9.2, total: 9908 }
+    }).bangumiRank).toBe(1);
+
+    expect(normalizeBangumiSubject({
+      id: 327,
+      name: "Legacy Rank",
+      rank: 42,
+      rating: { score: 8.1, total: 100 }
+    }).bangumiRank).toBe(42);
   });
 
   it("falls back to Chinese title when name is missing and rejects invalid core fields", () => {

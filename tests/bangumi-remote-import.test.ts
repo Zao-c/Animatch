@@ -44,7 +44,8 @@ describe("Bangumi import source service", () => {
 
   it("TOP mode sorts by rank", () => {
     expect(source).toContain('mode === "TOP"');
-    expect(source).toContain('body.sort = "rank"');
+    expect(source).toContain("fetchTopSubjects");
+    expect(source).toContain("/subjects?type=2&sort=rank");
   });
 
   it("TAG mode fetches per-tag and dedupes by bgmId", () => {

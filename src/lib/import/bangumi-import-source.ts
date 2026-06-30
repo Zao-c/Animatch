@@ -68,8 +68,53 @@ export async function fetchBangumiSubjects(
   if (params.mode === "TAG" && params.tags && params.tags.length >= 1) {
     return fetchByTags(params);
   }
+  if (params.mode === "TOP") {
+    return fetchTopSubjects(params, limit);
+  }
 
   return fetchBySearch(params, limit);
+}
+
+async function fetchTopSubjects(
+  params: QuickImportParams,
+  limit: number
+): Promise<NormalizedBangumiSubject[]> {
+  const allSubjects: NormalizedBangumiSubject[] = [];
+  let offset = 0;
+  const fetchTarget = remoteFetchTarget(params, limit);
+  const maxPages = Math.ceil(Math.min(fetchTarget, 100) / 30);
+
+  for (let page = 0; page < maxPages; page++) {
+    const pageLimit = Math.min(30, fetchTarget - allSubjects.length);
+    if (pageLimit <= 0) break;
+
+    try {
+      const url = `${BANGUMI_BASE_URL}/subjects?type=2&sort=rank&limit=${pageLimit}&offset=${offset}`;
+      const response = await bangumiRequest(url, {
+        method: "GET",
+        headers: buildHeaders()
+      });
+
+      if (!response.ok) break;
+
+      const payload = await response.json<{ data?: unknown[] }>();
+      const rawItems = Array.isArray(payload.data) ? payload.data : [];
+      for (const item of rawItems) {
+        try {
+          allSubjects.push(normalizeBangumiSubject(item));
+        } catch {
+          continue;
+        }
+      }
+
+      if (rawItems.length < pageLimit) break;
+      offset += pageLimit;
+    } catch {
+      break;
+    }
+  }
+
+  return filterAndSortCandidates(allSubjects, params);
 }
 
 async function fetchBySearch(

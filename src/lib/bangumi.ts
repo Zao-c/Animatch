@@ -532,6 +532,7 @@ export interface BangumiRawSubject {
   platform?: unknown;
   rank?: unknown;
   rating?: {
+    rank?: unknown;
     score?: unknown;
     total?: unknown;
   };
@@ -632,7 +633,7 @@ export function normalizeBangumiSubject(raw: unknown): NormalizedBangumiSubject 
     imageMediumUrl: imageMedium,
     imageLargeUrl: toNullableString(images.large),
     airDate: parseBangumiDate(subject.air_date ?? subject.date),
-    bangumiRank: toPositiveInteger(subject.rank),
+    bangumiRank: toPositiveInteger(subject.rating?.rank) ?? toPositiveInteger(subject.rank),
     bangumiScore: toNullableNumber(subject.rating?.score),
     bangumiVotes: toPositiveInteger(subject.rating?.total),
     animeType: normalizeBangumiPlatform(toNullableString(subject.platform)),
