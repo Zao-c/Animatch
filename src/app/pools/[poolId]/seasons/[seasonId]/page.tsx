@@ -121,13 +121,13 @@ export default function SeasonDetailPage() {
   const hiddenRecentVoteCount = Math.max(0, (detail?.recentVotes.length ?? 0) - recentVotesPreview.length);
   const insufficientRankingCount = detail?.ranking.filter((item) => item.insufficientSample).length ?? 0;
 
-  if (loading) return <PageShell><main className="mx-auto max-w-4xl px-4 py-8"><SeasonSkeleton /></main></PageShell>;
-  if (error) return <PageShell><main className="mx-auto max-w-4xl px-4 py-8"><AppCard className="p-8 text-center"><AppBadge tone="tier">AniMatch</AppBadge><h1 className="mt-4 text-xl font-black text-white">加载失败</h1><p className="mt-2 text-sm text-slate-400">{error}</p></AppCard></main></PageShell>;
+  if (loading) return <PageShell><main className="mx-auto max-w-6xl px-4 py-8"><SeasonSkeleton /></main></PageShell>;
+  if (error) return <PageShell><main className="mx-auto max-w-6xl px-4 py-8"><AppCard className="p-8 text-center"><AppBadge tone="tier">AniMatch</AppBadge><h1 className="mt-4 text-xl font-black text-white">加载失败</h1><p className="mt-2 text-sm text-slate-400">{error}</p></AppCard></main></PageShell>;
   if (!detail) return null;
 
   return (
     <PageShell>
-      <main className="mx-auto max-w-4xl px-4 py-8">
+      <main className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <Link href={`/pools/${poolId}`} className="inline-flex min-h-11 items-center text-sm text-slate-400 transition hover:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-300/60">← 返回番组</Link>
         </div>
@@ -455,18 +455,21 @@ function SeasonSharedTierList({
       ) : (
         <div className="space-y-4">
           {formalItemCount > 0 ? (
-            <section className="overflow-hidden rounded-2xl border border-black/80 bg-[#191d21] shadow-[0_20px_90px_rgba(0,0,0,0.35)]">
+            <section className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/35 shadow-[0_20px_80px_rgba(0,0,0,0.28)]">
               {formalBuckets.map(({ row, items }) => (
                 <div
                   key={row.id}
-                  className="grid min-h-20 grid-cols-[72px_1fr] border-b border-black/80 last:border-b-0 sm:grid-cols-[100px_1fr]"
+                  className="grid min-h-24 grid-cols-[56px_1fr] border-b border-white/10 last:border-b-0 sm:grid-cols-[72px_1fr]"
                 >
-                  <div className="flex items-center justify-center px-1" style={{ backgroundColor: row.color }}>
-                    <span className="text-center text-xl font-extrabold text-slate-950 sm:text-3xl">
+                  <div className="flex items-start justify-center bg-white/[0.035] px-2 py-3">
+                    <span
+                      className="flex h-10 w-10 items-center justify-center rounded-xl text-base font-extrabold text-slate-950 shadow-[0_8px_24px_rgba(0,0,0,0.24)] sm:h-12 sm:w-12 sm:text-xl"
+                      style={{ backgroundColor: row.color }}
+                    >
                       {row.label}
                     </span>
                   </div>
-                  <div className="flex min-h-20 flex-wrap content-start gap-2 bg-[#171b20] p-2 sm:gap-3 sm:p-3">
+                  <div className="flex min-h-24 flex-wrap content-start gap-3 bg-slate-950/20 p-3 sm:gap-4 sm:p-4">
                     {items.length === 0 ? (
                       <span className="self-center text-xs text-slate-600">等待达标作品</span>
                     ) : (
@@ -507,13 +510,13 @@ function SeasonSharedTierList({
 
 function SeasonTierCard({ item }: { item: SeasonRankingItem }) {
   return (
-    <article className="w-24 rounded-xl border border-white/10 bg-slate-950/72 p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.2)] sm:w-28 sm:p-2">
+    <article className="w-28 rounded-xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_8px_24px_rgba(0,0,0,0.2)] sm:w-32">
       <AnimeCover
         src={item.imageUrl}
         title={item.title}
         size="sm"
         fit="cover"
-        className="h-24 w-full rounded-lg sm:h-28"
+        className="h-32 w-full rounded-lg sm:h-36"
       />
       <h3 className="mt-1.5 line-clamp-2 text-[11px] font-semibold leading-snug text-white">
         {item.title}
