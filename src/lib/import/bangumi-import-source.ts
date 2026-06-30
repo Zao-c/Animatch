@@ -220,7 +220,11 @@ async function fetchByTags(
         const rawItems = Array.isArray(payload.data) ? payload.data : [];
         for (const item of rawItems) {
           try {
-            const subj = normalizeBangumiSubject(item);
+            const subj = withQueryMatchedTags(
+              normalizeBangumiSubject(item),
+              tag,
+              queryTag
+            );
             if (!allSubjectsMap.has(subj.bgmId)) {
               allSubjectsMap.set(subj.bgmId, subj);
             }
@@ -236,6 +240,24 @@ async function fetchByTags(
 
   const subjects = Array.from(allSubjectsMap.values());
   return filterAndSortCandidates(subjects, params);
+}
+
+function withQueryMatchedTags(
+  subject: NormalizedBangumiSubject,
+  selectedTag: string,
+  queryTag: string
+): NormalizedBangumiSubject {
+  const tags = [...subject.tags];
+  const seen = new Set(tags.map((tag) => normalizeTagKey(tag)));
+
+  for (const tag of [selectedTag, queryTag]) {
+    const normalized = normalizeTagKey(tag);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    tags.push(tag);
+  }
+
+  return tags.length === subject.tags.length ? subject : { ...subject, tags };
 }
 
 function filterAndSortCandidates(

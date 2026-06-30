@@ -142,6 +142,13 @@ describe("Bangumi import source service", () => {
     expect(source).toContain("compareTagRelevance");
   });
 
+  it("TAG fetch keeps the matched query tag as relevance evidence", () => {
+    expect(source).toContain("withQueryMatchedTags");
+    expect(source).toContain("selectedTag");
+    expect(source).toContain("queryTag");
+    expect(source).toContain("tags.push(tag)");
+  });
+
   it("upsert skips CUSTOM_UPLOAD/MANUAL/TIERMAKER_IMPORT sources", () => {
     expect(source).toContain("isProtectedAnimeSource");
     expect(source).toContain("CUSTOM_UPLOAD");
