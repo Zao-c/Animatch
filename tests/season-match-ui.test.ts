@@ -57,11 +57,20 @@ describe("season match UI", () => {
   });
 
   it("reserves a stable feedback slot so vote toasts do not push cards down", () => {
-    expect(source).toContain('className="mt-4 min-h-[42px]"');
+    expect(source).toContain("mt-2 min-h-[34px]");
+    expect(source).toContain("sm:mt-4 sm:min-h-[42px]");
     expect(source).toContain('aria-atomic="true"');
     expect(source).toContain("已投票！第 {voteResult.stepNumber} 票");
-    expect(source).toContain('<div className="mt-4">');
+    expect(source).toContain('<div className="mt-2 sm:mt-4">');
     expect(source).not.toContain('className="mt-5 rounded-xl border border-amber-300/20');
+  });
+
+  it("compresses the mobile first screen before the duel cards", () => {
+    expect(source).toContain("hidden text-xs text-slate-500 sm:block");
+    expect(source).toContain('detail.mode === "BIAS" ? "grid-cols-4" : "grid-cols-2"');
+    expect(source).toContain("hidden sm:inline");
+    expect(source).toContain("sm:hidden");
+    expect(source).toContain("mt-3 grid grid-cols-2 gap-2 sm:mt-5 sm:grid-cols-4");
   });
 
   it("keeps the duel cards side by side on mobile", () => {

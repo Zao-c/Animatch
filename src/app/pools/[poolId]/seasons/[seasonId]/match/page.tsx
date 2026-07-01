@@ -364,18 +364,18 @@ export default function SeasonMatchPage() {
 
   return (
     <PageShell>
-      <main className="mx-auto max-w-4xl px-4 py-8">
-        <div className="mb-4 flex flex-wrap items-center gap-3">
+      <main className="mx-auto max-w-4xl px-4 py-4 sm:py-8">
+        <div className="mb-3 flex flex-wrap items-center gap-2 sm:mb-4 sm:gap-3">
           <Link href={`/pools/${poolId}/seasons/${seasonId}`} className="inline-flex min-h-11 items-center text-sm text-slate-400 transition hover:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-300/60">← 返回赛季</Link>
           <AppBadge tone={detail.status === "ACTIVE" ? "success" : "muted"}>
             {detail.status === "ACTIVE" ? "进行中" : "已结束"}
           </AppBadge>
           <AppBadge tone="source">{detail.mode === "BIAS" ? "偏爱模式" : "传统模式"}</AppBadge>
         </div>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mt-2 flex flex-col gap-2 sm:mt-4 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
           <div>
-            <h1 className="text-2xl font-black text-white">{detail.title}</h1>
-            <p className="mt-1 text-xs text-slate-500">
+            <h1 className="text-xl font-black text-white sm:text-2xl">{detail.title}</h1>
+            <p className="mt-1 hidden text-xs text-slate-500 sm:block">
               优先给你没比较过的组合；覆盖后继续用 Elo 接近、低置信度的组合做校准。换一组不会消耗票数。
             </p>
           </div>
@@ -404,20 +404,20 @@ export default function SeasonMatchPage() {
         </div>
 
         {cs ? (
-          <div className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-            <span className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2 text-center">
-              <span className="text-xs text-slate-400">已投</span> <strong className="text-white">{cs.votesUsed}</strong>
+          <div className={`mt-3 grid gap-2 text-[11px] sm:mt-4 sm:text-sm ${detail.mode === "BIAS" ? "grid-cols-4" : "grid-cols-2"}`}>
+            <span className="rounded-xl border border-white/10 bg-white/[0.025] px-1.5 py-2 text-center sm:px-3">
+              <span className="text-slate-400 sm:text-xs"><span className="sm:hidden">投</span><span className="hidden sm:inline">已投</span></span> <strong className="text-white">{cs.votesUsed}</strong>
             </span>
-            <span className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2 text-center">
-              <span className="text-xs text-slate-400">剩余</span> <strong className="text-amber-200">{cs.votesRemaining}</strong>
+            <span className="rounded-xl border border-white/10 bg-white/[0.025] px-1.5 py-2 text-center sm:px-3">
+              <span className="text-slate-400 sm:text-xs">剩余</span> <strong className="text-amber-200">{cs.votesRemaining}</strong>
             </span>
             {detail.mode === "BIAS" ? (
               <>
-                <span className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2 text-center">
-                  <span className="text-xs text-slate-400">私心已用</span> <strong className="text-rose-300">{cs.biasVotesUsed}</strong>
+                <span className="rounded-xl border border-white/10 bg-white/[0.025] px-1.5 py-2 text-center sm:px-3">
+                  <span className="text-slate-400 sm:text-xs"><span className="sm:hidden">心用</span><span className="hidden sm:inline">私心已用</span></span> <strong className="text-rose-300">{cs.biasVotesUsed}</strong>
                 </span>
-                <span className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2 text-center">
-                  <span className="text-xs text-slate-400">私心剩余</span> <strong className="text-rose-300">{cs.biasVotesRemaining}</strong>
+                <span className="rounded-xl border border-white/10 bg-white/[0.025] px-1.5 py-2 text-center sm:px-3">
+                  <span className="text-slate-400 sm:text-xs"><span className="sm:hidden">心剩</span><span className="hidden sm:inline">私心剩余</span></span> <strong className="text-rose-300">{cs.biasVotesRemaining}</strong>
                 </span>
               </>
             ) : null}
@@ -425,7 +425,7 @@ export default function SeasonMatchPage() {
         ) : null}
 
         {currentPair && canVote ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-slate-500 sm:mt-3 sm:gap-2">
             <span className="rounded-full border border-white/10 bg-white/[0.025] px-3 py-1">
               当前第 {currentIndex + 1} / {queue.length} 组
             </span>
@@ -444,15 +444,15 @@ export default function SeasonMatchPage() {
               <ShortcutKey>3</ShortcutKey>
               没看过
             </span>
-            <span>本批投完会自动获取下一批作品，直到你的票数用完。</span>
+            <span className="hidden sm:inline">本批投完会自动获取下一批作品，直到你的票数用完。</span>
           </div>
         ) : null}
 
-        <div className="mt-4 min-h-[42px]" aria-live="polite" aria-atomic="true">
+        <div className="mt-2 min-h-[34px] sm:mt-4 sm:min-h-[42px]" aria-live="polite" aria-atomic="true">
           {voteResult ? (
             <div
               role="status"
-              className="rounded-xl border border-amber-300/20 bg-amber-300/5 px-4 py-2 text-sm text-amber-200"
+              className="rounded-xl border border-amber-300/20 bg-amber-300/5 px-3 py-1.5 text-sm text-amber-200 sm:px-4 sm:py-2"
             >
               已投票！第 {voteResult.stepNumber} 票 · 剩余 {voteResult.votesRemaining} 票
             </div>
@@ -471,18 +471,18 @@ export default function SeasonMatchPage() {
             <p className="mt-2 text-sm text-slate-400">你已完成 {cs.votesUsed} 次投票</p>
           </AppCard>
         ) : currentPair ? (
-          <div className="mt-4">
+          <div className="mt-2 sm:mt-4">
             {detail.mode === "BIAS" && cs && cs.biasVotesRemaining > 0 ? (
-              <div className="mb-4 flex items-center justify-center">
-                <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-rose-300/20 bg-rose-300/5 px-4 py-2 text-sm text-rose-200 select-none">
+              <div className="mb-2 flex items-center justify-center sm:mb-4">
+                <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-rose-300/20 bg-rose-300/5 px-3 py-2 text-xs text-rose-200 select-none sm:px-4 sm:text-sm">
                   <input
                     type="checkbox"
                     checked={useBias}
                     onChange={(e) => setUseBias(e.target.checked)}
                     className="h-4 w-4 rounded accent-rose-400"
                   />
-                  使用私心票 (共享榜单加成, 剩余 {cs.biasVotesRemaining})
-                  <span className="ml-1 text-xs text-slate-500">或按 Shift</span>
+                  <span><span className="sm:hidden">私心票加成 · 剩余 {cs.biasVotesRemaining}</span><span className="hidden sm:inline">使用私心票 (共享榜单加成, 剩余 {cs.biasVotesRemaining})</span></span>
+                  <span className="ml-1 hidden text-xs text-slate-500 sm:inline">或按 Shift</span>
                 </label>
               </div>
             ) : null}
@@ -509,7 +509,7 @@ export default function SeasonMatchPage() {
               />
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-5 sm:grid-cols-4">
               <button
                 type="button"
                 onClick={handleRollPair}
