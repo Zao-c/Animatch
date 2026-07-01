@@ -62,6 +62,7 @@ export interface SeasonDetail {
   totalVotes: number;
   biasVotesUsed: number;
   ranking: SeasonRankingItem[];
+  currentUserRanking: SeasonPersonalRankingItem[];
   recentVotes: RecentVoteEntry[];
   currentUserState: CurrentUserState | null;
   currentUserCanManage: boolean;
@@ -84,6 +85,18 @@ export interface SeasonRankingItem {
   comparisonCount: number;
   insufficientSample: boolean;
   averageElo: number | null;
+  imageUrl: string | null;
+}
+
+export interface SeasonPersonalRankingItem {
+  animeId: string;
+  title: string;
+  score: number;
+  uncertainty: number;
+  winCount: number;
+  lossCount: number;
+  biasWinCount: number;
+  comparisonCount: number;
   imageUrl: string | null;
 }
 
@@ -409,46 +422,59 @@ export async function getSeasonDetail(
     aggregateSeasonRanking(poolId, seasonId)
   ]);
 
-  const recentVotes: RecentVoteEntry[] = await Promise.all(
-    recentVotesRaw.map(async (v) => {
-      const [winner, loser] = await Promise.all([
-        prisma.anime.findUnique({ where: { id: v.winnerAnimeId }, select: { titleCn: true, titleJa: true, title: true } }),
-        prisma.anime.findUnique({ where: { id: v.loserAnimeId }, select: { titleCn: true, titleJa: true, title: true } })
-      ]);
-      return {
-        id: v.id,
-        stepNumber: v.stepNumber,
-        username: v.user.username ?? "unknown",
-        displayName: v.user.name ?? v.user.username ?? "unknown",
-        winnerTitle: winner?.titleCn ?? winner?.titleJa ?? winner?.title ?? v.winnerAnimeId,
-        loserTitle: loser?.titleCn ?? loser?.titleJa ?? loser?.title ?? v.loserAnimeId,
-        voteType: v.voteType,
-        weight: v.weight,
-        winnerEloDelta:
-          v.afterWinnerElo !== null && v.beforeWinnerElo !== null
-            ? v.afterWinnerElo - v.beforeWinnerElo
-            : null,
-        loserEloDelta:
-          v.afterLoserElo !== null && v.beforeLoserElo !== null
-            ? v.afterLoserElo - v.beforeLoserElo
-            : null,
-        createdAt: v.createdAt instanceof Date ? v.createdAt.toISOString() : String(v.createdAt)
-      };
-    })
-  );
+  const recentVoteAnimeIds = [
+    ...new Set(recentVotesRaw.flatMap((v) => [v.winnerAnimeId, v.loserAnimeId]))
+  ];
+  const recentVoteAnime = recentVoteAnimeIds.length > 0
+    ? await prisma.anime.findMany({
+        where: { id: { in: recentVoteAnimeIds } },
+        select: { id: true, titleCn: true, titleJa: true, title: true }
+      })
+    : [];
+  const recentVoteAnimeById = new Map(recentVoteAnime.map((anime) => [anime.id, anime]));
+
+  const recentVotes: RecentVoteEntry[] = recentVotesRaw.map((v) => {
+    const winner = recentVoteAnimeById.get(v.winnerAnimeId);
+    const loser = recentVoteAnimeById.get(v.loserAnimeId);
+
+    return {
+      id: v.id,
+      stepNumber: v.stepNumber,
+      username: v.user.username ?? "unknown",
+      displayName: v.user.name ?? v.user.username ?? "unknown",
+      winnerTitle: winner?.titleCn ?? winner?.titleJa ?? winner?.title ?? v.winnerAnimeId,
+      loserTitle: loser?.titleCn ?? loser?.titleJa ?? loser?.title ?? v.loserAnimeId,
+      voteType: v.voteType,
+      weight: v.weight,
+      winnerEloDelta:
+        v.afterWinnerElo !== null && v.beforeWinnerElo !== null
+          ? v.afterWinnerElo - v.beforeWinnerElo
+          : null,
+      loserEloDelta:
+        v.afterLoserElo !== null && v.beforeLoserElo !== null
+          ? v.afterLoserElo - v.beforeLoserElo
+          : null,
+      createdAt: v.createdAt instanceof Date ? v.createdAt.toISOString() : String(v.createdAt)
+    };
+  });
 
   let currentUserState: CurrentUserState | null = null;
+  let currentUserRanking: SeasonPersonalRankingItem[] = [];
   if (userId) {
-    const userVotes = await prisma.battleVote.count({
-      where: { seasonId, userId }
-    });
-    const biasUsed = await prisma.battleVote.count({
-      where: { seasonId, userId, voteType: "BIAS" }
-    });
-    const hiddenRows = await prisma.battleSeasonUserScore.findMany({
-      where: { seasonId, userId, isHidden: true },
-      select: { animeId: true }
-    });
+    const [userVotes, biasUsed, hiddenRows, userRanking] = await Promise.all([
+      prisma.battleVote.count({
+        where: { seasonId, userId }
+      }),
+      prisma.battleVote.count({
+        where: { seasonId, userId, voteType: "BIAS" }
+      }),
+      prisma.battleSeasonUserScore.findMany({
+        where: { seasonId, userId, isHidden: true },
+        select: { animeId: true }
+      }),
+      aggregateCurrentUserSeasonRanking(poolId, seasonId, userId)
+    ]);
+    currentUserRanking = userRanking;
 
     let dailyUsed: number | undefined = undefined;
     if (season.maxVotesPerUserPerDay) {
@@ -489,10 +515,11 @@ export async function getSeasonDetail(
     biasVotesPerUser: season.biasVotesPerUser,
     createdByUserId: season.createdByUserId,
     participantCount,
-    totalVotes,
-    biasVotesUsed: biasCount,
-    ranking,
-    recentVotes,
+      totalVotes,
+      biasVotesUsed: biasCount,
+      ranking,
+      currentUserRanking,
+      recentVotes,
     currentUserState,
     tierRows: resolveTierRows(pool.tierConfig as PoolTierConfig | null),
     currentUserCanManage: false,
@@ -524,7 +551,19 @@ async function aggregateSeasonRanking(
 ): Promise<SeasonRankingItem[]> {
   const poolAnime = await prisma.poolAnime.findMany({
     where: { poolId },
-    include: { anime: true },
+    select: {
+      animeId: true,
+      anime: {
+        select: {
+          title: true,
+          titleCn: true,
+          titleJa: true,
+          imageUrl: true,
+          imageMediumUrl: true,
+          imageLargeUrl: true
+        }
+      }
+    },
     orderBy: { position: "asc" }
   });
   const activeAnimeIds = new Set(poolAnime.map((entry) => entry.animeId));
@@ -616,7 +655,69 @@ async function aggregateSeasonRanking(
       };
     })
     .filter((item) => item.participantCount > 0)
-    .sort(compareSeasonRankingItems);
+      .sort(compareSeasonRankingItems);
+}
+
+async function aggregateCurrentUserSeasonRanking(
+  poolId: string,
+  seasonId: string,
+  userId: string
+): Promise<SeasonPersonalRankingItem[]> {
+  const poolAnime = await prisma.poolAnime.findMany({
+    where: { poolId },
+    select: {
+      animeId: true,
+      anime: {
+        select: {
+          title: true,
+          titleCn: true,
+          titleJa: true,
+          imageUrl: true,
+          imageMediumUrl: true,
+          imageLargeUrl: true
+        }
+      }
+    }
+  });
+  const animeById = new Map(poolAnime.map((entry) => [entry.animeId, entry.anime]));
+  const activeAnimeIds = [...animeById.keys()];
+  if (activeAnimeIds.length === 0) return [];
+
+  const scores = await prisma.battleSeasonUserScore.findMany({
+    where: {
+      seasonId,
+      userId,
+      animeId: { in: activeAnimeIds },
+      compareCount: { gt: 0 },
+      isHidden: false
+    },
+    select: {
+      animeId: true,
+      eloScore: true,
+      uncertainty: true,
+      compareCount: true,
+      winCount: true,
+      lossCount: true,
+      biasWinCount: true
+    }
+  });
+
+  return scores
+    .map((score) => {
+      const anime = animeById.get(score.animeId);
+      return {
+        animeId: score.animeId,
+        title: anime?.titleCn ?? anime?.titleJa ?? anime?.title ?? score.animeId,
+        score: score.eloScore,
+        uncertainty: score.uncertainty,
+        winCount: score.winCount,
+        lossCount: score.lossCount,
+        biasWinCount: score.biasWinCount,
+        comparisonCount: score.compareCount,
+        imageUrl: anime?.imageMediumUrl ?? anime?.imageLargeUrl ?? anime?.imageUrl ?? null
+      };
+    })
+    .sort(compareSeasonPersonalRankingItems);
 }
 
 function compareSeasonRankingItems(left: SeasonRankingItem, right: SeasonRankingItem): number {
@@ -627,6 +728,19 @@ function compareSeasonRankingItems(left: SeasonRankingItem, right: SeasonRanking
     right.score - left.score ||
     right.participantCount - left.participantCount ||
     right.comparisonCount - left.comparisonCount ||
+    left.title.localeCompare(right.title) ||
+    left.animeId.localeCompare(right.animeId)
+  );
+}
+
+function compareSeasonPersonalRankingItems(
+  left: SeasonPersonalRankingItem,
+  right: SeasonPersonalRankingItem
+): number {
+  return (
+    right.score - left.score ||
+    right.comparisonCount - left.comparisonCount ||
+    right.winCount - left.winCount ||
     left.title.localeCompare(right.title) ||
     left.animeId.localeCompare(right.animeId)
   );

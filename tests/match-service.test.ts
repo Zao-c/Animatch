@@ -54,8 +54,8 @@ describe("match rules", () => {
     });
   });
 
-  it("hides after repeated unseen marks", () => {
-    expect(shouldHideAfterUnseen(1)).toBe(false);
+  it("hides after the first unseen mark", () => {
+    expect(shouldHideAfterUnseen(1)).toBe(true);
     expect(shouldHideAfterUnseen(2)).toBe(true);
   });
 

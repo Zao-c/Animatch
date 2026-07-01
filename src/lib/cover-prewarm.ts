@@ -24,7 +24,7 @@ export function prewarmCoverUrls(
 ): Promise<PrewarmResult> {
   const limit = Math.max(1, Math.trunc(options.limit ?? DEFAULT_LIMIT));
   const concurrency = Math.max(1, Math.trunc(options.concurrency ?? DEFAULT_CONCURRENCY));
-  const includeRawFallback = options.includeRawFallback ?? true;
+  const includeRawFallback = options.includeRawFallback ?? false;
   const timeoutMs = Math.max(500, Math.trunc(options.timeoutMs ?? DEFAULT_TIMEOUT_MS));
   const signal = options.signal;
 
@@ -124,6 +124,7 @@ async function prewarmSingle(
       if (resolved) return;
       resolved = true;
       clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
       resolve(result);
     };
 
@@ -133,6 +134,7 @@ async function prewarmSingle(
       if (resolved) return;
       resolved = true;
       clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
       resolve("cancelled");
     };
 

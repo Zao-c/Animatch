@@ -16,7 +16,7 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
     title: "",
     description: "",
     mode: "CLASSIC" as "CLASSIC" | "BIAS",
-    maxVotesPerUser: 10,
+    maxVotesPerUser: 100,
     biasVotesPerUser: 3,
   });
   const [saving, setSaving] = useState(false);
@@ -44,7 +44,7 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
         biasVotesPerUser: formData.mode === "BIAS" ? formData.biasVotesPerUser : undefined,
       });
       setShowForm(false);
-      setFormData({ title: "", description: "", mode: "CLASSIC", maxVotesPerUser: 10, biasVotesPerUser: 3 });
+      setFormData({ title: "", description: "", mode: "CLASSIC", maxVotesPerUser: 100, biasVotesPerUser: 3 });
       load();
     } catch (e) {
       setError("创建失败，请重试");
@@ -57,12 +57,15 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
   if (!seasons || (seasons.length === 0 && !canEdit)) return null;
 
   return (
-    <section className="mt-8 scroll-mt-24">
-      <AppCard className="p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <AppBadge tone="tier">大乱斗赛季</AppBadge>
-            <p className="mt-1 text-xs leading-5 text-slate-500">多人投票赛季，独立于个人榜单</p>
+    <section id="battle-seasons" className="mt-6 scroll-mt-24">
+      <AppCard className="p-5" variant="focus">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <AppBadge tone="tier">赛季大乱斗</AppBadge>
+            <h2 className="mt-2 text-xl font-black text-white">限定票数赛季</h2>
+            <p className="mt-1 text-sm leading-6 text-slate-400">
+              用独立赛季 Elo 生成个人赛季 Tier List，再匿名聚合成赛季共享榜；私心票只在赛季共享榜里加成。
+            </p>
           </div>
           {canEdit ? (
             <AppButton variant="primary" size="sm" onClick={() => setShowForm((v) => !v)}>
@@ -180,6 +183,9 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
                   <span>{s.participantCount} 人参与</span>
                   <span>{s.totalVotes} 票</span>
                   {s.mode === "BIAS" ? <span>私心票×{s.biasVotesPerUser}</span> : null}
+                </div>
+                <div className="mt-4 inline-flex min-h-9 items-center rounded-full border border-amber-300/25 bg-amber-300/10 px-3 text-xs font-semibold text-amber-100 transition group-hover:border-amber-200/50 group-hover:bg-amber-300/15">
+                  进入赛季
                 </div>
               </Link>
             ))}

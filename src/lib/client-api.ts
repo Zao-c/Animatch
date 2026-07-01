@@ -1167,6 +1167,18 @@ export interface SeasonRankingItem {
   imageUrl: string | null;
 }
 
+export interface SeasonPersonalRankingItem {
+  animeId: string;
+  title: string;
+  score: number;
+  uncertainty: number;
+  winCount: number;
+  lossCount: number;
+  biasWinCount: number;
+  comparisonCount: number;
+  imageUrl: string | null;
+}
+
 export interface RecentVoteEntry {
   id: string;
   stepNumber: number;
@@ -1207,6 +1219,7 @@ export interface SeasonDetail {
   totalVotes: number;
   biasVotesUsed: number;
   ranking: SeasonRankingItem[];
+  currentUserRanking: SeasonPersonalRankingItem[];
   recentVotes: RecentVoteEntry[];
   currentUserState: CurrentUserState | null;
   currentUserCanManage: boolean;

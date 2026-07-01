@@ -36,6 +36,31 @@ export interface PublicAnime {
   source: string;
 }
 
+export type PublicAnimeSourceFields = Pick<
+  Anime,
+  | "id"
+  | "bgmId"
+  | "title"
+  | "titleCn"
+  | "titleJa"
+  | "titleEn"
+  | "imageUrl"
+  | "imageSmallUrl"
+  | "imageMediumUrl"
+  | "imageLargeUrl"
+  | "thumbnailUrl"
+  | "airDate"
+  | "bangumiRank"
+  | "bangumiScore"
+  | "tags"
+  | "aliases"
+  | "year"
+  | "season"
+  | "animeType"
+  | "studios"
+  | "source"
+>;
+
 export interface ImportBangumiSubjectsResult {
   imported: Anime[];
   failed: { bgmId: number; reason: string }[];
@@ -168,7 +193,7 @@ export async function getOrImportAnimeByBgmId(bgmId: number): Promise<Anime | nu
   }
 }
 
-export function toPublicAnime(anime: Anime): PublicAnime {
+export function toPublicAnime(anime: PublicAnimeSourceFields): PublicAnime {
   return {
     id: anime.id,
     bgmId: anime.bgmId,

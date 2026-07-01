@@ -448,15 +448,16 @@ export default function SeasonMatchPage() {
           </div>
         ) : null}
 
-        {voteResult ? (
-          <div
-            role="status"
-            aria-live="polite"
-            className="mt-5 rounded-xl border border-amber-300/20 bg-amber-300/5 px-4 py-2 text-sm text-amber-200"
-          >
-            已投票！第 {voteResult.stepNumber} 票 · 剩余 {voteResult.votesRemaining} 票
-          </div>
-        ) : null}
+        <div className="mt-4 min-h-[42px]" aria-live="polite" aria-atomic="true">
+          {voteResult ? (
+            <div
+              role="status"
+              className="rounded-xl border border-amber-300/20 bg-amber-300/5 px-4 py-2 text-sm text-amber-200"
+            >
+              已投票！第 {voteResult.stepNumber} 票 · 剩余 {voteResult.votesRemaining} 票
+            </div>
+          ) : null}
+        </div>
 
         {isSeasonEnded ? (
           <AppCard className="mt-8 p-6 text-center">
@@ -470,7 +471,7 @@ export default function SeasonMatchPage() {
             <p className="mt-2 text-sm text-slate-400">你已完成 {cs.votesUsed} 次投票</p>
           </AppCard>
         ) : currentPair ? (
-          <div className="mt-8">
+          <div className="mt-4">
             {detail.mode === "BIAS" && cs && cs.biasVotesRemaining > 0 ? (
               <div className="mb-4 flex items-center justify-center">
                 <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-rose-300/20 bg-rose-300/5 px-4 py-2 text-sm text-rose-200 select-none">

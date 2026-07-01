@@ -5,28 +5,23 @@ describe("preload-images cover candidate alignment", () => {
   const source = readFileSync("src/lib/preload-images.ts", "utf8");
   const coverSource = readFileSync("src/components/AnimeCover.tsx", "utf8");
 
-  it("preload candidate order matches AnimeCover proxy-first order", () => {
-    expect(source).toContain("heroUrl,");
-    expect(source).toContain("proxyExternalImageUrl(heroUrl)");
-    expect(source).toContain("exportUrl");
-    expect(source).toContain("proxyExternalImageUrl(exportUrl)");
+  it("preload candidate order uses the shared proxy-only helper", () => {
+    expect(source).toContain("const heroUrl = getAnimeCoverUrl");
+    expect(source).toContain("const exportUrl = getAnimeCoverUrl");
+    expect(source).toContain("getProxiedCoverCandidates(heroUrl, exportUrl)");
   });
 
-  it("proxy URLs come before raw URLs, proxy-primary first", () => {
-    const candidateBlock = source.slice(source.indexOf("const values = ["));
-    const proxyHeroIdx = candidateBlock.indexOf("proxyExternalImageUrl(heroUrl)");
-    const proxyExportIdx = candidateBlock.indexOf("proxyExternalImageUrl(exportUrl)");
-    const rawHeroIdx = candidateBlock.indexOf("heroUrl,");
-    const rawExportIdx = candidateBlock.lastIndexOf("exportUrl");
-
-    expect(proxyHeroIdx).toBeLessThan(proxyExportIdx);
-    expect(proxyExportIdx).toBeLessThan(rawHeroIdx);
-    expect(rawHeroIdx).toBeLessThan(rawExportIdx);
+  it("does not maintain a raw remote fallback queue in preload", () => {
+    expect(source).not.toContain("const values = [");
+    expect(source).not.toContain("proxyExternalImageUrl(heroUrl)");
+    expect(source).not.toContain("proxyExternalImageUrl(exportUrl)");
   });
 
-  it("deduplicates preload candidate values", () => {
-    expect(source).toContain("const seen = new Set");
-    expect(source).toContain("seen.add(value)");
+  it("delegates candidate deduplication to the shared helper", () => {
+    const imageProxySource = readFileSync("src/lib/image-proxy.ts", "utf8");
+    expect(source).toContain("getProxiedCoverCandidates");
+    expect(imageProxySource).toContain("const seen = new Set");
+    expect(imageProxySource).toContain("seen.add(url)");
   });
 
   it("uses getAnimeCoverUrl with hero and export intents", () => {
@@ -34,13 +29,13 @@ describe("preload-images cover candidate alignment", () => {
     expect(source).toContain('getAnimeCoverUrl(anime, { intent: "export" })');
   });
 
-  it("imports proxyExternalImageUrl for preload wrapping", () => {
-    expect(source).toContain('import { proxyExternalImageUrl } from "./image-proxy"');
+  it("imports the shared proxied candidate helper", () => {
+    expect(source).toContain('import { getProxiedCoverCandidates } from "./image-proxy"');
   });
 
   it("AnimeCover and preload use same candidate wrapping function", () => {
-    expect(coverSource).toContain("proxyExternalImageUrl");
-    expect(source).toContain("proxyExternalImageUrl");
+    expect(coverSource).toContain("getProxiedCoverCandidates");
+    expect(source).toContain("getProxiedCoverCandidates");
   });
 
   it("preloadPixelImage returns false for empty src", () => {

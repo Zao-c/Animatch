@@ -10,6 +10,18 @@ function resetImageCache() {
     store.entries.clear();
     store.totalBytes = 0;
   }
+  const fetchState = (globalThis as Record<string, unknown>).__animatchImageProxyFetchState as
+    | {
+        activeUpstreamFetches: number;
+        upstreamFetchQueue: Array<() => void>;
+        inFlightByCacheKey: Map<string, unknown>;
+      }
+    | undefined;
+  if (fetchState !== undefined) {
+    fetchState.activeUpstreamFetches = 0;
+    fetchState.upstreamFetchQueue.length = 0;
+    fetchState.inFlightByCacheKey.clear();
+  }
 }
 
 afterEach(() => {
@@ -27,8 +39,8 @@ describe("image proxy LRU cache", () => {
   });
 
   it("has separate memory and disk cache size limits", () => {
-    expect(source).toContain("MEM_MAX_CACHE_ENTRIES = 500");
-    expect(source).toContain("MEM_MAX_CACHE_BYTES = 128 * 1024 * 1024");
+    expect(source).toContain("MEM_MAX_CACHE_ENTRIES = 250");
+    expect(source).toContain("MEM_MAX_CACHE_BYTES = 48 * 1024 * 1024");
     expect(source).toContain("DISK_MAX_CACHE_ENTRIES = 20000");
     expect(source).toContain("DISK_MAX_CACHE_BYTES = 5 * 1024 * 1024 * 1024");
   });
@@ -37,6 +49,41 @@ describe("image proxy LRU cache", () => {
     expect(source).toContain("TIMEOUT_MS = 6000");
     expect(source).toContain("const maxAttempts = 2");
     expect(source).toContain("AbortSignal.timeout(15000)");
+    expect(source).toContain("UPSTREAM_FETCH_CONCURRENCY");
+    expect(source).toContain("withUpstreamFetchSlot");
+  });
+
+  it("coalesces concurrent misses for the same image cache key", async () => {
+    let releaseFetch!: () => void;
+    const fetchMock = vi.fn(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFetch = resolve;
+      });
+      return new Response(new Uint8Array([1, 2, 3]), {
+        status: 200,
+        headers: {
+          "content-type": "image/png",
+          "content-length": "3"
+        }
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const url = "https://cdn.example.com/coalesced-cache.png";
+    const req = new Request(
+      `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(url)}`
+    );
+
+    const first = GET(req);
+    const second = GET(req);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    releaseFetch();
+
+    const [firstResponse, secondResponse] = await Promise.all([first, second]);
+    expect(firstResponse.status).toBe(200);
+    expect(secondResponse.status).toBe(200);
+    expect(firstResponse.headers.get("X-Animatch-Image-Cache")).toBe("MISS");
+    expect(secondResponse.headers.get("X-Animatch-Image-Cache")).toBe("COALESCED");
   });
 
   it("sets Cache-Control response header", () => {

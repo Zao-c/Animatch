@@ -56,6 +56,14 @@ describe("season match UI", () => {
     expect(source).toContain("本批投完会自动获取下一批作品");
   });
 
+  it("reserves a stable feedback slot so vote toasts do not push cards down", () => {
+    expect(source).toContain('className="mt-4 min-h-[42px]"');
+    expect(source).toContain('aria-atomic="true"');
+    expect(source).toContain("已投票！第 {voteResult.stepNumber} 票");
+    expect(source).toContain('<div className="mt-4">');
+    expect(source).not.toContain('className="mt-5 rounded-xl border border-amber-300/20');
+  });
+
   it("supports keyboard shortcuts like normal duel mode", () => {
     expect(source).toContain('e.key === "ArrowLeft"');
     expect(source).toContain('e.key === "ArrowRight"');

@@ -1,7 +1,33 @@
 import { proxyExternalImageUrl } from "../image-proxy";
 
+interface BackgroundPrewarmState {
+  running: boolean;
+  queue: string[];
+  queued: Set<string>;
+}
+
+const DEFAULT_BACKGROUND_LIMIT = 12;
+const DEFAULT_BACKGROUND_CONCURRENCY = 2;
+const DEFAULT_BACKGROUND_TIMEOUT_MS = 2500;
+const MAX_BACKGROUND_QUEUE = 80;
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __animatchCoverPrewarmState: BackgroundPrewarmState | undefined;
+}
+
 function getBaseUrl(): string {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+}
+
+function getBackgroundPrewarmState(): BackgroundPrewarmState {
+  globalThis.__animatchCoverPrewarmState ??= {
+    running: false,
+    queue: [],
+    queued: new Set()
+  };
+
+  return globalThis.__animatchCoverPrewarmState;
 }
 
 function filterRemoteUrls(
@@ -55,9 +81,10 @@ async function warmBatch(
  */
 export function prewarmCoverCacheBackground(
   urls: (string | null | undefined)[],
-  options: { concurrency?: number; limit?: number } = {}
+  options: { concurrency?: number; limit?: number; timeoutMs?: number } = {}
 ): void {
-  const remote = filterRemoteUrls(urls).slice(0, options.limit ?? 30);
+  const requestedLimit = Math.max(1, Math.trunc(options.limit ?? DEFAULT_BACKGROUND_LIMIT));
+  const remote = filterRemoteUrls(urls).slice(0, Math.min(requestedLimit, DEFAULT_BACKGROUND_LIMIT));
   if (remote.length === 0) return;
 
   const proxyPaths = remote
@@ -66,19 +93,64 @@ export function prewarmCoverCacheBackground(
 
   if (proxyPaths.length === 0) return;
 
-  const concurrency = Math.max(1, Math.trunc(options.concurrency ?? 3));
+  const concurrency = Math.min(
+    DEFAULT_BACKGROUND_CONCURRENCY,
+    Math.max(1, Math.trunc(options.concurrency ?? DEFAULT_BACKGROUND_CONCURRENCY))
+  );
+  const timeoutMs = Math.max(500, Math.trunc(options.timeoutMs ?? DEFAULT_BACKGROUND_TIMEOUT_MS));
   const baseUrl = getBaseUrl();
+  const state = getBackgroundPrewarmState();
 
-  void (async () => {
-    for (let i = 0; i < proxyPaths.length; i += concurrency) {
-      const batch = proxyPaths.slice(i, i + concurrency);
+  for (const path of proxyPaths) {
+    if (state.queue.length >= MAX_BACKGROUND_QUEUE) break;
+    if (state.queued.has(path)) continue;
+    state.queued.add(path);
+    state.queue.push(path);
+  }
+
+  if (!state.running) {
+    void drainBackgroundPrewarmQueue(state, baseUrl, concurrency, timeoutMs);
+  }
+}
+
+async function drainBackgroundPrewarmQueue(
+  state: BackgroundPrewarmState,
+  baseUrl: string,
+  concurrency: number,
+  timeoutMs: number
+): Promise<void> {
+  state.running = true;
+
+  try {
+    while (state.queue.length > 0) {
+      const batch = state.queue.splice(0, concurrency);
+      for (const path of batch) {
+        state.queued.delete(path);
+      }
+
       await Promise.allSettled(
-        batch.map((path) =>
-          fetch(`${baseUrl}${path}`).catch(() => {})
-        )
+        batch.map((path) => fetchWarmPath(`${baseUrl}${path}`, timeoutMs))
       );
     }
-  })();
+  } finally {
+    state.running = false;
+  }
+}
+
+async function fetchWarmPath(url: string, timeoutMs: number): Promise<void> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    await fetch(url, {
+      cache: "no-store",
+      signal: controller.signal
+    });
+  } catch {
+    // Prewarm is best-effort and must not affect user requests.
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**

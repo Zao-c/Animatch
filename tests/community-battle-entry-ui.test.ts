@@ -110,7 +110,7 @@ describe("community battle entry UI wiring", () => {
     expect(detailSource).toContain("开始我的对决");
     expect(detailSource).toContain("开始对决");
     expect(detailSource).toContain("查看 Tier List");
-    expect(detailSource).toContain("查看社区榜单");
+    expect(detailSource).toContain("查看个人对决共享榜");
     expect(detailSource).toContain("返回我的番组");
   });
 

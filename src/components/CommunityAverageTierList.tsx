@@ -3,6 +3,7 @@
 import React from "react";
 import { AnimeCover } from "./AnimeCover";
 import type { CommunityRankingResponse, CommunityRankingItem } from "@/lib/client-api";
+import { buildCommunityTierBuckets } from "@/lib/community-tier-buckets";
 import { DEFAULT_TIER_CONFIG, type TierRowConfig } from "@/lib/tier-config";
 
 export interface CommunityTierPreviewItem {
@@ -10,68 +11,6 @@ export interface CommunityTierPreviewItem {
   title: string;
   imageUrl: string | null;
   fit?: "cover" | "contain";
-}
-
-function percentileBuckets(items: CommunityRankingItem[], rows: TierRowConfig[]) {
-  const sufficient = items.filter((i) => !i.insufficientSample);
-  const sorted = [...sufficient].sort(
-    (a, b) => (b.communityScore ?? 0) - (a.communityScore ?? 0)
-  );
-  const n = sorted.length;
-
-  const emptyBuckets: Record<string, CommunityRankingItem[]> = {};
-  for (const row of rows) {
-    emptyBuckets[row.id] = [];
-  }
-
-  if (n === 0) {
-    return { buckets: emptyBuckets, insufficient: items };
-  }
-
-  if (n <= 3) {
-    emptyBuckets[rows[0].id] = sorted.slice(0, 1);
-    for (let i = 1; i < rows.length && i < n; i++) {
-      emptyBuckets[rows[i].id] = [sorted[i]];
-    }
-    const remaining = sorted.slice(rows.length > 0 ? Math.min(rows.length, n) : 0);
-    if (remaining.length > 0 && rows.length > 0) {
-      emptyBuckets[rows[rows.length - 1].id].push(...remaining);
-    }
-    return { buckets: emptyBuckets, insufficient: items.filter((i) => i.insufficientSample) };
-  }
-
-  if (n <= 7) {
-    const top20 = Math.ceil(n * 0.2);
-    const top50 = Math.ceil(n * 0.5);
-    const top80 = Math.ceil(n * 0.8);
-    if (rows.length >= 1) emptyBuckets[rows[0].id] = sorted.slice(0, top20);
-    if (rows.length >= 2) emptyBuckets[rows[1].id] = sorted.slice(top20, top50);
-    if (rows.length >= 3) emptyBuckets[rows[2].id] = sorted.slice(top50, top80);
-    if (rows.length >= 4) emptyBuckets[rows[3].id] = sorted.slice(top80);
-    return { buckets: emptyBuckets, insufficient: items.filter((i) => i.insufficientSample) };
-  }
-
-  if (rows.length === 5 && n > 7) {
-    const sEnd = Math.max(1, Math.round(n * 0.1));
-    const aEnd = Math.max(sEnd + 1, Math.round(n * 0.3));
-    const bEnd = Math.max(aEnd + 1, Math.round(n * 0.6));
-    const cEnd = Math.max(bEnd + 1, Math.round(n * 0.85));
-    emptyBuckets[rows[0].id] = sorted.slice(0, sEnd);
-    if (rows.length >= 2) emptyBuckets[rows[1].id] = sorted.slice(sEnd, aEnd);
-    if (rows.length >= 3) emptyBuckets[rows[2].id] = sorted.slice(aEnd, bEnd);
-    if (rows.length >= 4) emptyBuckets[rows[3].id] = sorted.slice(bEnd, cEnd);
-    if (rows.length >= 5) emptyBuckets[rows[4].id] = sorted.slice(cEnd);
-    return { buckets: emptyBuckets, insufficient: items.filter((i) => i.insufficientSample) };
-  }
-
-  const bucketSize = 1 / rows.length;
-  for (let i = 0; i < rows.length; i++) {
-    const start = Math.round(i * bucketSize * n);
-    const end = i === rows.length - 1 ? n : Math.round((i + 1) * bucketSize * n);
-    emptyBuckets[rows[i].id] = sorted.slice(start, end);
-  }
-
-  return { buckets: emptyBuckets, insufficient: items.filter((i) => i.insufficientSample) };
 }
 
 export function CommunityAverageTierList({
@@ -111,7 +50,7 @@ export function CommunityAverageTierList({
     );
   }
 
-  const { buckets, insufficient } = percentileBuckets(ranking.items, resolvedRows);
+  const { buckets, insufficient } = buildCommunityTierBuckets(ranking.items, resolvedRows);
 
   return (
     <div className="mt-5 space-y-5">

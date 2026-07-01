@@ -10,12 +10,16 @@ import { CoverRepairCard } from "@/components/CoverRepairCard";
 import { PoolSeasonsSection } from "@/components/PoolSeasonsSection";
 import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
+import { TierShareCard } from "@/components/TierShareView";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
 import { isSlowNetwork, prewarmCoverUrls } from "@/lib/cover-prewarm";
 import { formatAnimeSource } from "@/lib/anime-source";
 import { copyTextWithFallback } from "@/lib/browser-copy";
 import { isCommunityBattleVisiblePool } from "@/lib/community-battle-visibility";
+import { buildCommunityTierShareTiers } from "@/lib/community-tier-buckets";
+import { exportShareCardAsPng } from "@/lib/share-export";
+import { formatTierExportTimestamp, sanitizeFilenameSegment } from "@/lib/tier-export";
 import {
   ANIME_TAG_DICTIONARY,
   getTagGroupLabel,
@@ -72,6 +76,7 @@ import {
   type PersonalRun,
   type PoolAnimeEntry,
   type PoolDetail,
+  type PublicTierShare,
   type PublicAnime,
   type TierMakerPreviewItem,
 } from "@/lib/client-api";
@@ -84,7 +89,7 @@ import {
 } from "@/lib/tiermaker-url-list";
 import { PoolTierConfigEditor } from "@/components/PoolTierConfigEditor";
 import { QuickImportPanel } from "@/components/QuickImportPanel";
-import type { PoolTierConfig, TierRowConfig } from "@/lib/tier-config";
+import { DEFAULT_TIER_CONFIG, type PoolTierConfig, type TierRowConfig } from "@/lib/tier-config";
 
 type AddTab = "search" | "browse" | "manual" | "custom" | "bangumi" | "tiermaker" | "quick";
 type PoolWorkspaceMode = "add" | "edit" | "settings" | "cover" | "community" | null;
@@ -1335,7 +1340,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 variant="ghost"
                 aria-expanded={workspaceMode === "community"}
               >
-                查看社区榜单
+                查看个人对决共享榜
               </AppButton>
             ) : null}
             {canAddAnimeToPool && !isArchived ? (
@@ -1406,6 +1411,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         {error ? <ErrorAlert message={error} /> : null}
         {notice ? <ErrorAlert message={notice} tone="notice" /> : null}
       </div>
+
+      <PoolSeasonsSection poolId={pool.id} canEdit={canEditContent} />
 
       {workspaceMode === "settings" && canManagePool ? (
         <AppCard className="mt-6 p-5" variant="soft">
@@ -2459,19 +2466,19 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         </details>
       ) : null}
 
-      {workspaceMode === "community" && canShowCommunityRanking ? (
-        <CommunitySection
-          ranking={communityRanking}
-          isLoading={isCommunityRankingLoading}
-          error={communityRankingError}
+        {workspaceMode === "community" && canShowCommunityRanking ? (
+          <CommunitySection
+            poolId={params.poolId}
+            poolName={pool?.name ?? "AniMatch"}
+            ranking={communityRanking}
+            isLoading={isCommunityRankingLoading}
+            error={communityRankingError}
           view={communityView}
           onViewChange={setCommunityView}
           tierRows={pool?.tierConfig?.rows ?? null}
           previewItems={communityTierPreviewItems}
         />
       ) : null}
-
-      <PoolSeasonsSection poolId={pool.id} canEdit={canEditContent} />
 
       <p className="mt-10 text-center text-xs text-slate-600">
         Anime metadata powered by{" "}
@@ -2489,6 +2496,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 }
 
 function CommunitySection({
+  poolId,
+  poolName,
   ranking,
   isLoading,
   error,
@@ -2498,6 +2507,8 @@ function CommunitySection({
   previewItems,
   compact = false
 }: {
+  poolId: string;
+  poolName: string;
   ranking: CommunityRankingResponse | null;
   isLoading: boolean;
   error: string | null;
@@ -2513,15 +2524,87 @@ function CommunitySection({
   compact?: boolean;
 }) {
   const hasItems = (ranking?.items.length ?? 0) > 0;
+  const resolvedTierRows = tierRows ?? DEFAULT_TIER_CONFIG.rows;
+  const communityExportCardRef = useRef<HTMLDivElement | null>(null);
+  const [isCommunityTierExporting, setIsCommunityTierExporting] = useState(false);
+  const [communityTierExportError, setCommunityTierExportError] = useState<string | null>(null);
+  const [communityTierExportedAt, setCommunityTierExportedAt] = useState<Date | null>(null);
+  const communityTierShare = useMemo<PublicTierShare | null>(() => {
+    if (ranking === null || ranking.items.length === 0) {
+      return null;
+    }
 
+    const generatedAt = new Date().toISOString();
+    const tiers = buildCommunityTierShareTiers(ranking.items, resolvedTierRows);
+
+    return {
+      token: `community-${poolId}`,
+      title: `${poolName} 社区平均 Tier List`,
+      description: "普通对决共享榜 · 匿名聚合社区结果",
+      tierLabels: Object.fromEntries(tiers.map((tier) => [tier.key, tier.label])),
+      snapshot: {
+        version: 1,
+        generatedAt,
+        pool: {
+          id: poolId,
+          name: poolName
+        },
+        run: {
+          id: "community"
+        },
+        tiers,
+        tierRows: resolvedTierRows,
+        animeCount: ranking.items.length,
+        comparisonCount: ranking.items.reduce(
+          (sum, item) => sum + item.comparisonCount,
+          0
+        )
+      },
+      createdAt: generatedAt
+    };
+  }, [poolId, poolName, ranking, resolvedTierRows]);
+
+  async function handleExportCommunityTier() {
+    if (communityTierShare === null) {
+      return;
+    }
+
+    setIsCommunityTierExporting(true);
+    setCommunityTierExportError(null);
+    const exportedAt = new Date();
+    setCommunityTierExportedAt(exportedAt);
+
+    try {
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+
+      if (communityExportCardRef.current === null) {
+        throw new Error("Export card not mounted");
+      }
+
+      await exportShareCardAsPng(communityExportCardRef.current, {
+        filename: `animatch-community-tier-${sanitizeFilenameSegment(poolName)}-${formatTierExportTimestamp(exportedAt)}`
+      });
+    } catch (reason) {
+      setCommunityTierExportError(
+        reason instanceof Error
+          ? `导出共享 Tier 图片失败，可以稍后重试或先截图。(${reason.message})`
+          : "导出共享 Tier 图片失败，可以稍后重试或先截图。"
+      );
+    } finally {
+      setIsCommunityTierExporting(false);
+    }
+  }
+  
   return (
     <section id="community-ranking" className={compact ? "scroll-mt-24" : "mt-8 scroll-mt-24"}>
       <AppCard className={compact ? "p-4" : "p-5"}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <SectionHeader
             eyebrow="Community"
-            title="社区榜单"
-            description="基于所有用户在这个公开番组中的个人对决结果实时聚合；不会影响你的个人榜单。"
+            title="个人对决共享榜"
+            description="来自普通对决模式的匿名聚合结果；赛季大乱斗会在赛季详情页生成独立榜单。"
           />
           <AppBadge tone="source" className="w-fit">
             实时聚合
@@ -2544,30 +2627,55 @@ function CommunitySection({
           </div>
         ) : null}
 
-        <div className="mt-5 flex gap-2 border-b border-white/10 pb-3">
-          <button
-            type="button"
-            onClick={() => onViewChange("ranking")}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-              view === "ranking"
-                ? "bg-cyan-400/20 text-cyan-200"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            社区排名
-          </button>
-          <button
-            type="button"
-            onClick={() => onViewChange("tierlist")}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-              view === "tierlist"
-                ? "bg-yellow-400/20 text-yellow-200"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            社区平均 Tier List
-          </button>
-        </div>
+          <div className="mt-5 flex flex-col gap-3 border-b border-white/10 pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onViewChange("ranking")}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                  view === "ranking"
+                    ? "bg-cyan-400/20 text-cyan-200"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                共享排名
+              </button>
+              <button
+                type="button"
+                onClick={() => onViewChange("tierlist")}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                  view === "tierlist"
+                    ? "bg-yellow-400/20 text-yellow-200"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                共享 Tier List
+              </button>
+            </div>
+            {view === "tierlist" && communityTierShare !== null ? (
+              <AppButton
+                type="button"
+                onClick={handleExportCommunityTier}
+                disabled={isCommunityTierExporting}
+                variant="secondary"
+                size="sm"
+                className="w-full sm:w-auto"
+              >
+                {isCommunityTierExporting ? "导出中..." : "导出共享 Tier 图"}
+              </AppButton>
+            ) : null}
+          </div>
+
+          {communityTierExportError !== null ? (
+            <ErrorAlert message={communityTierExportError} className="mt-4" />
+          ) : null}
+          {communityTierExportError === null && communityTierExportedAt !== null ? (
+            <ErrorAlert
+              message={`已生成共享 Tier 图片 ${formatTierExportTimestamp(communityTierExportedAt)}`}
+              tone="notice"
+              className="mt-4"
+            />
+          ) : null}
 
         {view === "ranking" ? (
           <>
@@ -2577,7 +2685,7 @@ function CommunitySection({
                 参与人数或有效比较次数还不够时，排名仅供参考
               </h3>
               <p className="mt-2 text-sm leading-6 text-slate-300">
-                样本不足的作品会保留在列表中，但不会获得正式排名。登录后开始对决，也可以帮助这个番组生成社区榜单。
+                样本不足的作品会保留在列表中，但不会获得正式排名。登录后开始普通对决，也可以帮助这个番组生成共享榜。
               </p>
             </div>
 
@@ -2614,17 +2722,24 @@ function CommunitySection({
           </>
         ) : (
           <CommunityAverageTierList
-            ranking={ranking}
-            isLoading={isLoading && !ranking}
-            error={error}
-            tierRows={tierRows}
-            previewItems={previewItems}
-          />
-        )}
-      </AppCard>
-    </section>
-  );
-}
+              ranking={ranking}
+              isLoading={isLoading && !ranking}
+              error={error}
+              tierRows={resolvedTierRows}
+              previewItems={previewItems}
+            />
+          )}
+          {communityTierShare !== null ? (
+            <div className="tiermaker-export-host" aria-hidden="true">
+              <div ref={communityExportCardRef}>
+                <TierShareCard share={communityTierShare} exportMode />
+              </div>
+            </div>
+          ) : null}
+        </AppCard>
+      </section>
+    );
+  }
 
 function CommunityRankingMetric({
   label,

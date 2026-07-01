@@ -31,4 +31,24 @@ describe("season detail UI", () => {
     expect(source).toContain("分享赛季");
     expect(source).toContain("已复制赛季分享链接。");
   });
+
+  it("shows personal season results before shared aggregation", () => {
+    expect(source).toContain("个人赛季结果");
+    expect(source).toContain("我的赛季 Tier List");
+    expect(source).toContain("SeasonPersonalTierCard");
+    expect(source).toContain("只根据你在这个赛季里的个人 Elo 排序");
+    expect(source).toContain("它和下方多人聚合的赛季共享榜单分开计算");
+  });
+
+  it("exports personal and shared season tier images through the existing share-card pipeline", () => {
+    expect(source).toContain("exportShareCardAsPng");
+    expect(source).toContain("TierShareCard");
+    expect(source).toContain("personalExportRef");
+    expect(source).toContain("sharedExportRef");
+    expect(source).toContain("导出我的赛季图");
+    expect(source).toContain("导出共享赛季图");
+    expect(source).toContain("buildPersonalSeasonShare");
+    expect(source).toContain("buildSharedSeasonShare");
+    expect(source).toContain("tiermaker-export-host");
+  });
 });

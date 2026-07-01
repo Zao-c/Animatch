@@ -140,7 +140,8 @@ describe("pool management UI", () => {
     expect(detailSource).toContain("updatePoolTierConfig");
     expect(detailSource).toContain("handleSaveTierConfig");
     expect(detailSource).toContain("tierRows={pool?.tierConfig?.rows ?? null}");
-    expect(detailSource).toContain("tierRows={tierRows}");
+    expect(detailSource).toContain("resolvedTierRows");
+    expect(detailSource).toContain("tierRows={resolvedTierRows}");
   });
 
   it("saves tier config with the current pool update token", () => {

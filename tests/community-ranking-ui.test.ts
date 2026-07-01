@@ -14,7 +14,7 @@ describe("community ranking UI wiring", () => {
     expect(detailSource).toContain('pool.status === "ARCHIVED"');
     expect(detailSource).toContain("pool.deletedAt !== null");
     expect(detailSource).toContain("communityRankingUnavailable");
-    expect(detailSource).toContain("查看社区榜单");
+    expect(detailSource).toContain("查看个人对决共享榜");
     expect(detailSource).toContain('value === "community" ? null : "community"');
     expect(detailSource).toContain('workspaceMode === "community" && canShowCommunityRanking');
   });
@@ -64,6 +64,22 @@ describe("community ranking UI wiring", () => {
     expect(detailSource).toContain("item.averageRating");
     expect(detailSource).toContain("item.participantCount");
     expect(detailSource).toContain("item.comparisonCount");
+  });
+
+  it("exports the shared community Tier List through the same image export pipeline", () => {
+    expect(detailSource).toContain("buildCommunityTierShareTiers");
+    expect(detailSource).toContain("exportShareCardAsPng");
+    expect(detailSource).toContain("TierShareCard");
+    expect(detailSource).toContain("导出共享 Tier 图");
+    expect(detailSource).toContain("tiermaker-export-host");
+    expect(detailSource).toContain('id: "community"');
+  });
+
+  it("keeps share-card export footer text distinct for community and season exports", () => {
+    const shareViewSource = readFileSync("src/components/TierShareView.tsx", "utf8");
+    expect(shareViewSource).toContain("普通对决共享榜 · 匿名聚合社区结果");
+    expect(shareViewSource).toContain("赛季共享 TierList · 匿名聚合结果");
+    expect(shareViewSource).toContain("大乱斗赛季个人 Elo 结果");
   });
 
   it("shows sufficient ranks and insufficient sample states", () => {

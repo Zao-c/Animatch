@@ -30,12 +30,14 @@ const pendingBgRefetch = new Set<string>();
 
 async function bgRefetch(sourceUrl: string, cacheKey: string, headers: Record<string, string>): Promise<void> {
   try {
-    const dispatcher = await getDispatcher(sourceUrl).catch(() => undefined);
-    const fetchOptions: RequestInit & { dispatcher?: unknown } = { headers, signal: AbortSignal.timeout(15000) };
-    if (dispatcher !== undefined) {
-      fetchOptions.dispatcher = dispatcher;
-    }
-    const resp = await fetch(sourceUrl, fetchOptions);
+    const resp = await withUpstreamFetchSlot(async () => {
+      const dispatcher = await getDispatcher(sourceUrl).catch(() => undefined);
+      const fetchOptions: RequestInit & { dispatcher?: unknown } = { headers, signal: AbortSignal.timeout(15000) };
+      if (dispatcher !== undefined) {
+        fetchOptions.dispatcher = dispatcher;
+      }
+      return fetch(sourceUrl, fetchOptions);
+    });
     if (!resp.ok) return;
     const buf = Buffer.from(await resp.arrayBuffer());
     if (buf.byteLength > MAX_SIZE || buf.byteLength === 0) return;
@@ -53,10 +55,14 @@ const MAX_SIZE = 10 * 1024 * 1024;
 const TIMEOUT_MS = 6000;
 const FRESH_TTL_MS = 24 * 60 * 60 * 1000;
 const STALE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-const MEM_MAX_CACHE_ENTRIES = 500;
-const MEM_MAX_CACHE_BYTES = 128 * 1024 * 1024;
+const MEM_MAX_CACHE_ENTRIES = 250;
+const MEM_MAX_CACHE_BYTES = 48 * 1024 * 1024;
 const DISK_MAX_CACHE_ENTRIES = 20000;
 const DISK_MAX_CACHE_BYTES = 5 * 1024 * 1024 * 1024;
+const UPSTREAM_FETCH_CONCURRENCY = parsePositiveInt(
+  process.env.ANIMATCH_IMAGE_PROXY_CONCURRENCY,
+  4
+);
 const DISK_CACHE_DIR =
   process.env.ANIMATCH_IMAGE_CACHE_DIR ??
   path.join(process.cwd(), "data", "image-cache");
@@ -94,6 +100,28 @@ interface ImageCacheStore {
   totalBytes: number;
 }
 
+type ImageFetchResult =
+  | {
+      entry: ImageCacheEntry;
+      cacheStatus: "MISS" | "COALESCED";
+      error?: never;
+      status?: never;
+      shouldBgRefetch?: never;
+    }
+  | {
+      entry: null;
+      error: string;
+      status: number;
+      shouldBgRefetch?: boolean;
+      cacheStatus?: never;
+    };
+
+interface ImageProxyFetchState {
+  activeUpstreamFetches: number;
+  upstreamFetchQueue: Array<() => void>;
+  inFlightByCacheKey: Map<string, Promise<ImageFetchResult>>;
+}
+
 interface DiskCacheMetadata {
   contentType: string;
   cachedAt: number;
@@ -104,6 +132,8 @@ interface DiskCacheMetadata {
 declare global {
   // eslint-disable-next-line no-var
   var __animatchImageProxyCache: ImageCacheStore | undefined;
+  // eslint-disable-next-line no-var
+  var __animatchImageProxyFetchState: ImageProxyFetchState | undefined;
 }
 
 const imageCache =
@@ -112,6 +142,21 @@ const imageCache =
     entries: new Map<string, ImageCacheEntry>(),
     totalBytes: 0
   });
+
+const imageProxyFetchState =
+  globalThis.__animatchImageProxyFetchState ??
+  (globalThis.__animatchImageProxyFetchState = {
+    activeUpstreamFetches: 0,
+    upstreamFetchQueue: [],
+    inFlightByCacheKey: new Map<string, Promise<ImageFetchResult>>()
+  });
+
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  if (value === undefined) return fallback;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return parsed;
+}
 
 function isBlockedHostname(hostname: string): boolean {
   const lower = hostname.toLowerCase();
@@ -181,9 +226,6 @@ export async function GET(request: Request) {
   const staleDiskEntry = await readDiskCacheEntry(cacheKey, STALE_TTL_MS, {
     deleteExpired: true
   });
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
   const referer = pickReferer(parsed.hostname);
   const headers: Record<string, string> = {
     "User-Agent":
@@ -194,64 +236,12 @@ export async function GET(request: Request) {
     headers["Referer"] = referer;
   }
 
-  const maxAttempts = 2;
-  let response: Response | undefined;
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const ctrl = attempt === 1 ? controller : new AbortController();
-    const ctrlTimeoutId = attempt === 1 ? timeoutId : setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-
-    try {
-      const dispatcher = await getDispatcher(parsed.toString()).catch(() => undefined);
-      const fetchOptions: RequestInit & { dispatcher?: unknown } = {
-        signal: ctrl.signal,
-        headers,
-      };
-      if (dispatcher !== undefined) {
-        fetchOptions.dispatcher = dispatcher;
-      }
-      response = await fetch(parsed.toString(), fetchOptions);
-    } catch (error) {
-      clearTimeout(ctrlTimeoutId);
-      lastError = error;
-      // Serve stale cache immediately if available
-      if (staleEntry !== null || staleDiskEntry !== null) {
-        clearTimeout(timeoutId);
-        if (staleEntry !== null) {
-          return cachedImageResponse(staleEntry, "STALE");
-        }
-        if (staleDiskEntry !== null) {
-          setCacheEntry(cacheKey, staleDiskEntry);
-          return cachedImageResponse(staleDiskEntry, "DISK-STALE");
-        }
-      }
-      if (attempt < maxAttempts) {
-        await new Promise(r => setTimeout(r, 500 * attempt));
-        continue;
-      }
-      const message = lastError instanceof DOMException && lastError.name === "AbortError"
-        ? "upstream timeout"
-        : "fetch failed";
-      clearTimeout(timeoutId);
-      return errorResponse({ error: message }, 502);
-    } finally {
-      if (attempt > 1) clearTimeout(ctrlTimeoutId !== timeoutId ? ctrlTimeoutId : undefined);
-    }
-
-    // Retry on proxy 502/503
-    if (!response.ok && attempt < maxAttempts &&
-        (response.status === 502 || response.status === 503)) {
-      await new Promise(r => setTimeout(r, 500 * attempt));
-      continue;
-    }
-
-    break;
+  const result = await fetchImageWithCoalescing(parsed.toString(), cacheKey, headers);
+  if (result.entry !== null) {
+    return cachedImageResponse(result.entry, result.cacheStatus);
   }
 
-  clearTimeout(timeoutId);
-
-  if (!response || !response.ok) {
+  if (result.entry === null) {
     if (staleEntry !== null) {
       return cachedImageResponse(staleEntry, "STALE");
     }
@@ -259,44 +249,121 @@ export async function GET(request: Request) {
       setCacheEntry(cacheKey, staleDiskEntry);
       return cachedImageResponse(staleDiskEntry, "DISK-STALE");
     }
-    // Background refetch so next visitor gets a cache hit
-    if (!pendingBgRefetch.has(cacheKey)) {
+    if (result.shouldBgRefetch && !pendingBgRefetch.has(cacheKey)) {
       pendingBgRefetch.add(cacheKey);
       setTimeout(() => {
         pendingBgRefetch.delete(cacheKey);
         bgRefetch(parsed.toString(), cacheKey, headers);
       }, 3000);
     }
-    return errorResponse({ error: response ? `upstream returned ${response.status}` : "fetch failed" }, 502);
+    return errorResponse({ error: result.error }, result.status);
+  }
+
+  return errorResponse({ error: "fetch failed" }, 502);
+}
+
+async function fetchImageWithCoalescing(
+  sourceUrl: string,
+  cacheKey: string,
+  headers: Record<string, string>
+): Promise<ImageFetchResult> {
+  const existing = imageProxyFetchState.inFlightByCacheKey.get(cacheKey);
+  if (existing !== undefined) {
+    const result = await existing;
+    return result.entry !== null
+      ? { entry: result.entry, cacheStatus: "COALESCED" }
+      : result;
+  }
+
+  const request = fetchAndCacheUpstreamImage(sourceUrl, cacheKey, headers);
+  imageProxyFetchState.inFlightByCacheKey.set(cacheKey, request);
+  try {
+    return await request;
+  } finally {
+    imageProxyFetchState.inFlightByCacheKey.delete(cacheKey);
+  }
+}
+
+async function fetchAndCacheUpstreamImage(
+  sourceUrl: string,
+  cacheKey: string,
+  headers: Record<string, string>
+): Promise<ImageFetchResult> {
+  const maxAttempts = 2;
+  let response: Response | undefined;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    try {
+      response = await withUpstreamFetchSlot(async () => {
+        const dispatcher = await getDispatcher(sourceUrl).catch(() => undefined);
+        const fetchOptions: RequestInit & { dispatcher?: unknown } = {
+          signal: controller.signal,
+          headers
+        };
+        if (dispatcher !== undefined) {
+          fetchOptions.dispatcher = dispatcher;
+        }
+        return fetch(sourceUrl, fetchOptions);
+      });
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+        continue;
+      }
+      const message =
+        lastError instanceof DOMException && lastError.name === "AbortError"
+          ? "upstream timeout"
+          : "fetch failed";
+      return { entry: null, error: message, status: 502 };
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (
+      !response.ok &&
+      attempt < maxAttempts &&
+      (response.status === 502 || response.status === 503)
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+      continue;
+    }
+
+    break;
+  }
+
+  if (!response || !response.ok) {
+    return {
+      entry: null,
+      error: response ? `upstream returned ${response.status}` : "fetch failed",
+      status: 502,
+      shouldBgRefetch: true
+    };
   }
 
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.startsWith("image/")) {
-    return errorResponse({ error: "not an image" }, 400);
+    return { entry: null, error: "not an image", status: 400 };
   }
 
   const contentLength = response.headers.get("content-length");
   if (contentLength !== null && Number(contentLength) > MAX_SIZE) {
-    return errorResponse({ error: "image too large" }, 400);
+    return { entry: null, error: "image too large", status: 400 };
   }
 
   let buffer: ArrayBuffer;
-
   try {
     buffer = await response.arrayBuffer();
   } catch {
-    if (staleEntry !== null) {
-      return cachedImageResponse(staleEntry, "STALE");
-    }
-    if (staleDiskEntry !== null) {
-      setCacheEntry(cacheKey, staleDiskEntry);
-      return cachedImageResponse(staleDiskEntry, "DISK-STALE");
-    }
-    return errorResponse({ error: "read failed" }, 502);
+    return { entry: null, error: "read failed", status: 502 };
   }
 
   if (buffer.byteLength > MAX_SIZE) {
-    return errorResponse({ error: "image too large" }, 400);
+    return { entry: null, error: "image too large", status: 400 };
   }
 
   const cachedBuffer = Buffer.from(buffer);
@@ -308,7 +375,26 @@ export async function GET(request: Request) {
   });
   await writeDiskCacheEntry(cacheKey, entry);
 
-  return cachedImageResponse(entry, "MISS");
+  return { entry, cacheStatus: "MISS" };
+}
+
+async function withUpstreamFetchSlot<T>(operation: () => Promise<T>): Promise<T> {
+  if (imageProxyFetchState.activeUpstreamFetches >= UPSTREAM_FETCH_CONCURRENCY) {
+    await new Promise<void>((resolve) => {
+      imageProxyFetchState.upstreamFetchQueue.push(resolve);
+    });
+  }
+
+  imageProxyFetchState.activeUpstreamFetches += 1;
+  try {
+    return await operation();
+  } finally {
+    imageProxyFetchState.activeUpstreamFetches = Math.max(
+      0,
+      imageProxyFetchState.activeUpstreamFetches - 1
+    );
+    imageProxyFetchState.upstreamFetchQueue.shift()?.();
+  }
 }
 
 function getCacheEntry(
@@ -520,7 +606,7 @@ async function deleteDiskCacheEntry(paths: { metaPath: string; bodyPath: string 
 
 function cachedImageResponse(
   entry: ImageCacheEntry,
-  cacheStatus: "HIT" | "MISS" | "STALE" | "DISK-HIT" | "DISK-STALE"
+  cacheStatus: "HIT" | "MISS" | "COALESCED" | "STALE" | "DISK-HIT" | "DISK-STALE"
 ) {
   return new NextResponse(bufferToArrayBuffer(entry.buffer), {
     headers: {

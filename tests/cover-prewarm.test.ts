@@ -26,9 +26,9 @@ describe("prewarmCoverUrls", () => {
     expect(source).toContain("candidates.slice(i, i + concurrency)");
   });
 
-  it("prefers proxy URL before raw fallback in candidates", () => {
+  it("uses proxy URL by default and keeps raw fallback opt-in", () => {
     expect(source).toContain("proxyExternalImageUrl(trimmed)");
-    expect(source).toContain("includeRawFallback");
+    expect(source).toContain("includeRawFallback = options.includeRawFallback ?? false");
     const proxyPushIdx = source.indexOf("candidates.push(proxyUrl)");
     const rawPushIdx = source.indexOf("candidates.push(trimmed)");
     expect(proxyPushIdx).toBeGreaterThan(0);
@@ -43,6 +43,7 @@ describe("prewarmCoverUrls", () => {
   it("handles AbortSignal for cancellation", () => {
     expect(source).toContain("signal?.aborted");
     expect(source).toContain('signal?.addEventListener("abort"');
+    expect(source).toContain("signal?.removeEventListener");
     expect(source).toContain('resolve("cancelled")');
   });
 

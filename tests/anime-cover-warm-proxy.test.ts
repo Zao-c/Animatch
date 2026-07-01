@@ -10,7 +10,7 @@ describe("AnimeCover background warm proxy", () => {
 
   it("imports warmImageProxyCache from image-proxy", () => {
     expect(source).toContain(
-      'import { proxyExternalImageUrl, warmImageProxyCache } from "@/lib/image-proxy"'
+      'import { getProxiedCoverCandidates, warmImageProxyCache } from "@/lib/image-proxy"'
     );
   });
 

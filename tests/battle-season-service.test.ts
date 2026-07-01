@@ -180,6 +180,7 @@ describe("Season APIs and client functions", () => {
     expect(source).toContain("minSampleThreshold");
     expect(source).toContain("hiddenAnimeIds: string[]");
     expect(source).toContain("tierRows: TierRowConfig[]");
+    expect(source).toContain("currentUserRanking: SeasonPersonalRankingItem[]");
   });
 });
 
@@ -190,6 +191,15 @@ describe("Season pages", () => {
     expect(source).toContain("detail?.tierRows ?? DEFAULT_TIER_CONFIG.rows");
     expect(source).toContain("SeasonSharedTierList");
     expect(source).toContain("insufficientSample");
+  });
+
+  it("detail page exposes the current user's personal season result separately", () => {
+    const source = readSource("src/app/pools/[poolId]/seasons/[seasonId]/page.tsx");
+    expect(source).toContain("SeasonPersonalResult");
+    expect(source).toContain("我的赛季 Tier List");
+    expect(source).toContain("currentUserRanking");
+    expect(source).toContain("buildPersonalSeasonTierBuckets");
+    expect(source).toContain("私心票不会放大这里的 Elo");
   });
 
   it("match page sends skipped and hidden state to the backend", () => {

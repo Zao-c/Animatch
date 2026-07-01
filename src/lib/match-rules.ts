@@ -57,7 +57,7 @@ export function getWinnerLoser(
 }
 
 export function shouldHideAfterUnseen(unseenCount: number): boolean {
-  return unseenCount >= 2;
+  return unseenCount >= 1;
 }
 
 export function makeQueuePairId(leftAnimeId: string, rightAnimeId: string): string {

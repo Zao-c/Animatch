@@ -301,17 +301,26 @@ export default function MatchPage({
             点击整张卡或使用方向键快速选择。分数和统计已收进详细指标，先专注判断作品。
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href={`/pools/${params.poolId}/runs/${params.runId}/tier`}
-            className={appButtonClasses({ variant: "ghost", size: "sm" })}
-          >
-            查看 Tier
-          </Link>
-          <details className="relative">
-            <summary className={appButtonClasses({ variant: "quiet", size: "sm", className: "list-none" })}>
-              对决设置
-            </summary>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/pools/${params.poolId}/runs/${params.runId}/tier`}
+              className={appButtonClasses({ variant: "ghost", size: "sm" })}
+            >
+              查看 Tier
+            </Link>
+            <AppButton
+              type="button"
+              onClick={handleUndoLast}
+              disabled={isSubmitting || isUndoing}
+              variant="quiet"
+              size="sm"
+            >
+              {isUndoing ? "撤回中..." : "撤回上次选择"}
+            </AppButton>
+            <details className="relative">
+              <summary className={appButtonClasses({ variant: "quiet", size: "sm", className: "list-none" })}>
+                对决设置
+              </summary>
             <div className="absolute right-0 z-20 mt-3 w-72 rounded-2xl border border-white/10 bg-slate-950/92 p-3 shadow-anime-panel backdrop-blur-xl">
               <div className="mb-3 grid grid-cols-2 gap-2">
                 <Stat label="我的稳定度" value={confidenceScore.toFixed(1)} />

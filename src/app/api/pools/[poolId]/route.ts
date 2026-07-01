@@ -4,7 +4,7 @@ import { getCurrentUser, requireCurrentUser } from "@/lib/auth-session";
 import { isAdminEditSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 import { canManagePool, getPoolPermissions } from "@/lib/pool-permissions";
-import { serializePoolAnime } from "@/lib/pool-anime-serializer";
+import { poolAnimePublicAnimeSelect, serializePoolAnime } from "@/lib/pool-anime-serializer";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { prewarmCoverCacheBackground } from "@/lib/server/cover-cache-prewarm";
 import type { PoolTierConfig } from "@/lib/tier-config";
@@ -45,7 +45,9 @@ export async function GET(_request: Request, context: RouteContext) {
             position: "asc"
           },
           include: {
-            anime: true
+            anime: {
+              select: poolAnimePublicAnimeSelect
+            }
           }
         }
       }

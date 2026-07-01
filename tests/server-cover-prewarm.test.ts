@@ -6,7 +6,7 @@ describe("cover cache prewarm helper", () => {
 
   it("exports prewarmCoverCacheBackground as non-blocking fire-and-forget", () => {
     expect(source).toContain("export function prewarmCoverCacheBackground");
-    expect(source).toContain("void (async () => {");
+    expect(source).toContain("void drainBackgroundPrewarmQueue");
   });
 
   it("exports prewarmCoverCacheAwait as blocking with return counts", () => {
@@ -28,8 +28,9 @@ describe("cover cache prewarm helper", () => {
     expect(source).toContain("new Set(");
   });
 
-  it("limits via options.limit with default 30", () => {
-    expect(source).toContain(".slice(0, options.limit ?? 30)");
+  it("caps background prewarm per request with a conservative default", () => {
+    expect(source).toContain("DEFAULT_BACKGROUND_LIMIT = 12");
+    expect(source).toContain("Math.min(requestedLimit, DEFAULT_BACKGROUND_LIMIT)");
   });
 
   it("converts URLs through proxyExternalImageUrl and filters non-proxy paths", () => {
@@ -37,13 +38,17 @@ describe("cover cache prewarm helper", () => {
     expect(source).toContain("p.startsWith(\"/\")");
   });
 
-  it("uses concurrency option with default 3", () => {
-    expect(source).toContain("concurrency ?? 3");
-    expect(source).toContain("for (let i = 0; i < proxyPaths.length; i += concurrency)");
+  it("uses a global queue with low concurrency for background mode", () => {
+    expect(source).toContain("MAX_BACKGROUND_QUEUE");
+    expect(source).toContain("__animatchCoverPrewarmState");
+    expect(source).toContain("DEFAULT_BACKGROUND_CONCURRENCY = 2");
+    expect(source).toContain("state.queue.push(path)");
   });
 
-  it("catches fetch errors silently in background mode", () => {
-    expect(source).toContain(".catch(() => {})");
+  it("uses timeout and catches fetch errors silently in background mode", () => {
+    expect(source).toContain("DEFAULT_BACKGROUND_TIMEOUT_MS");
+    expect(source).toContain("controller.abort()");
+    expect(source).toContain("Prewarm is best-effort");
   });
 
   it("uses NEXT_PUBLIC_SITE_URL env fallback to localhost:3000", () => {

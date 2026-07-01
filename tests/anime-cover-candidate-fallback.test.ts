@@ -36,7 +36,8 @@ describe("AnimeCover candidate priority queue", () => {
   });
 
   it("shows fallback title when cover state is error or empty", () => {
-    expect(source).toContain("封面暂不可用");
+    expect(source).toContain("封面加载失败");
+    expect(source).toContain("刷新页面或稍后再试");
     expect(source).toContain('coverState === "error" || coverState === "empty"');
   });
 

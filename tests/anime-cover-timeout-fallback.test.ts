@@ -104,8 +104,9 @@ describe("AnimeCover candidate order", () => {
 describe("AnimeCover existing fallback not degraded", () => {
   const source = readFileSync("src/components/AnimeCover.tsx", "utf8");
 
-  it("still shows 封面暂不可用 text on error", () => {
-    expect(source).toContain("封面暂不可用");
+  it("still shows refresh guidance text on error", () => {
+    expect(source).toContain("封面加载失败");
+    expect(source).toContain("刷新页面或稍后再试");
   });
 
   it("still renders skeleton gradient background always", () => {
