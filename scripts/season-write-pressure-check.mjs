@@ -26,10 +26,6 @@ async function timed(label, fn) {
     const response = await fn();
     const ms = Date.now() - start;
     results.push({ label, status: response.status, ms });
-    if (!response.ok) {
-      const text = await response.text().catch(() => "");
-      throw new Error(`${label} failed with ${response.status}: ${text.slice(0, 240)}`);
-    }
     return response;
   } catch (error) {
     const ms = Date.now() - start;
@@ -50,6 +46,10 @@ async function api(label, path, { method = "GET", cookie = "", body } = {}) {
       body: body === undefined ? undefined : JSON.stringify(body)
     })
   );
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`${label} failed with ${response.status}: ${text.slice(0, 240)}`);
+  }
   const payload = await response.json().catch(() => null);
   if (!payload?.ok) {
     throw new Error(`${label} returned non-ok payload: ${JSON.stringify(payload).slice(0, 240)}`);
