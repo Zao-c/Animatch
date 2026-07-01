@@ -171,7 +171,8 @@ type ExistingBattleVoteResult = {
   weight: number;
 };
 
-const MAX_VOTE_WRITE_ATTEMPTS = 3;
+const MAX_VOTE_WRITE_ATTEMPTS = 5;
+const VOTE_WRITE_RETRY_BASE_DELAY_MS = 45;
 const SEASON_PRIOR_RATING = 1500;
 const SEASON_INITIAL_UNCERTAINTY = 350;
 const SEASON_MIN_USERS = 3;
@@ -1341,6 +1342,7 @@ export async function submitVote(
         }
       }
       if (isRetryableVoteWriteError(error) && attempt < MAX_VOTE_WRITE_ATTEMPTS) {
+        await sleep(VOTE_WRITE_RETRY_BASE_DELAY_MS * attempt);
         continue;
       }
       if (isRetryableVoteWriteError(error)) {
@@ -1351,6 +1353,10 @@ export async function submitVote(
   }
 
   throw new AppError("Vote is being processed, please retry", 409, "VOTE_WRITE_CONFLICT");
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function isRetryableVoteWriteError(error: unknown): boolean {

@@ -8,7 +8,7 @@ import { AppCard } from "@/components/ui/AppCard";
 import { AppButton } from "@/components/ui/AppButton";
 import { PageShell } from "@/components/PageShell";
 import { AnimeCover } from "@/components/AnimeCover";
-import { getSeasonDetail, getSeasonMatchQueue, setSeasonAnimeHidden, submitSeasonVote } from "@/lib/client-api";
+import { ApiClientError, getSeasonDetail, getSeasonMatchQueue, setSeasonAnimeHidden, submitSeasonVote } from "@/lib/client-api";
 import { getAnimeDisplayTitle, getAnimeImageFitMode } from "@/lib/anime-display";
 import type { SeasonDetail, SeasonMatchQueueItem, SeasonAnimeEntry } from "@/lib/client-api";
 
@@ -103,6 +103,14 @@ function createVoteMutationId(seasonId: string): string {
     return `${seasonId}:${crypto.randomUUID()}`;
   }
   return `${seasonId}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
+}
+
+function isVoteWriteConflict(error: unknown): boolean {
+  return error instanceof ApiClientError && error.status === 409;
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function isEditableShortcutTarget(target: EventTarget | null): boolean {
@@ -281,14 +289,27 @@ export default function SeasonMatchPage() {
     const clientMutationId = voteMutationIdsRef.current.get(mutationKey) ?? createVoteMutationId(seasonId);
     voteMutationIdsRef.current.set(mutationKey, clientMutationId);
     setSubmitting(true);
+    setError(null);
     try {
-      const result = await submitSeasonVote(poolId, seasonId, {
-        leftAnimeId: currentPair.left.animeId,
-        rightAnimeId: currentPair.right.animeId,
-        winnerAnimeId: winnerId,
-        useBiasVote: detail?.mode === "BIAS" && useBias,
-        clientMutationId
-      });
+      let result = null;
+      for (let attempt = 1; attempt <= 4; attempt += 1) {
+        try {
+          result = await submitSeasonVote(poolId, seasonId, {
+            leftAnimeId: currentPair.left.animeId,
+            rightAnimeId: currentPair.right.animeId,
+            winnerAnimeId: winnerId,
+            useBiasVote: detail?.mode === "BIAS" && useBias,
+            clientMutationId
+          });
+          break;
+        } catch (e: unknown) {
+          if (!isVoteWriteConflict(e) || attempt >= 4) {
+            throw e;
+          }
+          await wait(120 * attempt);
+        }
+      }
+      if (!result) throw new Error("Vote failed");
       voteMutationIdsRef.current.delete(mutationKey);
       setVoteResult({ stepNumber: result.stepNumber, votesRemaining: result.votesRemaining });
       setFeedback(winnerId === currentPair.left.animeId ? "LEFT_WIN" : "RIGHT_WIN");
