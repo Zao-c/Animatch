@@ -27,7 +27,7 @@ function prewarmMatchQueue(queue: MatchQueueResult): void {
     const secondary = getAnimeCoverUrl(anime, { intent: "export" });
     return [primary, secondary];
   });
-  prewarmCoverCacheBackground(urls, { limit: 30, concurrency: 3 });
+  prewarmCoverCacheBackground(urls, { limit: 10, concurrency: 3 });
 }
 
 interface RouteContext {

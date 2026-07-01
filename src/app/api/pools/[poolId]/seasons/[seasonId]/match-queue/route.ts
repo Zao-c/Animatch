@@ -47,5 +47,5 @@ function prewarmSeasonQueue(queue: Array<{ left?: { imageUrl?: string | null; im
       if (url) urls.push(url);
     }
   }
-  prewarmCoverCacheBackground(urls, { limit: 20, concurrency: 3 });
+  prewarmCoverCacheBackground(urls, { limit: 10, concurrency: 3 });
 }

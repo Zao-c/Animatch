@@ -45,6 +45,22 @@ describe("cover cache prewarm helper", () => {
     expect(source).toContain("state.queue.push(path)");
   });
 
+  it("keeps match queue prewarm request limits low for small server memory", () => {
+    const runQueueRouteSource = readFileSync(
+      "src/app/api/pools/[poolId]/runs/[runId]/match-queue/route.ts",
+      "utf8"
+    );
+    const seasonQueueRouteSource = readFileSync(
+      "src/app/api/pools/[poolId]/seasons/[seasonId]/match-queue/route.ts",
+      "utf8"
+    );
+
+    expect(runQueueRouteSource).toContain("prewarmCoverCacheBackground(urls, { limit: 10, concurrency: 3 })");
+    expect(seasonQueueRouteSource).toContain("prewarmCoverCacheBackground(urls, { limit: 10, concurrency: 3 })");
+    expect(runQueueRouteSource).not.toContain("limit: 30");
+    expect(seasonQueueRouteSource).not.toContain("limit: 20");
+  });
+
   it("uses timeout and catches fetch errors silently in background mode", () => {
     expect(source).toContain("DEFAULT_BACKGROUND_TIMEOUT_MS");
     expect(source).toContain("controller.abort()");
