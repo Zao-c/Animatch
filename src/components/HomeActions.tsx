@@ -65,8 +65,8 @@ export function HomeActions() {
     };
   }, []);
 
-  const primaryHref = readyPool === null ? "/pools/new" : `/pools/${readyPool.id}`;
-  const primaryLabel = readyPool === null ? "创建第一个番组" : "继续对决";
+  const continueHref = readyPool === null ? "/pools/new" : `/pools/${readyPool.id}`;
+  const continueLabel = readyPool === null ? "创建第一个番组" : "继续对决";
 
   async function handleCreateDemoPool() {
     setIsPreparingDemoPool(true);
@@ -86,7 +86,7 @@ export function HomeActions() {
     return (
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <Link href="/pools?view=public" className={appButtonClasses({ variant: "primary", size: "lg", className: "w-full sm:w-auto" })}>
-          浏览公开番组
+          进入番组大厅
         </Link>
       </div>
     );
@@ -100,7 +100,7 @@ export function HomeActions() {
             href="/pools?view=public"
             className={appButtonClasses({ variant: "primary", size: "lg", className: "w-full sm:w-auto" })}
           >
-            浏览公开番组
+            进入番组大厅
           </Link>
           <AppButton
             type="button"
@@ -120,7 +120,7 @@ export function HomeActions() {
           </Link>
         </div>
         <p className="text-xs leading-5 text-slate-400">
-          不用登录也能浏览公开番组并体验对决。登录后可以创建自己的番组、生成个人 Tier List、参与社区榜单。
+          不用登录也能进入番组大厅并体验对决。登录后可以创建自己的番组、生成个人 Tier List、参与社区榜单。
         </p>
         {demoPoolError ? <ErrorAlert message={demoPoolError} /> : null}
       </div>
@@ -131,25 +131,25 @@ export function HomeActions() {
     <div className="space-y-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <Link
-          href={primaryHref}
+          href="/pools?view=public"
           className={appButtonClasses({
             variant: "primary",
             size: "lg",
             className: "w-full sm:w-auto"
           })}
-          aria-label={readyPool === null ? primaryLabel : `${primaryLabel}：${readyPool.name}`}
         >
-          {primaryLabel}
+          进入番组大厅
         </Link>
         <Link
-          href="/pools?view=public"
+          href={continueHref}
           className={appButtonClasses({
             variant: "secondary",
             size: "lg",
             className: "w-full sm:w-auto"
           })}
+          aria-label={readyPool === null ? continueLabel : `${continueLabel}：${readyPool.name}`}
         >
-          浏览公开番组
+          {continueLabel}
         </Link>
         <AppButton
           type="button"

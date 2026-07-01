@@ -64,6 +64,12 @@ describe("season match UI", () => {
     expect(source).not.toContain('className="mt-5 rounded-xl border border-amber-300/20');
   });
 
+  it("keeps the duel cards side by side on mobile", () => {
+    expect(source).toContain("grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)]");
+    expect(source).toContain("sm:min-h-44");
+    expect(source).toContain("sm:h-16 sm:w-16");
+  });
+
   it("supports keyboard shortcuts like normal duel mode", () => {
     expect(source).toContain('e.key === "ArrowLeft"');
     expect(source).toContain('e.key === "ArrowRight"');

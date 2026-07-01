@@ -15,7 +15,7 @@ describe("home page UI refresh", () => {
 
     expect(html).toContain("用左右选择，生成你的动画 Tier List");
     expect(html).toContain("三步生成榜单");
-    expect(html).toContain("浏览公开番组");
+    expect(html).toContain("进入番组大厅");
     expect(html).toContain("添加动画");
     expect(html).toContain("开始对决");
     expect(html).toContain("生成榜单");
@@ -64,9 +64,9 @@ describe("HomeActions anonymous state", () => {
   });
 
   it("shows logged-in CTA when authenticated", () => {
-    expect(source).toContain("primaryHref");
+    expect(source).toContain("continueHref");
     expect(source).toContain('href="/pools?view=public"');
-    expect(source).toContain("浏览公开番组");
+    expect(source).toContain("进入番组大厅");
     expect(source).toContain("体验示例番组");
   });
 });

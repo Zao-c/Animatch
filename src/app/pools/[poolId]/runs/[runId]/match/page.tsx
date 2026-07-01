@@ -376,7 +376,7 @@ export default function MatchPage({
         </div>
       ) : null}
 
-      <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_80px_minmax(0,1fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)] items-stretch gap-2 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_80px_minmax(0,1fr)]">
         <DuelAnimeCard
           key={currentPair.left.id}
           anime={currentPair.left}
@@ -389,7 +389,7 @@ export default function MatchPage({
           highlighted={feedbackResult === "LEFT_WIN"}
         />
         <div className="flex items-center justify-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-anime-amber/35 bg-anime-amber/10 text-xl font-black text-amber-100 shadow-anime-amber lg:h-20 lg:w-20 lg:text-2xl">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-anime-amber/35 bg-anime-amber/10 text-sm font-black text-amber-100 shadow-anime-amber sm:h-16 sm:w-16 sm:text-xl lg:h-20 lg:w-20 lg:text-2xl">
             VS
           </div>
         </div>
@@ -407,7 +407,7 @@ export default function MatchPage({
       </div>
 
       <div className="mt-5 space-y-3 rounded-2xl border border-white/10 bg-slate-950/24 p-3">
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-5">
           <AppButton disabled={isSubmitting} onClick={() => handleSubmit("DRAW")} variant="quiet">
             <ShortcutKey>↑</ShortcutKey>
             <span>差不多</span>

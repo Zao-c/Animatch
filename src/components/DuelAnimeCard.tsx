@@ -59,7 +59,7 @@ export function DuelAnimeCard({
           handlePick();
         }
       }}
-      className={`group flex h-full flex-col overflow-hidden p-3 transition duration-anime hover:border-anime-cyan/35 hover:shadow-anime-focus sm:p-4 ${
+      className={`group flex h-full flex-col overflow-hidden p-2 transition duration-anime hover:border-anime-cyan/35 hover:shadow-anime-focus sm:p-4 ${
         disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer"
       } ${
         highlighted
@@ -75,10 +75,10 @@ export function DuelAnimeCard({
           size="lg"
           fit={coverFit}
           animeId={anime.id}
-          className="rounded-2xl border-cyan-200/10"
+          className="rounded-xl border-cyan-200/10 sm:rounded-2xl"
         />
-        <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-t from-slate-950/18 via-transparent to-transparent" />
-        <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+        <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-t from-slate-950/18 via-transparent to-transparent sm:rounded-2xl" />
+        <div className="absolute left-2 top-2 flex flex-wrap gap-1.5 sm:left-3 sm:top-3 sm:gap-2">
           <AppBadge tone={side === "left" ? "source" : "status"}>
             {sideLabel}
           </AppBadge>
@@ -87,11 +87,11 @@ export function DuelAnimeCard({
         </div>
       </div>
 
-      <div className="mt-4">
-        <h2 className="line-clamp-2 min-h-[3.25rem] text-lg font-black leading-7 tracking-tight text-white/78 sm:text-xl">
+      <div className="mt-2 sm:mt-4">
+        <h2 className="line-clamp-2 min-h-[2.5rem] text-sm font-black leading-5 tracking-tight text-white/78 sm:min-h-[3.25rem] sm:text-xl sm:leading-7">
           {title}
         </h2>
-        {subtitle ? <p className="mt-2 line-clamp-1 text-xs text-slate-400/50">{subtitle}</p> : null}
+        {subtitle ? <p className="mt-1 line-clamp-1 text-[11px] text-slate-400/50 sm:mt-2 sm:text-xs">{subtitle}</p> : null}
         {anime.display?.isOverridden ? (
           <div className="mt-3">
             <AppBadge tone="source">已手动修正</AppBadge>
@@ -100,7 +100,7 @@ export function DuelAnimeCard({
       </div>
 
       <details
-        className="relative mb-4 mt-4 rounded-xl border border-white/10 bg-slate-950/28 px-3 py-2 text-sm text-slate-500"
+        className="relative mb-4 mt-4 hidden rounded-xl border border-white/10 bg-slate-950/28 px-3 py-2 text-sm text-slate-500 sm:block"
         onClick={(e) => e.stopPropagation()}
       >
         <summary className="cursor-pointer select-none text-[10px] font-semibold tracking-wider text-slate-500 uppercase">

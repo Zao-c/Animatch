@@ -34,7 +34,7 @@ function SeasonDuelCard({
       aria-label={`投给 ${title}`}
       onClick={onPick}
       disabled={disabled}
-      className={`relative flex min-h-44 cursor-pointer flex-col overflow-hidden rounded-2xl border-2 text-left transition-all duration-200 hover:border-amber-200/45 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-amber-300/60 focus:ring-offset-2 focus:ring-offset-slate-950 ${
+      className={`relative flex min-h-0 cursor-pointer flex-col overflow-hidden rounded-xl border-2 text-left transition-all duration-200 hover:border-amber-200/45 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-amber-300/60 focus:ring-offset-2 focus:ring-offset-slate-950 sm:min-h-44 sm:rounded-2xl ${
         highlighted
           ? "border-amber-300 shadow-[0_0_40px_rgba(252,211,77,0.15)]"
           : "border-white/10 hover:border-white/20 active:border-amber-300/50"
@@ -51,9 +51,9 @@ function SeasonDuelCard({
           className="h-full w-full rounded-none border-0"
         />
       </div>
-      <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-t from-slate-950/18 via-transparent to-transparent" />
-      <div className="relative mt-auto border-t border-white/5 bg-slate-950/24 p-4 backdrop-blur-[2px]">
-        <h2 className="line-clamp-2 text-lg font-black leading-7 tracking-tight text-white/76">
+      <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-t from-slate-950/18 via-transparent to-transparent sm:rounded-2xl" />
+      <div className="relative mt-auto border-t border-white/5 bg-slate-950/24 p-2 backdrop-blur-[2px] sm:p-4">
+        <h2 className="line-clamp-2 text-sm font-black leading-5 tracking-tight text-white/76 sm:text-lg sm:leading-7">
           {title}
         </h2>
       </div>
@@ -487,7 +487,7 @@ export default function SeasonMatchPage() {
               </div>
             ) : null}
 
-            <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_80px_minmax(0,1fr)]">
+            <div className="grid grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)] items-stretch gap-2 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_80px_minmax(0,1fr)]">
               <SeasonDuelCard
                 key={currentPair.left.animeId + String(currentIndex)}
                 anime={currentPair.left}
@@ -496,7 +496,7 @@ export default function SeasonMatchPage() {
                 highlighted={feedback === "LEFT_WIN"}
               />
               <div className="flex items-center justify-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/10 bg-slate-950/80 text-lg font-black text-white/20 shadow-[0_0_60px_rgba(0,0,0,0.5)]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/10 bg-slate-950/80 text-sm font-black text-white/20 shadow-[0_0_60px_rgba(0,0,0,0.5)] sm:h-16 sm:w-16 sm:text-lg">
                   VS
                 </div>
               </div>
@@ -509,7 +509,7 @@ export default function SeasonMatchPage() {
               />
             </div>
 
-            <div className="mt-5 grid gap-2 sm:grid-cols-4">
+            <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
               <button
                 type="button"
                 onClick={handleRollPair}

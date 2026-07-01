@@ -35,6 +35,12 @@ describe("P1 match arena UI", () => {
     expect(source).toContain("MatchShortcutHint");
   });
 
+  it("keeps the match cards side by side on mobile", () => {
+    expect(source).toContain("grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)]");
+    expect(source).toContain("sm:gap-4");
+    expect(source).toContain("sm:h-16 sm:w-16");
+  });
+
   it("maps keyboard shortcuts and ignores editable targets", () => {
     expect(getComparisonResultForShortcut({ key: "ArrowLeft", target: null })).toBe("LEFT_WIN");
     expect(getComparisonResultForShortcut({ key: "ArrowRight", target: null })).toBe("RIGHT_WIN");
