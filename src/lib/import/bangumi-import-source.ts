@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ANIME_SOURCE } from "@/lib/anime-source";
+import { cacheAnimeCoversToCosBackground } from "@/lib/server/cos-cover-cache";
 import {
   BANGUMI_BASE_URL,
   bangumiRequest,
@@ -554,6 +555,22 @@ export async function upsertBangumiSubjects(
       }
     }
   }
+
+  void prisma.anime.findMany({
+    where: { bgmId: { in: bgmIds } },
+    select: {
+      id: true,
+      bgmId: true,
+      cachedCoverUrl: true,
+      imageUrl: true,
+      imageSmallUrl: true,
+      imageMediumUrl: true,
+      imageLargeUrl: true,
+      thumbnailUrl: true
+    }
+  }).then(cacheAnimeCoversToCosBackground).catch((error) => {
+    console.warn("[COS cover cache] batch lookup failed", error instanceof Error ? error.message : "Unknown error");
+  });
 
   return { inserted, updated };
 }

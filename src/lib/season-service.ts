@@ -143,6 +143,7 @@ export interface SeasonAnimeEntry {
   imageLargeUrl: string | null;
   imageMediumUrl: string | null;
   imageSmallUrl: string | null;
+  cachedCoverUrl: string | null;
   thumbnailUrl: string | null;
   source: string;
   animeType: string | null;
@@ -561,7 +562,8 @@ async function aggregateSeasonRanking(
           titleJa: true,
           imageUrl: true,
           imageMediumUrl: true,
-          imageLargeUrl: true
+          imageLargeUrl: true,
+          cachedCoverUrl: true
         }
       }
     },
@@ -574,7 +576,7 @@ async function aggregateSeasonRanking(
     aggregates.set(entry.animeId, {
       animeId: entry.animeId,
       title: entry.anime.titleCn ?? entry.anime.titleJa ?? entry.anime.title ?? entry.animeId,
-      imageUrl: entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl ?? entry.anime.imageUrl,
+      imageUrl: entry.anime.cachedCoverUrl ?? entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl ?? entry.anime.imageUrl,
       weightedEloSum: 0,
       rawEloSum: 0,
       weightSum: 0,
@@ -675,7 +677,8 @@ async function aggregateCurrentUserSeasonRanking(
           titleJa: true,
           imageUrl: true,
           imageMediumUrl: true,
-          imageLargeUrl: true
+          imageLargeUrl: true,
+          cachedCoverUrl: true
         }
       }
     }
@@ -715,7 +718,7 @@ async function aggregateCurrentUserSeasonRanking(
         lossCount: score.lossCount,
         biasWinCount: score.biasWinCount,
         comparisonCount: score.compareCount,
-        imageUrl: anime?.imageMediumUrl ?? anime?.imageLargeUrl ?? anime?.imageUrl ?? null
+        imageUrl: anime?.cachedCoverUrl ?? anime?.imageMediumUrl ?? anime?.imageLargeUrl ?? anime?.imageUrl ?? null
       };
     })
     .sort(compareSeasonPersonalRankingItems);
@@ -789,6 +792,7 @@ export async function getSeasonMatchQueue(
         imageLargeUrl: true,
         imageMediumUrl: true,
         imageSmallUrl: true,
+        cachedCoverUrl: true,
         thumbnailUrl: true,
         source: true,
         animeType: true
@@ -927,6 +931,7 @@ function toSeasonAnimeEntry(anime: {
   imageLargeUrl: string | null;
   imageMediumUrl: string | null;
   imageSmallUrl: string | null;
+  cachedCoverUrl: string | null;
   thumbnailUrl: string | null;
   source: string;
   animeType: string | null;
@@ -934,10 +939,11 @@ function toSeasonAnimeEntry(anime: {
   return {
     animeId: anime.id,
     title: anime.titleCn ?? anime.titleJa ?? anime.title ?? anime.id,
-    imageUrl: anime.imageUrl,
+    imageUrl: anime.cachedCoverUrl ?? anime.imageUrl,
     imageLargeUrl: anime.imageLargeUrl,
     imageMediumUrl: anime.imageMediumUrl,
     imageSmallUrl: anime.imageSmallUrl,
+    cachedCoverUrl: anime.cachedCoverUrl,
     thumbnailUrl: anime.thumbnailUrl,
     source: anime.source,
     animeType: anime.animeType

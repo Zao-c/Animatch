@@ -111,7 +111,8 @@ export async function GET(request: Request) {
                 thumbnailUrl: true,
                 imageSmallUrl: true,
                 imageMediumUrl: true,
-                imageLargeUrl: true
+                imageLargeUrl: true,
+                cachedCoverUrl: true
               }
             }
           }
@@ -204,6 +205,7 @@ function serializePoolSummary(pool: Prisma.CustomPoolGetPayload<{
             imageSmallUrl: true;
             imageMediumUrl: true;
             imageLargeUrl: true;
+            cachedCoverUrl: true;
           };
         };
       };
@@ -286,6 +288,7 @@ function deriveCoverImages(
       imageSmallUrl: string | null;
       imageMediumUrl: string | null;
       imageLargeUrl: string | null;
+      cachedCoverUrl: string | null;
     };
   }>
 ): Array<{ src: string; secondarySrc: string | null }> {

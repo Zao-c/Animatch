@@ -20,8 +20,8 @@ interface VoteRecord {
   afterLoserElo: number | null;
   createdAt: Date;
   user: { id: string; username: string | null; name: string | null; image: string | null };
-  winnerAnime: Pick<Anime, "id" | "title" | "titleCn" | "titleJa" | "imageUrl" | "imageMediumUrl" | "imageLargeUrl"> | null;
-  loserAnime: Pick<Anime, "id" | "title" | "titleCn" | "titleJa" | "imageUrl" | "imageMediumUrl" | "imageLargeUrl"> | null;
+  winnerAnime: Pick<Anime, "id" | "title" | "titleCn" | "titleJa" | "imageUrl" | "imageMediumUrl" | "imageLargeUrl" | "cachedCoverUrl"> | null;
+  loserAnime: Pick<Anime, "id" | "title" | "titleCn" | "titleJa" | "imageUrl" | "imageMediumUrl" | "imageLargeUrl" | "cachedCoverUrl"> | null;
 }
 
 export interface UserImpactEntry {
@@ -130,12 +130,13 @@ function animeTitle(a: Pick<Anime, "title" | "titleCn" | "titleJa"> | null): str
   return a.titleCn ?? a.titleJa ?? a.title ?? "未知作品";
 }
 
-function animeCover(a: Pick<Anime, "title" | "titleCn" | "titleJa" | "imageUrl" | "imageMediumUrl" | "imageLargeUrl"> | null): string | null {
+function animeCover(a: Pick<Anime, "title" | "titleCn" | "titleJa" | "imageUrl" | "imageMediumUrl" | "imageLargeUrl" | "cachedCoverUrl"> | null): string | null {
   if (!a) return null;
   return getAnimeCoverUrl({
     imageUrl: a.imageUrl,
     imageMediumUrl: a.imageMediumUrl,
     imageLargeUrl: a.imageLargeUrl,
+    cachedCoverUrl: a.cachedCoverUrl,
   }, { intent: "display" });
 }
 
@@ -164,7 +165,7 @@ export async function getBattleSeasonImpact(
 
   const animes = await prisma.anime.findMany({
     where: { id: { in: allAnimeIds } },
-    select: { id: true, title: true, titleCn: true, titleJa: true, imageUrl: true, imageMediumUrl: true, imageLargeUrl: true },
+    select: { id: true, title: true, titleCn: true, titleJa: true, imageUrl: true, imageMediumUrl: true, imageLargeUrl: true, cachedCoverUrl: true },
   });
   const animeMap = new Map(animes.map((a) => [a.id, a]));
 

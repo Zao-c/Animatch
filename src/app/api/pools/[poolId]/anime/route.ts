@@ -8,9 +8,11 @@ import { canAddAnime } from "@/lib/pool-permissions";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { prewarmCoverCacheBackground } from "@/lib/server/cover-cache-prewarm";
+import { cacheAnimeCoverToCosBackground } from "@/lib/server/cos-cover-cache";
 import type { Anime } from "@prisma/client";
 
 function prewarmAnimeCover(anime: Anime): void {
+  cacheAnimeCoverToCosBackground(anime);
   const primary = getAnimeCoverUrl(anime, { intent: "display" });
   const secondary = getAnimeCoverUrl(anime, { intent: "export" });
   prewarmCoverCacheBackground([primary, secondary], { limit: 2 });

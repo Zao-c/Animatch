@@ -16,12 +16,14 @@
     "db:studio": "prisma studio",
     "dev:setup": "pnpm prisma generate && pnpm prisma migrate dev",
     "deploy:check": "bash scripts/deploy-check.sh",
-    "anime:import:manami": "npx tsx scripts/import-manami-anime.ts"
+    "anime:import:manami": "npx tsx scripts/import-manami-anime.ts",
+    "covers:cache-cos": "tsx scripts/cache-covers-to-cos.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",
     "@prisma/client": "^6.0.1",
     "cheerio": "^1.2.0",
+    "cos-nodejs-sdk-v5": "^2.15.4",
     "html-to-image": "^1.11.13",
     "next": "^14.2.23",
     "next-auth": "^4.24.11",

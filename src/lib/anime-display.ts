@@ -18,6 +18,7 @@ interface AnimeDisplayFields {
   titleEn?: string | null;
   imageUrl: string | null;
   thumbnailUrl?: string | null;
+  cachedCoverUrl?: string | null;
   animeType: string | null;
   tags: string[];
   source: string;
@@ -77,6 +78,7 @@ export function getEffectiveAnimeDisplay(
     subtitle,
     coverUrl:
       coverOverride ??
+      nonEmpty(entry.anime.cachedCoverUrl) ??
       nonEmpty(entry.anime.thumbnailUrl) ??
       nonEmpty(entry.anime.imageUrl) ??
       null,

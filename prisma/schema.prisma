@@ -122,6 +122,13 @@ model Anime {
   imageMediumUrl       String?
   imageLargeUrl        String?
   thumbnailUrl         String?
+  cachedCoverUrl       String?
+  cachedCoverKey       String?
+  cachedCoverWidth     Int?
+  cachedCoverHeight    Int?
+  cachedCoverFormat    String?
+  cachedCoverBytes     Int?
+  cachedCoverAt        DateTime?
   airDate              DateTime?
   bangumiRank          Int?
   bangumiScore         Float?

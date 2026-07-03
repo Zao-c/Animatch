@@ -6,6 +6,7 @@ export interface AnimeCoverUrlFields {
   coverUrlOverride?: string | null;
   coverUrl?: string | null;
   posterUrl?: string | null;
+  cachedCoverUrl?: string | null;
   thumbnailUrl?: string | null;
   imageUrl?: string | null;
   imageSmallUrl?: string | null;
@@ -24,6 +25,7 @@ export function getAnimeCoverUrl(
   const displayCover = nonEmpty(anime.display?.coverUrl);
   const genericCover = nonEmpty(anime.coverUrl);
   const posterUrl = nonEmpty(anime.posterUrl);
+  const cachedCoverUrl = nonEmpty(anime.cachedCoverUrl);
   const imageUrl = nonEmpty(anime.imageUrl);
   const thumbnailUrl = nonEmpty(anime.thumbnailUrl);
   const imageSmallUrl = nonEmpty(anime.imageSmallUrl);
@@ -36,6 +38,10 @@ export function getAnimeCoverUrl(
 
   if (override !== null) {
     return override;
+  }
+
+  if (cachedCoverUrl !== null) {
+    return cachedCoverUrl;
   }
 
   const localUpload = firstLocalUpload([

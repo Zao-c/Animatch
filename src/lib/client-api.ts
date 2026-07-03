@@ -11,6 +11,7 @@ export interface PublicAnime {
   imageSmallUrl: string | null;
   imageMediumUrl: string | null;
   imageLargeUrl: string | null;
+  cachedCoverUrl?: string | null;
   coverUrl: string | null;
   coverUrlOverride?: string | null;
   thumbnailUrl: string | null;
@@ -1238,6 +1239,7 @@ export interface SeasonAnimeEntry {
   imageLargeUrl: string | null;
   imageMediumUrl: string | null;
   imageSmallUrl: string | null;
+  cachedCoverUrl: string | null;
   thumbnailUrl: string | null;
   source: string;
   animeType: string | null;

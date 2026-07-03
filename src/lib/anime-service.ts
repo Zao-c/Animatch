@@ -10,6 +10,7 @@ import {
   type JsonValue,
   type NormalizedBangumiSubject
 } from "./bangumi";
+import { cacheAnimeCoverToCosBackground } from "./server/cos-cover-cache";
 
 export interface PublicAnime {
   id: string;
@@ -22,6 +23,7 @@ export interface PublicAnime {
   imageSmallUrl: string | null;
   imageMediumUrl: string | null;
   imageLargeUrl: string | null;
+  cachedCoverUrl?: string | null;
   coverUrl: string | null;
   thumbnailUrl: string | null;
   airDate: Date | null;
@@ -48,6 +50,7 @@ export type PublicAnimeSourceFields = Pick<
   | "imageSmallUrl"
   | "imageMediumUrl"
   | "imageLargeUrl"
+  | "cachedCoverUrl"
   | "thumbnailUrl"
   | "airDate"
   | "bangumiRank"
@@ -73,7 +76,7 @@ export async function upsertAnimeFromBangumiSubject(
   const sourceId = String(subject.bgmId);
   const sourceUrl = buildBangumiSubjectUrl(subject.bgmId);
 
-  return prisma.anime.upsert({
+  const anime = await prisma.anime.upsert({
     where: {
       bgmId: subject.bgmId
     },
@@ -119,6 +122,8 @@ export async function upsertAnimeFromBangumiSubject(
       imageStatus: subject.imageUrl === null ? "MISSING" : "OK"
     }
   });
+  cacheAnimeCoverToCosBackground(anime);
+  return anime;
 }
 
 function toPrismaJson(value: JsonValue): Prisma.InputJsonValue | typeof Prisma.JsonNull {
@@ -183,6 +188,7 @@ export async function getOrImportAnimeByBgmId(bgmId: number): Promise<Anime | nu
   });
 
   if (existingAnime !== null) {
+    cacheAnimeCoverToCosBackground(existingAnime);
     return existingAnime;
   }
 
@@ -205,7 +211,8 @@ export function toPublicAnime(anime: PublicAnimeSourceFields): PublicAnime {
     imageSmallUrl: anime.imageSmallUrl,
     imageMediumUrl: anime.imageMediumUrl,
     imageLargeUrl: anime.imageLargeUrl,
-    coverUrl: anime.thumbnailUrl ?? anime.imageUrl,
+    cachedCoverUrl: anime.cachedCoverUrl,
+    coverUrl: anime.cachedCoverUrl ?? anime.thumbnailUrl ?? anime.imageUrl,
     thumbnailUrl: anime.thumbnailUrl,
     airDate: anime.airDate,
     bangumiRank: anime.bangumiRank,
