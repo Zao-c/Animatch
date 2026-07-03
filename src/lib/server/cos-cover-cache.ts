@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import sharp from "sharp";
 import COS from "cos-nodejs-sdk-v5";
-import { prisma } from "@/lib/db";
+import { prisma } from "../db";
 
 interface CacheableAnimeCover {
   id: string;

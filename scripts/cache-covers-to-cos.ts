@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/db";
-import { cacheAnimeCoverToCos, isCosCoverCacheConfigured } from "@/lib/server/cos-cover-cache";
+import { prisma } from "../src/lib/db";
+import { cacheAnimeCoverToCos, isCosCoverCacheConfigured } from "../src/lib/server/cos-cover-cache";
 
 interface Args {
   poolId?: string;
