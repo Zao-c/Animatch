@@ -5,9 +5,7 @@ import { isAdminEditSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 import { canManagePool, getPoolPermissions } from "@/lib/pool-permissions";
 import { poolAnimePublicAnimeSelect, serializePoolAnime } from "@/lib/pool-anime-serializer";
-import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
-import { prewarmCoverCacheBackground } from "@/lib/server/cover-cache-prewarm";
-import { cacheAnimeCoversToCosBackground } from "@/lib/server/cos-cover-cache";
+import { enqueuePoolAnimeCoversCache } from "@/lib/server/pool-cover-cache";
 import type { PoolTierConfig } from "@/lib/tier-config";
 
 interface RouteContext {
@@ -74,16 +72,7 @@ export async function GET(_request: Request, context: RouteContext) {
     }
 
     const animeEntries = pool.poolAnime.map(serializePoolAnime);
-    cacheAnimeCoversToCosBackground(pool.poolAnime.slice(0, 60).map((entry) => entry.anime));
-
-    prewarmCoverCacheBackground(
-      animeEntries.slice(0, 30).flatMap((entry) => {
-        const primary = entry.display?.coverUrl ?? null;
-        const secondary = getAnimeCoverUrl(entry.anime, { intent: "export" });
-        return [primary, secondary];
-      }),
-      { limit: 60, concurrency: 3 }
-    );
+    enqueuePoolAnimeCoversCache(pool.poolAnime.slice(0, 60).map((entry) => entry.anime));
 
     return ok({
       id: pool.id,

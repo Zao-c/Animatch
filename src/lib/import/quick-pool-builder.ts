@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
-import { prewarmCoverCacheBackground } from "@/lib/server/cover-cache-prewarm";
+import { enqueuePoolAnimeCoversCache } from "@/lib/server/pool-cover-cache";
 import { GLOBAL_SEARCH_EXCLUDED_SOURCES } from "@/lib/anime-service";
 import type { Anime } from "@prisma/client";
 import type { NormalizedBangumiSubject } from "@/lib/bangumi";
@@ -302,7 +302,7 @@ async function addAnimeToPoolBatch(
   });
   let nextPosition = (maxPosition._max.position ?? 0) + 1;
 
-  const coversToPrewarm: string[] = [];
+  const animesToCache: Anime[] = [];
 
   for (const animeId of animeIds) {
     if (existingIds.has(animeId)) {
@@ -325,10 +325,7 @@ async function addAnimeToPoolBatch(
         },
       });
 
-      const primary = getAnimeCoverUrl(anime, { intent: "display" });
-      const secondary = getAnimeCoverUrl(anime, { intent: "export" });
-      if (primary) coversToPrewarm.push(primary);
-      if (secondary) coversToPrewarm.push(secondary);
+      animesToCache.push(anime);
 
       addedCount++;
     } catch {
@@ -336,9 +333,7 @@ async function addAnimeToPoolBatch(
     }
   }
 
-  if (coversToPrewarm.length > 0) {
-    prewarmCoverCacheBackground(coversToPrewarm, { limit: 60, concurrency: 5 });
-  }
+  enqueuePoolAnimeCoversCache(animesToCache, { proxyLimit: 60, proxyConcurrency: 5 });
 
   return { addedCount, skippedCount, failedCount };
 }

@@ -6,6 +6,7 @@ interface Args {
   limit: number;
   concurrency: number;
   force: boolean;
+  allLibrary: boolean;
 }
 
 function parseArgs(): Args {
@@ -13,7 +14,8 @@ function parseArgs(): Args {
   const result: Args = {
     limit: 100,
     concurrency: 2,
-    force: false
+    force: false,
+    allLibrary: false
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -26,6 +28,8 @@ function parseArgs(): Args {
       result.concurrency = Math.max(1, Math.min(4, Number(args[++index]) || result.concurrency));
     } else if (arg === "--force") {
       result.force = true;
+    } else if (arg === "--all-library") {
+      result.allLibrary = true;
     }
   }
 
@@ -39,18 +43,84 @@ async function main() {
     throw new Error("COS cover cache is not configured. Required env: COS_SECRET_ID, COS_SECRET_KEY, COS_BUCKET, COS_REGION");
   }
 
-  const where = args.poolId
+  const activePoolFilter = args.poolId
     ? {
         poolEntries: {
           some: {
-            poolId: args.poolId
+            poolId: args.poolId,
+            pool: {
+              deletedAt: null,
+              status: { not: "ARCHIVED" as const }
+            }
           }
-        },
-        ...(args.force ? {} : { cachedCoverUrl: null })
+        }
       }
-    : args.force
-      ? {}
-      : { cachedCoverUrl: null };
+    : {
+        poolEntries: {
+          some: {
+            pool: {
+              deletedAt: null,
+              status: { not: "ARCHIVED" as const }
+            }
+          }
+        }
+      };
+
+  const needsCacheFilter = args.force
+    ? {}
+    : {
+        OR: [
+          { cachedCoverUrl: null },
+          { cachedCoverUrl: "" },
+          { cachedCoverSourceUrl: null }
+        ]
+      };
+
+  const where = args.allLibrary
+    ? needsCacheFilter
+    : {
+        ...activePoolFilter,
+        ...needsCacheFilter
+      };
+
+  const usedWhere = args.poolId ? activePoolFilter : {
+    poolEntries: {
+      some: {
+        pool: {
+          deletedAt: null,
+          status: { not: "ARCHIVED" as const }
+        }
+      }
+    }
+  };
+  const [usedAnimeCount, usedCachedAnimeCount, usedPendingAnimeCount] = await Promise.all([
+    prisma.anime.count({ where: usedWhere }),
+    prisma.anime.count({
+      where: {
+        ...usedWhere,
+        cachedCoverUrl: { not: null }
+      }
+    }),
+    prisma.anime.count({
+      where: {
+        ...usedWhere,
+        OR: [
+          { cachedCoverUrl: null },
+          { cachedCoverUrl: "" },
+          { cachedCoverSourceUrl: null }
+        ]
+      }
+    })
+  ]);
+
+  console.log(JSON.stringify({
+    scope: args.allLibrary ? "all-library" : args.poolId ? "pool" : "active-pool-anime",
+    poolId: args.poolId ?? null,
+    usedAnimeCount,
+    usedCachedAnimeCount,
+    usedPendingAnimeCount,
+    usedAnimeCoverRate: usedAnimeCount > 0 ? Number((usedCachedAnimeCount / usedAnimeCount).toFixed(4)) : 0
+  }, null, 2));
 
   const animes = await prisma.anime.findMany({
     where,

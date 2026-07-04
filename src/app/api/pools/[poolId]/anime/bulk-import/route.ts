@@ -10,6 +10,7 @@ import { requireCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
 import { canAddAnime } from "@/lib/pool-permissions";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
+import { enqueuePoolAnimeCoversCache } from "@/lib/server/pool-cover-cache";
 
 interface RouteContext {
   params: {
@@ -61,6 +62,8 @@ export async function POST(request: Request, context: RouteContext) {
     const added: ReturnType<typeof serializePoolAnime>[] = [];
     const skipped: PublicAnime[] = [];
 
+    const animesToCache = [];
+
     for (const anime of importedResult.imported) {
       const existingEntry = await prisma.poolAnime.findUnique({
         where: {
@@ -73,6 +76,7 @@ export async function POST(request: Request, context: RouteContext) {
 
       if (existingEntry !== null) {
         skipped.push(toPublicAnime(anime));
+        animesToCache.push(anime);
         continue;
       }
 
@@ -96,7 +100,10 @@ export async function POST(request: Request, context: RouteContext) {
       });
 
       added.push(serializePoolAnime(createdEntry));
+      animesToCache.push(createdEntry.anime);
     }
+
+    enqueuePoolAnimeCoversCache(animesToCache);
 
     return ok({
       added,

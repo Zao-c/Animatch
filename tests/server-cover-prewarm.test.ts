@@ -147,8 +147,8 @@ describe("image-proxy cache control headers", () => {
 describe("API routes trigger cover prewarm", () => {
   it("POST /api/pools/[poolId]/anime calls prewarmAnimeCover after creation", () => {
     const source = readFileSync("src/app/api/pools/[poolId]/anime/route.ts", "utf8");
-    expect(source).toContain("prewarmAnimeCover(anime)");
-    expect(source).toContain("import { prewarmCoverCacheBackground } from \"@/lib/server/cover-cache-prewarm\"");
+    expect(source).toContain("enqueuePoolAnimeCoverCache(anime)");
+    expect(source).toContain("import { enqueuePoolAnimeCoverCache } from \"@/lib/server/pool-cover-cache\"");
   });
 
   it("POST /api/pools/[poolId]/anime/tiermaker-import calls prewarmImportResults after import", () => {
@@ -165,8 +165,8 @@ describe("API routes trigger cover prewarm", () => {
 
   it("GET /api/pools/[poolId] calls prewarm on pool detail anime list", () => {
     const source = readFileSync("src/app/api/pools/[poolId]/route.ts", "utf8");
-    expect(source).toContain("prewarmCoverCacheBackground(");
-    expect(source).toContain("animeEntries.slice(0, 30)");
+    expect(source).toContain("enqueuePoolAnimeCoversCache(");
+    expect(source).toContain("pool.poolAnime.slice(0, 60)");
   });
 
   it("GET /api/pools/[poolId]/runs/[runId]/match-queue calls prewarm on match pairs", () => {
