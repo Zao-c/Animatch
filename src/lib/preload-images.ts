@@ -2,16 +2,39 @@ import type { MatchPair } from "./client-api";
 import { getAnimeCoverUrl, type AnimeCoverUrlFields } from "./anime-cover-url";
 import { getProxiedCoverCandidates } from "./image-proxy";
 
-export function preloadImage(src: string | null | undefined): Promise<boolean> {
+const DEFAULT_PRELOAD_TIMEOUT_MS = 4000;
+
+export function preloadImage(
+  src: string | null | undefined,
+  options: { timeoutMs?: number } = {}
+): Promise<boolean> {
   if (!src) {
     return Promise.resolve(false);
   }
 
   return new Promise((resolve) => {
     const image = new Image();
+    const timeoutMs = Math.max(1, Math.trunc(options.timeoutMs ?? DEFAULT_PRELOAD_TIMEOUT_MS));
+    let settled = false;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
 
-    image.onload = () => resolve(true);
-    image.onerror = () => resolve(false);
+    function finish(result: boolean) {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      image.onload = null;
+      image.onerror = null;
+      if (timeout !== null) {
+        clearTimeout(timeout);
+      }
+      resolve(result);
+    }
+
+    timeout = setTimeout(() => finish(false), timeoutMs);
+    image.onload = () => finish(true);
+    image.onerror = () => finish(false);
     image.src = src;
   });
 }

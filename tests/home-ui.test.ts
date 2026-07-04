@@ -44,6 +44,14 @@ describe("home mini match demo source", () => {
     expect(source).not.toContain("submitComparison");
   });
 
+  it("locks mini demo choices during transition feedback", () => {
+    expect(source).toContain("choice !== null");
+    expect(source).toContain("choiceAdvanceTimerRef");
+    expect(source).toContain("window.clearTimeout");
+    expect(source).toContain("disabled={disabled}");
+    expect(source).toContain("disabled={choice !== null}");
+  });
+
   it("renders side labels without anime title displayed in preview card area", () => {
     expect(source).toContain("这边");
     expect(source).toContain("那边");

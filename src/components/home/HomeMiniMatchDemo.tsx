@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimeCover } from "@/components/AnimeCover";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
@@ -21,6 +21,7 @@ export function HomeMiniMatchDemo() {
   const [choice, setChoice] = useState<Choice>(null);
   const [isPreparingDemoPool, setIsPreparingDemoPool] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const choiceAdvanceTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,15 +43,24 @@ export function HomeMiniMatchDemo() {
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (choiceAdvanceTimerRef.current !== null) {
+        window.clearTimeout(choiceAdvanceTimerRef.current);
+      }
+    };
+  }, []);
+
   const pair = useMemo(() => {
     if (preview === null || preview.pairs.length === 0) return null;
     return preview.pairs[pairIndex % preview.pairs.length];
   }, [pairIndex, preview]);
 
   function choose(nextChoice: Exclude<Choice, null>) {
-    if (preview === null || preview.pairs.length === 0) return;
+    if (preview === null || preview.pairs.length === 0 || choice !== null) return;
     setChoice(nextChoice);
-    window.setTimeout(() => {
+    choiceAdvanceTimerRef.current = window.setTimeout(() => {
+      choiceAdvanceTimerRef.current = null;
       setChoice(null);
       setPairIndex((current) => (current + 1) % preview.pairs.length);
     }, 500);
@@ -126,9 +136,9 @@ export function HomeMiniMatchDemo() {
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-2">
-        <ChoiceButton label="左边" onClick={() => choose("left")} active={choice === "left"} />
-        <ChoiceButton label="差不多" onClick={() => choose("draw")} active={choice === "draw"} />
-        <ChoiceButton label="右边" onClick={() => choose("right")} active={choice === "right"} />
+        <ChoiceButton label="左边" onClick={() => choose("left")} active={choice === "left"} disabled={choice !== null} />
+        <ChoiceButton label="差不多" onClick={() => choose("draw")} active={choice === "draw"} disabled={choice !== null} />
+        <ChoiceButton label="右边" onClick={() => choose("right")} active={choice === "right"} disabled={choice !== null} />
       </div>
 
       {choice !== null ? (
@@ -201,18 +211,21 @@ function PreviewCard({
 function ChoiceButton({
   label,
   active,
+  disabled,
   onClick
 }: {
   label: string;
   active: boolean;
+  disabled: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={[
-        "min-h-11 rounded-xl border px-2 text-sm font-semibold transition duration-anime active:scale-[0.98]",
+        "min-h-11 rounded-xl border px-2 text-sm font-semibold transition duration-anime active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70",
         active
           ? "border-anime-pink/55 bg-anime-pink/18 text-pink-50 shadow-[0_0_18px_rgba(255,79,169,0.16)]"
           : "border-anime-cyan/25 bg-anime-cyan/10 text-cyan-100 hover:bg-anime-cyan/16"

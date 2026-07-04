@@ -10,7 +10,11 @@ export function RankingProgressCard({
   progress: RankingProgress;
   compact?: boolean;
 }) {
-  const percent = Math.round(progress.progressRatio * 100);
+  const percent = Math.min(100, Math.max(0, Math.round(progress.progressRatio * 100)));
+  const overTargetCount = Math.max(
+    0,
+    progress.effectiveComparisons - progress.highConfidenceTarget
+  );
 
   return (
     <AppCard className={compact ? "p-4" : "p-5"}>
@@ -32,7 +36,7 @@ export function RankingProgressCard({
             <div>
               <p className="text-xs text-slate-500">有效对决进度</p>
               <p className="mt-1 text-2xl font-black text-white">
-                {progress.effectiveComparisons} / {progress.highConfidenceTarget}
+                {formatProgressCount(progress)}
               </p>
             </div>
             <p className="text-sm font-bold text-cyan-100">{percent}%</p>
@@ -48,6 +52,11 @@ export function RankingProgressCard({
               ? `继续 ${progress.remainingToNextStage} 场可${progress.nextTargetLabel}`
               : progress.nextTargetLabel}
           </p>
+          {overTargetCount > 0 ? (
+            <p className="mt-1 text-xs font-semibold text-cyan-100">
+              已超过目标 {overTargetCount} 场
+            </p>
+          ) : null}
         </div>
       </div>
     </AppCard>
@@ -64,6 +73,14 @@ function buildProgressCopy(progress: RankingProgress): string {
   }
 
   return `当前榜单已完成 ${progress.effectiveComparisons} / ${copyTarget(progress)} 场有效对决，${stageCopy(progress.stage)}。`;
+}
+
+function formatProgressCount(progress: RankingProgress): string {
+  if (progress.effectiveComparisons > progress.highConfidenceTarget) {
+    return `${progress.effectiveComparisons} 场 / 目标 ${progress.highConfidenceTarget}`;
+  }
+
+  return `${progress.effectiveComparisons} / ${progress.highConfidenceTarget}`;
 }
 
 function stageCopy(stage: RankingProgress["stage"]): string {

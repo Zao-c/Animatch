@@ -47,4 +47,26 @@ describe("ranking UI wiring", () => {
     expect(html).toContain("当前榜单已完成 18 / 30 场有效对决");
     expect(html).toContain("继续 12 场可达到较可信");
   });
+  it("shows overflow progress without impossible target fraction", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(RankingProgressCard, {
+        progress: {
+          totalItems: 22,
+          effectiveComparisons: 118,
+          draftTarget: 33,
+          reliableTarget: 66,
+          highConfidenceTarget: 110,
+          progressRatio: 1,
+          stage: "HIGH_CONFIDENCE",
+          stageLabel: "高可信",
+          nextTargetLabel: "已达到高可信度",
+          remainingToNextStage: 0
+        }
+      })
+    );
+
+    expect(html).toContain("118 场 / 目标 110");
+    expect(html).toContain("已超过目标 8 场");
+    expect(html).not.toContain("118 / 110");
+  });
 });

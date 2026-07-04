@@ -55,6 +55,34 @@ describe("P1 match arena UI", () => {
         target: { tagName: "INPUT", isContentEditable: false } as unknown as EventTarget
       })
     ).toBeNull();
+    expect(
+      getComparisonResultForShortcut({
+        key: "ArrowRight",
+        target: { tagName: "BUTTON", isContentEditable: false } as unknown as EventTarget
+      })
+    ).toBeNull();
+    expect(
+      getComparisonResultForShortcut({
+        key: "ArrowUp",
+        target: { tagName: "A", isContentEditable: false } as unknown as EventTarget
+      })
+    ).toBeNull();
+    expect(
+      getComparisonResultForShortcut({
+        key: "ArrowDown",
+        target: { tagName: "SUMMARY", isContentEditable: false } as unknown as EventTarget
+      })
+    ).toBeNull();
+    expect(
+      getComparisonResultForShortcut({
+        key: "1",
+        target: {
+          tagName: "DIV",
+          isContentEditable: false,
+          getAttribute: (name: string) => (name === "role" ? "button" : null)
+        } as unknown as EventTarget
+      })
+    ).toBeNull();
   });
 });
 

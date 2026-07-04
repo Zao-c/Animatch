@@ -16,8 +16,18 @@ class MockImage {
   }
 }
 
+class HangingImage {
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+
+  set src(_value: string) {
+    // Intentionally never calls load or error.
+  }
+}
+
 describe("preloadImage", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -37,5 +47,15 @@ describe("preloadImage", () => {
     vi.stubGlobal("Image", MockImage);
 
     await expect(preloadImage("https://img.example/fail.jpg")).resolves.toBe(false);
+  });
+
+  it("times out when the image never settles", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("Image", HangingImage);
+
+    const result = preloadImage("https://img.example/hang.jpg", { timeoutMs: 25 });
+    await vi.advanceTimersByTimeAsync(25);
+
+    await expect(result).resolves.toBe(false);
   });
 });
