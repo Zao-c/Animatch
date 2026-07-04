@@ -67,6 +67,8 @@ describe("tier-service mapping", () => {
         imageLargeUrl: "large.jpg",
         cachedCoverUrl: null,
         cachedCoverKey: null,
+        cachedCoverSourceUrl: null,
+        cachedCoverContentHash: null,
         cachedCoverWidth: null,
         cachedCoverHeight: null,
         cachedCoverFormat: null,

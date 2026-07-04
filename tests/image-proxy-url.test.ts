@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { proxyExternalImageUrl, isProxiedUrl } from "../src/lib/image-proxy";
+import { proxyExternalImageUrl, isDirectImageUrl, isProxiedUrl } from "../src/lib/image-proxy";
 
 describe("proxyExternalImageUrl", () => {
   it("returns null for null", () => {
@@ -63,6 +63,18 @@ describe("proxyExternalImageUrl", () => {
     const result = proxyExternalImageUrl(url);
     expect(result).toBe("/api/image-proxy?url=" + encodeURIComponent("https://example.com/img.jpg"));
   });
+
+  it("does not proxy Tencent COS object URLs", () => {
+    const url = "https://karuta-1321249409.cos.ap-shanghai.myqcloud.com/animatch/covers/a.webp";
+    expect(proxyExternalImageUrl(url)).toBe(url);
+  });
+
+  it("does not proxy configured direct image hosts", () => {
+    process.env.NEXT_PUBLIC_DIRECT_IMAGE_HOSTS = "img.sparrowland.xyz,cdn.example.test";
+    const url = "https://img.sparrowland.xyz/animatch/covers/a.webp";
+    expect(proxyExternalImageUrl(url)).toBe(url);
+    delete process.env.NEXT_PUBLIC_DIRECT_IMAGE_HOSTS;
+  });
 });
 
 describe("isProxiedUrl", () => {
@@ -76,5 +88,15 @@ describe("isProxiedUrl", () => {
 
   it("returns false for relative URLs", () => {
     expect(isProxiedUrl("/uploads/custom-items/x.jpg")).toBe(false);
+  });
+});
+
+describe("isDirectImageUrl", () => {
+  it("recognizes COS domains as direct image hosts", () => {
+    expect(isDirectImageUrl("https://bucket.cos.ap-shanghai.myqcloud.com/a.webp")).toBe(true);
+  });
+
+  it("rejects ordinary remote image hosts", () => {
+    expect(isDirectImageUrl("https://lain.bgm.tv/pic/cover/l/a.jpg")).toBe(false);
   });
 });

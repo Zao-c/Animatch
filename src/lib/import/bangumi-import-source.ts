@@ -562,6 +562,7 @@ export async function upsertBangumiSubjects(
       id: true,
       bgmId: true,
       cachedCoverUrl: true,
+      cachedCoverSourceUrl: true,
       imageUrl: true,
       imageSmallUrl: true,
       imageMediumUrl: true,

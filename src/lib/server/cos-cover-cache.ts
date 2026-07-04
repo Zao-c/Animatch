@@ -2,6 +2,7 @@ import crypto from "crypto";
 import sharp from "sharp";
 import COS from "cos-nodejs-sdk-v5";
 import { prisma } from "../db";
+import { getDispatcher } from "./outbound-fetch";
 
 interface CacheableAnimeCover {
   id: string;
@@ -13,6 +14,7 @@ interface CacheableAnimeCover {
   imageMediumUrl?: string | null;
   imageLargeUrl?: string | null;
   thumbnailUrl?: string | null;
+  cachedCoverSourceUrl?: string | null;
 }
 
 interface CoverCacheResult {
@@ -31,6 +33,7 @@ interface CosCoverConfig {
   region: string;
   publicBaseUrl: string | null;
   prefix: string;
+  objectAcl: string | null;
 }
 
 interface BackgroundCosCacheState {
@@ -55,8 +58,9 @@ export function isCosCoverCacheConfigured(): boolean {
 }
 
 export function cacheAnimeCoverToCosBackground(anime: CacheableAnimeCover | null | undefined): void {
-  if (!anime || anime.cachedCoverUrl || !getCosCoverConfig()) return;
-  if (!pickSourceCoverUrl(anime)) return;
+  if (!anime || !getCosCoverConfig()) return;
+  const sourceUrl = pickSourceCoverUrl(anime);
+  if (!sourceUrl || hasFreshCachedCover(anime, sourceUrl)) return;
 
   const state = getBackgroundState();
   if (state.queuedAnimeIds.has(anime.id)) return;
@@ -76,14 +80,16 @@ export function cacheAnimeCoversToCosBackground(animes: Array<CacheableAnimeCove
   }
 }
 
-export async function cacheAnimeCoverToCos(anime: CacheableAnimeCover): Promise<CoverCacheResult | null> {
-  if (anime.cachedCoverUrl) return null;
-
+export async function cacheAnimeCoverToCos(
+  anime: CacheableAnimeCover,
+  options: { force?: boolean } = {}
+): Promise<CoverCacheResult | null> {
   const config = getCosCoverConfig();
   if (!config) return null;
 
   const sourceUrl = pickSourceCoverUrl(anime);
   if (!sourceUrl) return null;
+  if (!options.force && hasFreshCachedCover(anime, sourceUrl)) return null;
 
   const downloaded = await downloadImage(sourceUrl);
   const processed = await sharp(downloaded)
@@ -97,7 +103,8 @@ export async function cacheAnimeCoverToCos(anime: CacheableAnimeCover): Promise<
     .webp({ quality: 82 })
     .toBuffer({ resolveWithObject: true });
 
-  const key = buildCoverKey(config.prefix, anime, sourceUrl);
+  const contentHash = crypto.createHash("sha256").update(processed.data).digest("hex");
+  const key = buildCoverKey(config.prefix, anime, sourceUrl, contentHash);
   await putCosObject(config, key, processed.data, "image/webp");
 
   const url = buildPublicUrl(config, key);
@@ -106,6 +113,8 @@ export async function cacheAnimeCoverToCos(anime: CacheableAnimeCover): Promise<
     data: {
       cachedCoverUrl: url,
       cachedCoverKey: key,
+      cachedCoverSourceUrl: sourceUrl,
+      cachedCoverContentHash: contentHash,
       cachedCoverWidth: processed.info.width ?? null,
       cachedCoverHeight: processed.info.height ?? null,
       cachedCoverFormat: "webp",
@@ -180,7 +189,8 @@ function getCosCoverConfig(): CosCoverConfig | null {
     bucket,
     region,
     publicBaseUrl: trimTrailingSlash(process.env.COS_PUBLIC_BASE_URL?.trim() || null),
-    prefix: normalizePrefix(process.env.COS_COVER_PREFIX ?? DEFAULT_COVER_PREFIX)
+    prefix: normalizePrefix(process.env.COS_COVER_PREFIX ?? DEFAULT_COVER_PREFIX),
+    objectAcl: normalizeAcl(process.env.COS_OBJECT_ACL ?? "public-read")
   };
 }
 
@@ -203,16 +213,28 @@ function pickSourceCoverUrl(anime: CacheableAnimeCover): string | null {
   return null;
 }
 
+function hasFreshCachedCover(anime: CacheableAnimeCover, sourceUrl: string): boolean {
+  return Boolean(anime.cachedCoverUrl && anime.cachedCoverSourceUrl === sourceUrl);
+}
+
 async function downloadImage(url: string): Promise<Buffer> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
 
   try {
-    const response = await fetch(url, {
+    const dispatcher = await getDispatcher(url).catch(() => undefined);
+    const fetchOptions: RequestInit & { dispatcher?: unknown } = {
       signal: controller.signal,
       headers: {
         "user-agent": "AniMatchCoverCache/1.0"
       }
+    };
+    if (dispatcher !== undefined) {
+      fetchOptions.dispatcher = dispatcher;
+    }
+
+    const response = await fetch(url, {
+      ...fetchOptions
     });
 
     if (!response.ok) {
@@ -242,15 +264,20 @@ function putCosObject(config: CosCoverConfig, key: string, body: Buffer, content
   });
 
   return new Promise((resolve, reject) => {
-    cos.putObject(
-      {
+    const params: COS.PutObjectParams = {
         Bucket: config.bucket,
         Region: config.region,
         Key: key,
         Body: body,
         ContentType: contentType,
         CacheControl: "public, max-age=31536000, immutable"
-      },
+    };
+    if (config.objectAcl) {
+      params.ACL = config.objectAcl as COS.ObjectACL;
+    }
+
+    cos.putObject(
+      params,
       (error) => {
         if (error) {
           reject(error);
@@ -262,10 +289,10 @@ function putCosObject(config: CosCoverConfig, key: string, body: Buffer, content
   });
 }
 
-function buildCoverKey(prefix: string, anime: CacheableAnimeCover, sourceUrl: string): string {
+function buildCoverKey(prefix: string, anime: CacheableAnimeCover, sourceUrl: string, contentHash: string): string {
   const sourcePart = anime.bgmId ? `bangumi-${anime.bgmId}` : anime.id;
   const hash = crypto.createHash("sha1").update(sourceUrl).digest("hex").slice(0, 12);
-  return `${prefix}/${safeKeyPart(sourcePart)}/${hash}.webp`;
+  return `${prefix}/${safeKeyPart(sourcePart)}/${hash}-${contentHash.slice(0, 12)}.webp`;
 }
 
 function buildPublicUrl(config: CosCoverConfig, key: string): string {
@@ -284,6 +311,12 @@ function normalizePrefix(value: string): string {
 
 function trimTrailingSlash(value: string | null): string | null {
   return value ? value.replace(/\/+$/g, "") : null;
+}
+
+function normalizeAcl(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.toLowerCase() === "none") return null;
+  return trimmed;
 }
 
 function safeKeyPart(value: string): string {

@@ -50,6 +50,8 @@ services:
       COS_REGION: ${COS_REGION:-}
       COS_PUBLIC_BASE_URL: ${COS_PUBLIC_BASE_URL:-}
       COS_COVER_PREFIX: ${COS_COVER_PREFIX:-animatch/covers}
+      COS_OBJECT_ACL: ${COS_OBJECT_ACL:-public-read}
+      NEXT_PUBLIC_DIRECT_IMAGE_HOSTS: ${NEXT_PUBLIC_DIRECT_IMAGE_HOSTS:-}
     ports:
       - "3000:3000"
     volumes:

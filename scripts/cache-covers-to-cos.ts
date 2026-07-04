@@ -61,6 +61,7 @@ async function main() {
       bgmId: true,
       title: true,
       cachedCoverUrl: true,
+      cachedCoverSourceUrl: true,
       imageUrl: true,
       imageSmallUrl: true,
       imageMediumUrl: true,
@@ -75,7 +76,9 @@ async function main() {
 
   for (let index = 0; index < animes.length; index += args.concurrency) {
     const batch = animes.slice(index, index + args.concurrency);
-    const results = await Promise.allSettled(batch.map((anime) => cacheAnimeCoverToCos(anime)));
+    const results = await Promise.allSettled(
+      batch.map((anime) => cacheAnimeCoverToCos(anime, { force: args.force }))
+    );
 
     for (const [resultIndex, result] of results.entries()) {
       const anime = batch[resultIndex];

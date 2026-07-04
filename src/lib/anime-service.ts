@@ -24,6 +24,7 @@ export interface PublicAnime {
   imageMediumUrl: string | null;
   imageLargeUrl: string | null;
   cachedCoverUrl?: string | null;
+  cachedCoverSourceUrl?: string | null;
   coverUrl: string | null;
   thumbnailUrl: string | null;
   airDate: Date | null;
@@ -51,6 +52,7 @@ export type PublicAnimeSourceFields = Pick<
   | "imageMediumUrl"
   | "imageLargeUrl"
   | "cachedCoverUrl"
+  | "cachedCoverSourceUrl"
   | "thumbnailUrl"
   | "airDate"
   | "bangumiRank"

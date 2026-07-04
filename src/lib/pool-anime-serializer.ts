@@ -14,6 +14,7 @@ export const poolAnimePublicAnimeSelect = {
   imageMediumUrl: true,
   imageLargeUrl: true,
   cachedCoverUrl: true,
+  cachedCoverSourceUrl: true,
   thumbnailUrl: true,
   airDate: true,
   bangumiRank: true,

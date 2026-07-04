@@ -124,6 +124,8 @@ model Anime {
   thumbnailUrl         String?
   cachedCoverUrl       String?
   cachedCoverKey       String?
+  cachedCoverSourceUrl String?
+  cachedCoverContentHash String?
   cachedCoverWidth     Int?
   cachedCoverHeight    Int?
   cachedCoverFormat    String?
