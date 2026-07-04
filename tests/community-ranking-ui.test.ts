@@ -34,7 +34,7 @@ describe("community ranking UI wiring", () => {
     expect(detailSource).toContain("reason instanceof ApiClientError");
     expect(detailSource).toContain("reason.status === 403 || reason.status === 404");
     expect(detailSource).toContain("setCommunityRankingUnavailable(true)");
-    expect(detailSource).toContain("社区榜单暂时加载失败。");
+    expect(detailSource).toContain("社区榜单暂时加载失败，请重试。");
     expect(detailSource).not.toContain("JSON.stringify(communityRanking");
     expect(detailSource).not.toContain("stack");
   });
@@ -48,7 +48,9 @@ describe("community ranking UI wiring", () => {
     expect(requestEffect).toContain("setIsCommunityRankingLoading(false)");
     expect(requestEffect).not.toContain("communityRanking !== null || isCommunityRankingLoading");
     expect(requestEffect).not.toContain("isCommunityRankingLoading]");
-    expect(requestEffect).toContain("[params.poolId, pool, workspaceMode]");
+    expect(requestEffect).toContain("[communityRankingReloadKey, params.poolId, pool, workspaceMode]");
+    expect(detailSource).toContain("setCommunityRankingReloadKey((value) => value + 1)");
+    expect(detailSource).toContain("重新加载社区榜单");
   });
 
   it("renders community ranking summary and item metrics from the API payload", () => {

@@ -93,6 +93,12 @@ import { DEFAULT_TIER_CONFIG, type PoolTierConfig, type TierRowConfig } from "@/
 
 type AddTab = "search" | "browse" | "manual" | "custom" | "bangumi" | "tiermaker" | "quick";
 type PoolWorkspaceMode = "add" | "edit" | "settings" | "cover" | "community" | null;
+
+const COMMUNITY_RANKING_RETRY_DELAYS_MS = [700, 1600];
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 type DisplayOverrideForm = {
   displayTitleOverride: string;
   coverUrlOverride: string;
@@ -160,6 +166,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [communityRankingError, setCommunityRankingError] = useState<string | null>(null);
   const [communityRankingUnavailable, setCommunityRankingUnavailable] = useState(false);
   const [communityView, setCommunityView] = useState<"ranking" | "tierlist">("ranking");
+  const [communityRankingReloadKey, setCommunityRankingReloadKey] = useState(0);
   const [activeTab, setActiveTab] = useState<AddTab>("search");
   const [workspaceMode, setWorkspaceMode] = useState<PoolWorkspaceMode>(null);
 
@@ -408,35 +415,57 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     setCommunityRankingError(null);
     setCommunityRankingUnavailable(false);
 
-    getCommunityRanking(params.poolId)
-      .then((data) => {
-        if (cancelled) return;
-        setCommunityRanking(data);
-      })
-      .catch((reason: unknown) => {
-        if (cancelled) return;
+    async function loadCommunityRanking() {
+      let lastError: unknown = null;
 
-        setCommunityRanking(null);
-        if (
-          reason instanceof ApiClientError &&
-          (reason.status === 403 || reason.status === 404)
-        ) {
-          setCommunityRankingUnavailable(true);
+      for (let attempt = 0; attempt <= COMMUNITY_RANKING_RETRY_DELAYS_MS.length; attempt += 1) {
+        try {
+          const data = await getCommunityRanking(params.poolId);
+          if (cancelled) return;
+          setCommunityRanking(data);
+          setCommunityRankingError(null);
           return;
-        }
+        } catch (reason: unknown) {
+          lastError = reason;
+          if (
+            reason instanceof ApiClientError &&
+            (reason.status === 403 || reason.status === 404)
+          ) {
+            if (!cancelled) {
+              setCommunityRanking(null);
+              setCommunityRankingUnavailable(true);
+            }
+            return;
+          }
 
-        setCommunityRankingError("社区榜单暂时加载失败。");
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsCommunityRankingLoading(false);
+          const retryDelay = COMMUNITY_RANKING_RETRY_DELAYS_MS[attempt];
+          if (retryDelay === undefined) {
+            break;
+          }
+          await wait(retryDelay);
         }
-      });
+      }
+
+      if (!cancelled) {
+        setCommunityRanking(null);
+        setCommunityRankingError(
+          lastError instanceof Error
+            ? lastError.message
+            : "社区榜单暂时加载失败，请重试。"
+        );
+      }
+    }
+
+    void loadCommunityRanking().finally(() => {
+      if (!cancelled) {
+        setIsCommunityRankingLoading(false);
+      }
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [params.poolId, pool, workspaceMode]);
+  }, [communityRankingReloadKey, params.poolId, pool, workspaceMode]);
 
   useEffect(() => {
     customUploadDraftsRef.current = customUploadDrafts;
@@ -2475,6 +2504,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             error={communityRankingError}
           view={communityView}
           onViewChange={setCommunityView}
+          onRetry={() => setCommunityRankingReloadKey((value) => value + 1)}
           tierRows={pool?.tierConfig?.rows ?? null}
           previewItems={communityTierPreviewItems}
         />
@@ -2503,6 +2533,7 @@ function CommunitySection({
   error,
   view,
   onViewChange,
+  onRetry,
   tierRows,
   previewItems,
   compact = false
@@ -2514,6 +2545,7 @@ function CommunitySection({
   error: string | null;
   view: "ranking" | "tierlist";
   onViewChange: (v: "ranking" | "tierlist") => void;
+  onRetry: () => void;
   tierRows?: TierRowConfig[] | null;
   previewItems?: {
     animeId: string;
@@ -2677,6 +2709,17 @@ function CommunitySection({
             />
           ) : null}
 
+          {error !== null ? (
+            <div className="mt-4 flex flex-col gap-3 rounded-xl border border-amber-300/25 bg-amber-300/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-semibold text-amber-100">
+                社区榜单暂时没有加载成功，可以直接重试。
+              </p>
+              <AppButton type="button" onClick={onRetry} variant="secondary" size="sm">
+                重新加载社区榜单
+              </AppButton>
+            </div>
+          ) : null}
+
         {view === "ranking" ? (
           <>
             <div className="mt-3 rounded-xl border border-cyan-300/18 bg-cyan-300/[0.07] p-4">
@@ -2692,8 +2735,6 @@ function CommunitySection({
             {isLoading ? (
               <ErrorAlert message="正在加载社区榜单..." tone="notice" className="mt-5" />
             ) : null}
-            {error ? <ErrorAlert message={error} className="mt-5" /> : null}
-
             {!isLoading && error === null && ranking === null ? (
               <div className="mt-5">
                 <EmptyState

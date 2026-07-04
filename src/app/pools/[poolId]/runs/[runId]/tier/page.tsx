@@ -84,6 +84,11 @@ const fallbackScoreDistribution = {
 };
 
 const STALE_THRESHOLD_MS = 60 * 5000;
+const TIER_PAGE_LOAD_RETRY_DELAYS_MS = [700, 1600];
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export default function TierPage({
   params
@@ -134,24 +139,49 @@ export default function TierPage({
     setIsLoading(true);
     setError(null);
 
-    try {
-      const [pool, data] = await Promise.all([
-        getPool(params.poolId),
-        getTierList(params.poolId, params.runId)
-      ]);
-      setPoolName(pool.name);
-      setPoolTierConfig(pool.tierConfig ?? null);
-      setPoolUpdatedAt(pool.updatedAt);
-      setCanShowCommunityRanking(isCommunityBattleVisiblePool(pool));
-      setTierList(data);
-      if (!isEditing) {
-        setEditableTiers(cloneTiers(data.tiers));
+    let lastError: unknown = null;
+
+    for (let attempt = 0; attempt <= TIER_PAGE_LOAD_RETRY_DELAYS_MS.length; attempt += 1) {
+      try {
+        const [poolResult, tierResult] = await Promise.allSettled([
+          getPool(params.poolId),
+          getTierList(params.poolId, params.runId)
+        ]);
+
+        if (tierResult.status === "rejected") {
+          throw tierResult.reason;
+        }
+
+        if (poolResult.status === "fulfilled") {
+          const pool = poolResult.value;
+          setPoolName(pool.name);
+          setPoolTierConfig(pool.tierConfig ?? null);
+          setPoolUpdatedAt(pool.updatedAt);
+          setCanShowCommunityRanking(isCommunityBattleVisiblePool(pool));
+        } else {
+          setCanShowCommunityRanking(false);
+        }
+
+        const data = tierResult.value;
+        setTierList(data);
+        if (!isEditing) {
+          setEditableTiers(cloneTiers(data.tiers));
+        }
+        setError(null);
+        setIsLoading(false);
+        return;
+      } catch (reason: unknown) {
+        lastError = reason;
+        const retryDelay = TIER_PAGE_LOAD_RETRY_DELAYS_MS[attempt];
+        if (retryDelay === undefined) {
+          break;
+        }
+        await wait(retryDelay);
       }
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "加载 Tier List 失败");
-    } finally {
-      setIsLoading(false);
     }
+
+    setError(lastError instanceof Error ? lastError.message : "Tier List 暂时加载失败，请重试。");
+    setIsLoading(false);
   }, [isEditing, params.poolId, params.runId]);
 
   useEffect(() => {
@@ -302,7 +332,7 @@ export default function TierPage({
       setTierList(data);
       setEditableTiers(cloneTiers(data.tiers));
       setIsEditing(false);
-    } catch (reason) {
+    } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : "保存 Tier 行配置失败");
     } finally {
       setTierConfigSaving(false);
@@ -559,7 +589,14 @@ export default function TierPage({
         </AppCard>
       ) : null}
 
-      {error ? <ErrorAlert message={error} className="mb-5" /> : null}
+      {error ? (
+        <div className="mb-5 space-y-3">
+          <ErrorAlert message={error} />
+          <AppButton type="button" onClick={loadTierList} variant="secondary" disabled={isLoading}>
+            {isLoading ? "正在重新加载..." : "重新加载 Tier List"}
+          </AppButton>
+        </div>
+      ) : null}
       {exportError ? <ErrorAlert message={exportError} className="mb-5" /> : null}
       <TierSharePanel
         shareError={shareError}
