@@ -77,6 +77,11 @@ const ERROR_CACHE_CONTROL = "no-store";
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 const MAX_REDIRECTS = 3;
 const DNS_LOOKUP_TIMEOUT_MS = 1200;
+const DEFAULT_ALLOWED_PROXY_HOST_SUFFIXES = [
+  "bgm.tv",
+  "bangumi.tv",
+  "tiermaker.com"
+];
 
 const BLOCKED_HOSTNAMES = new Set([
   "localhost",
@@ -201,28 +206,33 @@ function normalizeHostname(hostname: string): string {
   return hostname.toLowerCase().replace(/^\[|\]$/g, "");
 }
 
+function parseConfiguredHosts(values: Array<string | undefined>): string[] {
+  const hosts = new Set<string>();
+  for (const source of values) {
+    for (const value of (source ?? "").split(",")) {
+      const trimmed = value.trim();
+      if (!trimmed) continue;
+      try {
+        const parsed = trimmed.includes("://") ? new URL(trimmed) : new URL(`https://${trimmed}`);
+        hosts.add(normalizeHostname(parsed.hostname));
+      } catch {
+        hosts.add(normalizeHostname(trimmed));
+      }
+    }
+  }
+  return [...hosts].filter(Boolean);
+}
+
 function getConfiguredBlockedHosts(): string[] {
   const values = [
     process.env.NEXT_PUBLIC_SITE_URL,
     process.env.ANIMATCH_SITE_URL,
     process.env.ANIMATCH_PUBLIC_URL
   ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
-  const explicit = (process.env.ANIMATCH_IMAGE_PROXY_BLOCKED_HOSTS ?? "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-
-  const hosts = new Set<string>();
-  for (const value of [...values, ...explicit]) {
-    try {
-      const parsed = value.includes("://") ? new URL(value) : new URL(`https://${value}`);
-      hosts.add(normalizeHostname(parsed.hostname));
-    } catch {
-      hosts.add(normalizeHostname(value));
-    }
-  }
-
-  return [...hosts].filter(Boolean);
+  return parseConfiguredHosts([
+    ...values,
+    process.env.ANIMATCH_IMAGE_PROXY_BLOCKED_HOSTS
+  ]);
 }
 
 function getRequestHost(request: Request): string | null {
@@ -240,6 +250,27 @@ function getBlockedProxyHosts(request: Request): Set<string> {
   return hosts;
 }
 
+function getAllowedProxyHosts(): Set<string> {
+  return new Set(parseConfiguredHosts([
+    process.env.ANIMATCH_IMAGE_PROXY_ALLOWED_HOSTS,
+    process.env.NEXT_PUBLIC_DIRECT_IMAGE_HOSTS,
+    process.env.COS_PUBLIC_BASE_URL,
+    process.env.NEXT_PUBLIC_COS_PUBLIC_BASE_URL
+  ]));
+}
+
+function isAllowedProxyHostname(hostname: string): boolean {
+  const normalized = normalizeHostname(hostname);
+  if (
+    DEFAULT_ALLOWED_PROXY_HOST_SUFFIXES.some((suffix) =>
+      normalized === suffix || normalized.endsWith(`.${suffix}`)
+    )
+  ) {
+    return true;
+  }
+  return getAllowedProxyHosts().has(normalized);
+}
+
 function validateProxyTarget(url: URL, blockedProxyHosts: ReadonlySet<string>): string | null {
   if (!ALLOWED_PROTOCOLS.has(url.protocol)) {
     return "protocol not allowed";
@@ -247,6 +278,10 @@ function validateProxyTarget(url: URL, blockedProxyHosts: ReadonlySet<string>): 
 
   const hostname = normalizeHostname(url.hostname);
   if (isBlockedHostname(hostname) || isBlockedIpAddress(hostname) || blockedProxyHosts.has(hostname)) {
+    return "hostname not allowed";
+  }
+
+  if (!isAllowedProxyHostname(hostname)) {
     return "hostname not allowed";
   }
 

@@ -23,6 +23,11 @@ interface SeasonTierBucket {
   items: SeasonRankingItem[];
 }
 
+interface SeasonTierBucketsResult {
+  buckets: SeasonTierBucket[];
+  insufficientItems: SeasonRankingItem[];
+}
+
 interface SeasonPersonalTierBucket {
   row: TierRowConfig;
   items: SeasonPersonalRankingItem[];
@@ -149,7 +154,7 @@ export default function SeasonDetailPage() {
     );
   };
 
-  const seasonTierBuckets = useMemo(
+  const seasonTierResult = useMemo(
     () => buildSeasonTierBuckets(detail?.ranking ?? [], detail?.tierRows ?? DEFAULT_TIER_CONFIG.rows),
     [detail?.ranking, detail?.tierRows]
   );
@@ -162,12 +167,22 @@ export default function SeasonDetailPage() {
     [detail, personalSeasonTierBuckets]
   );
   const sharedSeasonShare = useMemo(
-    () => detail ? buildSharedSeasonShare(detail, seasonTierBuckets) : null,
-    [detail, seasonTierBuckets]
+    () => detail ? buildSharedSeasonShare(detail, seasonTierResult) : null,
+    [detail, seasonTierResult]
   );
   const recentVotesPreview = detail?.recentVotes.slice(0, 10) ?? [];
   const hiddenRecentVoteCount = Math.max(0, (detail?.recentVotes.length ?? 0) - recentVotesPreview.length);
   const insufficientRankingCount = detail?.ranking.filter((item) => item.insufficientSample).length ?? 0;
+  const formalRankByAnimeId = useMemo(() => {
+    const ranks = new Map<string, number>();
+    let rank = 1;
+    for (const item of detail?.ranking ?? []) {
+      if (item.insufficientSample) continue;
+      ranks.set(item.animeId, rank);
+      rank += 1;
+    }
+    return ranks;
+  }, [detail?.ranking]);
 
   async function handleExportSeasonTier(kind: "personal" | "shared") {
     if (detail === null) return;
@@ -418,9 +433,11 @@ export default function SeasonDetailPage() {
             <p className="text-sm text-slate-500">暂无投票数据</p>
           ) : (
             <div className="space-y-2">
-              {detail.ranking.slice(0, 20).map((item, idx) => (
+              {detail.ranking.slice(0, 20).map((item) => (
                 <div key={item.animeId} className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.015] px-4 py-2">
-                  <span className="w-8 text-center text-sm font-bold text-amber-200">{idx + 1}</span>
+                  <span className="w-8 text-center text-sm font-bold text-amber-200">
+                    {item.insufficientSample ? "参考" : `#${formalRankByAnimeId.get(item.animeId) ?? "-"}`}
+                  </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-white">{item.title}</p>
                   </div>
@@ -437,7 +454,8 @@ export default function SeasonDetailPage() {
         </AppCard>
 
         <SeasonSharedTierList
-          buckets={seasonTierBuckets}
+          buckets={seasonTierResult.buckets}
+          insufficientItems={seasonTierResult.insufficientItems}
           participantCount={detail.participantCount}
           totalVotes={detail.totalVotes}
           minSampleThreshold={detail.minSampleThreshold}
@@ -518,7 +536,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
 function buildSeasonTierBuckets(
   ranking: SeasonRankingItem[],
   rows: TierRowConfig[] = DEFAULT_TIER_CONFIG.rows
-): SeasonTierBucket[] {
+): SeasonTierBucketsResult {
   const buckets = rows.map((row) => ({ row, items: [] as SeasonRankingItem[] }));
   const formalItems = [...ranking]
     .filter((item) => !item.insufficientSample)
@@ -528,10 +546,9 @@ function buildSeasonTierBuckets(
     .sort((a, b) => b.participantCount - a.participantCount || b.comparisonCount - a.comparisonCount);
   const total = formalItems.length;
 
-  if (buckets.length === 0) return buckets;
+  if (buckets.length === 0) return { buckets, insufficientItems };
   if (total === 0) {
-    buckets[buckets.length - 1]?.items.push(...insufficientItems);
-    return buckets;
+    return { buckets, insufficientItems };
   }
 
   for (let index = 0; index < formalItems.length; index++) {
@@ -550,9 +567,8 @@ function buildSeasonTierBuckets(
         : Math.min(rows.length - 1, Math.floor(percentile * rows.length));
     buckets[bucketIndex].items.push(formalItems[index]);
   }
-  buckets[buckets.length - 1]?.items.push(...insufficientItems);
 
-  return buckets;
+  return { buckets, insufficientItems };
 }
 
 function buildPersonalSeasonTierBuckets(
@@ -615,25 +631,22 @@ function buildPersonalSeasonShare(
 
 function buildSharedSeasonShare(
   detail: SeasonDetail,
-  buckets: SeasonTierBucket[]
+  result: SeasonTierBucketsResult
 ): PublicTierShare | null {
-  const formalTiers = buckets.map((bucket) => ({
+  const formalTiers = result.buckets.map((bucket) => ({
     key: bucket.row.id,
     label: bucket.row.label,
     color: bucket.row.color,
-    items: bucket.items.filter((item) => !item.insufficientSample).map(toSharedShareItem)
+    items: bucket.items.map(toSharedShareItem)
   }));
-  const insufficientItems = buckets
-    .flatMap((bucket) => bucket.items)
-    .filter((item) => item.insufficientSample);
-  const tiers = insufficientItems.length > 0
+  const tiers = result.insufficientItems.length > 0
     ? [
         ...formalTiers,
         {
           key: "insufficient",
           label: "样本不足",
           color: "#94a3b8",
-          items: insufficientItems.map(toSharedShareItem)
+          items: result.insufficientItems.map(toSharedShareItem)
         }
       ]
     : formalTiers;
@@ -827,6 +840,7 @@ function SeasonPersonalResult({
 
 function SeasonSharedTierList({
   buckets,
+  insufficientItems,
   participantCount,
   totalVotes,
   minSampleThreshold,
@@ -834,6 +848,7 @@ function SeasonSharedTierList({
   isExporting
 }: {
   buckets: SeasonTierBucket[];
+  insufficientItems: SeasonRankingItem[];
   participantCount: number;
   totalVotes: number;
   minSampleThreshold: SeasonDetail["minSampleThreshold"];
@@ -841,14 +856,8 @@ function SeasonSharedTierList({
   isExporting: boolean;
 }) {
   const hasItems = buckets.some((bucket) => bucket.items.length > 0);
-  const formalBuckets = buckets.map((bucket) => ({
-    row: bucket.row,
-    items: bucket.items.filter((item) => !item.insufficientSample)
-  }));
-  const formalItemCount = formalBuckets.reduce((sum, bucket) => sum + bucket.items.length, 0);
-  const insufficientItems = buckets
-    .flatMap((bucket) => bucket.items)
-    .filter((item) => item.insufficientSample);
+  const formalItemCount = buckets.reduce((sum, bucket) => sum + bucket.items.length, 0);
+  const hasAnyItems = hasItems || insufficientItems.length > 0;
 
   return (
     <AppCard className="mb-8 p-6">
@@ -861,7 +870,7 @@ function SeasonSharedTierList({
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           <AppBadge tone="tier">{participantCount} 人 / {totalVotes} 票</AppBadge>
-          {hasItems ? (
+          {hasAnyItems ? (
             <AppButton type="button" onClick={onExport} disabled={isExporting} variant="secondary" size="sm">
               {isExporting ? "导出中..." : "导出共享赛季图"}
             </AppButton>
@@ -869,13 +878,13 @@ function SeasonSharedTierList({
         </div>
       </div>
 
-      {!hasItems ? (
+      {!hasAnyItems ? (
         <p className="text-sm text-slate-500">暂无投票数据，开始对决后会生成赛季共享 TierList。</p>
       ) : (
         <div className="space-y-4">
           {formalItemCount > 0 ? (
             <section className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/35 shadow-[0_20px_80px_rgba(0,0,0,0.28)]">
-              {formalBuckets.map(({ row, items }) => (
+              {buckets.map(({ row, items }) => (
                 <div
                   key={row.id}
                   className="grid min-h-24 grid-cols-[56px_1fr] border-b border-white/10 last:border-b-0 sm:grid-cols-[72px_1fr]"

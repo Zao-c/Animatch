@@ -104,6 +104,15 @@ describe("image proxy API SSRF protection", () => {
     expect(response.status).toBe(400);
     delete process.env.ANIMATCH_IMAGE_PROXY_BLOCKED_HOSTS;
   });
+
+  it("rejects unknown public hosts outside the image allowlist", async () => {
+    mockPublicDns();
+    const response = await GET(
+      new Request("http://localhost:3000/api/image-proxy?url=https://cdn.example.test/cover.png")
+    );
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "hostname not allowed" });
+  });
 });
 
 describe("image proxy API upstream handling", () => {
@@ -197,6 +206,7 @@ describe("image proxy API upstream handling", () => {
   });
 
   it("rejects redirects to private addresses before following them", async () => {
+    process.env.ANIMATCH_IMAGE_PROXY_ALLOWED_HOSTS = "cdn.example.test";
     vi.spyOn(dns, "lookup").mockImplementation(async (hostname) => {
       return String(hostname) === "internal.example.test"
         ? ([{ address: "127.0.0.1", family: 4 }] as never)
@@ -220,5 +230,32 @@ describe("image proxy API upstream handling", () => {
 
     expect(response.status).toBe(502);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    delete process.env.ANIMATCH_IMAGE_PROXY_ALLOWED_HOSTS;
+  });
+
+  it("proxies explicitly configured image hosts", async () => {
+    process.env.ANIMATCH_IMAGE_PROXY_ALLOWED_HOSTS = "cdn.example.test";
+    mockPublicDns();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(new Uint8Array([1]), {
+          status: 200,
+          headers: {
+            "content-type": "image/webp",
+            "content-length": "1"
+          }
+        })
+      )
+    );
+
+    const response = await GET(
+      new Request(
+        "http://localhost:3000/api/image-proxy?url=https%3A%2F%2Fcdn.example.test%2Fcover.webp"
+      )
+    );
+
+    expect(response.status).toBe(200);
+    delete process.env.ANIMATCH_IMAGE_PROXY_ALLOWED_HOSTS;
   });
 });

@@ -35,11 +35,6 @@ export function isDirectImageUrl(url: string | null | undefined): boolean {
     return false;
   }
 
-  const host = parsed.hostname.toLowerCase();
-  if (/\.cos\.[a-z0-9-]+\.myqcloud\.com$/i.test(host) || host.endsWith(".file.myqcloud.com")) {
-    return true;
-  }
-
   const directHosts = [
     process.env.NEXT_PUBLIC_DIRECT_IMAGE_HOSTS,
     hostFromPublicBaseUrl(process.env.NEXT_PUBLIC_COS_PUBLIC_BASE_URL)
@@ -50,7 +45,7 @@ export function isDirectImageUrl(url: string | null | undefined): boolean {
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
 
-  return directHosts.includes(host);
+  return directHosts.includes(parsed.hostname.toLowerCase());
 }
 
 function hostFromPublicBaseUrl(value: string | null | undefined): string {

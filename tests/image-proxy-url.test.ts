@@ -64,9 +64,9 @@ describe("proxyExternalImageUrl", () => {
     expect(result).toBe("/api/image-proxy?url=" + encodeURIComponent("https://example.com/img.jpg"));
   });
 
-  it("does not proxy Tencent COS object URLs", () => {
+  it("proxies unconfigured Tencent COS object URLs", () => {
     const url = "https://karuta-1321249409.cos.ap-shanghai.myqcloud.com/animatch/covers/a.webp";
-    expect(proxyExternalImageUrl(url)).toBe(url);
+    expect(proxyExternalImageUrl(url)).toBe("/api/image-proxy?url=" + encodeURIComponent(url));
   });
 
   it("does not proxy configured direct image hosts", () => {
@@ -99,8 +99,14 @@ describe("isProxiedUrl", () => {
 });
 
 describe("isDirectImageUrl", () => {
-  it("recognizes COS domains as direct image hosts", () => {
-    expect(isDirectImageUrl("https://bucket.cos.ap-shanghai.myqcloud.com/a.webp")).toBe(true);
+  it("rejects unconfigured COS domains as direct image hosts", () => {
+    expect(isDirectImageUrl("https://bucket.cos.ap-shanghai.myqcloud.com/a.webp")).toBe(false);
+  });
+
+  it("recognizes configured direct image hosts", () => {
+    process.env.NEXT_PUBLIC_DIRECT_IMAGE_HOSTS = "img.sparrowland.xyz";
+    expect(isDirectImageUrl("https://img.sparrowland.xyz/a.webp")).toBe(true);
+    delete process.env.NEXT_PUBLIC_DIRECT_IMAGE_HOSTS;
   });
 
   it("rejects ordinary remote image hosts", () => {
