@@ -212,6 +212,7 @@ export async function getCommunitySummaries(poolIds: string[]): Promise<Map<stri
               isCoverOverridden: display.isCoverOverridden
             },
             coverUrl: pa.anime.imageUrl,
+            cachedCoverUrl: pa.anime.cachedCoverUrl,
             imageUrl: pa.anime.imageUrl,
             imageSmallUrl: pa.anime.imageSmallUrl,
             imageMediumUrl: pa.anime.imageMediumUrl,
@@ -295,6 +296,7 @@ export async function getCommunityRanking(poolId: string): Promise<CommunityRank
         coverUrlOverride: entry.coverUrlOverride,
         display: { coverUrl: display.coverUrl, isCoverOverridden: display.isCoverOverridden },
         coverUrl: entry.anime.imageUrl,
+        cachedCoverUrl: entry.anime.cachedCoverUrl,
         imageUrl: entry.anime.imageUrl,
         imageSmallUrl: entry.anime.imageSmallUrl,
         imageMediumUrl: entry.anime.imageMediumUrl,
