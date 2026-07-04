@@ -75,6 +75,13 @@ describe("proxyExternalImageUrl", () => {
     expect(proxyExternalImageUrl(url)).toBe(url);
     delete process.env.NEXT_PUBLIC_DIRECT_IMAGE_HOSTS;
   });
+
+  it("does not proxy the configured public COS/CDN base URL", () => {
+    process.env.NEXT_PUBLIC_COS_PUBLIC_BASE_URL = "https://img.sparrowland.xyz";
+    const url = "https://img.sparrowland.xyz/animatch/covers/a.webp";
+    expect(proxyExternalImageUrl(url)).toBe(url);
+    delete process.env.NEXT_PUBLIC_COS_PUBLIC_BASE_URL;
+  });
 });
 
 describe("isProxiedUrl", () => {

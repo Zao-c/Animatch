@@ -12,6 +12,8 @@ const SIZE_CLASS = {
 } as const;
 const IMAGE_CANDIDATE_TIMEOUT_MS = 5000;
 const FINAL_IMAGE_TIMEOUT_MS = 8000;
+const IMAGE_ERROR_RETRY_DELAY_MS = 2500;
+const IMAGE_ERROR_RETRY_LIMIT = 2;
 
 export function AnimeCover({
   src,
@@ -35,9 +37,11 @@ export function AnimeCover({
     candidates.length > 0 ? "loading" : "empty"
   );
   const [candidateIndex, setCandidateIndex] = useState(0);
+  const [retryAttempt, setRetryAttempt] = useState(0);
 
   useEffect(() => {
     setCandidateIndex(0);
+    setRetryAttempt(0);
     setState(candidates.length > 0 ? "loading" : "empty");
   }, [candidates, animeId]);
 
@@ -68,6 +72,20 @@ export function AnimeCover({
 
     return () => window.clearTimeout(timeout);
   }, [candidateIndex, candidates.length, imageSrc, state]);
+
+  useEffect(() => {
+    if (state !== "error" || candidates.length === 0 || retryAttempt >= IMAGE_ERROR_RETRY_LIMIT) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setCandidateIndex(0);
+      setRetryAttempt((current) => current + 1);
+      setState("loading");
+    }, IMAGE_ERROR_RETRY_DELAY_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [candidates.length, retryAttempt, state]);
 
   const shouldShowImage = Boolean(imageSrc) && state !== "empty" && state !== "error";
   const coverState: "loading" | "loaded" | "error" | "empty" =
@@ -122,6 +140,7 @@ export function AnimeCover({
           }`}
           onLoad={() => {
             setState("loaded");
+            setRetryAttempt(0);
             warmImageProxyCache(imageSrc);
           }}
           onError={() => {

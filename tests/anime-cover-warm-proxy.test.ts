@@ -28,6 +28,14 @@ describe("AnimeCover background warm proxy", () => {
     expect(source).toContain("FINAL_IMAGE_TIMEOUT_MS = 8000");
   });
 
+  it("automatically retries failed cover candidates after a short delay", () => {
+    expect(source).toContain("IMAGE_ERROR_RETRY_DELAY_MS = 2500");
+    expect(source).toContain("IMAGE_ERROR_RETRY_LIMIT = 2");
+    expect(source).toContain('state !== "error"');
+    expect(source).toContain("setCandidateIndex(0)");
+    expect(source).toContain('setState("loading")');
+  });
+
   it("calls warmImageProxyCache on img onLoad for the loaded imageSrc", () => {
     expect(source).toContain("warmImageProxyCache(imageSrc)");
   });

@@ -40,12 +40,26 @@ export function isDirectImageUrl(url: string | null | undefined): boolean {
     return true;
   }
 
-  const directHosts = (process.env.NEXT_PUBLIC_DIRECT_IMAGE_HOSTS ?? "")
+  const directHosts = [
+    process.env.NEXT_PUBLIC_DIRECT_IMAGE_HOSTS,
+    hostFromPublicBaseUrl(process.env.NEXT_PUBLIC_COS_PUBLIC_BASE_URL)
+  ]
+    .filter(Boolean)
+    .join(",")
     .split(",")
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
 
   return directHosts.includes(host);
+}
+
+function hostFromPublicBaseUrl(value: string | null | undefined): string {
+  if (!value) return "";
+  try {
+    return new URL(value.trim()).hostname;
+  } catch {
+    return "";
+  }
 }
 
 export function warmImageProxyCache(url: string | null | undefined): void {
