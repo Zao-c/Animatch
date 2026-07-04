@@ -19,6 +19,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_COS_PUBLIC_BASE_URL: ${NEXT_PUBLIC_COS_PUBLIC_BASE_URL:-${COS_PUBLIC_BASE_URL:-}}
+        NEXT_PUBLIC_DIRECT_IMAGE_HOSTS: ${NEXT_PUBLIC_DIRECT_IMAGE_HOSTS:-}
     container_name: animatch-app
     restart: unless-stopped
     depends_on:

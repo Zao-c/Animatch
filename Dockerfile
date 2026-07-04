@@ -11,6 +11,10 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 FROM base AS builder
+ARG NEXT_PUBLIC_COS_PUBLIC_BASE_URL=
+ARG NEXT_PUBLIC_DIRECT_IMAGE_HOSTS=
+ENV NEXT_PUBLIC_COS_PUBLIC_BASE_URL=$NEXT_PUBLIC_COS_PUBLIC_BASE_URL
+ENV NEXT_PUBLIC_DIRECT_IMAGE_HOSTS=$NEXT_PUBLIC_DIRECT_IMAGE_HOSTS
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm prisma generate
