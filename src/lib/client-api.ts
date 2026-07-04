@@ -495,15 +495,40 @@ export async function fetchJson<T>(
   path: string,
   options: FetchJsonOptions = {}
 ): Promise<T> {
+  const method = options.method ?? "GET";
+  const maxAttempts = method === "GET" ? 3 : 1;
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fetchJsonOnce<T>(path, options, method);
+    } catch (error) {
+      lastError = error;
+      if (attempt >= maxAttempts || !isRetryableApiError(error)) {
+        throw error;
+      }
+      await wait(attempt === 1 ? 350 : 900);
+    }
+  }
+
+  throw lastError;
+}
+
+async function fetchJsonOnce<T>(
+  path: string,
+  options: FetchJsonOptions,
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
+): Promise<T> {
   const response = await fetch(path, {
-    method: options.method ?? "GET",
+    method,
     headers:
       options.body === undefined
         ? undefined
         : {
             "Content-Type": "application/json"
           },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body)
+    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    credentials: "same-origin"
   });
   const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null;
 
@@ -521,6 +546,18 @@ export async function fetchJson<T>(
   }
 
   return payload.data;
+}
+
+function isRetryableApiError(error: unknown): boolean {
+  if (error instanceof ApiClientError) {
+    return error.status === 408 || error.status === 429 || error.status >= 500;
+  }
+
+  return error instanceof TypeError;
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export function searchAnime(q: string, limit = 20) {
