@@ -51,4 +51,12 @@ describe("season detail UI", () => {
     expect(source).toContain("buildSharedSeasonShare");
     expect(source).toContain("tiermaker-export-host");
   });
+
+  it("keeps season load failures retryable without replacing loaded detail content", () => {
+    expect(source).toContain("setLoading(true);");
+    expect(source).toContain("setError(null);");
+    expect(source).toContain("error && detail === null");
+    expect(source).toContain("onClick={fetchDetail}");
+    expect(source).toContain("loading && detail === null");
+  });
 });

@@ -154,6 +154,7 @@ export default function SeasonMatchPage() {
     skippedPairs: ReadonlySet<string>,
     hiddenAnimeIds: ReadonlySet<string>
   ) => {
+    setError(null);
     try {
       const [d, q] = await Promise.all([
         getSeasonDetail(poolId, seasonId),
@@ -375,8 +376,8 @@ export default function SeasonMatchPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [currentPair, submitting, handleVote, detail, handleRollPair, handleMarkUnseen]);
 
-  if (loading) return <PageShell><SeasonMatchSkeleton /></PageShell>;
-  if (error) return <PageShell><main className="mx-auto max-w-4xl px-4 py-8"><AppCard className="p-8 text-center"><h1 className="text-xl font-black text-white">加载失败</h1><p className="mt-2 text-sm text-slate-400">{error}</p><Link href={`/pools/${poolId}/seasons/${seasonId}`} className="mt-4 inline-block text-sm text-amber-200 underline">返回赛季详情</Link></AppCard></main></PageShell>;
+  if (loading && detail === null) return <PageShell><SeasonMatchSkeleton /></PageShell>;
+  if (error && detail === null) return <PageShell><main className="mx-auto max-w-4xl px-4 py-8"><AppCard className="p-8 text-center"><h1 className="text-xl font-black text-white">加载失败</h1><p className="mt-2 text-sm text-slate-400">{error}</p><div className="mt-5 flex flex-wrap justify-center gap-3"><AppButton type="button" onClick={() => { setLoading(true); void fetchData(skippedPairKeys, unseenAnimeIds); }} variant="secondary">重新加载对决</AppButton><Link href={`/pools/${poolId}/seasons/${seasonId}`} className="inline-flex min-h-11 items-center text-sm text-amber-200 underline">返回赛季详情</Link></div></AppCard></main></PageShell>;
   if (!detail) return null;
 
   const cs = detail.currentUserState;
@@ -423,6 +424,15 @@ export default function SeasonMatchPage() {
             ) : null}
           </div>
         </div>
+
+        {error ? (
+          <div className="mt-3 flex flex-col gap-3 rounded-xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
+            <p className="font-medium">{error}</p>
+            <AppButton type="button" onClick={() => { setLoading(true); void fetchData(skippedPairKeys, unseenAnimeIds); }} variant="secondary" size="sm" disabled={loading}>
+              {loading ? "正在重新加载..." : "重新获取对局"}
+            </AppButton>
+          </div>
+        ) : null}
 
         {cs ? (
           <div className={`mt-3 grid gap-2 text-[11px] sm:mt-4 sm:text-sm ${detail.mode === "BIAS" ? "grid-cols-4" : "grid-cols-2"}`}>

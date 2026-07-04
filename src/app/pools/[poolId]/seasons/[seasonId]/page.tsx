@@ -59,6 +59,8 @@ export default function SeasonDetailPage() {
   });
 
   const fetchDetail = useCallback(() => {
+    setLoading(true);
+    setError(null);
     getSeasonDetail(poolId, seasonId)
       .then((d) => { setDetail(d); setLoading(false); })
       .catch((e) => { setError(e.message ?? "加载失败"); setLoading(false); });
@@ -203,8 +205,8 @@ export default function SeasonDetailPage() {
     }
   }
 
-  if (loading) return <PageShell><main className="mx-auto max-w-6xl px-4 py-8"><SeasonSkeleton /></main></PageShell>;
-  if (error) return <PageShell><main className="mx-auto max-w-6xl px-4 py-8"><AppCard className="p-8 text-center"><AppBadge tone="tier">AniMatch</AppBadge><h1 className="mt-4 text-xl font-black text-white">加载失败</h1><p className="mt-2 text-sm text-slate-400">{error}</p></AppCard></main></PageShell>;
+  if (loading && detail === null) return <PageShell><main className="mx-auto max-w-6xl px-4 py-8"><SeasonSkeleton /></main></PageShell>;
+  if (error && detail === null) return <PageShell><main className="mx-auto max-w-6xl px-4 py-8"><AppCard className="p-8 text-center"><AppBadge tone="tier">AniMatch</AppBadge><h1 className="mt-4 text-xl font-black text-white">加载失败</h1><p className="mt-2 text-sm text-slate-400">{error}</p><AppButton type="button" onClick={fetchDetail} variant="secondary" className="mt-5">重新加载赛季</AppButton></AppCard></main></PageShell>;
   if (!detail) return null;
 
   return (
@@ -379,6 +381,14 @@ export default function SeasonDetailPage() {
           <p className="mb-4 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.06] px-4 py-3 text-sm font-medium text-cyan-100">
             {exportNotice}
           </p>
+        ) : null}
+        {error ? (
+          <div className="mb-4 flex flex-col gap-3 rounded-xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
+            <p className="font-medium">{error}</p>
+            <AppButton type="button" onClick={fetchDetail} variant="secondary" size="sm" disabled={loading}>
+              {loading ? "正在重新加载..." : "重新加载"}
+            </AppButton>
+          </div>
         ) : null}
 
         <SeasonPersonalResult

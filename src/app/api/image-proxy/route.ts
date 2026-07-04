@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import dns from "dns/promises";
 import fs from "fs/promises";
+import net from "net";
 import path from "path";
 import { getDispatcher } from "@/lib/server/outbound-fetch";
 
@@ -28,16 +30,19 @@ function normalizeCacheUrl(raw: string): string {
 /** Background re-fetch after all retries fail — so next visitor gets a cache hit */
 const pendingBgRefetch = new Set<string>();
 
-async function bgRefetch(sourceUrl: string, cacheKey: string, headers: Record<string, string>): Promise<void> {
+async function bgRefetch(
+  sourceUrl: string,
+  cacheKey: string,
+  headers: Record<string, string>,
+  blockedProxyHosts: ReadonlySet<string>
+): Promise<void> {
   try {
-    const resp = await withUpstreamFetchSlot(async () => {
-      const dispatcher = await getDispatcher(sourceUrl).catch(() => undefined);
-      const fetchOptions: RequestInit & { dispatcher?: unknown } = { headers, signal: AbortSignal.timeout(15000) };
-      if (dispatcher !== undefined) {
-        fetchOptions.dispatcher = dispatcher;
-      }
-      return fetch(sourceUrl, fetchOptions);
-    });
+    const resp = await fetchWithValidatedRedirects(
+      sourceUrl,
+      headers,
+      AbortSignal.timeout(15000),
+      blockedProxyHosts
+    );
     if (!resp.ok) return;
     const buf = Buffer.from(await resp.arrayBuffer());
     if (buf.byteLength > MAX_SIZE || buf.byteLength === 0) return;
@@ -70,16 +75,19 @@ const CACHE_CONTROL = "public, max-age=86400, s-maxage=604800, stale-while-reval
 const CDN_CACHE_CONTROL = "public, max-age=604800, stale-while-revalidate=604800";
 const ERROR_CACHE_CONTROL = "no-store";
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
+const MAX_REDIRECTS = 3;
+const DNS_LOOKUP_TIMEOUT_MS = 1200;
 
 const BLOCKED_HOSTNAMES = new Set([
   "localhost",
-  "127.0.0.1",
   "0.0.0.0",
-  "[::1]",
+  "::1",
 ]);
 
 const INTERNAL_IP_PATTERNS = [
+  /^0\./,
   /^10\./,
+  /^127\./,
   /^172\.(1[6-9]|2\d|3[01])\./,
   /^192\.168\./,
   /^169\.254\./,
@@ -171,6 +179,112 @@ function isBlockedHostname(hostname: string): boolean {
   return false;
 }
 
+function isBlockedIpAddress(value: string): boolean {
+  const normalized = normalizeHostname(value);
+  const ipv4MappedPrefix = "::ffff:";
+  if (normalized.startsWith(ipv4MappedPrefix)) {
+    return isBlockedIpAddress(normalized.slice(ipv4MappedPrefix.length));
+  }
+
+  if (net.isIP(normalized) === 0) {
+    return false;
+  }
+
+  if (normalized === "::1") {
+    return true;
+  }
+
+  return INTERNAL_IP_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function normalizeHostname(hostname: string): string {
+  return hostname.toLowerCase().replace(/^\[|\]$/g, "");
+}
+
+function getConfiguredBlockedHosts(): string[] {
+  const values = [
+    process.env.NEXT_PUBLIC_SITE_URL,
+    process.env.ANIMATCH_SITE_URL,
+    process.env.ANIMATCH_PUBLIC_URL
+  ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+  const explicit = (process.env.ANIMATCH_IMAGE_PROXY_BLOCKED_HOSTS ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  const hosts = new Set<string>();
+  for (const value of [...values, ...explicit]) {
+    try {
+      const parsed = value.includes("://") ? new URL(value) : new URL(`https://${value}`);
+      hosts.add(normalizeHostname(parsed.hostname));
+    } catch {
+      hosts.add(normalizeHostname(value));
+    }
+  }
+
+  return [...hosts].filter(Boolean);
+}
+
+function getRequestHost(request: Request): string | null {
+  try {
+    return normalizeHostname(new URL(request.url).hostname);
+  } catch {
+    return null;
+  }
+}
+
+function getBlockedProxyHosts(request: Request): Set<string> {
+  const hosts = new Set(getConfiguredBlockedHosts());
+  const requestHost = getRequestHost(request);
+  if (requestHost !== null) hosts.add(requestHost);
+  return hosts;
+}
+
+function validateProxyTarget(url: URL, blockedProxyHosts: ReadonlySet<string>): string | null {
+  if (!ALLOWED_PROTOCOLS.has(url.protocol)) {
+    return "protocol not allowed";
+  }
+
+  const hostname = normalizeHostname(url.hostname);
+  if (isBlockedHostname(hostname) || isBlockedIpAddress(hostname) || blockedProxyHosts.has(hostname)) {
+    return "hostname not allowed";
+  }
+
+  return null;
+}
+
+async function validateResolvedProxyTarget(
+  url: URL,
+  blockedProxyHosts: ReadonlySet<string>
+): Promise<string | null> {
+  const syncError = validateProxyTarget(url, blockedProxyHosts);
+  if (syncError !== null) {
+    return syncError;
+  }
+
+  const hostname = normalizeHostname(url.hostname);
+  if (net.isIP(hostname) !== 0) {
+    return null;
+  }
+
+  try {
+    const records = await Promise.race([
+      dns.lookup(hostname, { all: true, verbatim: true }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("dns timeout")), DNS_LOOKUP_TIMEOUT_MS)
+      )
+    ]);
+
+    if (records.some((record) => isBlockedIpAddress(record.address))) {
+      return "hostname not allowed";
+    }
+  } catch {
+    return "hostname not allowed";
+  }
+
+  return null;
+}
+
 function pickReferer(hostname: string): string | null {
   if (hostname.endsWith(".bgm.tv") || hostname === "bgm.tv") {
     return "https://bgm.tv/";
@@ -200,12 +314,10 @@ export async function GET(request: Request) {
     return errorResponse({ error: "invalid url" }, 400);
   }
 
-  if (!ALLOWED_PROTOCOLS.has(parsed.protocol)) {
-    return errorResponse({ error: "protocol not allowed" }, 400);
-  }
-
-  if (isBlockedHostname(parsed.hostname)) {
-    return errorResponse({ error: "hostname not allowed" }, 400);
+  const blockedProxyHosts = getBlockedProxyHosts(request);
+  const validationError = await validateResolvedProxyTarget(parsed, blockedProxyHosts);
+  if (validationError !== null) {
+    return errorResponse({ error: validationError }, 400);
   }
 
   const cacheKey = normalizeCacheUrl(parsed.toString());
@@ -236,7 +348,7 @@ export async function GET(request: Request) {
     headers["Referer"] = referer;
   }
 
-  const result = await fetchImageWithCoalescing(parsed.toString(), cacheKey, headers);
+  const result = await fetchImageWithCoalescing(parsed.toString(), cacheKey, headers, blockedProxyHosts);
   if (result.entry !== null) {
     return cachedImageResponse(result.entry, result.cacheStatus);
   }
@@ -253,7 +365,7 @@ export async function GET(request: Request) {
       pendingBgRefetch.add(cacheKey);
       setTimeout(() => {
         pendingBgRefetch.delete(cacheKey);
-        bgRefetch(parsed.toString(), cacheKey, headers);
+        bgRefetch(parsed.toString(), cacheKey, headers, blockedProxyHosts);
       }, 3000);
     }
     return errorResponse({ error: result.error }, result.status);
@@ -265,7 +377,8 @@ export async function GET(request: Request) {
 async function fetchImageWithCoalescing(
   sourceUrl: string,
   cacheKey: string,
-  headers: Record<string, string>
+  headers: Record<string, string>,
+  blockedProxyHosts: ReadonlySet<string>
 ): Promise<ImageFetchResult> {
   const existing = imageProxyFetchState.inFlightByCacheKey.get(cacheKey);
   if (existing !== undefined) {
@@ -275,7 +388,7 @@ async function fetchImageWithCoalescing(
       : result;
   }
 
-  const request = fetchAndCacheUpstreamImage(sourceUrl, cacheKey, headers);
+  const request = fetchAndCacheUpstreamImage(sourceUrl, cacheKey, headers, blockedProxyHosts);
   imageProxyFetchState.inFlightByCacheKey.set(cacheKey, request);
   try {
     return await request;
@@ -287,7 +400,8 @@ async function fetchImageWithCoalescing(
 async function fetchAndCacheUpstreamImage(
   sourceUrl: string,
   cacheKey: string,
-  headers: Record<string, string>
+  headers: Record<string, string>,
+  blockedProxyHosts: ReadonlySet<string>
 ): Promise<ImageFetchResult> {
   const maxAttempts = 2;
   let response: Response | undefined;
@@ -298,17 +412,7 @@ async function fetchAndCacheUpstreamImage(
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
     try {
-      response = await withUpstreamFetchSlot(async () => {
-        const dispatcher = await getDispatcher(sourceUrl).catch(() => undefined);
-        const fetchOptions: RequestInit & { dispatcher?: unknown } = {
-          signal: controller.signal,
-          headers
-        };
-        if (dispatcher !== undefined) {
-          fetchOptions.dispatcher = dispatcher;
-        }
-        return fetch(sourceUrl, fetchOptions);
-      });
+      response = await fetchWithValidatedRedirects(sourceUrl, headers, controller.signal, blockedProxyHosts);
     } catch (error) {
       lastError = error;
       if (attempt < maxAttempts) {
@@ -376,6 +480,59 @@ async function fetchAndCacheUpstreamImage(
   await writeDiskCacheEntry(cacheKey, entry);
 
   return { entry, cacheStatus: "MISS" };
+}
+
+async function fetchWithValidatedRedirects(
+  sourceUrl: string,
+  headers: Record<string, string>,
+  signal: AbortSignal,
+  blockedProxyHosts: ReadonlySet<string>
+): Promise<Response> {
+  let currentUrl = sourceUrl;
+
+  for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
+    const parsed = new URL(currentUrl);
+    const validationError = await validateResolvedProxyTarget(parsed, blockedProxyHosts);
+    if (validationError !== null) {
+      throw new Error(validationError);
+    }
+
+    const response = await withUpstreamFetchSlot(async () => {
+      const dispatcher = await getDispatcher(currentUrl).catch(() => undefined);
+      const fetchOptions: RequestInit & { dispatcher?: unknown } = {
+        signal,
+        headers,
+        redirect: "manual"
+      };
+      if (dispatcher !== undefined) {
+        fetchOptions.dispatcher = dispatcher;
+      }
+      return fetch(currentUrl, fetchOptions);
+    });
+
+    if (!isRedirectResponse(response.status)) {
+      return response;
+    }
+
+    const location = response.headers.get("location");
+    if (!location) {
+      throw new Error("invalid redirect");
+    }
+
+    const nextUrl = new URL(location, currentUrl);
+    const redirectValidationError = await validateResolvedProxyTarget(nextUrl, blockedProxyHosts);
+    if (redirectValidationError !== null) {
+      throw new Error(redirectValidationError);
+    }
+
+    currentUrl = nextUrl.toString();
+  }
+
+  throw new Error("too many redirects");
+}
+
+function isRedirectResponse(status: number): boolean {
+  return status >= 300 && status < 400;
 }
 
 async function withUpstreamFetchSlot<T>(operation: () => Promise<T>): Promise<T> {

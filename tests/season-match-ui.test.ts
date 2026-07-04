@@ -108,4 +108,12 @@ describe("season match UI", () => {
     expect(source).toContain("都没看过");
     expect(source).toContain("恢复已排除");
   });
+  it("keeps load and submit errors retryable without discarding an existing pair", () => {
+    expect(source).toContain("setError(null);");
+    expect(source).toContain("loading && detail === null");
+    expect(source).toContain("error && detail === null");
+    expect(source).toContain("void fetchData(skippedPairKeys, unseenAnimeIds)");
+    expect(source).toContain("error ? (");
+    expect(source).toContain("重新获取对局");
+  });
 });

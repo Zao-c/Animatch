@@ -1,10 +1,15 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
+import dns from "dns/promises";
 import { GET } from "../src/app/api/image-proxy/route";
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
+
+function mockPublicDns(address = "203.0.113.10") {
+  vi.spyOn(dns, "lookup").mockResolvedValue([{ address, family: 4 }] as never);
+}
 
 describe("image proxy API SSRF protection", () => {
   it("rejects missing url parameter", async () => {
@@ -44,6 +49,13 @@ describe("image proxy API SSRF protection", () => {
     expect(response.status).toBe(400);
   });
 
+  it("rejects IPv6 loopback", async () => {
+    const response = await GET(
+      new Request("http://localhost:3000/api/image-proxy?url=http://[::1]:3000/secret")
+    );
+    expect(response.status).toBe(400);
+  });
+
   it("rejects 0.0.0.0", async () => {
     const response = await GET(
       new Request("http://localhost:3000/api/image-proxy?url=http://0.0.0.0:3000/")
@@ -75,10 +87,28 @@ describe("image proxy API SSRF protection", () => {
     );
     expect(response2.status).toBe(400);
   });
+
+  it("rejects external hostnames that resolve to private addresses", async () => {
+    vi.spyOn(dns, "lookup").mockResolvedValue([{ address: "192.168.1.20", family: 4 }] as never);
+    const response = await GET(
+      new Request("http://localhost:3000/api/image-proxy?url=https://cdn.example.test/cover.png")
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects configured app hostnames to avoid proxying itself", async () => {
+    process.env.ANIMATCH_IMAGE_PROXY_BLOCKED_HOSTS = "animatch.example.test,182.61.136.105";
+    const response = await GET(
+      new Request("http://localhost:3000/api/image-proxy?url=https://animatch.example.test/api/health")
+    );
+    expect(response.status).toBe(400);
+    delete process.env.ANIMATCH_IMAGE_PROXY_BLOCKED_HOSTS;
+  });
 });
 
 describe("image proxy API upstream handling", () => {
   it("proxies image responses and sends TierMaker referer", async () => {
+    mockPublicDns();
     const fetchMock = vi.fn(async () =>
       new Response(new Uint8Array([1, 2, 3]), {
         status: 200,
@@ -90,7 +120,7 @@ describe("image proxy API upstream handling", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const originalUrl = "https://cdn.tiermaker.com/images/item.png";
+    const originalUrl = `https://cdn.tiermaker.com/images/item.png?case=tiermaker-${Date.now()}`;
     const response = await GET(
       new Request(
         `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(originalUrl)}`
@@ -112,6 +142,7 @@ describe("image proxy API upstream handling", () => {
   });
 
   it("keeps Bangumi referer for Bangumi cover hosts", async () => {
+    mockPublicDns();
     const fetchMock = vi.fn(async () =>
       new Response(new Uint8Array([1]), {
         status: 200,
@@ -123,7 +154,7 @@ describe("image proxy API upstream handling", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const originalUrl = "https://lain.bgm.tv/pic/cover/l/12/34/5678.jpg";
+    const originalUrl = `https://lain.bgm.tv/pic/cover/l/12/34/5678.jpg?case=bangumi-${Date.now()}`;
     const response = await GET(
       new Request(
         `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(originalUrl)}`
@@ -142,6 +173,7 @@ describe("image proxy API upstream handling", () => {
   });
 
   it("rejects upstream HTML instead of passing it as an image", async () => {
+    mockPublicDns();
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
@@ -162,5 +194,31 @@ describe("image proxy API upstream handling", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "not an image" });
+  });
+
+  it("rejects redirects to private addresses before following them", async () => {
+    vi.spyOn(dns, "lookup").mockImplementation(async (hostname) => {
+      return String(hostname) === "internal.example.test"
+        ? ([{ address: "127.0.0.1", family: 4 }] as never)
+        : ([{ address: "203.0.113.10", family: 4 }] as never);
+    });
+    const fetchMock = vi.fn(async () =>
+      new Response(null, {
+        status: 302,
+        headers: {
+          location: "http://internal.example.test/private.png"
+        }
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await GET(
+      new Request(
+        "http://localhost:3000/api/image-proxy?url=https%3A%2F%2Fcdn.example.test%2Fredirect.png"
+      )
+    );
+
+    expect(response.status).toBe(502);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
