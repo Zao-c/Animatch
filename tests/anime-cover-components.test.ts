@@ -585,6 +585,22 @@ describe("match cover resilience", () => {
     expect(html).toContain("刷新页面或稍后再试");
   });
 
+  it("AnimeCover shows a compact visible error badge for small covers", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(AnimeCover, {
+        src: null,
+        secondarySrc: null,
+        title: "Small Empty Cover",
+        size: "sm"
+      })
+    );
+
+    expect(html).toContain('data-cover-state="empty"');
+    expect(html).toContain("封面加载失败，刷新页面或稍后再试。");
+    expect(html).toContain("right-1 top-1");
+    expect(html).toContain(">!</span>");
+  });
+
   it("AnimeCover passes animeId into data-anime-id", () => {
     const html = renderToStaticMarkup(
       React.createElement(AnimeCover, {

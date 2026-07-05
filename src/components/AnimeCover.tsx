@@ -126,6 +126,14 @@ export function AnimeCover({
           </>
         )}
       </div>
+      {isCoverUnavailable && size === "sm" ? (
+        <span
+          className="absolute right-1 top-1 z-20 flex h-4 w-4 items-center justify-center rounded-full border border-amber-200/50 bg-slate-950/85 text-[10px] font-black leading-none text-amber-100"
+          aria-hidden="true"
+        >
+          !
+        </span>
+      ) : null}
 
       {shouldShowImage && (
         <img
