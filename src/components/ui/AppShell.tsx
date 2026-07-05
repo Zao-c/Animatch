@@ -36,6 +36,7 @@ export function AppShell({
             </span>
           </Link>
           <nav className="flex w-full flex-wrap items-center gap-2 text-sm text-slate-300 sm:w-auto sm:justify-end">
+            <NavLink href="/pools?view=public">番组大厅</NavLink>
             <NavLink href="/pools/new">创建番组</NavLink>
             <NavLink href="/pools">我的番组</NavLink>
             <AuthNav />

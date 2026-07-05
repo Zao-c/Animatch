@@ -9,6 +9,26 @@ interface Args {
   allLibrary: boolean;
 }
 
+interface CacheCandidate {
+  id: string;
+  bgmId: number | null;
+  title: string | null;
+  cachedCoverUrl: string | null;
+  cachedCoverSourceUrl: string | null;
+  imageUrl: string | null;
+  imageSmallUrl: string | null;
+  imageMediumUrl: string | null;
+  imageLargeUrl: string | null;
+  thumbnailUrl: string | null;
+}
+
+interface CacheState {
+  sourceUrl: string | null;
+  needsCache: boolean;
+  stale: boolean;
+  reason: "missing-source" | "missing-cache" | "stale-source" | "fresh";
+}
+
 function parseArgs(): Args {
   const args = process.argv.slice(2);
   const result: Args = {
@@ -66,22 +86,7 @@ async function main() {
         }
       };
 
-  const needsCacheFilter = args.force
-    ? {}
-    : {
-        OR: [
-          { cachedCoverUrl: null },
-          { cachedCoverUrl: "" },
-          { cachedCoverSourceUrl: null }
-        ]
-      };
-
-  const where = args.allLibrary
-    ? needsCacheFilter
-    : {
-        ...activePoolFilter,
-        ...needsCacheFilter
-      };
+  const where = args.allLibrary ? {} : activePoolFilter;
 
   const usedWhere = args.poolId ? activePoolFilter : {
     poolEntries: {
@@ -93,7 +98,7 @@ async function main() {
       }
     }
   };
-  const [usedAnimeCount, usedCachedAnimeCount, usedPendingAnimeCount] = await Promise.all([
+  const [usedAnimeCount, usedCachedAnimeCount, usedAnimesForStats] = await Promise.all([
     prisma.anime.count({ where: usedWhere }),
     prisma.anime.count({
       where: {
@@ -101,17 +106,14 @@ async function main() {
         cachedCoverUrl: { not: null }
       }
     }),
-    prisma.anime.count({
-      where: {
-        ...usedWhere,
-        OR: [
-          { cachedCoverUrl: null },
-          { cachedCoverUrl: "" },
-          { cachedCoverSourceUrl: null }
-        ]
-      }
+    prisma.anime.findMany({
+      where: usedWhere,
+      select: animeSelect()
     })
   ]);
+  const usedCacheStates = usedAnimesForStats.map(getCacheState);
+  const usedPendingAnimeCount = usedCacheStates.filter((state) => state.needsCache).length;
+  const usedStaleAnimeCount = usedCacheStates.filter((state) => state.stale).length;
 
   console.log(JSON.stringify({
     scope: args.allLibrary ? "all-library" : args.poolId ? "pool" : "active-pool-anime",
@@ -119,43 +121,40 @@ async function main() {
     usedAnimeCount,
     usedCachedAnimeCount,
     usedPendingAnimeCount,
+    usedStaleAnimeCount,
     usedAnimeCoverRate: usedAnimeCount > 0 ? Number((usedCachedAnimeCount / usedAnimeCount).toFixed(4)) : 0
   }, null, 2));
 
+  const scanLimit = args.allLibrary ? Math.max(args.limit * 10, args.limit) : undefined;
   const animes = await prisma.anime.findMany({
     where,
     orderBy: [{ updatedAt: "desc" }],
-    take: args.limit,
-    select: {
-      id: true,
-      bgmId: true,
-      title: true,
-      cachedCoverUrl: true,
-      cachedCoverSourceUrl: true,
-      imageUrl: true,
-      imageSmallUrl: true,
-      imageMediumUrl: true,
-      imageLargeUrl: true,
-      thumbnailUrl: true
-    }
+    ...(scanLimit === undefined ? {} : { take: scanLimit }),
+    select: animeSelect()
   });
+  const candidates = animes
+    .map((anime) => ({ anime, state: getCacheState(anime) }))
+    .filter(({ state }) => args.force || state.needsCache)
+    .slice(0, args.limit);
 
   let success = 0;
   let skipped = 0;
   let failed = 0;
+  let stale = 0;
 
-  for (let index = 0; index < animes.length; index += args.concurrency) {
-    const batch = animes.slice(index, index + args.concurrency);
+  for (let index = 0; index < candidates.length; index += args.concurrency) {
+    const batch = candidates.slice(index, index + args.concurrency);
     const results = await Promise.allSettled(
-      batch.map((anime) => cacheAnimeCoverToCos(anime, { force: args.force }))
+      batch.map(({ anime }) => cacheAnimeCoverToCos(anime, { force: args.force }))
     );
 
     for (const [resultIndex, result] of results.entries()) {
-      const anime = batch[resultIndex];
+      const { anime, state } = batch[resultIndex];
       if (result.status === "fulfilled") {
         if (result.value) {
           success += 1;
-          console.log(`cached ${anime.id} ${anime.bgmId ?? ""} ${result.value.bytes} bytes`);
+          if (state.stale) stale += 1;
+          console.log(`cached ${anime.id} ${anime.bgmId ?? ""} ${state.reason} ${result.value.bytes} bytes`);
         } else {
           skipped += 1;
         }
@@ -166,7 +165,91 @@ async function main() {
     }
   }
 
-  console.log(JSON.stringify({ scanned: animes.length, success, skipped, failed }, null, 2));
+  console.log(JSON.stringify({
+    scanned: animes.length,
+    selected: candidates.length,
+    success,
+    stale,
+    skipped,
+    failed
+  }, null, 2));
+}
+
+function animeSelect() {
+  return {
+    id: true,
+    bgmId: true,
+    title: true,
+    cachedCoverUrl: true,
+    cachedCoverSourceUrl: true,
+    imageUrl: true,
+    imageSmallUrl: true,
+    imageMediumUrl: true,
+    imageLargeUrl: true,
+    thumbnailUrl: true
+  } as const;
+}
+
+function getCacheState(anime: CacheCandidate): CacheState {
+  const sourceUrl = pickSourceCoverUrl(anime);
+  if (!sourceUrl) {
+    return {
+      sourceUrl: null,
+      needsCache: false,
+      stale: false,
+      reason: "missing-source"
+    };
+  }
+  if (!anime.cachedCoverUrl || !anime.cachedCoverSourceUrl) {
+    return {
+      sourceUrl,
+      needsCache: true,
+      stale: false,
+      reason: "missing-cache"
+    };
+  }
+  if (anime.cachedCoverSourceUrl !== sourceUrl) {
+    return {
+      sourceUrl,
+      needsCache: true,
+      stale: true,
+      reason: "stale-source"
+    };
+  }
+  return {
+    sourceUrl,
+    needsCache: false,
+    stale: false,
+    reason: "fresh"
+  };
+}
+
+function pickSourceCoverUrl(anime: CacheCandidate): string | null {
+  const candidates = [
+    anime.imageLargeUrl,
+    anime.imageMediumUrl,
+    anime.imageUrl,
+    anime.imageSmallUrl,
+    anime.thumbnailUrl
+  ];
+
+  for (const candidate of candidates) {
+    const url = candidate?.trim();
+    if (url && /^https?:\/\//i.test(url) && !isCosObjectUrl(url)) {
+      return url;
+    }
+  }
+
+  return null;
+}
+
+function isCosObjectUrl(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return /\.cos\.[a-z0-9-]+\.myqcloud\.com$/i.test(hostname) || hostname.endsWith(".file.myqcloud.com");
+  } catch {
+    return false;
+  }
 }
 
 main()
