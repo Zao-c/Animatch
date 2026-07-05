@@ -507,6 +507,9 @@ export default function TierPage({
   );
   const scoreDistribution = tierList?.scoreDistribution ?? fallbackScoreDistribution;
   const displayedExportedAt = exportedAt ?? exportPreviewedAt;
+  const isInitialEstimate =
+    tierList !== null &&
+    (tierList.totalComparisons === 0 || tierList.progress.stage === "EMPTY" || tierList.progress.stage === "DRAFTING");
 
   return (
     <PageShell>
@@ -536,6 +539,11 @@ export default function TierPage({
           <p className="max-w-2xl text-xs leading-5 text-slate-500 lg:col-span-2">
             Tier List 根据你的对决结果生成。手动调整只影响榜单展示和当前手动排序，不会改写对决历史。
           </p>
+          {isInitialEstimate ? (
+            <p className="rounded-xl border border-amber-200/20 bg-amber-200/[0.06] px-3 py-2 text-xs font-medium leading-5 text-amber-100 lg:col-span-2">
+              当前榜单仍是初始估计，导出和分享前建议先继续完成几轮对决。
+            </p>
+          ) : null}
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <AppButton
             onClick={handleExportImage}
@@ -832,6 +840,27 @@ export default function TierPage({
           <div className="mb-5">
             <RankingProgressCard progress={tierList.progress} compact />
           </div>
+          {isInitialEstimate ? (
+            <StatusHint
+              label="初始估计"
+              title={tierList.totalComparisons === 0 ? "还没有对决记录，榜单不是正式结果" : "对决样本还少，分档可能会明显变化"}
+              description={
+                tierList.totalComparisons === 0
+                  ? "当前 Tier List 只是按初始分数生成的占位预览。先完成几轮对决后，再导出或分享会更可信。"
+                  : "当前结果已经能作为临时参考，但稳定度还低。继续对决可以让相近作品重新排序，减少误分档。"
+              }
+              tone="warning"
+              className="mb-5"
+              actions={
+                <Link
+                  href={`/pools/${params.poolId}/runs/${params.runId}/match`}
+                  className={appButtonClasses({ variant: "primary", size: "sm" })}
+                >
+                  继续对决
+                </Link>
+              }
+            />
+          ) : null}
           <div className="mb-6">
             <AppButton
               onClick={() => setShowTierInfo((value) => !value)}

@@ -26,6 +26,19 @@ describe("ranking UI wiring", () => {
     expect(source).toContain("RankingProgressCard");
   });
 
+  it("Tier page shows a front-loaded warning for initial or low-sample results", () => {
+    const source = readFileSync(
+      "src/app/pools/[poolId]/runs/[runId]/tier/page.tsx",
+      "utf8"
+    );
+
+    expect(source).toContain("isInitialEstimate");
+    expect(source).toContain("还没有对决记录，榜单不是正式结果");
+    expect(source).toContain("对决样本还少，分档可能会明显变化");
+    expect(source).toContain("导出和分享前建议先继续完成几轮对决");
+    expect(source).toContain("先完成几轮对决后，再导出或分享会更可信");
+  });
+
   it("renders stage guidance copy", () => {
     const html = renderToStaticMarkup(
       React.createElement(RankingProgressCard, {
