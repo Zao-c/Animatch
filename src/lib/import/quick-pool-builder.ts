@@ -76,6 +76,13 @@ export interface QuickImportAddResult {
 
 const MAX_LIMIT = 100;
 
+type QuickImportCreateParams = QuickImportParams & {
+  poolName: string;
+  description?: string;
+  visibility?: string;
+  selectedAnimeIds?: string[];
+};
+
 function clampLimit(raw: number | undefined): number {
   if (raw === undefined || raw === null) return 50;
   return Math.max(1, Math.min(raw, MAX_LIMIT));
@@ -227,8 +234,22 @@ function candidateWarnings(candidates: QuickImportCandidate[]): string[] {
   return warnings;
 }
 
+function filterCandidatesBySelectedIds(
+  candidates: QuickImportCandidate[],
+  selectedAnimeIds?: string[]
+): QuickImportCandidate[] {
+  if (selectedAnimeIds === undefined) return candidates;
+
+  const selected = new Set(selectedAnimeIds.map((id) => id.trim()).filter(Boolean));
+  if (selected.size === 0) {
+    throw new Error("没有选中任何作品");
+  }
+
+  return candidates.filter((candidate) => selected.has(candidate.animeId));
+}
+
 export async function createPoolFromQuickImport(
-  params: QuickImportParams & { poolName: string; description?: string; visibility?: string },
+  params: QuickImportCreateParams,
   userId: string
 ): Promise<QuickImportCreateResult> {
   const normalizedName = params.poolName.trim();
@@ -236,9 +257,10 @@ export async function createPoolFromQuickImport(
     throw new Error("番组名不能为空且不超过80个字符");
   }
 
-  const { candidates, warnings } = await previewQuickImportWithRemoteFallback(params);
+  const { candidates } = await previewQuickImportWithRemoteFallback(params);
+  const selectedCandidates = filterCandidatesBySelectedIds(candidates, params.selectedAnimeIds);
 
-  if (candidates.length === 0) {
+  if (selectedCandidates.length === 0) {
     throw new Error("没有找到符合条件的作品");
   }
 
@@ -255,7 +277,7 @@ export async function createPoolFromQuickImport(
     },
   });
 
-  const result = await addAnimeToPoolBatch(pool.id, candidates.map((c) => c.animeId));
+  const result = await addAnimeToPoolBatch(pool.id, selectedCandidates.map((c) => c.animeId));
 
   return {
     poolId: pool.id,

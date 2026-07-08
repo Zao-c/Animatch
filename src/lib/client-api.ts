@@ -1445,6 +1445,7 @@ export function createPoolFromQuickImport(data: {
   poolName: string;
   description?: string;
   visibility?: string;
+  selectedAnimeIds?: string[];
   params: {
     source: string;
     mode: string;

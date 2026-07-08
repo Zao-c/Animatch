@@ -6,6 +6,7 @@ interface CreateBody {
   poolName: string;
   description?: string;
   visibility?: string;
+  selectedAnimeIds?: string[];
   params: QuickImportParams;
 }
 
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
         poolName: body.poolName,
         description: body.description,
         visibility: body.visibility,
+        selectedAnimeIds: body.selectedAnimeIds,
       },
       user.id
     );

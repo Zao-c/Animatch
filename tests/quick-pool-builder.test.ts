@@ -96,6 +96,13 @@ describe("Quick import service", () => {
     expect(source).toContain("creatorId: userId");
   });
 
+  it("createPool respects selected preview candidates", () => {
+    expect(source).toContain("selectedAnimeIds?: string[]");
+    expect(source).toContain("filterCandidatesBySelectedIds");
+    expect(source).toContain("selected.has(candidate.animeId)");
+    expect(source).toContain("selectedCandidates.map((c) => c.animeId)");
+  });
+
   it("createPool with PUB/PRIV visibility", () => {
     expect(source).toContain('visibility === "PUBLIC"');
     expect(source).toContain('visibility === "UNLISTED"');
@@ -113,8 +120,8 @@ describe("Quick import service", () => {
   });
 
   it("triggers cover prewarm on import", () => {
-    expect(source).toContain("prewarmCoverCacheBackground");
-    expect(source).toContain("coversToPrewarm");
+    expect(source).toContain("enqueuePoolAnimeCoversCache");
+    expect(source).toContain("animesToCache");
     expect(source).toContain("getAnimeCoverUrl");
   });
 
@@ -171,6 +178,12 @@ describe("Quick import API routes", () => {
     const source = readSource("src/app/api/pools/quick-import/create/route.ts");
     expect(source).toContain("poolName 和 params 是必填字段");
     expect(source).toContain("params.source");
+  });
+
+  it("create accepts selectedAnimeIds from preview", () => {
+    const source = readSource("src/app/api/pools/quick-import/create/route.ts");
+    expect(source).toContain("selectedAnimeIds?: string[]");
+    expect(source).toContain("selectedAnimeIds: body.selectedAnimeIds");
   });
 
   it("POST /api/pools/[poolId]/quick-import requires canEditContent", () => {
@@ -273,6 +286,11 @@ describe("QuickImportPanel UI", () => {
     expect(source).toContain("请输入番组名");
   });
 
+  it("create pool sends selected preview candidates", () => {
+    expect(source).toContain("selectedAnimeIds: preview ? Array.from(selectedIds) : undefined");
+    expect(source).toContain("preview && selectedIds.size === 0");
+  });
+
   it("adds to existing pool when poolId", () => {
     expect(source).toContain("addQuickImportToPool");
     expect(source).toContain("添加选中");
@@ -305,6 +323,10 @@ describe("Quick import client API functions", () => {
   it("has createPoolFromQuickImport function", () => {
     expect(source).toContain("export function createPoolFromQuickImport");
     expect(source).toContain("/api/pools/quick-import/create");
+  });
+
+  it("createPoolFromQuickImport can send selectedAnimeIds", () => {
+    expect(source).toContain("selectedAnimeIds?: string[]");
   });
 
   it("has addQuickImportToPool function", () => {

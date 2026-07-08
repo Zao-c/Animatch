@@ -215,6 +215,10 @@ export function QuickImportPanel({
       setError("请输入番组名");
       return;
     }
+    if (preview && selectedIds.size === 0) {
+      setError("没有选中任何作品");
+      return;
+    }
     setError(null);
     setIsCreating(true);
     try {
@@ -223,6 +227,7 @@ export function QuickImportPanel({
         description: description.trim() || undefined,
         visibility,
         params: buildParams(),
+        selectedAnimeIds: preview ? Array.from(selectedIds) : undefined,
       });
       router.push(`/pools/${result.poolId}`);
     } catch (reason) {
