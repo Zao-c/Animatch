@@ -607,7 +607,9 @@ function PoolCard({
                         className="h-16 w-11 shrink-0 rounded-lg"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs text-slate-400">社区第一</p>
+                        <p className="text-xs text-slate-400">
+                          {communitySummaryTitle(pool.communitySummary.sampleLabel)}
+                        </p>
                         <p className="line-clamp-2 text-xs font-semibold text-white">
                           {pool.communitySummary.topAnimeTitle}
                         </p>
@@ -862,6 +864,19 @@ function sampleLabelText(label: "empty" | "low" | "trend" | "stable"): string {
       return " · 已有初步趋势";
     case "stable":
       return " · 榜单逐渐稳定";
+  }
+}
+
+function communitySummaryTitle(label: "empty" | "low" | "trend" | "stable"): string {
+  switch (label) {
+    case "empty":
+      return "暂无社区结果";
+    case "low":
+      return "当前参考";
+    case "trend":
+      return "初步趋势";
+    case "stable":
+      return "社区第一";
   }
 }
 

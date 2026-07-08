@@ -109,14 +109,18 @@ describe("public pools community summary", () => {
 
   it("PoolCard renders community summary for public view", () => {
     expect(poolsSource).toContain("pool.communitySummary");
-    expect(poolsSource).toContain("社区第一");
+    expect(poolsSource).toContain("communitySummaryTitle(pool.communitySummary.sampleLabel)");
     expect(poolsSource).toContain("还没有社区结果");
     expect(poolsSource).toContain("成为第一个参与的人");
   });
 
-  it("does NOT concatenate '社区第一' as a prefix — no '社区第一：社区第一：' duplication", () => {
-    expect(poolsSource).toContain(">社区第一</p>");
-    expect(poolsSource).not.toContain("社区第一：社区第一：");
+  it("does not label low-sample community summaries as formal first place", () => {
+    expect(poolsSource).toContain("function communitySummaryTitle");
+    expect(poolsSource).toMatch(/case "empty":\s*return "暂无社区结果"/);
+    expect(poolsSource).toMatch(/case "low":\s*return "当前参考"/);
+    expect(poolsSource).toMatch(/case "trend":\s*return "初步趋势"/);
+    expect(poolsSource).toMatch(/case "stable":\s*return "社区第一"/);
+    expect(poolsSource).not.toMatch(/case "(empty|low|trend)":\s*return "社区第一"/);
   });
 
   it("PoolCard shows participant count and sample label", () => {
