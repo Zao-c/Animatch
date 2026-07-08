@@ -178,9 +178,10 @@ describe("pool management UI", () => {
 
   it("offers a one-click pool share action", () => {
     expect(detailSource).toContain("handleCopyPoolShare");
-    expect(detailSource).toContain("AniMatch 番组《");
-    expect(detailSource).toContain("打开后登录即可开始对决。");
-    expect(detailSource).toContain("分享番组");
+    expect(detailSource).toContain("canSharePoolLink(pool.visibility)");
+    expect(detailSource).toContain("getPoolShareBlockedNotice()");
+    expect(detailSource).toContain("getPoolShareButtonLabel(pool.visibility)");
+    expect(detailSource).toContain("buildPoolShareText");
     expect(detailSource).toContain("已复制番组分享链接。");
   });
 

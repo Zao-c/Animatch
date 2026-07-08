@@ -30,6 +30,28 @@ export interface SeasonUpdateInput {
   biasVotesPerUser?: number;
 }
 
+type NormalizedSeasonCreateInput = {
+  title: string;
+  description: string | null;
+  mode: SeasonMode;
+  startsAt: Date;
+  endsAt: Date | null;
+  maxVotesPerUser: number;
+  maxVotesPerUserPerDay: number | null;
+  biasVotesPerUser: number;
+};
+
+type NormalizedSeasonUpdateInput = {
+  title?: string;
+  description?: string | null;
+  mode?: SeasonMode;
+  startsAt?: Date;
+  endsAt?: Date | null;
+  maxVotesPerUser?: number;
+  maxVotesPerUserPerDay?: number | null;
+  biasVotesPerUser?: number;
+};
+
 export interface SeasonListItem {
   id: string;
   poolId: string;
@@ -320,6 +342,98 @@ async function getPlayableSeasonPool(poolId: string, userId: string) {
   return pool;
 }
 
+function assertValidDate(value: Date, field: string): Date {
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+    throw new AppError(`${field} is invalid`, 400, "INVALID_SEASON_INPUT");
+  }
+  return value;
+}
+
+function assertPositiveInteger(value: number, field: string): number {
+  if (!Number.isInteger(value) || value < 1) {
+    throw new AppError(`${field} must be at least 1`, 400, "INVALID_SEASON_INPUT");
+  }
+  return value;
+}
+
+function assertNonNegativeInteger(value: number, field: string): number {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new AppError(`${field} cannot be negative`, 400, "INVALID_SEASON_INPUT");
+  }
+  return value;
+}
+
+function assertSeasonDateRange(startsAt: Date | undefined, endsAt: Date | null | undefined) {
+  if (startsAt !== undefined) assertValidDate(startsAt, "startsAt");
+  if (endsAt !== undefined && endsAt !== null) assertValidDate(endsAt, "endsAt");
+  if (startsAt !== undefined && endsAt !== undefined && endsAt !== null && endsAt <= startsAt) {
+    throw new AppError("endsAt must be after startsAt", 400, "INVALID_SEASON_INPUT");
+  }
+}
+
+export function normalizeSeasonCreateInput(input: SeasonCreateInput): NormalizedSeasonCreateInput {
+  const title = input.title.trim();
+  if (title.length === 0) {
+    throw new AppError("Season title is required", 400, "INVALID_SEASON_INPUT");
+  }
+
+  const startsAt = input.startsAt ?? new Date();
+  const endsAt = input.endsAt ?? null;
+  assertSeasonDateRange(startsAt, endsAt);
+
+  return {
+    title,
+    description: input.description?.trim() || null,
+    mode: input.mode,
+    startsAt,
+    endsAt,
+    maxVotesPerUser: assertPositiveInteger(input.maxVotesPerUser ?? 50, "maxVotesPerUser"),
+    maxVotesPerUserPerDay:
+      input.maxVotesPerUserPerDay === undefined
+        ? null
+        : assertPositiveInteger(input.maxVotesPerUserPerDay, "maxVotesPerUserPerDay"),
+    biasVotesPerUser: assertNonNegativeInteger(input.biasVotesPerUser ?? 3, "biasVotesPerUser")
+  };
+}
+
+export function normalizeSeasonUpdateInput(input: SeasonUpdateInput): NormalizedSeasonUpdateInput {
+  const normalized: NormalizedSeasonUpdateInput = {};
+
+  if (input.title !== undefined) {
+    const title = input.title.trim();
+    if (title.length === 0) {
+      throw new AppError("Season title is required", 400, "INVALID_SEASON_INPUT");
+    }
+    normalized.title = title;
+  }
+
+  if (input.description !== undefined) {
+    normalized.description = input.description?.trim() || null;
+  }
+
+  if (input.mode !== undefined) normalized.mode = input.mode;
+  if (input.startsAt !== undefined) normalized.startsAt = assertValidDate(input.startsAt, "startsAt");
+  if (input.endsAt !== undefined) {
+    normalized.endsAt = input.endsAt === null ? null : assertValidDate(input.endsAt, "endsAt");
+  }
+  assertSeasonDateRange(normalized.startsAt, normalized.endsAt);
+
+  if (input.maxVotesPerUser !== undefined) {
+    normalized.maxVotesPerUser = assertPositiveInteger(input.maxVotesPerUser, "maxVotesPerUser");
+  }
+  if (input.maxVotesPerUserPerDay !== undefined) {
+    normalized.maxVotesPerUserPerDay =
+      input.maxVotesPerUserPerDay === null
+        ? null
+        : assertPositiveInteger(input.maxVotesPerUserPerDay, "maxVotesPerUserPerDay");
+  }
+  if (input.biasVotesPerUser !== undefined) {
+    normalized.biasVotesPerUser = assertNonNegativeInteger(input.biasVotesPerUser, "biasVotesPerUser");
+  }
+
+  return normalized;
+}
+
 export async function createSeason(
   poolId: string,
   userId: string,
@@ -333,17 +447,19 @@ export async function createSeason(
     throw new AppError("Forbidden", 403, "FORBIDDEN");
   }
 
+  const normalized = normalizeSeasonCreateInput(input);
+
   return prisma.battleSeason.create({
     data: {
       poolId,
-      title: input.title.trim(),
-      description: input.description?.trim() || null,
-      mode: input.mode,
-      startsAt: input.startsAt ?? new Date(),
-      endsAt: input.endsAt ?? null,
-      maxVotesPerUser: input.maxVotesPerUser ?? 50,
-      maxVotesPerUserPerDay: input.maxVotesPerUserPerDay ?? null,
-      biasVotesPerUser: input.biasVotesPerUser ?? 3,
+      title: normalized.title,
+      description: normalized.description,
+      mode: normalized.mode,
+      startsAt: normalized.startsAt,
+      endsAt: normalized.endsAt,
+      maxVotesPerUser: normalized.maxVotesPerUser,
+      maxVotesPerUserPerDay: normalized.maxVotesPerUserPerDay,
+      biasVotesPerUser: normalized.biasVotesPerUser,
       createdByUserId: userId
     }
   });
@@ -1402,17 +1518,19 @@ export async function updateSeason(
     throw new AppError("Ended seasons cannot be edited", 400, "SEASON_ENDED");
   }
 
+  const normalized = normalizeSeasonUpdateInput(input);
+
   return prisma.battleSeason.update({
     where: { id: seasonId },
     data: {
-      title: input.title?.trim(),
-      description: input.description === undefined ? undefined : input.description?.trim() || null,
-      mode: input.mode,
-      startsAt: input.startsAt,
-      endsAt: input.endsAt,
-      maxVotesPerUser: input.maxVotesPerUser,
-      maxVotesPerUserPerDay: input.maxVotesPerUserPerDay,
-      biasVotesPerUser: input.biasVotesPerUser
+      title: normalized.title,
+      description: normalized.description,
+      mode: normalized.mode,
+      startsAt: normalized.startsAt,
+      endsAt: normalized.endsAt,
+      maxVotesPerUser: normalized.maxVotesPerUser,
+      maxVotesPerUserPerDay: normalized.maxVotesPerUserPerDay,
+      biasVotesPerUser: normalized.biasVotesPerUser
     }
   });
 }

@@ -1,5 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import {
+  normalizeSeasonCreateInput,
+  normalizeSeasonUpdateInput
+} from "../src/lib/season-service";
 
 function readSource(path: string): string {
   return readFileSync(path, "utf8");
@@ -70,6 +74,74 @@ describe("Season service permissions and limits", () => {
     expect(source).toContain("tx.battleVote.create");
     expect(source).toContain("clientMutationId: input.clientMutationId ?? null");
     expect(source).toContain("votesRemaining");
+  });
+
+  it("validates create input before writing broken season rows", () => {
+    expect(() =>
+      normalizeSeasonCreateInput({
+        title: "   ",
+        mode: "BIAS"
+      })
+    ).toThrow("Season title is required");
+    expect(() =>
+      normalizeSeasonCreateInput({
+        title: "四月完结",
+        mode: "BIAS",
+        maxVotesPerUser: 0
+      })
+    ).toThrow("maxVotesPerUser must be at least 1");
+    expect(() =>
+      normalizeSeasonCreateInput({
+        title: "四月完结",
+        mode: "BIAS",
+        maxVotesPerUserPerDay: -1
+      })
+    ).toThrow("maxVotesPerUserPerDay must be at least 1");
+    expect(() =>
+      normalizeSeasonCreateInput({
+        title: "四月完结",
+        mode: "BIAS",
+        biasVotesPerUser: -1
+      })
+    ).toThrow("biasVotesPerUser cannot be negative");
+  });
+
+  it("normalizes valid create and update input", () => {
+    const startsAt = new Date("2026-07-01T00:00:00.000Z");
+    const endsAt = new Date("2026-07-31T00:00:00.000Z");
+
+    expect(
+      normalizeSeasonCreateInput({
+        title: "  四月完结  ",
+        description: "  多人赛季  ",
+        mode: "BIAS",
+        startsAt,
+        endsAt,
+        maxVotesPerUser: 100,
+        maxVotesPerUserPerDay: 20,
+        biasVotesPerUser: 0
+      })
+    ).toMatchObject({
+      title: "四月完结",
+      description: "多人赛季",
+      startsAt,
+      endsAt,
+      maxVotesPerUser: 100,
+      maxVotesPerUserPerDay: 20,
+      biasVotesPerUser: 0
+    });
+
+    expect(
+      normalizeSeasonUpdateInput({
+        title: "  七月新番  ",
+        description: "   ",
+        maxVotesPerUserPerDay: null
+      })
+    ).toEqual({
+      title: "七月新番",
+      description: null,
+      maxVotesPerUserPerDay: null
+    });
   });
 });
 

@@ -63,6 +63,15 @@ export async function POST(request: Request, context: RouteContext) {
     const skipped: PublicAnime[] = [];
 
     const animesToCache = [];
+    const maxPosition = await prisma.poolAnime.aggregate({
+      where: {
+        poolId: pool.id
+      },
+      _max: {
+        position: true
+      }
+    });
+    let nextPosition = (maxPosition._max.position ?? 0) + 1;
 
     for (const anime of importedResult.imported) {
       const existingEntry = await prisma.poolAnime.findUnique({
@@ -80,19 +89,11 @@ export async function POST(request: Request, context: RouteContext) {
         continue;
       }
 
-      const maxPosition = await prisma.poolAnime.aggregate({
-        where: {
-          poolId: pool.id
-        },
-        _max: {
-          position: true
-        }
-      });
       const createdEntry = await prisma.poolAnime.create({
         data: {
           poolId: pool.id,
           animeId: anime.id,
-          position: (maxPosition._max.position ?? 0) + 1
+          position: nextPosition++
         },
         include: {
           anime: true

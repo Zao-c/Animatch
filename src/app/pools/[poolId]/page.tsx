@@ -18,6 +18,12 @@ import { formatAnimeSource } from "@/lib/anime-source";
 import { copyTextWithFallback } from "@/lib/browser-copy";
 import { isCommunityBattleVisiblePool } from "@/lib/community-battle-visibility";
 import { buildCommunityTierShareTiers } from "@/lib/community-tier-buckets";
+import {
+  buildPoolShareText,
+  canSharePoolLink,
+  getPoolShareBlockedNotice,
+  getPoolShareButtonLabel
+} from "@/lib/pool-share";
 import { exportShareCardAsPng } from "@/lib/share-export";
 import { formatTierExportTimestamp, sanitizeFilenameSegment } from "@/lib/tier-export";
 import {
@@ -495,11 +501,17 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
     clearMessage();
     const poolUrl = `${window.location.origin}/pools/${params.poolId}`;
-    const shareText = [
-      `AniMatch 番组《${pool.name}》`,
-      poolUrl,
-      "打开后登录即可开始对决。"
-    ].join("\n");
+    if (!canSharePoolLink(pool.visibility)) {
+      setWorkspaceMode("settings");
+      setNotice(getPoolShareBlockedNotice());
+      return;
+    }
+
+    const shareText = buildPoolShareText({
+      name: pool.name,
+      url: poolUrl,
+      visibility: pool.visibility
+    });
     const result = await copyTextWithFallback(shareText);
 
     setNotice(
@@ -1357,10 +1369,10 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             <AppButton
               type="button"
               onClick={handleCopyPoolShare}
-              variant="secondary"
+              variant={canSharePoolLink(pool.visibility) ? "secondary" : "quiet"}
               size="sm"
             >
-              分享番组
+              {getPoolShareButtonLabel(pool.visibility)}
             </AppButton>
             {canShowCommunityRanking ? (
               <AppButton

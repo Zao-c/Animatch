@@ -400,6 +400,57 @@ describe("Bangumi pool import API", () => {
     expect(payload.data.added[0].anime.source).toBe(ANIME_SOURCE.BANGUMI);
   });
 
+  it("allocates positions from one aggregate call for multi-item imports", async () => {
+    mockedBangumi.getBangumiSubject.mockImplementation(async (bgmId: number) =>
+      subject({
+        bgmId,
+        title: `Anime ${bgmId}`,
+        titleCn: `动画 ${bgmId}`,
+        rawJson: { id: bgmId }
+      })
+    );
+    (mockedAnime.upsert as any).mockImplementation(async (args: any) =>
+      animeRecord({
+        id: `anime-${args.where.bgmId}`,
+        bgmId: args.where.bgmId,
+        title: `Anime ${args.where.bgmId}`,
+        titleCn: `动画 ${args.where.bgmId}`,
+        sourceId: String(args.where.bgmId)
+      }) as any
+    );
+    (mockedPoolAnime.create as any).mockImplementation(async (args: any) =>
+      poolAnime({
+        id: `entry-${args.data.animeId}`,
+        animeId: args.data.animeId,
+        position: args.data.position,
+        anime: animeRecord({
+          id: args.data.animeId,
+          bgmId: Number(String(args.data.animeId).replace("anime-", "")),
+          sourceId: String(args.data.animeId).replace("anime-", "")
+        })
+      }) as any
+    );
+
+    const response = await IMPORT_TO_POOL(
+      new Request("http://test.local/api/pools/pool-1/anime/bulk-import", {
+        method: "POST",
+        body: JSON.stringify({ input: "101\n102\n103" })
+      }),
+      { params: { poolId: "pool-1" } }
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data.added).toHaveLength(3);
+    expect(mockedPoolAnime.aggregate).toHaveBeenCalledTimes(1);
+    expect(mockedPoolAnime.create).toHaveBeenCalledTimes(3);
+    expect(mockedPoolAnime.create.mock.calls.map(([call]) => call.data.position)).toEqual([
+      3,
+      4,
+      5
+    ]);
+  });
+
   it("rejects userB importing into userA's pool", async () => {
     mockedRequireCurrentUser.mockResolvedValueOnce({
       id: "user-2",
