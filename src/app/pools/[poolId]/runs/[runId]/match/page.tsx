@@ -259,7 +259,7 @@ export default function MatchPage({
   const currentPair = queue[0];
 
   if (currentPair === undefined) {
-    const emptyCopy = getMatchEmptyCopy(poolAnimeCount);
+    const emptyCopy = getMatchEmptyCopy(poolAnimeCount, queueMeta?.progress);
 
     return (
       <PageShell>
@@ -272,6 +272,16 @@ export default function MatchPage({
               <Link href={`/pools/${params.poolId}`} className={appButtonClasses({ variant: "ghost" })}>
                 返回番组
               </Link>
+              {emptyCopy.canReset ? (
+                <AppButton
+                  type="button"
+                  onClick={handleResetRun}
+                  disabled={isResetting}
+                  variant="secondary"
+                >
+                  {isResetting ? "重开中..." : "重开本轮"}
+                </AppButton>
+              ) : null}
               <Link
                 href={`/pools/${params.poolId}/runs/${params.runId}/tier`}
                 className={appButtonClasses({ variant: "primary" })}
@@ -510,24 +520,53 @@ const fallbackScoreDistribution = {
   std: 120
 };
 
-function getMatchEmptyCopy(poolAnimeCount: number | null) {
+function getMatchEmptyCopy(
+  poolAnimeCount: number | null,
+  progress?: MatchQueueResponse["progress"]
+) {
   if (poolAnimeCount !== null && poolAnimeCount < 2) {
     return {
       title: "至少需要 2 部动画才能开始对决",
-      description: "返回番组详情页继续添加动画；建议添加 4-8 部进行第一次体验。"
+      description: "返回番组详情页继续添加动画；建议添加 4-8 部进行第一次体验。",
+      canReset: false
+    };
+  }
+
+  if (
+    poolAnimeCount !== null &&
+    poolAnimeCount >= 2 &&
+    progress !== undefined &&
+    progress.totalItems < 2
+  ) {
+    return {
+      title: "可匹配作品不足",
+      description:
+        `你标记为没看过的作品已从本轮隐藏，当前只剩 ${progress.totalItems} 部可参与对决。可以重开本轮，或返回番组添加更多作品。`,
+      canReset: true
+    };
+  }
+
+  if (progress?.stage === "HIGH_CONFIDENCE") {
+    return {
+      title: "本轮已经达到高可信度",
+      description:
+        "当前排序已经比较稳定。你可以查看 Tier List，或重开本轮重新校准自己的偏好。",
+      canReset: true
     };
   }
 
   if (poolAnimeCount !== null && poolAnimeCount >= 2) {
     return {
-      title: "当前番组的可用组合已经比较完了",
+      title: "当前没有新的可用组合",
       description:
-        "你可以查看 Tier List，添加更多动画，或使用手动最终设定微调排序。"
+        "可能是本轮组合已经比较完，或最近组合暂时被去重。你可以查看 Tier List、重开本轮，或返回番组添加更多动画。",
+      canReset: true
     };
   }
 
   return {
     title: "当前没有足够可匹配的动画",
-    description: "可以添加更多作品或查看 Tier List。"
+    description: "可以添加更多作品或查看 Tier List。",
+    canReset: false
   };
 }
