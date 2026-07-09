@@ -40,13 +40,22 @@ interface BackgroundCosCacheState {
   running: boolean;
   queue: CacheableAnimeCover[];
   queuedAnimeIds: Set<string>;
+  droppedCount: number;
 }
 
 const MAX_SOURCE_BYTES = 10 * 1024 * 1024;
 const DOWNLOAD_TIMEOUT_MS = 6500;
-const MAX_BACKGROUND_QUEUE = 160;
+const MAX_BACKGROUND_QUEUE = 2000;
 const BACKGROUND_CONCURRENCY = 2;
 const DEFAULT_COVER_PREFIX = "animatch/covers";
+
+export type CosCoverBackgroundQueueResult =
+  | "queued"
+  | "duplicate"
+  | "fresh"
+  | "overflow"
+  | "unconfigured"
+  | "no-source";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -57,14 +66,27 @@ export function isCosCoverCacheConfigured(): boolean {
   return getCosCoverConfig() !== null;
 }
 
-export function cacheAnimeCoverToCosBackground(anime: CacheableAnimeCover | null | undefined): void {
-  if (!anime || !getCosCoverConfig()) return;
+export function cacheAnimeCoverToCosBackground(
+  anime: CacheableAnimeCover | null | undefined
+): CosCoverBackgroundQueueResult {
+  if (!anime) return "no-source";
+  if (!getCosCoverConfig()) return "unconfigured";
   const sourceUrl = pickSourceCoverUrl(anime);
-  if (!sourceUrl || hasFreshCachedCover(anime, sourceUrl)) return;
+  if (!sourceUrl) return "no-source";
+  if (hasFreshCachedCover(anime, sourceUrl)) return "fresh";
 
   const state = getBackgroundState();
-  if (state.queuedAnimeIds.has(anime.id)) return;
-  if (state.queue.length >= MAX_BACKGROUND_QUEUE) return;
+  if (state.queuedAnimeIds.has(anime.id)) return "duplicate";
+  if (state.queue.length >= MAX_BACKGROUND_QUEUE) {
+    state.droppedCount += 1;
+    console.warn("[COS cover cache] queue overflow", {
+      animeId: anime.id,
+      bgmId: anime.bgmId,
+      queueLength: state.queue.length,
+      droppedCount: state.droppedCount
+    });
+    return "overflow";
+  }
 
   state.queuedAnimeIds.add(anime.id);
   state.queue.push(anime);
@@ -72,12 +94,18 @@ export function cacheAnimeCoverToCosBackground(anime: CacheableAnimeCover | null
   if (!state.running) {
     void drainBackgroundQueue(state);
   }
+
+  return "queued";
 }
 
-export function cacheAnimeCoversToCosBackground(animes: Array<CacheableAnimeCover | null | undefined>): void {
+export function cacheAnimeCoversToCosBackground(
+  animes: Array<CacheableAnimeCover | null | undefined>
+): Record<CosCoverBackgroundQueueResult, number> {
+  const summary = createQueueSummary();
   for (const anime of animes) {
-    cacheAnimeCoverToCosBackground(anime);
+    summary[cacheAnimeCoverToCosBackground(anime)] += 1;
   }
+  return summary;
 }
 
 export async function cacheAnimeCoverToCos(
@@ -138,10 +166,22 @@ function getBackgroundState(): BackgroundCosCacheState {
   globalThis.__animatchCosCoverCacheState ??= {
     running: false,
     queue: [],
-    queuedAnimeIds: new Set()
+    queuedAnimeIds: new Set(),
+    droppedCount: 0
   };
 
   return globalThis.__animatchCosCoverCacheState;
+}
+
+function createQueueSummary(): Record<CosCoverBackgroundQueueResult, number> {
+  return {
+    queued: 0,
+    duplicate: 0,
+    fresh: 0,
+    overflow: 0,
+    unconfigured: 0,
+    "no-source": 0
+  };
 }
 
 async function drainBackgroundQueue(state: BackgroundCosCacheState): Promise<void> {

@@ -25,11 +25,11 @@ import {
   getCommunityRanking,
   getPool,
   getTierList,
-  getTierShare,
   saveManualTierList,
   updatePoolTierConfig,
   type CommunityRankingResponse,
   type PoolTierConfig,
+  type PublicTierShare,
   type RecalibrationType,
   type TierListItem,
   type TierListResponse
@@ -68,6 +68,63 @@ function cloneTiers(tiers: Record<string, TierListItem[]>): Record<string, TierL
     result[key] = [...tiers[key]];
   }
   return result;
+}
+
+function buildLocalTierExportShare(input: {
+  poolId: string;
+  runId: string;
+  poolName: string;
+  tierList: TierListResponse;
+  tiers: Record<string, TierListItem[]>;
+  tierRows: TierRowConfig[];
+  tierLabels: TierLabels;
+  generatedAt: Date;
+}): PublicTierShare {
+  const generatedAt = input.generatedAt.toISOString();
+
+  return {
+    token: `local-export-${input.runId}`,
+    title: input.poolName,
+    description: "本地导出图片，不会创建公开分享链接。",
+    tierLabels: input.tierLabels,
+    createdAt: generatedAt,
+    snapshot: {
+      version: 1,
+      generatedAt,
+      pool: {
+        id: input.poolId,
+        name: input.poolName
+      },
+      run: {
+        id: input.runId
+      },
+      tiers: input.tierRows.map((row) => ({
+        key: row.id,
+        label: input.tierLabels[row.id] ?? row.label,
+        color: row.color,
+        items: (input.tiers[row.id] ?? []).map((item) => ({
+          animeId: item.animeId,
+          title: item.titleCn ?? item.title,
+          subtitle: item.titleCn ? item.title : undefined,
+          coverUrl: getAnimeCoverUrl(item, { intent: "export" }),
+          imageUrl: item.imageUrl,
+          imageSmallUrl: item.imageSmallUrl,
+          imageMediumUrl: item.imageMediumUrl,
+          imageLargeUrl: item.imageLargeUrl,
+          thumbnailUrl: item.thumbnailUrl,
+          source: item.source,
+          animeType: item.animeType ?? undefined,
+          tags: item.tags,
+          elo: item.eloScore,
+          isLocked: item.manualLocked,
+          isEdited: item.manualTier !== null
+        }))
+      })),
+      tierRows: input.tierRows,
+      animeCount: input.tierList.totalAnime,
+      comparisonCount: input.tierList.totalComparisons
+    }
+  };
 }
 
 const RECALIBRATION_MODES: { type: RecalibrationType; title: string; body: string }[] = [
@@ -122,9 +179,7 @@ export default function TierPage({
   const [shareCopied, setShareCopied] = useState(false);
   const [shareCopyFallback, setShareCopyFallback] = useState(false);
   const [shareToken, setShareToken] = useState<string | null>(null);
-  const [shareSnapshot, setShareSnapshot] = useState<
-    import("@/lib/client-api").PublicTierShare | null
-  >(null);
+  const [shareSnapshot, setShareSnapshot] = useState<PublicTierShare | null>(null);
   const exportCardRef = useRef<HTMLDivElement | null>(null);
   const [tierLabels, setTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
   const [draftTierLabels, setDraftTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
@@ -368,20 +423,16 @@ export default function TierPage({
     setExportedAt(generatedAt);
 
     try {
-      let token = shareToken;
-
-      if (token === null) {
-        const result = await createTierShare({
-          poolId: params.poolId,
-          runId: params.runId,
-          tierLabels
-        });
-        token = result.token;
-        setShareToken(token);
-        setShareUrl(`${window.location.origin}${result.url}`);
-      }
-
-      const share = await getTierShare(token);
+      const share = buildLocalTierExportShare({
+        poolId: params.poolId,
+        runId: params.runId,
+        poolName,
+        tierList,
+        tiers: visibleTiers ?? tierList.tiers,
+        tierRows,
+        tierLabels,
+        generatedAt
+      });
       setShareSnapshot(share);
 
       await new Promise<void>((resolve) => {
@@ -398,8 +449,8 @@ export default function TierPage({
     } catch (reason) {
       setExportError(
         reason instanceof Error
-          ? `导出图片失败，可以先打开分享链接后手动截图。(${reason.message})`
-          : "导出图片失败，可以先打开分享链接后手动截图。"
+          ? `导出图片失败，请刷新后重试。(${reason.message})`
+          : "导出图片失败，请刷新后重试。"
       );
     } finally {
       setIsExporting(false);

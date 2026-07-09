@@ -119,6 +119,20 @@ function isEditableShortcutTarget(target: EventTarget | null): boolean {
   return tagName === "input" || tagName === "textarea" || tagName === "select" || target.isContentEditable;
 }
 
+function getDailyVotesRemaining(detail: SeasonDetail): number | null {
+  if (detail.maxVotesPerUserPerDay === null) return null;
+  const dailyVotesUsed = detail.currentUserState?.dailyVotesUsed ?? 0;
+  return Math.max(0, detail.maxVotesPerUserPerDay - dailyVotesUsed);
+}
+
+function canSubmitSeasonVote(detail: SeasonDetail | null): boolean {
+  if (detail === null || detail.status !== "ACTIVE") return false;
+  const state = detail.currentUserState;
+  if (state === null || state.votesRemaining <= 0) return false;
+  const dailyVotesRemaining = getDailyVotesRemaining(detail);
+  return dailyVotesRemaining === null || dailyVotesRemaining > 0;
+}
+
 function SeasonMatchSkeleton() {
   return <div className="mx-auto max-w-4xl animate-pulse px-4 py-8"><div className="h-96 rounded-3xl bg-white/5" /></div>;
 }
@@ -285,7 +299,7 @@ export default function SeasonMatchPage() {
   }
 
   const handleVote = useCallback(async (winnerId: string) => {
-    if (!currentPair || submitting) return;
+    if (!currentPair || submitting || !canSubmitSeasonVote(detail)) return;
     const mutationKey = `${seasonMatchPairKey(currentPair)}:${winnerId}:${detail?.mode === "BIAS" && useBias ? "bias" : "normal"}`;
     const clientMutationId = voteMutationIdsRef.current.get(mutationKey) ?? createVoteMutationId(seasonId);
     voteMutationIdsRef.current.set(mutationKey, clientMutationId);
@@ -349,10 +363,11 @@ export default function SeasonMatchPage() {
 
       const canUseBiasShortcut =
         detail?.mode === "BIAS" && (detail.currentUserState?.biasVotesRemaining ?? 0) > 0;
+      const canUseVoteShortcut = canSubmitSeasonVote(detail);
       let handled = true;
-      if (e.key === "ArrowLeft") {
+      if (e.key === "ArrowLeft" && canUseVoteShortcut) {
         handleVote(currentPair.left.animeId);
-      } else if (e.key === "ArrowRight") {
+      } else if (e.key === "ArrowRight" && canUseVoteShortcut) {
         handleVote(currentPair.right.animeId);
       } else if (e.key === "ArrowDown") {
         handleRollPair();
@@ -382,7 +397,18 @@ export default function SeasonMatchPage() {
 
   const cs = detail.currentUserState;
   const isSeasonEnded = detail.status === "ENDED";
-  const canVote = detail.status === "ACTIVE" && !isSeasonEnded && cs && cs.votesRemaining > 0;
+  const dailyVotesRemaining = getDailyVotesRemaining(detail);
+  const hasTotalVotesRemaining = Boolean(cs && cs.votesRemaining > 0);
+  const hasDailyVotesRemaining = dailyVotesRemaining === null || dailyVotesRemaining > 0;
+  const canVote = canSubmitSeasonVote(detail);
+  const progressStatColumns =
+    detail.mode === "BIAS"
+      ? dailyVotesRemaining === null
+        ? "grid-cols-4"
+        : "grid-cols-5"
+      : dailyVotesRemaining === null
+        ? "grid-cols-2"
+        : "grid-cols-3";
 
   return (
     <PageShell>
@@ -435,13 +461,18 @@ export default function SeasonMatchPage() {
         ) : null}
 
         {cs ? (
-          <div className={`mt-3 grid gap-2 text-[11px] sm:mt-4 sm:text-sm ${detail.mode === "BIAS" ? "grid-cols-4" : "grid-cols-2"}`}>
+          <div className={`mt-3 grid gap-2 text-[11px] sm:mt-4 sm:text-sm ${progressStatColumns}`}>
             <span className="rounded-xl border border-white/10 bg-white/[0.025] px-1.5 py-2 text-center sm:px-3">
               <span className="text-slate-400 sm:text-xs"><span className="sm:hidden">投</span><span className="hidden sm:inline">已投</span></span> <strong className="text-white">{cs.votesUsed}</strong>
             </span>
             <span className="rounded-xl border border-white/10 bg-white/[0.025] px-1.5 py-2 text-center sm:px-3">
               <span className="text-slate-400 sm:text-xs">剩余</span> <strong className="text-amber-200">{cs.votesRemaining}</strong>
             </span>
+            {dailyVotesRemaining !== null ? (
+              <span className="rounded-xl border border-white/10 bg-white/[0.025] px-1.5 py-2 text-center sm:px-3">
+                <span className="text-slate-400 sm:text-xs"><span className="sm:hidden">今日</span><span className="hidden sm:inline">今日剩余</span></span> <strong className={dailyVotesRemaining > 0 ? "text-cyan-200" : "text-amber-200"}>{dailyVotesRemaining}</strong>
+              </span>
+            ) : null}
             {detail.mode === "BIAS" ? (
               <>
                 <span className="rounded-xl border border-white/10 bg-white/[0.025] px-1.5 py-2 text-center sm:px-3">
@@ -498,8 +529,20 @@ export default function SeasonMatchPage() {
           </AppCard>
         ) : !canVote && cs ? (
           <AppCard className="mt-8 p-6 text-center">
-            <h2 className="text-xl font-black text-white">投票次数已用完</h2>
-            <p className="mt-2 text-sm text-slate-400">你已完成 {cs.votesUsed} 次投票</p>
+            <h2 className="text-xl font-black text-white">
+              {!hasTotalVotesRemaining
+                ? "投票次数已用完"
+                : !hasDailyVotesRemaining
+                  ? "今日票数已用完"
+                  : "暂时不能投票"}
+            </h2>
+            <p className="mt-2 text-sm text-slate-400">
+              {!hasTotalVotesRemaining
+                ? `你已完成 ${cs.votesUsed} 次投票`
+                : !hasDailyVotesRemaining && detail.maxVotesPerUserPerDay !== null
+                  ? `今天已投 ${cs.dailyVotesUsed ?? detail.maxVotesPerUserPerDay} / ${detail.maxVotesPerUserPerDay} 票，明天可以继续。`
+                  : "请稍后刷新赛季状态后再试。"}
+            </p>
           </AppCard>
         ) : currentPair ? (
           <div className="mt-2 sm:mt-4">

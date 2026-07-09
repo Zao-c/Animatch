@@ -67,7 +67,9 @@ describe("season match UI", () => {
 
   it("compresses the mobile first screen before the duel cards", () => {
     expect(source).toContain("hidden text-xs text-slate-500 sm:block");
-    expect(source).toContain('detail.mode === "BIAS" ? "grid-cols-4" : "grid-cols-2"');
+    expect(source).toContain("const progressStatColumns");
+    expect(source).toContain("grid-cols-5");
+    expect(source).toContain("grid-cols-3");
     expect(source).toContain("hidden sm:inline");
     expect(source).toContain("sm:hidden");
     expect(source).toContain("mt-3 grid grid-cols-2 gap-2 sm:mt-5 sm:grid-cols-4");
@@ -87,6 +89,17 @@ describe("season match UI", () => {
     expect(source).toContain('e.key === "2"');
     expect(source).toContain('e.key === "3" || e.key === "0"');
     expect(source).toContain("isEditableShortcutTarget");
+  });
+
+  it("disables vote submission when today's season vote quota is exhausted", () => {
+    expect(source).toContain("function getDailyVotesRemaining");
+    expect(source).toContain("function canSubmitSeasonVote");
+    expect(source).toContain("dailyVotesRemaining === null || dailyVotesRemaining > 0");
+    expect(source).toContain("const canVote = canSubmitSeasonVote(detail)");
+    expect(source).toContain("!canSubmitSeasonVote(detail)");
+    expect(source).toContain("canUseVoteShortcut");
+    expect(source).toContain("今日票数已用完");
+    expect(source).toContain("今日剩余");
   });
 
   it("lets users mark unseen anime without submitting a vote", () => {
