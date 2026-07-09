@@ -10,6 +10,7 @@ const DEFAULT_BACKGROUND_LIMIT = 12;
 const DEFAULT_BACKGROUND_CONCURRENCY = 2;
 const DEFAULT_BACKGROUND_TIMEOUT_MS = 2500;
 const MAX_BACKGROUND_QUEUE = 80;
+const MAX_BACKGROUND_REQUEST_LIMIT = 120;
 
 declare global {
   // eslint-disable-next-line no-var
@@ -84,7 +85,7 @@ export function prewarmCoverCacheBackground(
   options: { concurrency?: number; limit?: number; timeoutMs?: number } = {}
 ): void {
   const requestedLimit = Math.max(1, Math.trunc(options.limit ?? DEFAULT_BACKGROUND_LIMIT));
-  const remote = filterRemoteUrls(urls).slice(0, Math.min(requestedLimit, DEFAULT_BACKGROUND_LIMIT));
+  const remote = filterRemoteUrls(urls).slice(0, Math.min(requestedLimit, MAX_BACKGROUND_REQUEST_LIMIT));
   if (remote.length === 0) return;
 
   const proxyPaths = remote

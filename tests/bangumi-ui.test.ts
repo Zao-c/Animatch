@@ -29,9 +29,17 @@ describe("Bangumi import tab UI", () => {
 
   it("shows success, failure, and empty-result states", () => {
     expect(detailSource).toContain("没有找到匹配条目。");
-    expect(detailSource).toContain("搜索失败，请稍后重试。");
+    expect(detailSource).toContain("Bangumi 搜索暂时不可用");
     expect(detailSource).toContain("已加入：${displayTitle}");
     expect(detailSource).toContain("已在番组中：${displayTitle}");
+  });
+
+  it("keeps Bangumi transport failures separate from empty search results", () => {
+    expect(detailSource).toContain("const [bangumiSearchError, setBangumiSearchError]");
+    expect(detailSource).toContain("setBangumiSearchError(null)");
+    expect(detailSource).toContain("setBangumiSearchError(message)");
+    expect(detailSource).toContain("Bangumi 搜索暂时不可用");
+    expect(detailSource).toContain("!bangumiSearchError && bangumiResults.length === 0");
   });
 
   it("paginates Bangumi results so the inspector stays readable", () => {

@@ -1,9 +1,10 @@
 import { createHash } from "crypto";
-import { PoolStatus, Prisma } from "@prisma/client";
+import { PoolStatus, Prisma, type Anime } from "@prisma/client";
 import { ANIME_SOURCE } from "./anime-source";
 import { prisma } from "./db";
 import { canAddAnime } from "./pool-permissions";
 import { serializePoolAnime } from "./pool-anime-serializer";
+import { getNextPoolAnimePosition, withPoolAnimePositionTransaction } from "./pool-anime-position";
 import { enqueuePoolAnimeCoversCache } from "./server/pool-cover-cache";
 import { fetchTierMakerTemplate, parseTierMakerTemplate } from "./tiermaker-fetch";
 import { TIERMAKER_URL_LIST_SOURCE } from "./tiermaker-url-list";
@@ -188,18 +189,10 @@ async function importTierMakerParsedItems(params: {
     throw new Error("Archived pools cannot import TierMaker items");
   }
 
-  const maxPosition = await prisma.poolAnime.aggregate({
-    where: {
-      poolId: pool.id
-    },
-    _max: {
-      position: true
-    }
-  });
-  let nextPosition = (maxPosition._max.position ?? 0) + 1;
-  const added = [];
-  const skipped = [];
-  const animesToCache = [];
+  const added: ReturnType<typeof serializePoolAnime>[] = [];
+  const skipped: ReturnType<typeof serializePoolAnime>[] = [];
+  const animesToCache: Anime[] = [];
+  const importedAnimes: Anime[] = [];
 
   for (const item of params.items) {
     const anime = await prisma.anime.upsert({
@@ -254,38 +247,46 @@ async function importTierMakerParsedItems(params: {
       }
     });
 
-    const existingEntry = await prisma.poolAnime.findUnique({
-      where: {
-        poolId_animeId: {
-          poolId: pool.id,
-          animeId: anime.id
-        }
-      },
-      include: {
-        anime: true
-      }
-    });
-
-    if (existingEntry !== null) {
-      skipped.push(serializePoolAnime(existingEntry));
-      animesToCache.push(existingEntry.anime);
-      continue;
-    }
-
-    const createdEntry = await prisma.poolAnime.create({
-      data: {
-        poolId: pool.id,
-        animeId: anime.id,
-        position: nextPosition
-      },
-      include: {
-        anime: true
-      }
-    });
-    nextPosition += 1;
-    added.push(serializePoolAnime(createdEntry));
-    animesToCache.push(createdEntry.anime);
+    importedAnimes.push(anime);
   }
+
+  await withPoolAnimePositionTransaction(async (tx) => {
+    let nextPosition = await getNextPoolAnimePosition(tx, pool.id);
+
+    for (const anime of importedAnimes) {
+      const existingEntry = await tx.poolAnime.findUnique({
+        where: {
+          poolId_animeId: {
+            poolId: pool.id,
+            animeId: anime.id
+          }
+        },
+        include: {
+          anime: true
+        }
+      });
+
+      if (existingEntry !== null) {
+        skipped.push(serializePoolAnime(existingEntry));
+        animesToCache.push(existingEntry.anime);
+        continue;
+      }
+
+      const createdEntry = await tx.poolAnime.create({
+        data: {
+          poolId: pool.id,
+          animeId: anime.id,
+          position: nextPosition
+        },
+        include: {
+          anime: true
+        }
+      });
+      nextPosition += 1;
+      added.push(serializePoolAnime(createdEntry));
+      animesToCache.push(createdEntry.anime);
+    }
+  });
 
   enqueuePoolAnimeCoversCache(animesToCache, { proxyLimit: 60, proxyConcurrency: 5 });
 

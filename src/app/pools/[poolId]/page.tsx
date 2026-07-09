@@ -227,6 +227,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [bangumiResults, setBangumiResults] = useState<BangumiSearchItem[]>([]);
   const [bangumiVisibleCount, setBangumiVisibleCount] = useState(BANGUMI_RESULT_PAGE_SIZE);
   const [bangumiSearched, setBangumiSearched] = useState(false);
+  const [bangumiSearchError, setBangumiSearchError] = useState<string | null>(null);
   const [isBangumiSearching, setIsBangumiSearching] = useState(false);
   const [bangumiAddingId, setBangumiAddingId] = useState<number | null>(null);
   const [customUploadDrafts, setCustomUploadDrafts] = useState<CustomUploadDraft[]>([]);
@@ -793,15 +794,21 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     if (archived() || bangumiKeyword.trim().length < 2) return;
     clearMessage();
     setBangumiSearched(true);
+    setBangumiSearchError(null);
     setIsBangumiSearching(true);
 
     try {
       const result = await searchBangumiAnime(bangumiKeyword.trim(), 20);
       setBangumiResults(result.items);
       setBangumiVisibleCount(BANGUMI_RESULT_PAGE_SIZE);
-    } catch {
+    } catch (error) {
       setBangumiResults([]);
-      setError("搜索失败，请稍后重试。");
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Bangumi 搜索暂时不可用，请稍后重试。";
+      setBangumiSearchError(message);
+      setError("Bangumi 搜索暂时不可用，请稍后重试。");
     } finally {
       setIsBangumiSearching(false);
     }
@@ -2201,7 +2208,15 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                       正在搜索 Bangumi...
                     </p>
                   ) : null}
-                  {bangumiSearched && !isBangumiSearching && bangumiResults.length === 0 ? (
+                  {bangumiSearchError && !isBangumiSearching ? (
+                    <StatusHint
+                      label="连接失败"
+                      title="Bangumi 搜索暂时不可用"
+                      description={`${bangumiSearchError} 可以稍后重试，或先用本地库/手动添加。`}
+                      tone="warning"
+                    />
+                  ) : null}
+                  {bangumiSearched && !isBangumiSearching && !bangumiSearchError && bangumiResults.length === 0 ? (
                     <StatusHint
                       label="无结果"
                       title="没有找到匹配条目。"

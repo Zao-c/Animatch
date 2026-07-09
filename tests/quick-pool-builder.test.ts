@@ -109,7 +109,8 @@ describe("Quick import service", () => {
   });
 
   it("adds anime to pool with position increment", () => {
-    expect(source).toContain("maxPosition");
+    expect(source).toContain("getNextPoolAnimePosition");
+    expect(source).toContain("withPoolAnimePositionTransaction");
     expect(source).toContain("nextPosition");
     expect(source).toContain("position: nextPosition++");
   });

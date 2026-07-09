@@ -6,6 +6,7 @@ import { isAdminEditSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 import { canAddAnime } from "@/lib/pool-permissions";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
+import { getNextPoolAnimePosition, withPoolAnimePositionTransaction } from "@/lib/pool-anime-position";
 import { enqueuePoolAnimeCoverCache } from "@/lib/server/pool-cover-cache";
 
 interface RouteContext {
@@ -71,24 +72,18 @@ export async function POST(request: Request, context: RouteContext) {
       });
     }
 
-    const maxPosition = await prisma.poolAnime.aggregate({
-      where: {
-        poolId: pool.id
-      },
-      _max: {
-        position: true
-      }
-    });
-
-    const createdEntry = await prisma.poolAnime.create({
-      data: {
-        poolId: pool.id,
-        animeId: anime.id,
-        position: (maxPosition._max.position ?? 0) + 1
-      },
-      include: {
-        anime: true
-      }
+    const createdEntry = await withPoolAnimePositionTransaction(async (tx) => {
+      const position = await getNextPoolAnimePosition(tx, pool.id);
+      return tx.poolAnime.create({
+        data: {
+          poolId: pool.id,
+          animeId: anime.id,
+          position
+        },
+        include: {
+          anime: true
+        }
+      });
     });
 
     enqueuePoolAnimeCoverCache(anime);

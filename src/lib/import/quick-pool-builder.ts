@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { getNextPoolAnimePosition, withPoolAnimePositionTransaction } from "@/lib/pool-anime-position";
 import { enqueuePoolAnimeCoversCache } from "@/lib/server/pool-cover-cache";
 import { GLOBAL_SEARCH_EXCLUDED_SOURCES } from "@/lib/anime-service";
 import type { Anime } from "@prisma/client";
@@ -312,48 +313,45 @@ async function addAnimeToPoolBatch(
   let skippedCount = 0;
   let failedCount = 0;
 
-  const existingEntries = await prisma.poolAnime.findMany({
-    where: { poolId, animeId: { in: animeIds } },
-    select: { animeId: true },
-  });
-  const existingIds = new Set(existingEntries.map((e) => e.animeId));
-
-  const maxPosition = await prisma.poolAnime.aggregate({
-    where: { poolId },
-    _max: { position: true },
-  });
-  let nextPosition = (maxPosition._max.position ?? 0) + 1;
-
   const animesToCache: Anime[] = [];
 
-  for (const animeId of animeIds) {
-    if (existingIds.has(animeId)) {
-      skippedCount++;
-      continue;
-    }
+  await withPoolAnimePositionTransaction(async (tx) => {
+    const existingEntries = await tx.poolAnime.findMany({
+      where: { poolId, animeId: { in: animeIds } },
+      select: { animeId: true },
+    });
+    const existingIds = new Set(existingEntries.map((e) => e.animeId));
+    let nextPosition = await getNextPoolAnimePosition(tx, poolId);
 
-    try {
-      const anime = await prisma.anime.findUnique({ where: { id: animeId } });
-      if (!anime) {
-        failedCount++;
+    for (const animeId of animeIds) {
+      if (existingIds.has(animeId)) {
+        skippedCount++;
         continue;
       }
 
-      await prisma.poolAnime.create({
-        data: {
-          poolId,
-          animeId,
-          position: nextPosition++,
-        },
-      });
+      try {
+        const anime = await tx.anime.findUnique({ where: { id: animeId } });
+        if (!anime) {
+          failedCount++;
+          continue;
+        }
 
-      animesToCache.push(anime);
+        await tx.poolAnime.create({
+          data: {
+            poolId,
+            animeId,
+            position: nextPosition++,
+          },
+        });
 
-      addedCount++;
-    } catch {
-      failedCount++;
+        animesToCache.push(anime);
+
+        addedCount++;
+      } catch {
+        failedCount++;
+      }
     }
-  }
+  });
 
   enqueuePoolAnimeCoversCache(animesToCache, { proxyLimit: 60, proxyConcurrency: 5 });
 

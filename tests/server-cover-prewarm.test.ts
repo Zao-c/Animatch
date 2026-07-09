@@ -28,9 +28,10 @@ describe("cover cache prewarm helper", () => {
     expect(source).toContain("new Set(");
   });
 
-  it("caps background prewarm per request with a conservative default", () => {
+  it("uses a conservative default but honors larger explicit prewarm limits", () => {
     expect(source).toContain("DEFAULT_BACKGROUND_LIMIT = 12");
-    expect(source).toContain("Math.min(requestedLimit, DEFAULT_BACKGROUND_LIMIT)");
+    expect(source).toContain("MAX_BACKGROUND_REQUEST_LIMIT = 120");
+    expect(source).toContain("Math.min(requestedLimit, MAX_BACKGROUND_REQUEST_LIMIT)");
   });
 
   it("converts URLs through proxyExternalImageUrl and filters non-proxy paths", () => {

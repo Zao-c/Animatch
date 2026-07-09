@@ -1,4 +1,4 @@
-import { PoolStatus } from "@prisma/client";
+import { PoolStatus, type Anime } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
 import {
@@ -10,6 +10,7 @@ import { requireCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
 import { canAddAnime } from "@/lib/pool-permissions";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
+import { getNextPoolAnimePosition, withPoolAnimePositionTransaction } from "@/lib/pool-anime-position";
 import { enqueuePoolAnimeCoversCache } from "@/lib/server/pool-cover-cache";
 
 interface RouteContext {
@@ -62,47 +63,42 @@ export async function POST(request: Request, context: RouteContext) {
     const added: ReturnType<typeof serializePoolAnime>[] = [];
     const skipped: PublicAnime[] = [];
 
-    const animesToCache = [];
-    const maxPosition = await prisma.poolAnime.aggregate({
-      where: {
-        poolId: pool.id
-      },
-      _max: {
-        position: true
+    const animesToCache: Anime[] = [];
+
+    await withPoolAnimePositionTransaction(async (tx) => {
+      let nextPosition = await getNextPoolAnimePosition(tx, pool.id);
+
+      for (const anime of importedResult.imported) {
+        const existingEntry = await tx.poolAnime.findUnique({
+          where: {
+            poolId_animeId: {
+              poolId: pool.id,
+              animeId: anime.id
+            }
+          }
+        });
+
+        if (existingEntry !== null) {
+          skipped.push(toPublicAnime(anime));
+          animesToCache.push(anime);
+          continue;
+        }
+
+        const createdEntry = await tx.poolAnime.create({
+          data: {
+            poolId: pool.id,
+            animeId: anime.id,
+            position: nextPosition++
+          },
+          include: {
+            anime: true
+          }
+        });
+
+        added.push(serializePoolAnime(createdEntry));
+        animesToCache.push(createdEntry.anime);
       }
     });
-    let nextPosition = (maxPosition._max.position ?? 0) + 1;
-
-    for (const anime of importedResult.imported) {
-      const existingEntry = await prisma.poolAnime.findUnique({
-        where: {
-          poolId_animeId: {
-            poolId: pool.id,
-            animeId: anime.id
-          }
-        }
-      });
-
-      if (existingEntry !== null) {
-        skipped.push(toPublicAnime(anime));
-        animesToCache.push(anime);
-        continue;
-      }
-
-      const createdEntry = await prisma.poolAnime.create({
-        data: {
-          poolId: pool.id,
-          animeId: anime.id,
-          position: nextPosition++
-        },
-        include: {
-          anime: true
-        }
-      });
-
-      added.push(serializePoolAnime(createdEntry));
-      animesToCache.push(createdEntry.anime);
-    }
 
     enqueuePoolAnimeCoversCache(animesToCache);
 

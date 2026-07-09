@@ -12,6 +12,7 @@ import { prisma } from "@/lib/db";
 import { canEditPoolContent } from "@/lib/pool-permissions";
 import { ANIME_SOURCE } from "@/lib/anime-source";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
+import { getNextPoolAnimePosition, withPoolAnimePositionTransaction } from "@/lib/pool-anime-position";
 
 interface RouteContext {
   params: {
@@ -75,14 +76,6 @@ export async function POST(request: Request, context: RouteContext) {
       poolId: pool.id
     });
 
-    const maxPosition = await prisma.poolAnime.aggregate({
-      where: {
-        poolId: pool.id
-      },
-      _max: {
-        position: true
-      }
-    });
     const sourceId = `custom/${pool.id}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const anime = await prisma.anime.create({
       data: {
@@ -116,16 +109,19 @@ export async function POST(request: Request, context: RouteContext) {
         imageStatus: "OK"
       }
     });
-    const createdEntry = await prisma.poolAnime.create({
-      data: {
-        poolId: pool.id,
-        animeId: anime.id,
-        position: (maxPosition._max.position ?? 0) + 1,
-        note
-      },
-      include: {
-        anime: true
-      }
+    const createdEntry = await withPoolAnimePositionTransaction(async (tx) => {
+      const position = await getNextPoolAnimePosition(tx, pool.id);
+      return tx.poolAnime.create({
+        data: {
+          poolId: pool.id,
+          animeId: anime.id,
+          position,
+          note
+        },
+        include: {
+          anime: true
+        }
+      });
     });
 
     return ok(
