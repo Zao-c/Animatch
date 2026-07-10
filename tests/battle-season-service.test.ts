@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  SEASON_DAILY_LIMIT_TIME_ZONE,
+  getSeasonDailyVoteWindow,
   normalizeSeasonCreateInput,
   normalizeSeasonUpdateInput
 } from "../src/lib/season-service";
@@ -67,6 +69,26 @@ describe("Season service permissions and limits", () => {
     expect(source).toContain("DAILY_VOTE_LIMIT_REACHED");
     expect(source).toContain("BIAS_VOTES_EXHAUSTED");
     expect(source).toContain("VOTE_WRITE_CONFLICT");
+  });
+
+  it("uses one Asia/Shanghai day window for daily vote display and write guard", () => {
+    expect(SEASON_DAILY_LIMIT_TIME_ZONE).toBe("Asia/Shanghai");
+
+    const beforeShanghaiMidnight = getSeasonDailyVoteWindow(
+      new Date("2026-07-10T15:59:59.000Z")
+    );
+    expect(beforeShanghaiMidnight.start.toISOString()).toBe("2026-07-09T16:00:00.000Z");
+    expect(beforeShanghaiMidnight.end.toISOString()).toBe("2026-07-10T16:00:00.000Z");
+
+    const afterShanghaiMidnight = getSeasonDailyVoteWindow(
+      new Date("2026-07-10T16:00:00.000Z")
+    );
+    expect(afterShanghaiMidnight.start.toISOString()).toBe("2026-07-10T16:00:00.000Z");
+    expect(afterShanghaiMidnight.end.toISOString()).toBe("2026-07-11T16:00:00.000Z");
+
+    expect(source).toContain("getSeasonDailyVoteWindow");
+    expect(source).toContain("createdAt: { gte: dailyWindow.start, lt: dailyWindow.end }");
+    expect(source).not.toContain("setHours(0, 0, 0, 0)");
   });
 
   it("still records one BattleVote per user step", () => {
@@ -190,6 +212,12 @@ describe("Season shared aggregation", () => {
     expect(source).toContain("SEASON_MIN_USERS");
     expect(source).toContain("SEASON_MIN_COMPARISONS");
     expect(source).toContain("Math.min(score.compareCount / 5, 1)");
+  });
+
+  it("keeps zero-vote pool anime visible as insufficient shared ranking items", () => {
+    expect(source).toContain("participantCount === 0");
+    expect(source).toContain("? SEASON_PRIOR_RATING");
+    expect(source).not.toContain(".filter((item) => item.participantCount > 0)");
   });
 
   it("applies bias buff only during shared aggregation", () => {

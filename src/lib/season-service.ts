@@ -201,6 +201,25 @@ const SEASON_INITIAL_UNCERTAINTY = 350;
 const SEASON_MIN_USERS = 3;
 const SEASON_MIN_COMPARISONS = 6;
 const SEASON_BIAS_AGGREGATION_MULTIPLIER = 1.5;
+const SEASON_DAILY_LIMIT_UTC_OFFSET_MS = 8 * 60 * 60 * 1000;
+export const SEASON_DAILY_LIMIT_TIME_ZONE = "Asia/Shanghai";
+
+export function getSeasonDailyVoteWindow(now = new Date()): { start: Date; end: Date; timeZone: string } {
+  const shifted = new Date(now.getTime() + SEASON_DAILY_LIMIT_UTC_OFFSET_MS);
+  const shiftedDayStart = Date.UTC(
+    shifted.getUTCFullYear(),
+    shifted.getUTCMonth(),
+    shifted.getUTCDate()
+  );
+  const start = new Date(shiftedDayStart - SEASON_DAILY_LIMIT_UTC_OFFSET_MS);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+
+  return {
+    start,
+    end,
+    timeZone: SEASON_DAILY_LIMIT_TIME_ZONE
+  };
+}
 
 async function getPoolAnimeIds(poolId: string): Promise<string[]> {
   const entries = await prisma.poolAnime.findMany({
@@ -596,15 +615,12 @@ export async function getSeasonDetail(
 
     let dailyUsed: number | undefined = undefined;
     if (season.maxVotesPerUserPerDay) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      const dailyWindow = getSeasonDailyVoteWindow();
       dailyUsed = await prisma.battleVote.count({
         where: {
           seasonId,
           userId,
-          createdAt: { gte: today, lt: tomorrow }
+          createdAt: { gte: dailyWindow.start, lt: dailyWindow.end }
         }
       });
     }
@@ -773,8 +789,7 @@ async function aggregateSeasonRanking(
         imageUrl: aggregate.imageUrl
       };
     })
-    .filter((item) => item.participantCount > 0)
-      .sort(compareSeasonRankingItems);
+    .sort(compareSeasonRankingItems);
 }
 
 async function aggregateCurrentUserSeasonRanking(
@@ -1322,12 +1337,9 @@ export async function submitVote(
           }
 
           if (season.maxVotesPerUserPerDay) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const tomorrow = new Date(today);
-            tomorrow.setDate(tomorrow.getDate() + 1);
+            const dailyWindow = getSeasonDailyVoteWindow();
             const dailyUsed = await tx.battleVote.count({
-              where: { seasonId, userId, createdAt: { gte: today, lt: tomorrow } }
+              where: { seasonId, userId, createdAt: { gte: dailyWindow.start, lt: dailyWindow.end } }
             });
             if (dailyUsed >= season.maxVotesPerUserPerDay) {
               throw new AppError("Daily vote limit reached", 400, "DAILY_VOTE_LIMIT_REACHED");
