@@ -544,6 +544,60 @@ export default function TierPage({
     setDragSource(null);
   }
 
+  function moveAnimeToTier(animeId: string, targetTierId: string) {
+    if (editableTiers === null) {
+      return;
+    }
+
+    setEditableTiers((current) => {
+      if (current === null) {
+        return current;
+      }
+
+      const sourceTier = tierRows.find((row) =>
+        (current[row.id] ?? []).some((item) => item.animeId === animeId)
+      );
+      const sourceItem = sourceTier
+        ? current[sourceTier.id].find((item) => item.animeId === animeId)
+        : undefined;
+
+      if (!sourceTier || !sourceItem || sourceTier.id === targetTierId || !current[targetTierId]) {
+        return current;
+      }
+
+      const next = cloneTiers(current);
+      next[sourceTier.id] = next[sourceTier.id].filter((item) => item.animeId !== animeId);
+      next[targetTierId] = [...next[targetTierId], sourceItem];
+      return next;
+    });
+  }
+
+  function moveAnimeWithinTier(tierId: string, animeId: string, direction: -1 | 1) {
+    if (editableTiers === null) {
+      return;
+    }
+
+    setEditableTiers((current) => {
+      if (current === null) {
+        return current;
+      }
+
+      const items = current[tierId] ?? [];
+      const sourceIndex = items.findIndex((item) => item.animeId === animeId);
+      const targetIndex = sourceIndex + direction;
+      if (sourceIndex < 0 || targetIndex < 0 || targetIndex >= items.length) {
+        return current;
+      }
+
+      const next = cloneTiers(current);
+      const reordered = [...items];
+      const [sourceItem] = reordered.splice(sourceIndex, 1);
+      reordered.splice(targetIndex, 0, sourceItem);
+      next[tierId] = reordered;
+      return next;
+    });
+  }
+
   const visibleTiers = editableTiers ?? tierList?.tiers ?? null;
   const tierRows = useMemo(
     () => tierList?.tierRows ?? DEFAULT_TIER_CONFIG.rows,
@@ -975,6 +1029,17 @@ export default function TierPage({
                         scoreDistribution={scoreDistribution}
                         onDragStart={() => setDragSource({ tier: row.id, animeId: item.animeId })}
                         onDropBefore={() => handleDrop(row.id, item.animeId)}
+                        moveOptions={tierRows
+                          .filter((candidate) => candidate.id !== row.id)
+                          .map((candidate) => ({
+                            id: candidate.id,
+                            label: tierLabels[candidate.id] ?? candidate.label
+                          }))}
+                        onMoveToTier={(targetTierId) => moveAnimeToTier(item.animeId, targetTierId)}
+                        onMoveEarlier={() => moveAnimeWithinTier(row.id, item.animeId, -1)}
+                        onMoveLater={() => moveAnimeWithinTier(row.id, item.animeId, 1)}
+                        canMoveEarlier={rowItems.findIndex((current) => current.animeId === item.animeId) > 0}
+                        canMoveLater={rowItems.findIndex((current) => current.animeId === item.animeId) < rowItems.length - 1}
                       />
                     ))}
                   </div>

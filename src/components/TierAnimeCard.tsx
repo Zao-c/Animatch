@@ -8,6 +8,11 @@ import { getAnimeDisplayTitle, getAnimeImageFitMode } from "@/lib/anime-display"
 import { getAniScore } from "@/lib/ranking-display";
 import type { RankingScoreDistribution, TierListItem } from "@/lib/client-api";
 
+export type TierMoveOption = {
+  id: string;
+  label: string;
+};
+
 export function TierAnimeCard({
   item,
   editable,
@@ -15,6 +20,12 @@ export function TierAnimeCard({
   scoreDistribution,
   onDragStart,
   onDropBefore,
+  moveOptions = [],
+  onMoveToTier,
+  onMoveEarlier,
+  onMoveLater,
+  canMoveEarlier = false,
+  canMoveLater = false,
   className = ""
 }: {
   item: TierListItem;
@@ -23,6 +34,12 @@ export function TierAnimeCard({
   scoreDistribution: RankingScoreDistribution;
   onDragStart: () => void;
   onDropBefore: () => void;
+  moveOptions?: TierMoveOption[];
+  onMoveToTier?: (tierId: string) => void;
+  onMoveEarlier?: () => void;
+  onMoveLater?: () => void;
+  canMoveEarlier?: boolean;
+  canMoveLater?: boolean;
   className?: string;
 }) {
   const title = getAnimeDisplayTitle(item);
@@ -64,6 +81,54 @@ export function TierAnimeCard({
           <p className="text-sm font-black text-cyan-100">{aniScore.label}</p>
           <p className="text-[11px] text-slate-500">{item.compareCount} battles</p>
         </div>
+        {editable && onMoveToTier ? (
+          <div className="mt-3 space-y-2 sm:hidden" onPointerDown={(event) => event.stopPropagation()}>
+            <label className="sr-only" htmlFor={`tier-move-${item.animeId}`}>
+              将 {title} 移至其他 Tier
+            </label>
+            <select
+              id={`tier-move-${item.animeId}`}
+              defaultValue=""
+              onChange={(event) => {
+                if (event.target.value) {
+                  onMoveToTier(event.target.value);
+                  event.target.value = "";
+                }
+              }}
+              className="min-h-11 w-full rounded-lg border border-white/15 bg-slate-900 px-2 text-xs font-semibold text-slate-100 outline-none transition focus:border-anime-cyan/60 focus:ring-2 focus:ring-anime-cyan/30"
+              aria-label={`将 ${title} 移至其他 Tier`}
+            >
+              <option value="">移动到 Tier</option>
+              {moveOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={onMoveEarlier}
+                disabled={!canMoveEarlier || onMoveEarlier === undefined}
+                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] text-base text-slate-100 transition hover:border-anime-cyan/40 hover:bg-anime-cyan/10 disabled:cursor-not-allowed disabled:opacity-35"
+                aria-label={`将 ${title} 在本 Tier 内前移`}
+                title="在本 Tier 内前移"
+              >
+                &larr;
+              </button>
+              <button
+                type="button"
+                onClick={onMoveLater}
+                disabled={!canMoveLater || onMoveLater === undefined}
+                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] text-base text-slate-100 transition hover:border-anime-cyan/40 hover:bg-anime-cyan/10 disabled:cursor-not-allowed disabled:opacity-35"
+                aria-label={`将 ${title} 在本 Tier 内后移`}
+                title="在本 Tier 内后移"
+              >
+                &rarr;
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
