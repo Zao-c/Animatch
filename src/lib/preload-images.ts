@@ -50,7 +50,7 @@ export async function preloadPair(pair: MatchPair): Promise<boolean> {
 
 export async function preloadPairs(
   pairs: MatchPair[],
-  options: { firstPairRequired?: boolean; preloadCount?: number } = {}
+  options: { preloadCount?: number } = {}
 ): Promise<{ loaded: number; total: number }> {
   const preloadCount = Math.max(0, Math.trunc(options.preloadCount ?? 4));
   const targetPairs = pairs.slice(0, preloadCount);
@@ -58,10 +58,6 @@ export async function preloadPairs(
 
   if (targetPairs.length === 0) {
     return { loaded: 0, total: 0 };
-  }
-
-  if (options.firstPairRequired === true) {
-    await preloadPair(targetPairs[0]);
   }
 
   const results = await Promise.all(

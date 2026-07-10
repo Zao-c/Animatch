@@ -92,11 +92,9 @@ export default function MatchPage({
         progress: data.progress
       });
       setQueue(data.pairs);
-      const progress = await preloadPairs(data.pairs, {
-        firstPairRequired: true,
-        preloadCount: 4
-      });
+      const progress = await preloadPairs(data.pairs.slice(0, 1), { preloadCount: 1 });
       setPreloadProgress(progress);
+      void preloadPairs(data.pairs.slice(1, 4), { preloadCount: 3 });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "加载对决队列失败");
     } finally {

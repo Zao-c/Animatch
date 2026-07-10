@@ -71,7 +71,7 @@ export default function RecalibratePage({
       setPair(next.pair);
 
       if (nextMatchPair !== null) {
-        await preloadPairs([nextMatchPair], { firstPairRequired: true, preloadCount: 1 });
+        await preloadPairs([nextMatchPair], { preloadCount: 1 });
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "加载校准对决失败");

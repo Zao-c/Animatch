@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { preloadImage } from "../src/lib/preload-images";
 
 class MockImage {
@@ -57,5 +58,20 @@ describe("preloadImage", () => {
     await vi.advanceTimersByTimeAsync(25);
 
     await expect(result).resolves.toBe(false);
+  });
+});
+
+describe("match preload priority", () => {
+  const preloadSource = readFileSync("src/lib/preload-images.ts", "utf8");
+  const matchSource = readFileSync("src/app/pools/[poolId]/runs/[runId]/match/page.tsx", "utf8");
+
+  it("does not preload the first pair twice", () => {
+    expect(preloadSource).not.toContain("firstPairRequired");
+    expect(preloadSource).not.toContain("await preloadPair(targetPairs[0])");
+  });
+
+  it("waits only for the current pair and warms later pairs in the background", () => {
+    expect(matchSource).toContain("await preloadPairs(data.pairs.slice(0, 1), { preloadCount: 1 })");
+    expect(matchSource).toContain("void preloadPairs(data.pairs.slice(1, 4), { preloadCount: 3 })");
   });
 });
