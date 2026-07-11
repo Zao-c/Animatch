@@ -15,7 +15,7 @@ describe("community ranking UI wiring", () => {
     expect(detailSource).toContain("pool.deletedAt !== null");
     expect(detailSource).toContain("communityRankingUnavailable");
     expect(detailSource).toContain("查看个人对决共享榜");
-    expect(detailSource).toContain('value === "community" ? null : "community"');
+    expect(detailSource).toContain('setWorkspaceMode("community")');
     expect(detailSource).toContain('workspaceMode === "community" && canShowCommunityRanking');
   });
 
@@ -107,6 +107,17 @@ describe("community ranking UI wiring", () => {
     expect(section).not.toContain("<table");
     expect(section).toContain("grid gap-3");
     expect(section).toContain("sm:grid-cols");
+  });
+
+  it("opens the community ranking near the top of the pool workspace", () => {
+    const communityRender = detailSource.indexOf('workspaceMode === "community" && canShowCommunityRanking');
+    const animeWall = detailSource.indexOf('id="anime-wall"');
+
+    expect(communityRender).toBeGreaterThan(-1);
+    expect(animeWall).toBeGreaterThan(-1);
+    expect(communityRender).toBeLessThan(animeWall);
+    expect(detailSource).toContain('document.getElementById("community-ranking")?.scrollIntoView');
+    expect(detailSource).toContain('prefers-reduced-motion: reduce');
   });
 
   it("adds a low-emphasis Tier page entry to the pool community ranking anchor", () => {

@@ -120,7 +120,7 @@ describe("pool management UI", () => {
     expect(detailSource).toContain('setWorkspaceMode("add")');
     expect(detailSource).toContain('setWorkspaceMode("edit")');
     expect(detailSource).toContain('value === "cover" ? null : "cover"');
-    expect(detailSource).toContain('value === "community" ? null : "community"');
+    expect(detailSource).toContain('setWorkspaceMode("community")');
     expect(detailSource).toContain('id="add-anime"');
     expect(detailSource).toContain("fixed inset-x-0 bottom-0");
     expect(detailSource).toContain("lg:sticky lg:top-24");
@@ -133,6 +133,15 @@ describe("pool management UI", () => {
   it("community ranking loads only when workspaceMode community is active", () => {
     expect(detailSource).toContain('if (workspaceMode !== "community")');
     expect(detailSource).toContain("return");
+  });
+
+  it("keeps long pool pages navigable without requiring a return to the top", () => {
+    expect(detailSource).toContain('aria-label="番组导航"');
+    expect(detailSource).toContain('href="#anime-wall"');
+    expect(detailSource).toContain('href="#battle-seasons"');
+    expect(detailSource).toContain('sticky top-20');
+    expect(detailSource).toContain('size="md"');
+    expect(detailSource).toContain('canManagePool ? "返回我的番组" : "返回番组大厅"');
   });
 
   it("exposes tier row editing and passes custom rows to community tier wall", () => {

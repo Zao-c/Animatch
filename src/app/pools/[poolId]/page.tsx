@@ -475,6 +475,19 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   }, [communityRankingReloadKey, params.poolId, pool, workspaceMode]);
 
   useEffect(() => {
+    if (workspaceMode !== "community" || typeof window === "undefined") return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth";
+      document.getElementById("community-ranking")?.scrollIntoView({ behavior, block: "start" });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [workspaceMode]);
+
+  useEffect(() => {
     customUploadDraftsRef.current = customUploadDrafts;
   }, [customUploadDrafts]);
 
@@ -1384,9 +1397,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             {canShowCommunityRanking ? (
               <AppButton
                 type="button"
-                onClick={() => setWorkspaceMode((value) => (value === "community" ? null : "community"))}
+                onClick={() => setWorkspaceMode("community")}
                 variant="ghost"
-                aria-expanded={workspaceMode === "community"}
               >
                 查看个人对决共享榜
               </AppButton>
@@ -1427,7 +1439,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
               </AppButton>
             ) : null}
             <Link href="/pools" className={appButtonClasses({ variant: "quiet", size: "sm" })}>
-              返回我的番组
+              {canManagePool ? "返回我的番组" : "返回番组大厅"}
             </Link>
             {!canManagePool && canPlayPool ? (
               <p className="mt-2 text-center text-xs leading-5 text-slate-500">
@@ -1437,6 +1449,65 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           </div>
         </AppCard>
       </section>
+
+      <nav
+        aria-label="番组导航"
+        className="sticky top-20 z-20 mt-5 rounded-xl border border-white/10 bg-slate-950/90 p-1.5 shadow-lg shadow-slate-950/25 backdrop-blur sm:top-24"
+      >
+        <div className="flex flex-wrap gap-1.5">
+          <a href="#anime-wall" className={appButtonClasses({ variant: "quiet", size: "md" })}>
+            作品
+          </a>
+          <AppButton
+            type="button"
+            onClick={() =>
+              canShowCommunityBattle
+                ? canPromptLoginToBattle
+                  ? router.push(loginToPoolPath)
+                  : enterRun("match")
+                : canPromptLoginToMatch
+                  ? router.push(loginToPoolPath)
+                  : enterRun("match")
+            }
+            disabled={
+              (canShowCommunityBattle
+                ? !canStart && !canPromptLoginToBattle
+                : !canStart && !canPromptLoginToMatch) || isMutating
+            }
+            variant="quiet"
+            size="md"
+          >
+            对决
+          </AppButton>
+          <AppButton
+            type="button"
+            onClick={() =>
+              isArchived && latestRun !== undefined
+                ? router.push(`/pools/${params.poolId}/runs/${latestRun.id}/tier`)
+                : enterRun("tier")
+            }
+            disabled={isMutating || (isArchived && latestRun === undefined)}
+            variant="quiet"
+            size="md"
+          >
+            我的 Tier
+          </AppButton>
+          {canShowCommunityRanking ? (
+            <AppButton
+              type="button"
+              onClick={() => setWorkspaceMode("community")}
+              variant={workspaceMode === "community" ? "secondary" : "quiet"}
+              size="md"
+              aria-current={workspaceMode === "community" ? "page" : undefined}
+            >
+              社区榜
+            </AppButton>
+          ) : null}
+          <a href="#battle-seasons" className={appButtonClasses({ variant: "quiet", size: "md" })}>
+            赛季
+          </a>
+        </div>
+      </nav>
 
       <div className="mt-5 space-y-3">
         {isArchived ? (
@@ -1461,6 +1532,21 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       </div>
 
       <PoolSeasonsSection poolId={pool.id} canEdit={canEditContent} />
+
+      {workspaceMode === "community" && canShowCommunityRanking ? (
+        <CommunitySection
+          poolId={params.poolId}
+          poolName={pool?.name ?? "AniMatch"}
+          ranking={communityRanking}
+          isLoading={isCommunityRankingLoading}
+          error={communityRankingError}
+          view={communityView}
+          onViewChange={setCommunityView}
+          onRetry={() => setCommunityRankingReloadKey((value) => value + 1)}
+          tierRows={pool?.tierConfig?.rows ?? null}
+          previewItems={communityTierPreviewItems}
+        />
+      ) : null}
 
       {workspaceMode === "settings" && canManagePool ? (
         <AppCard className="mt-6 p-5" variant="soft">
@@ -1654,7 +1740,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         </details>
       ) : null}
 
-      <section className={`mt-8 grid gap-6 ${
+      <section id="anime-wall" className={`mt-8 scroll-mt-24 grid gap-6 ${
         isInspectorOpen
           ? "lg:grid-cols-[minmax(0,1fr)_410px]"
           : "lg:grid-cols-1"
@@ -2520,21 +2606,6 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           </summary>
           <CoverRepairCard poolId={params.poolId} className="mt-3" />
         </details>
-      ) : null}
-
-        {workspaceMode === "community" && canShowCommunityRanking ? (
-          <CommunitySection
-            poolId={params.poolId}
-            poolName={pool?.name ?? "AniMatch"}
-            ranking={communityRanking}
-            isLoading={isCommunityRankingLoading}
-            error={communityRankingError}
-          view={communityView}
-          onViewChange={setCommunityView}
-          onRetry={() => setCommunityRankingReloadKey((value) => value + 1)}
-          tierRows={pool?.tierConfig?.rows ?? null}
-          previewItems={communityTierPreviewItems}
-        />
       ) : null}
 
       <p className="mt-10 text-center text-xs text-slate-600">
