@@ -395,6 +395,7 @@ describe("pools API management", () => {
   });
 
   it("GET /api/pools filters derived management statuses", async () => {
+    mockedGetCurrentUser.mockResolvedValueOnce(null);
     mockedCustomPool.findMany.mockResolvedValue([
       pool({ id: "empty", _count: { poolAnime: 0, poolComparisons: 0 } }),
       pool({ id: "ready", _count: { poolAnime: 3, poolComparisons: 0 } }),
@@ -416,6 +417,7 @@ describe("pools API management", () => {
   });
 
   it("GET /api/pools exposes UI statuses for pool cards", async () => {
+    mockedGetCurrentUser.mockResolvedValueOnce(null);
     mockedCustomPool.findMany.mockResolvedValue([
       pool({ id: "empty", _count: { poolAnime: 0, poolComparisons: 0 } }),
       pool({ id: "ready", _count: { poolAnime: 2, poolComparisons: 0 } }),
@@ -444,6 +446,53 @@ describe("pools API management", () => {
     expect(
       payload.data.items.map((item: { uiStatusLabel: string }) => item.uiStatusLabel)
     ).not.toContain("?????");
+  });
+
+  it("GET /api/pools returns the signed-in user's effective progress separately from community totals", async () => {
+    mockedCustomPool.findMany.mockResolvedValue([
+      pool({
+        id: "shared-pool",
+        visibility: Visibility.PUBLIC,
+        _count: { poolAnime: 4, poolComparisons: 18 },
+        personalRuns: [
+          {
+            id: "run-1",
+            status: "ACTIVE",
+            updatedAt: new Date("2026-01-03T00:00:00.000Z"),
+            _count: { comparisons: 2 }
+          }
+        ]
+      })
+    ]);
+
+    const response = await LIST_POOLS(new Request("http://test.local/api/pools?view=public"));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data.items[0]).toMatchObject({
+      comparisonCount: 18,
+      globalComparisonCount: 18,
+      personalComparisonCount: 2,
+      uiStatus: "IN_PROGRESS"
+    });
+    expect(payload.data.items[0].personalConfidenceScore).toBeGreaterThan(0);
+    expect(mockedCustomPool.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          personalRuns: expect.objectContaining({
+            select: expect.objectContaining({
+              _count: expect.objectContaining({
+                select: expect.objectContaining({
+                  comparisons: expect.objectContaining({
+                    where: expect.objectContaining({ undoneAt: null })
+                  })
+                })
+              })
+            })
+          })
+        })
+      })
+    );
   });
 
   it("GET /api/pools returns the current visibility value for pool cards", async () => {

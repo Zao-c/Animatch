@@ -1,4 +1,4 @@
-import { PoolStatus, Prisma, Visibility } from "@prisma/client";
+import { PoolComparisonResult, PoolStatus, Prisma, Visibility } from "@prisma/client";
 import { badRequest, ok, fromError } from "@/lib/api-response";
 import { AppError } from "@/lib/app-error";
 import { getCurrentUser, requireCurrentUser, type FriendAuthUser } from "@/lib/auth-session";
@@ -132,7 +132,23 @@ export async function GET(request: Request) {
           select: {
             id: true,
             status: true,
-            updatedAt: true
+            updatedAt: true,
+            _count: {
+              select: {
+                comparisons: {
+                  where: {
+                    undoneAt: null,
+                    result: {
+                      in: [
+                        PoolComparisonResult.LEFT_WIN,
+                        PoolComparisonResult.RIGHT_WIN,
+                        PoolComparisonResult.DRAW
+                      ]
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -226,27 +242,54 @@ function serializePoolSummary(pool: Prisma.CustomPoolGetPayload<{
         id: true;
         status: true;
         updatedAt: true;
+        _count: {
+          select: {
+            comparisons: true;
+          };
+        };
       };
     };
   };
 }>, user: FriendAuthUser | null) {
   const animeCount = pool._count.poolAnime;
-  const comparisonCount = pool._count.poolComparisons;
-  const progress = buildRankingProgress({
+  const globalComparisonCount = pool._count.poolComparisons;
+  const personalComparisonCount = user === null ? null : pool.personalRuns[0]?._count.comparisons ?? 0;
+  const globalProgress = buildRankingProgress({
     totalItems: animeCount,
-    effectiveComparisons: comparisonCount,
-    totalComparisons: comparisonCount
+    effectiveComparisons: globalComparisonCount,
+    totalComparisons: globalComparisonCount
   });
+  const personalProgress =
+    personalComparisonCount === null
+      ? null
+      : buildRankingProgress({
+          totalItems: animeCount,
+          effectiveComparisons: personalComparisonCount,
+          totalComparisons: personalComparisonCount
+        });
   const archived = pool.status === PoolStatus.ARCHIVED || pool.deletedAt !== null;
-  const uiStatus = archived
+  const globalUiStatus = archived
     ? "ARCHIVED"
     : animeCount < 2
       ? "EMPTY"
-      : comparisonCount === 0
+      : globalComparisonCount === 0
         ? "READY"
-        : progress.stage === "RELIABLE" || progress.stage === "HIGH_CONFIDENCE"
+        : globalProgress.stage === "RELIABLE" || globalProgress.stage === "HIGH_CONFIDENCE"
           ? "STABLE"
           : "IN_PROGRESS";
+  const personalUiStatus =
+    personalProgress === null
+      ? null
+      : archived
+        ? "ARCHIVED"
+        : animeCount < 2
+          ? "EMPTY"
+          : personalComparisonCount === 0
+            ? "READY"
+            : personalProgress.stage === "RELIABLE" || personalProgress.stage === "HIGH_CONFIDENCE"
+              ? "STABLE"
+              : "IN_PROGRESS";
+  const uiStatus = personalUiStatus ?? globalUiStatus;
 
   const coverImages = deriveCoverImages(pool.poolAnime);
 
@@ -267,8 +310,12 @@ function serializePoolSummary(pool: Prisma.CustomPoolGetPayload<{
     deletedAt: pool.deletedAt,
     archived,
     animeCount,
-    comparisonCount,
-    confidenceScore: Math.round(progress.progressRatio * 1000) / 10,
+    comparisonCount: globalComparisonCount,
+    globalComparisonCount,
+    personalComparisonCount,
+    confidenceScore: Math.round(globalProgress.progressRatio * 1000) / 10,
+    personalConfidenceScore:
+      personalProgress === null ? null : Math.round(personalProgress.progressRatio * 1000) / 10,
     uiStatus,
     uiStatusLabel: labelForPoolStatus(uiStatus),
     sourceType: deriveSourceType(pool.poolAnime.map((entry) => entry.anime.source)),

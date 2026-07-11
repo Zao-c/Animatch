@@ -472,8 +472,18 @@ function PoolCard({
 }) {
   const isArchived = isPoolArchived(pool);
   const animeCount = pool.animeCount ?? 0;
-  const comparisonCount = pool.comparisonCount ?? 0;
-  const confidenceScore = pool.confidenceScore ?? 0;
+  const globalComparisonCount = pool.globalComparisonCount ?? pool.comparisonCount ?? 0;
+  const hasPersonalProgress = pool.personalComparisonCount !== undefined && pool.personalComparisonCount !== null;
+  const comparisonCount = hasPersonalProgress
+    ? pool.personalComparisonCount ?? 0
+    : globalComparisonCount;
+  const confidenceScore = hasPersonalProgress
+    ? pool.personalConfidenceScore ?? 0
+    : pool.confidenceScore ?? 0;
+  const comparisonLabel = hasPersonalProgress
+    ? `我已 ${comparisonCount} 次有效对决`
+    : `社区累计 ${comparisonCount} 次有效对决`;
+  const confidenceLabel = hasPersonalProgress ? "我的榜单稳定度" : "社区榜单稳定度";
   const uiStatus = pool.uiStatus ?? (isArchived ? "ARCHIVED" : "EMPTY");
   const statusLabel = pool.uiStatusLabel ?? labelForStatus(uiStatus);
   const canManage = pool.permissions?.canManage ?? true;
@@ -576,7 +586,7 @@ function PoolCard({
               <AppBadge tone="muted">{animeCount} 部动画</AppBadge>
             ) : null}
             {comparisonCount > 0 ? (
-              <AppBadge tone="muted">{comparisonCount} 次对决</AppBadge>
+              <AppBadge tone="muted">{comparisonLabel}</AppBadge>
             ) : null}
             {isArchived ? <AppBadge tone="danger">已归档</AppBadge> : null}
           </div>
@@ -631,7 +641,7 @@ function PoolCard({
 
           <p className="mt-3 text-xs text-slate-500">
             更新于 {formatDateTimeStable(pool.updatedAt)}
-            {confidenceScore > 0 ? ` · 榜单稳定度 ${confidenceScore.toFixed(1)}` : ""}
+            {confidenceScore > 0 ? ` · ${confidenceLabel} ${confidenceScore.toFixed(1)}` : ""}
           </p>
           <div className="mt-auto pt-4">
             {canMatch || canPromptLoginToMatch ? (

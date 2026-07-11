@@ -37,6 +37,15 @@ describe("pool management UI", () => {
     expect(poolsSource).toContain("coverImages");
   });
 
+  it("labels signed-in progress separately from community-wide activity", () => {
+    expect(poolsSource).toContain("personalComparisonCount");
+    expect(poolsSource).toContain("globalComparisonCount");
+    expect(poolsSource).toContain("我已 ${comparisonCount} 次有效对决");
+    expect(poolsSource).toContain("社区累计 ${comparisonCount} 次有效对决");
+    expect(poolsSource).toContain("我的榜单稳定度");
+    expect(poolsSource).toContain("社区榜单稳定度");
+  });
+
   it("renders pool card visibility labels without question-mark placeholders", () => {
     const apiSource = readFileSync("src/app/api/pools/route.ts", "utf8");
 

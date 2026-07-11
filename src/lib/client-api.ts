@@ -79,7 +79,10 @@ export interface PoolSummary {
   archived?: boolean;
   animeCount?: number;
   comparisonCount?: number;
+  globalComparisonCount?: number;
+  personalComparisonCount?: number | null;
   confidenceScore?: number;
+  personalConfidenceScore?: number | null;
   uiStatus?: PoolManagementStatus;
   uiStatusLabel?: string;
   sourceType?: string;
