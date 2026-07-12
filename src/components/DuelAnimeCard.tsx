@@ -49,18 +49,8 @@ export function DuelAnimeCard({
 
   return (
     <AppCard
-      role="button"
-      tabIndex={disabled ? -1 : 0}
-      aria-disabled={disabled}
-      onClick={handlePick}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          handlePick();
-        }
-      }}
-      className={`group flex h-full flex-col overflow-hidden p-2 transition duration-anime hover:border-anime-cyan/35 hover:shadow-anime-focus sm:p-4 ${
-        disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer"
+      className={`flex h-full flex-col overflow-hidden p-2 transition duration-anime hover:border-anime-cyan/35 hover:shadow-anime-focus sm:p-4 ${
+        disabled ? "opacity-70" : ""
       } ${
         highlighted
           ? "border-anime-amber/60 shadow-[0_0_0_2px_rgba(246,196,83,0.28),0_24px_80px_rgba(246,196,83,0.16)]"

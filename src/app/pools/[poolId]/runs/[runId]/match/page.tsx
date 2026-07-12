@@ -9,7 +9,6 @@ import { PageShell } from "@/components/PageShell";
 import { RankingProgressCard } from "@/components/RankingProgressCard";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
-import { AppCard } from "@/components/ui/AppCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
 import {
@@ -46,7 +45,6 @@ export default function MatchPage({
   const [isUndoing, setIsUndoing] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isRefilling, setIsRefilling] = useState(false);
-  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
   const [preloadProgress, setPreloadProgress] = useState<{ loaded: number; total: number } | null>(
     null
   );
@@ -296,55 +294,43 @@ export default function MatchPage({
 
   return (
     <PageShell>
-      <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="flex flex-wrap gap-2">
             <AppBadge tone="source">{canShowCommunityBattle ? "社区大乱斗" : "普通对决"}</AppBadge>
             <AppBadge tone="status">{poolName}</AppBadge>
           </div>
-          <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
-            两两对决舞台
+          <h1 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">
+            本轮对决
           </h1>
-          <p className="mt-2 text-sm leading-6 text-slate-500">
-            点击整张卡或使用方向键快速选择。分数和统计已收进详细指标，先专注判断作品。
+          <p className="mt-1 hidden text-sm leading-6 text-slate-500 sm:block">
+            先选择作品；进度、统计和设置都在下方按需查看。
           </p>
+          {queueMeta ? (
+            <p className="mt-1.5 min-h-5 text-xs text-slate-500" aria-live="polite">
+              {queueMeta.progress.stageLabel} · 有效 {queueMeta.progress.effectiveComparisons}/
+              {queueMeta.progress.highConfidenceTarget}
+              {isRefilling ? " · 正在准备下一组" : ""}
+            </p>
+          ) : null}
         </div>
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
             <Link
               href={`/pools/${params.poolId}/runs/${params.runId}/tier`}
               className={appButtonClasses({ variant: "ghost", size: "sm" })}
             >
               查看 Tier
             </Link>
-            <AppButton
-              type="button"
-              onClick={handleUndoLast}
-              disabled={isSubmitting || isUndoing}
-              variant="quiet"
-              size="sm"
-            >
-              {isUndoing ? "撤回中..." : "撤回上次选择"}
-            </AppButton>
-            <details className="relative">
-              <summary className={appButtonClasses({ variant: "quiet", size: "sm", className: "list-none" })}>
-                对决设置
-              </summary>
+          <details className="relative">
+            <summary className={appButtonClasses({ variant: "quiet", size: "sm", className: "list-none" })}>
+              对决设置
+            </summary>
             <div className="absolute right-0 z-20 mt-3 w-72 rounded-2xl border border-white/10 bg-slate-950/92 p-3 shadow-anime-panel backdrop-blur-xl">
               <div className="mb-3 grid grid-cols-2 gap-2">
                 <Stat label="我的稳定度" value={confidenceScore.toFixed(1)} />
                 <Stat label="队列" value={String(queue.length)} />
               </div>
               <div className="grid gap-2">
-                <AppButton
-                  type="button"
-                  onClick={() => setShowShortcutHelp((value) => !value)}
-                  variant="quiet"
-                  size="sm"
-                  aria-expanded={showShortcutHelp}
-                  className="w-full justify-start"
-                >
-                  快捷键
-                </AppButton>
                 <AppButton
                   type="button"
                   onClick={handleUndoLast}
@@ -371,18 +357,11 @@ export default function MatchPage({
         </div>
       </div>
 
-      {isRefilling ? <ErrorAlert message="正在补充后续对局..." tone="notice" className="mb-5" /> : null}
-      {notice ? <ErrorAlert message={notice} tone="notice" className="mb-5" /> : null}
-      {error ? <ErrorAlert message={error} className="mb-5" /> : null}
+      <div className="min-h-[34px]" aria-live="polite" aria-atomic="true">
+        {notice ? <ErrorAlert message={notice} tone="notice" /> : null}
+        {error ? <ErrorAlert message={error} /> : null}
+      </div>
       {canShowCommunityBattle ? <CommunityBattleMatchHint /> : null}
-      {queueMeta ? (
-        <div className="mb-6">
-          <RankingProgressCard progress={queueMeta.progress} compact />
-          <p className="mt-2 text-xs text-slate-500">
-            没看过的作品不会进入你的榜单，也不会继续计入本轮目标。
-          </p>
-        </div>
-      ) : null}
 
       <div className="grid grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)] items-stretch gap-2 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_80px_minmax(0,1fr)]">
         <DuelAnimeCard
@@ -391,7 +370,6 @@ export default function MatchPage({
           side="left"
           disabled={isSubmitting}
           actionLabel="选择左边"
-          shortcut="←"
           scoreDistribution={queueMeta?.scoreDistribution ?? fallbackScoreDistribution}
           onPick={() => handleSubmit("LEFT_WIN")}
           highlighted={feedbackResult === "LEFT_WIN"}
@@ -407,7 +385,6 @@ export default function MatchPage({
           side="right"
           disabled={isSubmitting}
           actionLabel="选择右边"
-          shortcut="→"
           scoreDistribution={queueMeta?.scoreDistribution ?? fallbackScoreDistribution}
           onPick={() => handleSubmit("RIGHT_WIN")}
           highlighted={feedbackResult === "RIGHT_WIN"}
@@ -437,45 +414,27 @@ export default function MatchPage({
             <span>两个都没看过</span>
           </AppButton>
         </div>
-        {showShortcutHelp ? <MatchShortcutHint /> : null}
       </div>
+
+      {queueMeta ? (
+        <div className="mt-5">
+          <RankingProgressCard progress={queueMeta.progress} compact />
+          <p className="mt-2 text-xs text-slate-500">
+            没看过的作品不会进入你的榜单，也不会继续计入本轮目标。
+          </p>
+        </div>
+      ) : null}
     </PageShell>
   );
 }
 
 function CommunityBattleMatchHint() {
   return (
-    <AppCard className="mb-4 px-4 py-3" variant="soft">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
         <AppBadge tone="source">社区大乱斗</AppBadge>
         <p className="min-w-0 flex-1 text-xs leading-5 text-slate-400">
           你正在参与这个公开番组的社区大乱斗。你的选择只会更新你的个人榜单，并以匿名聚合方式贡献到社区榜单。
         </p>
-      </div>
-    </AppCard>
-  );
-}
-
-function MatchShortcutHint() {
-  return (
-    <div
-      className="ml-auto flex w-fit max-w-full flex-wrap justify-end gap-2 rounded-full border border-anime-border bg-slate-950/42 px-3 py-2 text-xs text-slate-400"
-      aria-label="Match keyboard shortcuts"
-    >
-      {[
-        ["←", "选择左边"],
-        ["→", "选择右边"],
-        ["↑", "差不多"],
-        ["↓", "跳过"],
-        ["1", "左边没看过"],
-        ["2", "右边没看过"],
-        ["0", "都没看过"]
-      ].map(([keyName, label]) => (
-        <span key={keyName} className="inline-flex items-center gap-1.5">
-          <ShortcutKey>{keyName}</ShortcutKey>
-          <span>{label}</span>
-        </span>
-      ))}
     </div>
   );
 }
