@@ -175,6 +175,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [communityRankingReloadKey, setCommunityRankingReloadKey] = useState(0);
   const [activeTab, setActiveTab] = useState<AddTab>("search");
   const [workspaceMode, setWorkspaceMode] = useState<PoolWorkspaceMode>(null);
+  const [isMobileInspector, setIsMobileInspector] = useState(false);
+  const isInspectorOpen =
+    workspaceMode === "add" ||
+    workspaceMode === "edit" ||
+    workspaceMode === "cover";
 
   const [batchMode, setBatchMode] = useState(false);
   const [selectedAnimeIds, setSelectedAnimeIds] = useState<Set<string>>(new Set());
@@ -235,6 +240,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const customUploadInputRef = useRef<HTMLInputElement>(null);
   const customUploadDraftsRef = useRef<CustomUploadDraft[]>([]);
   const tiermakerAssistantTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const inspectorPanelRef = useRef<HTMLDivElement>(null);
+  const inspectorPreviousFocusRef = useRef<HTMLElement | null>(null);
 
   const [tiermakerUrl, setTiermakerUrl] = useState("");
   const [tiermakerUrlListInput, setTiermakerUrlListInput] = useState("");
@@ -341,6 +348,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     setEditTags(data.tags.join(", "));
   }, [params.poolId]);
 
+  const closeInspector = useCallback(() => {
+    setWorkspaceMode(null);
+    setEditingDisplayAnimeId(null);
+  }, []);
+
   useEffect(() => {
     refreshPool()
       .catch((reason: unknown) => {
@@ -356,6 +368,83 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       setWorkspaceMode("add");
     }
   }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 1023px)");
+    const updateInspectorViewport = () => setIsMobileInspector(mediaQuery.matches);
+
+    updateInspectorViewport();
+    mediaQuery.addEventListener("change", updateInspectorViewport);
+    return () => mediaQuery.removeEventListener("change", updateInspectorViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!isInspectorOpen || !isMobileInspector) return;
+
+    const panel = inspectorPanelRef.current;
+    if (panel === null) return;
+    const inspectorPanel = panel;
+
+    inspectorPreviousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const focusableSelector = [
+      "a[href]",
+      "button:not([disabled])",
+      "input:not([disabled])",
+      "select:not([disabled])",
+      "textarea:not([disabled])",
+      "[tabindex]:not([tabindex='-1'])"
+    ].join(",");
+    const getFocusableElements = () =>
+      Array.from(inspectorPanel.querySelectorAll<HTMLElement>(focusableSelector)).filter(
+        (element) => !element.hasAttribute("hidden")
+      );
+    const focusFirstElement = () => {
+      const initialFocus = inspectorPanel.querySelector<HTMLElement>("[data-inspector-initial-focus]");
+      (initialFocus ?? getFocusableElements()[0] ?? inspectorPanel).focus();
+    };
+    const frame = window.requestAnimationFrame(focusFirstElement);
+
+    function handleInspectorKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeInspector();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const focusableElements = getFocusableElements();
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        inspectorPanel.focus();
+        return;
+      }
+
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement;
+
+      if (event.shiftKey && (activeElement === first || !inspectorPanel.contains(activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (activeElement === last || !inspectorPanel.contains(activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleInspectorKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", handleInspectorKeyDown);
+      document.body.style.overflow = previousOverflow;
+      inspectorPreviousFocusRef.current?.focus();
+    };
+  }, [closeInspector, isInspectorOpen, isMobileInspector]);
 
   useEffect(() => {
     if (pool === null || pool.anime.length === 0) return;
@@ -1241,10 +1330,6 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     pool.anime.length >= 2 && !isArchived && !canPlayPool && (permissions?.canRead ?? false);
   const canShowCommunityRanking =
     pool.visibility === "PUBLIC" && !isArchived && !communityRankingUnavailable;
-  const isInspectorOpen =
-    workspaceMode === "add" ||
-    workspaceMode === "edit" ||
-    workspaceMode === "cover";
   const joinedAnimeIds = new Set(pool.anime.map((entry) => entry.animeId));
   const joinedBangumiIds = new Set(
     pool.anime
@@ -1887,20 +1972,22 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           type="button"
           aria-label="关闭工作台"
           className="fixed inset-0 z-30 bg-slate-950/60 backdrop-blur-sm lg:hidden"
-          onClick={() => {
-            setWorkspaceMode(null);
-            setEditingDisplayAnimeId(null);
-          }}
+          onClick={closeInspector}
         />
-        <div className="fixed inset-x-0 bottom-0 z-40 max-h-[85dvh] overflow-y-auto rounded-t-3xl border border-cyan-300/20 bg-slate-950 p-4 shadow-2xl shadow-cyan-950/30 lg:sticky lg:top-24 lg:z-auto lg:max-h-[calc(100dvh-7rem)] lg:rounded-2xl lg:bg-transparent lg:p-0 lg:shadow-none">
+        <div
+          ref={inspectorPanelRef}
+          role={isMobileInspector ? "dialog" : undefined}
+          aria-modal={isMobileInspector ? true : undefined}
+          aria-labelledby={isMobileInspector ? "pool-workspace-title" : undefined}
+          tabIndex={isMobileInspector ? -1 : undefined}
+          className="fixed inset-x-0 bottom-0 z-40 max-h-[85dvh] overflow-y-auto rounded-t-3xl border border-cyan-300/20 bg-slate-950 p-4 shadow-2xl shadow-cyan-950/30 lg:sticky lg:top-24 lg:z-auto lg:max-h-[calc(100dvh-7rem)] lg:rounded-2xl lg:bg-transparent lg:p-0 lg:shadow-none"
+        >
         <div className="mb-3 flex items-center justify-between gap-3 lg:hidden">
-          <p className="text-sm font-semibold text-white">番组工作台</p>
+          <p id="pool-workspace-title" className="text-sm font-semibold text-white">番组工作台</p>
           <button
             type="button"
-            onClick={() => {
-              setWorkspaceMode(null);
-              setEditingDisplayAnimeId(null);
-            }}
+            onClick={closeInspector}
+            data-inspector-initial-focus
             className="min-h-11 rounded-full border border-white/10 px-4 text-sm font-semibold text-slate-300"
           >
             关闭

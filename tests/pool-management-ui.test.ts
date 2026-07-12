@@ -139,6 +139,19 @@ describe("pool management UI", () => {
     expect(detailSource).toContain("compact?: boolean");
   });
 
+  it("treats the mobile inspector as an accessible modal without changing desktop side-panel behavior", () => {
+    expect(detailSource).toContain('window.matchMedia("(max-width: 1023px)")');
+    expect(detailSource).toContain('role={isMobileInspector ? "dialog" : undefined}');
+    expect(detailSource).toContain('aria-modal={isMobileInspector ? true : undefined}');
+    expect(detailSource).toContain('aria-labelledby={isMobileInspector ? "pool-workspace-title" : undefined}');
+    expect(detailSource).toContain('data-inspector-initial-focus');
+    expect(detailSource).toContain('event.key === "Escape"');
+    expect(detailSource).toContain('event.key !== "Tab"');
+    expect(detailSource).toContain('document.body.style.overflow = "hidden"');
+    expect(detailSource).toContain('inspectorPreviousFocusRef.current?.focus()');
+    expect(detailSource).toContain('onClick={closeInspector}');
+  });
+
   it("community ranking loads only when workspaceMode community is active", () => {
     expect(detailSource).toContain('if (workspaceMode !== "community")');
     expect(detailSource).toContain("return");
