@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import React, { useEffect, useMemo, useState } from "react";
-import { getProxiedCoverCandidates, warmImageProxyCache } from "@/lib/image-proxy";
+import { getProxiedCoverCandidates, isDirectImageUrl, warmImageProxyCache } from "@/lib/image-proxy";
 
 const SIZE_CLASS = {
   sm: "h-20 w-14",
@@ -12,6 +12,7 @@ const SIZE_CLASS = {
 } as const;
 const IMAGE_CANDIDATE_TIMEOUT_MS = 5000;
 const FINAL_IMAGE_TIMEOUT_MS = 8000;
+const DIRECT_IMAGE_TIMEOUT_MS = 15000;
 const IMAGE_ERROR_RETRY_DELAY_MS = 2500;
 const IMAGE_ERROR_RETRY_LIMIT = 2;
 
@@ -63,6 +64,11 @@ export function AnimeCover({
     }
 
     const hasNextCandidate = candidateIndex < candidates.length - 1;
+    const timeoutMs = isDirectImageUrl(imageSrc)
+      ? DIRECT_IMAGE_TIMEOUT_MS
+      : hasNextCandidate
+        ? IMAGE_CANDIDATE_TIMEOUT_MS
+        : FINAL_IMAGE_TIMEOUT_MS;
     const timeout = window.setTimeout(
       () => {
         if (hasNextCandidate) {
@@ -72,7 +78,7 @@ export function AnimeCover({
           setState("error");
         }
       },
-      hasNextCandidate ? IMAGE_CANDIDATE_TIMEOUT_MS : FINAL_IMAGE_TIMEOUT_MS
+      timeoutMs
     );
 
     return () => window.clearTimeout(timeout);

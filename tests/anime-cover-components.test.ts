@@ -548,7 +548,8 @@ describe("match cover resilience", () => {
       React.createElement(AnimeCover, {
         src: "https://example.com/cover.jpg",
         title: "Eager Test",
-        size: "lg"
+        size: "lg",
+        loading: "eager"
       })
     );
 

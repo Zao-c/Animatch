@@ -15,6 +15,12 @@ describe("AnimeCover timeout fallback", () => {
     expect(source).toContain("FINAL_IMAGE_TIMEOUT_MS = 8000");
   });
 
+  it("gives direct COS/CDN images a longer window before falling back", () => {
+    expect(source).toContain("DIRECT_IMAGE_TIMEOUT_MS = 15000");
+    expect(source).toContain("isDirectImageUrl(imageSrc)");
+    expect(source).toContain("? DIRECT_IMAGE_TIMEOUT_MS");
+  });
+
   it("sets a client-side setTimeout in a useEffect when state is loading", () => {
     expect(source).toContain('state !== "loading"');
     expect(source).toContain("window.setTimeout");
