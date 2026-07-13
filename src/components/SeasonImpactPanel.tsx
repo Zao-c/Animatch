@@ -68,7 +68,7 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
     <AppCard className="p-6">
       <SectionHeader eyebrow="Season" title={isEnded ? "赛季回顾" : "赛季进行中"} />
       <p className="mt-2 max-w-3xl text-xs leading-relaxed text-slate-500">
-        这里记录投票如何推动赛季排序。排序变化不是玩家积分，也不替代作品的共享 Elo；私心票只会在共享聚合时加成。
+        这里展示每张票带来的个人 Elo 变动和支持倾向，不代表社区共享榜单的排名影响；私心票只会在共享聚合时加成。
       </p>
 
       <SeasonStory impact={impact} />
@@ -78,7 +78,7 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
           <p className="text-sm font-semibold text-anime-cyan">我的参与</p>
           <div className="mt-1.5 grid grid-cols-2 gap-2 text-xs text-slate-300 sm:grid-cols-4">
             <span>已投 {impact.currentUserImpact.voteCount} 票</span>
-            <span>排序变化 {formatImpactNumber(impact.currentUserImpact.totalScoreSwing)}</span>
+            <span>个人 Elo 变动 {formatImpactNumber(impact.currentUserImpact.totalScoreSwing)}</span>
             {impact.currentUserImpact.biasVoteCount > 0 ? (
               <span className="text-rose-300">私心票 {impact.currentUserImpact.biasVoteCount}</span>
             ) : null}
@@ -167,7 +167,7 @@ function SeasonStory({ impact }: { impact: BattleSeasonImpact }) {
           <p className="mt-1 line-clamp-2 text-sm font-black leading-snug text-amber-100">{supportedTitle}</p>
         </div>
         <div>
-          <p className="text-xs text-slate-500">带来最多排序变化的玩家</p>
+          <p className="text-xs text-slate-500">个人 Elo 变动最多的玩家</p>
           <p className="mt-1 text-sm font-black text-white">{contributor}</p>
         </div>
         <dl className="grid grid-cols-3 gap-2 text-center text-xs sm:grid-cols-3">
@@ -186,7 +186,7 @@ function SeasonStory({ impact }: { impact: BattleSeasonImpact }) {
         </dl>
       </div>
       <p className="mt-3 text-xs text-slate-500">
-        全部投票累计带来 {formatImpactNumber(impact.stats.totalScoreSwing)} 的排序变化。
+        全部投票累计带来 {formatImpactNumber(impact.stats.totalScoreSwing)} 的个人 Elo 变动。
       </p>
     </section>
   );
@@ -202,7 +202,7 @@ function PlayerImpactTable({ ranking }: { ranking: NonNullable<BattleSeasonImpac
             <th className="py-2 text-left font-normal">玩家</th>
             <th className="py-2 text-right font-normal">投票</th>
             <th className="py-2 text-right font-normal">私心</th>
-            <th className="py-2 text-right font-normal">排序贡献</th>
+            <th className="py-2 text-right font-normal">个人 Elo 变动</th>
             <th className="py-2 text-left font-normal hidden sm:table-cell">主要支持</th>
           </tr>
         </thead>
@@ -331,7 +331,7 @@ function KeyVotesTable({ votes }: { votes: NonNullable<BattleSeasonImpact>["keyV
           <span className="font-semibold text-amber-200">{v.winnerTitle}</span>
           <span className="text-slate-500">战胜</span>
           <span className="text-slate-400">{v.loserTitle}</span>
-          <span className="ml-auto text-xs font-semibold text-amber-200">排序变化 {formatImpactNumber(v.totalSwing)}</span>
+          <span className="ml-auto text-xs font-semibold text-amber-200">个人 Elo 变动 {formatImpactNumber(v.totalSwing)}</span>
           {v.voteType === "BIAS" ? (
             <span className="text-[10px] text-rose-400/70">权重 {v.weight}</span>
           ) : null}

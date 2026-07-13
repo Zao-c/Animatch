@@ -288,8 +288,9 @@ describe("QuickImportPanel UI", () => {
   });
 
   it("create pool sends selected preview candidates", () => {
-    expect(source).toContain("selectedAnimeIds: preview ? Array.from(selectedIds) : undefined");
-    expect(source).toContain("preview && selectedIds.size === 0");
+    expect(source).toContain("selectedAnimeIds: Array.from(selectedIds)");
+    expect(source).toContain("preview === null || previewParams === null");
+    expect(source).toContain("params: previewParams");
   });
 
   it("adds to existing pool when poolId", () => {

@@ -1062,7 +1062,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 }))
             })
           : await importTierMakerItemsToPool(pool.id, {
-              url: tiermakerUrl,
+              url: tiermakerPreview.sourceUrl,
               selectedIndexes
             });
       await refreshPool();
@@ -2524,7 +2524,12 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                     <div className="flex gap-2">
                     <input
                       value={tiermakerUrl}
-                      onChange={(event) => setTiermakerUrl(event.target.value)}
+                      onChange={(event) => {
+                        setTiermakerUrl(event.target.value);
+                        setTiermakerPreview(null);
+                        setTiermakerSelectedIndexes(new Set());
+                        setTiermakerImportResult(null);
+                      }}
                       onKeyDown={(event) => {
                         if (event.key === "Enter") handleTiermakerPreview();
                       }}

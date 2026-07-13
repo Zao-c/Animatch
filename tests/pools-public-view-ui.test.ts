@@ -18,6 +18,14 @@ describe("public pools view UI", () => {
     expect(poolsSource).toContain("router.replace(`/pools${nextQuery ? `?${nextQuery}` : \"\"}`");
   });
 
+  it("applies text search deliberately and ignores stale list responses", () => {
+    expect(poolsSource).toContain("const [appliedQuery, setAppliedQuery]");
+    expect(poolsSource).toContain("const latestRequestRef = useRef(0)");
+    expect(poolsSource).toContain("const requestId = latestRequestRef.current + 1");
+    expect(poolsSource).toContain("if (requestId === latestRequestRef.current)");
+    expect(poolsSource).toContain("q: appliedQuery || undefined");
+  });
+
   it("shows clear public pools title and community battle copy", () => {
     expect(poolsSource).toContain('title: "公开番组"');
     expect(poolsSource).toContain("社区大乱斗");

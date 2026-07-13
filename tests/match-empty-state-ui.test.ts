@@ -20,6 +20,14 @@ describe("match empty state UI", () => {
     expect(source).toContain("canReset: true");
   });
 
+  it("distinguishes a refill failure from a legitimately exhausted queue", () => {
+    expect(source).toContain("const [refillError, setRefillError]");
+    expect(source).toContain("下一组对决暂时没有加载成功");
+    expect(source).toContain("你的上一票已经保存");
+    expect(source).toContain("重新加载下一组");
+    expect(source).toContain("queue.length < 3");
+  });
+
   it("explains high-confidence and exhausted queues without implying the site broke", () => {
     expect(source).toContain('progress?.stage === "HIGH_CONFIDENCE"');
     expect(source).toContain("本轮已经达到高可信度");

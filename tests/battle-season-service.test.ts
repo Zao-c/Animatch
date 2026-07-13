@@ -70,6 +70,9 @@ describe("Season service permissions and limits", () => {
     expect(source).toContain("DAILY_VOTE_LIMIT_REACHED");
     expect(source).toContain("BIAS_VOTES_EXHAUSTED");
     expect(source).toContain("VOTE_WRITE_CONFLICT");
+    expect(source).toContain("const activeSeason = await tx.battleSeason.findFirst");
+    expect(source).toContain("validateSeasonAccess(activeSeason, new Date())");
+    expect(source).toContain("activeSeason.maxVotesPerUser");
   });
 
   it("uses one Asia/Shanghai day window for daily vote display and write guard", () => {
@@ -315,6 +318,10 @@ describe("Season pages", () => {
     expect(source).toContain("detail?.tierRows ?? DEFAULT_TIER_CONFIG.rows");
     expect(source).toContain("SeasonSharedTierList");
     expect(source).toContain("insufficientSample");
+    expect(source).toContain("const hasSharedVotes = (detail?.totalVotes ?? 0) > 0");
+    expect(source).toContain("第一位玩家完成投票后会生成共享榜单");
+    expect(source).toContain("if (detail.totalVotes === 0) return null");
+    expect(source).toContain("comparisonCount: detail.currentUserState?.votesUsed ?? 0");
   });
 
   it("detail page exposes the current user's personal season result separately", () => {

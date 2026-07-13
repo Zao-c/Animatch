@@ -180,7 +180,10 @@ export default function SeasonDetailPage() {
   );
   const recentVotesPreview = detail?.recentVotes.slice(0, 10) ?? [];
   const hiddenRecentVoteCount = Math.max(0, (detail?.recentVotes.length ?? 0) - recentVotesPreview.length);
-  const insufficientRankingCount = detail?.ranking.filter((item) => item.insufficientSample).length ?? 0;
+  const hasSharedVotes = (detail?.totalVotes ?? 0) > 0;
+  const insufficientRankingCount = hasSharedVotes
+    ? detail?.ranking.filter((item) => item.insufficientSample).length ?? 0
+    : 0;
   const formalRankByAnimeId = useMemo(() => {
     const ranks = new Map<string, number>();
     let rank = 1;
@@ -461,8 +464,8 @@ export default function SeasonDetailPage() {
               {insufficientRankingCount} 部作品还未达到 {detail.minSampleThreshold.minUsers} 人、{detail.minSampleThreshold.minComparisons} 次比较的正式排名门槛，当前分数仅作实时参考。
             </div>
           ) : null}
-          {detail.ranking.length === 0 ? (
-            <p className="text-sm text-slate-500">暂无投票数据</p>
+          {!hasSharedVotes ? (
+            <p className="text-sm text-slate-500">暂无投票数据，第一位玩家完成投票后会生成共享榜单。</p>
           ) : (
             <div className="space-y-2">
               {detail.ranking.slice(0, 20).map((item) => (
@@ -698,10 +701,7 @@ function buildPersonalSeasonShare(
     description: "个人赛季 Elo 结果",
     tiers,
     animeCount,
-    comparisonCount: detail.currentUserRanking.reduce(
-      (sum, item) => sum + item.comparisonCount,
-      0
-    )
+    comparisonCount: detail.currentUserState?.votesUsed ?? 0
   });
 }
 
@@ -709,6 +709,7 @@ function buildSharedSeasonShare(
   detail: SeasonDetail,
   result: SeasonTierBucketsResult
 ): PublicTierShare | null {
+  if (detail.totalVotes === 0) return null;
   const formalTiers = result.buckets.map((bucket) => ({
     key: bucket.row.id,
     label: bucket.row.label,
@@ -826,7 +827,7 @@ function SeasonPersonalResult({
   onExport: () => void;
   isExporting: boolean;
 }) {
-  const hasItems = ranking.length > 0;
+  const hasItems = votesUsed > 0 && ranking.length > 0;
   const progress = maxVotesPerUser > 0
     ? Math.min(100, Math.round((votesUsed / maxVotesPerUser) * 100))
     : 0;
@@ -933,7 +934,7 @@ function SeasonSharedTierList({
 }) {
   const hasItems = buckets.some((bucket) => bucket.items.length > 0);
   const formalItemCount = buckets.reduce((sum, bucket) => sum + bucket.items.length, 0);
-  const hasAnyItems = hasItems || insufficientItems.length > 0;
+  const hasAnyItems = totalVotes > 0 && (hasItems || insufficientItems.length > 0);
 
   return (
     <AppCard className="mb-8 p-6">

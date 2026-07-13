@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, Suspense, useCallback, useEffect, useState } from "react";
+import { FormEvent, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { AnimeCover } from "@/components/AnimeCover";
 import { PageShell } from "@/components/PageShell";
 import { AppBadge } from "@/components/ui/AppBadge";
@@ -63,6 +63,7 @@ function PoolsPageContent() {
   const searchParams = useSearchParams();
   const [pools, setPools] = useState<PoolSummary[]>([]);
   const [query, setQuery] = useState("");
+  const [appliedQuery, setAppliedQuery] = useState("");
   const [filter, setFilter] = useState<PoolFilter>("ALL");
   const [sort, setSort] = useState<PoolSort>("UPDATED");
   const [view, setView] = useState<PoolView>(() => parsePoolView(searchParams.get("view")));
@@ -75,26 +76,35 @@ function PoolsPageContent() {
   const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const latestRequestRef = useRef(0);
 
   const loadPools = useCallback(async () => {
+    const requestId = latestRequestRef.current + 1;
+    latestRequestRef.current = requestId;
     setIsLoading(true);
     setError(null);
 
     try {
       const data = await listPools({
         view: view === "DEFAULT" ? undefined : view.toLowerCase() as "mine" | "public" | "all",
-        q: query.trim() || undefined,
+        q: appliedQuery || undefined,
         status: filter === "ALL" ? undefined : filter,
         includeArchived: filter === "ARCHIVED",
         sort
       });
-      setPools(data.items);
+      if (requestId === latestRequestRef.current) {
+        setPools(data.items);
+      }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "加载番组失败");
+      if (requestId === latestRequestRef.current) {
+        setError(reason instanceof Error ? reason.message : "加载番组失败");
+      }
     } finally {
-      setIsLoading(false);
+      if (requestId === latestRequestRef.current) {
+        setIsLoading(false);
+      }
     }
-  }, [filter, query, sort, view]);
+  }, [appliedQuery, filter, sort, view]);
 
   useEffect(() => {
     void loadPools();
@@ -114,9 +124,14 @@ function PoolsPageContent() {
     setNotice(null);
   }
 
-  async function handleSearch(event: FormEvent<HTMLFormElement>) {
+  function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await loadPools();
+    const nextQuery = query.trim();
+    if (nextQuery === appliedQuery) {
+      void loadPools();
+      return;
+    }
+    setAppliedQuery(nextQuery);
   }
 
   function handleViewChange(nextView: PoolView) {
@@ -253,7 +268,7 @@ function PoolsPageContent() {
     }
   }
 
-  const hasSearch = query.trim().length > 0;
+  const hasSearch = appliedQuery.length > 0;
   const playableCount = pools.filter(
     (pool) => !isPoolArchived(pool) && (pool.animeCount ?? 0) >= 2
   ).length;

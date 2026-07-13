@@ -209,8 +209,8 @@ describe("SeasonImpactPanel UI", () => {
   it("leads with a player-readable season story instead of raw impact stats", () => {
     expect(source).toContain("SeasonStory");
     expect(source).toContain("当前最受支持");
-    expect(source).toContain("带来最多排序变化的玩家");
-    expect(source).toContain("排序变化不是玩家积分");
+    expect(source).toContain("个人 Elo 变动最多的玩家");
+    expect(source).toContain("不代表社区共享榜单的排名影响");
   });
 
   it("shows private vote count", () => {
@@ -219,7 +219,7 @@ describe("SeasonImpactPanel UI", () => {
 
   it("has current user participation section", () => {
     expect(source).toContain("我的参与");
-    expect(source).toContain("排序变化 {formatImpactNumber(impact.currentUserImpact.totalScoreSwing)}");
+    expect(source).toContain("个人 Elo 变动 {formatImpactNumber(impact.currentUserImpact.totalScoreSwing)}");
   });
 
   it("shows rank when user participated", () => {

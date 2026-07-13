@@ -45,9 +45,7 @@ export default function MatchPage({
   const [isUndoing, setIsUndoing] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isRefilling, setIsRefilling] = useState(false);
-  const [preloadProgress, setPreloadProgress] = useState<{ loaded: number; total: number } | null>(
-    null
-  );
+  const [refillError, setRefillError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [feedbackResult, setFeedbackResult] = useState<ComparisonResult | null>(null);
@@ -90,9 +88,7 @@ export default function MatchPage({
         progress: data.progress
       });
       setQueue(data.pairs);
-      const progress = await preloadPairs(data.pairs.slice(0, 1), { preloadCount: 1 });
-      setPreloadProgress(progress);
-      void preloadPairs(data.pairs.slice(1, 4), { preloadCount: 3 });
+      void preloadPairs(data.pairs.slice(0, 4), { preloadCount: 4 });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "加载对决队列失败");
     } finally {
@@ -107,6 +103,7 @@ export default function MatchPage({
 
     isRefillingRef.current = true;
     setIsRefilling(true);
+    setRefillError(null);
 
     try {
       const data = await getMatchQueue(params.poolId, params.runId, 8);
@@ -117,8 +114,8 @@ export default function MatchPage({
       });
       appendUniquePairs(data.pairs);
       void preloadPairs(data.pairs, { preloadCount: 4 });
-    } catch {
-      // Background refill should not interrupt the current match.
+    } catch (reason) {
+      setRefillError(reason instanceof Error ? reason.message : "下一组对决暂时没有加载成功。");
     } finally {
       isRefillingRef.current = false;
       setIsRefilling(false);
@@ -143,10 +140,10 @@ export default function MatchPage({
   }, [loadInitialQueue]);
 
   useEffect(() => {
-    if (!isLoading && queue.length > 0 && queue.length < 3) {
+    if (!isLoading && queue.length < 3 && !isRefillingRef.current && refillError === null) {
       void refillQueue();
     }
-  }, [isLoading, queue.length, refillQueue]);
+  }, [isLoading, queue.length, refillError, refillQueue]);
 
   const handleSubmit = useCallback(async (result: ComparisonResult) => {
     const currentPair = queue[0];
@@ -247,7 +244,7 @@ export default function MatchPage({
   if (isLoading) {
     return (
       <PageShell>
-        <LoadingRoom loaded={preloadProgress?.loaded} total={preloadProgress?.total} />
+        <LoadingRoom />
       </PageShell>
     );
   }
@@ -255,6 +252,27 @@ export default function MatchPage({
   const currentPair = queue[0];
 
   if (currentPair === undefined) {
+    if (refillError !== null) {
+      return (
+        <PageShell>
+          <EmptyState
+            title="下一组对决暂时没有加载成功"
+            description="你的上一票已经保存。请重新加载下一组；无需重开本轮或重复投票。"
+            action={
+              <div className="flex flex-wrap justify-center gap-3">
+                <AppButton type="button" onClick={() => void refillQueue()} disabled={isRefilling} variant="primary">
+                  {isRefilling ? "正在重新加载..." : "重新加载下一组"}
+                </AppButton>
+                <Link href={`/pools/${params.poolId}`} className={appButtonClasses({ variant: "ghost" })}>
+                  返回番组
+                </Link>
+              </div>
+            }
+          />
+        </PageShell>
+      );
+    }
+
     const emptyCopy = getMatchEmptyCopy(poolAnimeCount, queueMeta?.progress);
 
     return (
@@ -311,7 +329,18 @@ export default function MatchPage({
               {queueMeta.progress.stageLabel} · 有效 {queueMeta.progress.effectiveComparisons}/
               {queueMeta.progress.highConfidenceTarget}
               {isRefilling ? " · 正在准备下一组" : ""}
+              {refillError !== null ? " · 下一组暂时不可用" : ""}
             </p>
+          ) : null}
+          {refillError !== null ? (
+            <button
+              type="button"
+              onClick={() => void refillQueue()}
+              disabled={isRefilling}
+              className="min-h-9 rounded-lg px-2 text-xs font-semibold text-amber-100 hover:bg-amber-300/10 disabled:opacity-50"
+            >
+              重新加载下一组
+            </button>
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">

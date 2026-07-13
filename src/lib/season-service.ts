@@ -1314,17 +1314,6 @@ export async function submitVote(
     throw new AppError("Anime is not in this pool", 400, "ANIME_NOT_IN_POOL");
   }
 
-  let voteType: "NORMAL" | "BIAS" = "NORMAL";
-  let weight = 1;
-
-  if (input.useBiasVote) {
-    if (season.mode !== "BIAS") {
-      throw new AppError("Bias votes are not allowed in classic mode", 400, "BIAS_NOT_ALLOWED");
-    }
-    voteType = "BIAS";
-    weight = 2;
-  }
-
   const loserAnimeId = input.winnerAnimeId === input.leftAnimeId ? input.rightAnimeId : input.leftAnimeId;
 
   for (let attempt = 1; attempt <= MAX_VOTE_WRITE_ATTEMPTS; attempt++) {
@@ -1338,18 +1327,30 @@ export async function submitVote(
             }
           }
 
+          // Re-read inside the serializable write transaction so an administrator ending the
+          // season, or a deadline passing while this request is queued, cannot admit a late vote.
+          const activeSeason = await tx.battleSeason.findFirst({ where: { id: seasonId, poolId } });
+          if (!activeSeason) throw new AppError("Season not found", 404, "SEASON_NOT_FOUND");
+          validateSeasonAccess(activeSeason, new Date());
+
+          const voteType: "NORMAL" | "BIAS" = input.useBiasVote ? "BIAS" : "NORMAL";
+          const weight = voteType === "BIAS" ? 2 : 1;
+          if (voteType === "BIAS" && activeSeason.mode !== "BIAS") {
+            throw new AppError("Bias votes are not allowed in classic mode", 400, "BIAS_NOT_ALLOWED");
+          }
+
           const userVotes = await tx.battleVote.count({ where: { seasonId, userId } });
 
-          if (userVotes >= season.maxVotesPerUser) {
+          if (userVotes >= activeSeason.maxVotesPerUser) {
             throw new AppError("Vote limit reached", 400, "VOTE_LIMIT_REACHED");
           }
 
-          if (season.maxVotesPerUserPerDay) {
+          if (activeSeason.maxVotesPerUserPerDay) {
             const dailyWindow = getSeasonDailyVoteWindow();
             const dailyUsed = await tx.battleVote.count({
               where: { seasonId, userId, createdAt: { gte: dailyWindow.start, lt: dailyWindow.end } }
             });
-            if (dailyUsed >= season.maxVotesPerUserPerDay) {
+            if (dailyUsed >= activeSeason.maxVotesPerUserPerDay) {
               throw new AppError("Daily vote limit reached", 400, "DAILY_VOTE_LIMIT_REACHED");
             }
           }
@@ -1358,7 +1359,7 @@ export async function submitVote(
             const biasUsed = await tx.battleVote.count({
               where: { seasonId, userId, voteType: "BIAS" }
             });
-            if (biasUsed >= season.biasVotesPerUser) {
+            if (biasUsed >= activeSeason.biasVotesPerUser) {
               throw new AppError("Bias votes exhausted", 400, "BIAS_VOTES_EXHAUSTED");
             }
           }
@@ -1463,7 +1464,7 @@ export async function submitVote(
             stepNumber: vote.stepNumber,
             voteType: vote.voteType,
             weight: vote.weight,
-            votesRemaining: Math.max(0, season.maxVotesPerUser - stepNumber)
+            votesRemaining: Math.max(0, activeSeason.maxVotesPerUser - stepNumber)
           };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }

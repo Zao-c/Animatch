@@ -70,8 +70,8 @@ describe("match preload priority", () => {
     expect(preloadSource).not.toContain("await preloadPair(targetPairs[0])");
   });
 
-  it("waits only for the current pair and warms later pairs in the background", () => {
-    expect(matchSource).toContain("await preloadPairs(data.pairs.slice(0, 1), { preloadCount: 1 })");
-    expect(matchSource).toContain("void preloadPairs(data.pairs.slice(1, 4), { preloadCount: 3 })");
+  it("warms the queue in the background instead of blocking the first playable pair", () => {
+    expect(matchSource).toContain("void preloadPairs(data.pairs.slice(0, 4), { preloadCount: 4 })");
+    expect(matchSource).not.toContain("await preloadPairs(data.pairs.slice(0, 1)");
   });
 });

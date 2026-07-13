@@ -136,6 +136,7 @@ export function QuickImportPanel({
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState<"PRIVATE" | "PUBLIC">("PRIVATE");
   const [preview, setPreview] = useState<QuickImportPreviewResult | null>(null);
+  const [previewParams, setPreviewParams] = useState<QuickImportParams | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -148,7 +149,15 @@ export function QuickImportPanel({
   const remoteRequired = source === "BANGUMI" || mode === "USER_COLLECTION";
   const effectiveUseRemote = remoteRequired || useRemote;
 
+  function clearPreviewSelection() {
+    setPreview(null);
+    setPreviewParams(null);
+    setSelectedIds(new Set());
+    setResultMessage(null);
+  }
+
   function toggleTag(tag: string) {
+    clearPreviewSelection();
     setSelectedTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     );
@@ -172,11 +181,13 @@ export function QuickImportPanel({
 
   async function handlePreview() {
     setError(null);
-    setPreview(null);
+    clearPreviewSelection();
     setIsLoading(true);
     try {
-      const result = await previewQuickImport({ params: buildParams(), poolId, useRemote: effectiveUseRemote });
+      const params = buildParams();
+      const result = await previewQuickImport({ params, poolId, useRemote: effectiveUseRemote });
       setPreview(result);
+      setPreviewParams(params);
       setSelectedIds(new Set(result.candidates.filter((c) => !c.alreadyInPool).map((c) => c.animeId)));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "预览失败");
@@ -215,7 +226,11 @@ export function QuickImportPanel({
       setError("请输入番组名");
       return;
     }
-    if (preview && selectedIds.size === 0) {
+    if (preview === null || previewParams === null) {
+      setError("请先预览并确认要创建的作品");
+      return;
+    }
+    if (selectedIds.size === 0) {
       setError("没有选中任何作品");
       return;
     }
@@ -226,8 +241,8 @@ export function QuickImportPanel({
         poolName: poolName.trim(),
         description: description.trim() || undefined,
         visibility,
-        params: buildParams(),
-        selectedAnimeIds: preview ? Array.from(selectedIds) : undefined,
+        params: previewParams,
+        selectedAnimeIds: Array.from(selectedIds),
       });
       router.push(`/pools/${result.poolId}`);
     } catch (reason) {
@@ -268,11 +283,10 @@ export function QuickImportPanel({
     setCustomTagInput("");
     if (p.limit) setLimit(p.limit);
     if (p.sort) setSort(p.sort);
-    setPreview(null);
-    setSelectedIds(new Set());
+    clearPreviewSelection();
   }
 
-  const canCreate = !poolId && poolName.trim().length > 0;
+  const canCreate = !poolId && poolName.trim().length > 0 && preview !== null && previewParams !== null && selectedIds.size > 0;
   const canAdd = !!poolId && selectedIds.size > 0;
 
   return (
@@ -301,7 +315,10 @@ export function QuickImportPanel({
                 <button
                   key={s.key}
                   type="button"
-                  onClick={() => setSource(s.key)}
+                  onClick={() => {
+                    clearPreviewSelection();
+                    setSource(s.key);
+                  }}
                   disabled={mode === "USER_COLLECTION" && s.key === "MANAMI"}
                   aria-pressed={source === s.key}
                   className={`min-h-11 rounded-full border px-4 py-1 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-anime-cyan/40 ${
@@ -324,6 +341,7 @@ export function QuickImportPanel({
                   key={m.key}
                   type="button"
                   onClick={() => {
+                    clearPreviewSelection();
                     setMode(m.key);
                     if (m.key === "USER_COLLECTION") setSource("BANGUMI");
                   }}
@@ -347,7 +365,10 @@ export function QuickImportPanel({
               <span className="text-xs font-semibold text-slate-400">年份</span>
               <input
                 value={year}
-                onChange={(e) => setYear(e.target.value)}
+                onChange={(e) => {
+                  clearPreviewSelection();
+                  setYear(e.target.value);
+                }}
                 className="anime-field mt-1.5"
                 placeholder="2026"
               />
@@ -361,7 +382,10 @@ export function QuickImportPanel({
                 <button
                   key={t.key}
                   type="button"
-                  onClick={() => setType(t.key)}
+                  onClick={() => {
+                    clearPreviewSelection();
+                    setType(t.key);
+                  }}
                   aria-pressed={type === t.key}
                   className={`min-h-11 rounded-full border px-3 py-1 text-[11px] font-semibold transition focus:outline-none focus:ring-2 focus:ring-amber-300/40 ${
                     type === t.key
@@ -382,7 +406,10 @@ export function QuickImportPanel({
                 <button
                   key={l}
                   type="button"
-                  onClick={() => setLimit(l)}
+                  onClick={() => {
+                    clearPreviewSelection();
+                    setLimit(l);
+                  }}
                   aria-pressed={limit === l}
                   className={`min-h-11 rounded-full border px-3 py-1 text-[11px] font-semibold transition focus:outline-none focus:ring-2 focus:ring-amber-300/40 ${
                     limit === l
@@ -424,7 +451,10 @@ export function QuickImportPanel({
               <span className="text-xs font-semibold text-slate-400">自定义 Bangumi 标签</span>
               <input
                 value={customTagInput}
-                onChange={(e) => setCustomTagInput(e.target.value)}
+                onChange={(e) => {
+                  clearPreviewSelection();
+                  setCustomTagInput(e.target.value);
+                }}
                 className="anime-field mt-1.5"
                 placeholder="例如：百合、恋爱、校园，用逗号分隔"
               />
@@ -442,7 +472,10 @@ export function QuickImportPanel({
               <button
                 key={s.key}
                 type="button"
-                onClick={() => setSort(s.key)}
+                onClick={() => {
+                  clearPreviewSelection();
+                  setSort(s.key);
+                }}
                 aria-pressed={sort === s.key}
                 className={`min-h-11 rounded-full border px-3 py-1 text-[11px] font-semibold transition focus:outline-none focus:ring-2 focus:ring-amber-300/40 ${
                   sort === s.key
@@ -461,7 +494,10 @@ export function QuickImportPanel({
             <input
               type="checkbox"
               checked={effectiveUseRemote}
-              onChange={(e) => setUseRemote(e.target.checked)}
+              onChange={(e) => {
+                clearPreviewSelection();
+                setUseRemote(e.target.checked);
+              }}
               disabled={remoteRequired}
               className="h-4 w-4 accent-anime-purple"
             />
@@ -484,7 +520,10 @@ export function QuickImportPanel({
               <span className="text-xs font-semibold text-slate-400">Bangumi 用户 ID</span>
               <input
                 value={bangumiUserId}
-                onChange={(e) => setBangumiUserId(e.target.value)}
+                onChange={(e) => {
+                  clearPreviewSelection();
+                  setBangumiUserId(e.target.value);
+                }}
                 className="anime-field mt-1.5"
                 placeholder="用户名或 https://bgm.tv/user/xxx"
               />
@@ -502,7 +541,10 @@ export function QuickImportPanel({
                   <button
                     key={ct.key}
                     type="button"
-                    onClick={() => setCollectionType(ct.key)}
+                    onClick={() => {
+                      clearPreviewSelection();
+                      setCollectionType(ct.key);
+                    }}
                     aria-pressed={collectionType === ct.key}
                     className={`min-h-11 rounded-full border px-3 py-1 text-[11px] font-semibold transition focus:outline-none focus:ring-2 focus:ring-anime-purple/40 ${
                       collectionType === ct.key
