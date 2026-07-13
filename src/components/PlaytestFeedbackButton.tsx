@@ -61,6 +61,8 @@ export function PlaytestFeedbackButton() {
   >("idle");
 
   const manualTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   const resetForm = useCallback(() => {
     setType("other");
@@ -84,11 +86,54 @@ export function PlaytestFeedbackButton() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && open) {
         handleClose();
+        return;
+      }
+
+      if (e.key !== "Tab" || !open || dialogRef.current === null) {
+        return;
+      }
+
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (!first || !last) {
+        e.preventDefault();
+        dialogRef.current.focus();
+      } else if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
       }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, handleClose]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusTimer = window.requestAnimationFrame(() => {
+      dialogRef.current?.querySelector<HTMLElement>("[data-feedback-initial-focus]")?.focus();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(focusTimer);
+      document.body.style.overflow = previousOverflow;
+      previousFocusRef.current?.focus();
+    };
+  }, [open]);
 
   const handleCopy = useCallback(async () => {
     const text = formatFeedbackText({
@@ -142,16 +187,22 @@ export function PlaytestFeedbackButton() {
             onClick={handleClose}
           />
           <AppCard
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="playtest-feedback-title"
+            tabIndex={-1}
             variant="modal"
             className="relative z-10 mx-0 w-full max-h-[90dvh] overflow-y-auto rounded-b-none rounded-t-anime-lg sm:mx-4 sm:max-w-lg sm:rounded-anime-lg"
           >
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-anime-panel px-5 py-3.5">
-              <h2 className="text-base font-semibold text-white">
+              <h2 id="playtest-feedback-title" className="text-base font-semibold text-white">
                 反馈试玩体验
               </h2>
               <button
                 type="button"
                 onClick={handleClose}
+                data-feedback-initial-focus
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition duration-anime hover:bg-white/[0.08] hover:text-white"
                 aria-label="关闭"
               >

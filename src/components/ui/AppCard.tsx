@@ -9,19 +9,18 @@ const VARIANT_CLASS: Record<AppCardVariant, string> = {
   modal: "border-white/15 bg-anime-panelStrong shadow-[0_28px_100px_rgba(2,6,23,0.58)]"
 };
 
-export function AppCard({
-  className = "",
-  soft = false,
-  variant,
-  ...props
-}: HTMLAttributes<HTMLDivElement> & {
-  soft?: boolean;
-  variant?: AppCardVariant;
-}) {
+export const AppCard = React.forwardRef<
+  HTMLDivElement,
+  HTMLAttributes<HTMLDivElement> & {
+    soft?: boolean;
+    variant?: AppCardVariant;
+  }
+>(function AppCard({ className = "", soft = false, variant, ...props }, ref) {
   const resolvedVariant = variant ?? (soft ? "soft" : "default");
 
   return (
     <div
+      ref={ref}
       className={[
         "rounded-anime-lg border backdrop-blur-xl",
         VARIANT_CLASS[resolvedVariant],
@@ -32,4 +31,6 @@ export function AppCard({
       {...props}
     />
   );
-}
+});
+
+AppCard.displayName = "AppCard";

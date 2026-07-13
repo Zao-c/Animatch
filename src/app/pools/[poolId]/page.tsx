@@ -187,6 +187,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [animeWallFilter, setAnimeWallFilter] = useState<
     "all" | "missingCover" | "suspiciousTitle" | "tiermaker" | "custom"
   >("all");
+  const [animeWallVisibleCount, setAnimeWallVisibleCount] = useState(24);
   const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
   const [showMoreImportMethods, setShowMoreImportMethods] = useState(false);
 
@@ -332,6 +333,15 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
     return items;
   }, [pool, animeWallSearch, animeWallFilter]);
+
+  const visibleAnime = useMemo(
+    () => filteredAnime.slice(0, animeWallVisibleCount),
+    [animeWallVisibleCount, filteredAnime]
+  );
+
+  useEffect(() => {
+    setAnimeWallVisibleCount(24);
+  }, [animeWallFilter, animeWallSearch]);
 
   const refreshRuns = useCallback(async () => {
     const data = await listRuns(params.poolId);
@@ -1523,7 +1533,10 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 更多番组操作
               </AppButton>
             ) : null}
-            <Link href="/pools" className={appButtonClasses({ variant: "quiet", size: "sm" })}>
+            <Link
+              href={canManagePool ? "/pools" : "/pools?view=public"}
+              className={appButtonClasses({ variant: "quiet", size: "sm" })}
+            >
               {canManagePool ? "返回我的番组" : "返回番组大厅"}
             </Link>
             {!canManagePool && canPlayPool ? (
@@ -1537,7 +1550,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
       <nav
         aria-label="番组导航"
-        className="z-20 mt-5 rounded-xl border border-white/10 bg-slate-950/90 p-1.5 shadow-lg shadow-slate-950/25 backdrop-blur sm:sticky sm:top-24"
+        className="sticky top-[6.75rem] z-20 mt-5 rounded-xl border border-white/10 bg-slate-950/90 p-1.5 shadow-lg shadow-slate-950/25 backdrop-blur sm:top-24"
       >
         <div className="flex flex-wrap gap-1.5">
           <a href="#anime-wall" className={appButtonClasses({ variant: "quiet", size: "md" })}>
@@ -1945,8 +1958,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                   <p className="text-sm text-slate-400">没有匹配的作品。</p>
                 </div>
               ) : (
-                <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {filteredAnime.map((entry) => (
+                <>
+                <div className="mt-5 grid gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                  {visibleAnime.map((entry) => (
                     <PoolAnimeCard
                       key={entry.id}
                       entry={entry}
@@ -1961,6 +1975,18 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                     />
                   ))}
                 </div>
+                {visibleAnime.length < filteredAnime.length ? (
+                  <div className="mt-5 flex justify-center">
+                    <AppButton
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setAnimeWallVisibleCount((count) => count + 24)}
+                    >
+                      显示更多作品（剩余 {filteredAnime.length - visibleAnime.length} 部）
+                    </AppButton>
+                  </div>
+                ) : null}
+                </>
               )}
             </>
           )}
@@ -3243,7 +3269,7 @@ function PoolAnimeCard({
         title={title}
         size="md"
         fit={coverFit}
-        className="h-56 w-full rounded-none border-0 sm:h-64"
+        className="h-48 w-full rounded-none border-0 sm:h-52"
       />
       {batchMode ? (
         <label

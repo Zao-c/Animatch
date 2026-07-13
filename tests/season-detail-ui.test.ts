@@ -78,4 +78,12 @@ describe("season detail UI", () => {
   it("labels draft activation as publishing so a scheduled opening is not implied to start immediately", () => {
     expect(source).toContain("发布赛季");
   });
+
+  it("keeps season context and key result sections reachable on long pages", () => {
+    expect(source).toContain('aria-label="赛季页面导航"');
+    expect(source).toContain('href="#season-results"');
+    expect(source).toContain('href="#season-impact"');
+    expect(source).toContain('id="season-results"');
+    expect(source).toContain('id="season-impact"');
+  });
 });

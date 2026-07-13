@@ -60,6 +60,16 @@ describe("PlaytestFeedbackButton", () => {
       expect(source).toContain("onClick={handleClose}");
     });
 
+    it("treats the feedback sheet as a real modal and returns focus to its trigger", () => {
+      expect(source).toContain('role="dialog"');
+      expect(source).toContain('aria-modal="true"');
+      expect(source).toContain('aria-labelledby="playtest-feedback-title"');
+      expect(source).toContain("data-feedback-initial-focus");
+      expect(source).toContain('document.body.style.overflow = "hidden"');
+      expect(source).toContain("previousFocusRef.current?.focus()");
+      expect(source).toContain("e.key !== \"Tab\"");
+    });
+
     it("uses existing copyToClipboard utility", () => {
       expect(source).toContain('import { copyToClipboard } from "@/lib/clipboard"');
     });

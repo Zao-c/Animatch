@@ -6,7 +6,7 @@ describe("mobile Tier editing", () => {
   const pageSource = readFileSync("src/app/pools/[poolId]/runs/[runId]/tier/page.tsx", "utf8");
 
   it("offers touch controls instead of requiring drag and drop", () => {
-    expect(editorSource).toContain('className="mt-3 space-y-2 sm:hidden"');
+    expect(editorSource).toContain('[@media(hover:hover)_and_(pointer:fine)]:hidden');
     expect(editorSource).toContain("移动到 Tier");
     expect(editorSource).toContain("min-h-11");
     expect(editorSource).toContain("aria-label={`将 ${title} 移至其他 Tier`}");

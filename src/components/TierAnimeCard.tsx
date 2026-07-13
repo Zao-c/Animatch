@@ -82,7 +82,10 @@ export function TierAnimeCard({
           <p className="text-[11px] text-slate-500">{item.compareCount} battles</p>
         </div>
         {editable && onMoveToTier ? (
-          <div className="mt-3 space-y-2 sm:hidden" onPointerDown={(event) => event.stopPropagation()}>
+          <div
+            className="mt-3 space-y-2 [@media(hover:hover)_and_(pointer:fine)]:hidden"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
             <label className="sr-only" htmlFor={`tier-move-${item.animeId}`}>
               将 {title} 移至其他 Tier
             </label>

@@ -167,9 +167,10 @@ describe("pool management UI", () => {
     expect(detailSource).toContain('aria-label="番组导航"');
     expect(detailSource).toContain('href="#anime-wall"');
     expect(detailSource).toContain('href="#battle-seasons"');
-    expect(detailSource).toContain('sticky top-20');
+    expect(detailSource).toContain('sticky top-[6.75rem]');
     expect(detailSource).toContain('size="md"');
     expect(detailSource).toContain('canManagePool ? "返回我的番组" : "返回番组大厅"');
+    expect(detailSource).toContain('canManagePool ? "/pools" : "/pools?view=public"');
   });
 
   it("exposes tier row editing and passes custom rows to community tier wall", () => {
@@ -211,6 +212,14 @@ describe("pool management UI", () => {
     expect(detailSource).toContain("疑似脏标题");
     expect(detailSource).toContain("TierMaker 导入");
     expect(detailSource).toContain("Custom 上传");
+  });
+
+  it("keeps large anime walls compact and progressively rendered", () => {
+    expect(detailSource).toContain("animeWallVisibleCount");
+    expect(detailSource).toContain("filteredAnime.slice(0, animeWallVisibleCount)");
+    expect(detailSource).toContain("sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5");
+    expect(detailSource).toContain("显示更多作品（剩余");
+    expect(detailSource).toContain('className="h-48 w-full rounded-none border-0 sm:h-52"');
   });
 
   it("offers a one-click pool share action", () => {

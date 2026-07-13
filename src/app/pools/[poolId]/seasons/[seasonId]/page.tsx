@@ -244,6 +244,20 @@ export default function SeasonDetailPage() {
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <Link href={`/pools/${poolId}`} className="inline-flex min-h-11 items-center text-sm text-slate-400 transition hover:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-300/60">← 返回番组</Link>
         </div>
+        <nav
+          aria-label="赛季页面导航"
+          className="sticky top-[6.75rem] z-20 mb-5 flex min-h-11 items-center gap-1.5 overflow-x-auto rounded-xl border border-white/10 bg-slate-950/90 p-1.5 shadow-lg shadow-slate-950/25 backdrop-blur sm:top-24"
+        >
+          <Link href={`/pools/${poolId}`} className={appButtonClasses({ variant: "quiet", size: "sm" })}>
+            番组
+          </Link>
+          <a href="#season-results" className={appButtonClasses({ variant: "quiet", size: "sm" })}>
+            赛季结果
+          </a>
+          <a href="#season-impact" className={appButtonClasses({ variant: "quiet", size: "sm" })}>
+            影响分析
+          </a>
+        </nav>
 
         <AppCard className="mb-8 p-6">
           <div className="mb-4 flex flex-wrap gap-2">
@@ -441,15 +455,17 @@ export default function SeasonDetailPage() {
           </div>
         ) : null}
 
-        <SeasonPersonalResult
-          ranking={detail.currentUserRanking}
-          buckets={personalSeasonTierBuckets}
-          votesUsed={detail.currentUserState?.votesUsed ?? 0}
-          maxVotesPerUser={detail.maxVotesPerUser}
-          mode={detail.mode}
-          onExport={() => handleExportSeasonTier("personal")}
-          isExporting={isPersonalExporting}
-        />
+        <div id="season-results" className="scroll-mt-32">
+          <SeasonPersonalResult
+            ranking={detail.currentUserRanking}
+            buckets={personalSeasonTierBuckets}
+            votesUsed={detail.currentUserState?.votesUsed ?? 0}
+            maxVotesPerUser={detail.maxVotesPerUser}
+            mode={detail.mode}
+            onExport={() => handleExportSeasonTier("personal")}
+            isExporting={isPersonalExporting}
+          />
+        </div>
 
         <AppCard className="mb-8 p-6">
           <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -498,7 +514,7 @@ export default function SeasonDetailPage() {
           isExporting={isSharedExporting}
         />
 
-        <div className="mb-8">
+        <div id="season-impact" className="mb-8 scroll-mt-32">
           <SeasonImpactPanel
             poolId={poolId}
             seasonId={seasonId}
