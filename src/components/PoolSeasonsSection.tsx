@@ -160,38 +160,51 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
           <p className="text-sm text-slate-500">暂无赛季，点击上方按钮创建</p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
-            {seasons.map((s) => (
-              <Link
-                key={s.id}
-                href={`/pools/${poolId}/seasons/${s.id}`}
-                className="group rounded-2xl border border-white/10 bg-slate-950/60 p-4 transition hover:border-amber-300/30"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="truncate text-sm font-semibold text-white group-hover:text-amber-200">
-                      {s.title}
-                    </h3>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      <AppBadge tone={s.status === "ACTIVE" ? "success" : s.status === "ENDED" ? "muted" : "warning"}>
-                        {s.status === "ACTIVE" ? "进行中" : s.status === "ENDED" ? "已结束" : "未开始"}
-                      </AppBadge>
-                      <AppBadge tone="source">{s.mode === "BIAS" ? "偏爱模式" : "传统模式"}</AppBadge>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-400">
-                  <span>{s.participantCount} 人参与</span>
-                  <span>{s.totalVotes} 票</span>
-                  {s.mode === "BIAS" ? <span>私心票×{s.biasVotesPerUser}</span> : null}
-                </div>
-                <div className="mt-4 inline-flex min-h-9 items-center rounded-full border border-amber-300/25 bg-amber-300/10 px-3 text-xs font-semibold text-amber-100 transition group-hover:border-amber-200/50 group-hover:bg-amber-300/15">
-                  进入赛季
-                </div>
-              </Link>
-            ))}
+            {seasons.map((season) => <SeasonListCard key={season.id} poolId={poolId} season={season} />)}
           </div>
         )}
       </AppCard>
     </section>
   );
+}
+
+function SeasonListCard({ poolId, season }: { poolId: string; season: SeasonListItem }) {
+  const state = getSeasonListDisplayState(season);
+
+  return (
+    <Link
+      href={`/pools/${poolId}/seasons/${season.id}`}
+      className="group rounded-2xl border border-white/10 bg-slate-950/60 p-4 transition hover:border-amber-300/30"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-semibold text-white group-hover:text-amber-200">{season.title}</h3>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <AppBadge tone={state.tone}>{state.label}</AppBadge>
+            <AppBadge tone="source">{season.mode === "BIAS" ? "加成票模式" : "标准对决"}</AppBadge>
+          </div>
+        </div>
+      </div>
+      <p className="mt-3 text-xs leading-5 text-slate-400">{state.description}</p>
+      <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-400">
+        <span>{season.participantCount} 人参与</span>
+        <span>{season.totalVotes} 票</span>
+        {season.mode === "BIAS" ? <span>加成票 {season.biasVotesPerUser} 张</span> : null}
+      </div>
+      <div className="mt-4 inline-flex min-h-9 items-center rounded-full border border-amber-300/25 bg-amber-300/10 px-3 text-xs font-semibold text-amber-100 transition group-hover:border-amber-200/50 group-hover:bg-amber-300/15">
+        {state.canVote ? "进入对决" : "查看赛季结果"}
+      </div>
+    </Link>
+  );
+}
+
+function getSeasonListDisplayState(season: SeasonListItem) {
+  const now = Date.now();
+  const startsAt = new Date(season.startsAt).getTime();
+  const endsAt = season.endsAt ? new Date(season.endsAt).getTime() : null;
+
+  if (season.status === "ENDED") return { label: "已结束", description: "结果已定格，可查看个人和共享榜单。", tone: "muted" as const, canVote: false };
+  if (season.status === "DRAFT" || now < startsAt) return { label: "未开始", description: "赛季尚未开放投票。", tone: "warning" as const, canVote: false };
+  if (endsAt !== null && now > endsAt) return { label: "投票已截止", description: "投票已停止，可查看当前赛季结果。", tone: "muted" as const, canVote: false };
+  return { label: "开放中", description: season.endsAt ? `可以投票，截止到 ${new Date(season.endsAt).toLocaleDateString("zh-CN")}。` : "现在可以开始对决。", tone: "success" as const, canVote: true };
 }

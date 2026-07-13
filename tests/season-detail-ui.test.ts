@@ -59,4 +59,12 @@ describe("season detail UI", () => {
     expect(source).toContain("onClick={fetchDetail}");
     expect(source).toContain("loading && detail === null");
   });
+
+  it("derives the visible season state from schedule dates before offering a match", () => {
+    expect(source).toContain("getSeasonDisplayState");
+    expect(source).toContain("投票已截止");
+    expect(source).toContain("seasonState.canVote");
+    expect(source).toContain("只在共享榜单聚合时加成");
+    expect(source).toContain("加成票模式");
+  });
 });

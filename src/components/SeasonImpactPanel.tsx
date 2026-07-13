@@ -19,7 +19,7 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
   const [impact, setImpact] = useState<BattleSeasonImpact | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"players" | "support" | "suppress" | "keyvotes">("players");
+  const [tab, setTab] = useState<"players" | "support" | "suppress" | "keyvotes">("support");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -54,9 +54,9 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
     const isEnded = status === "ENDED";
     return (
       <AppCard className="p-6">
-        <SectionHeader eyebrow="Impact" title={isEnded ? "赛季影响分析" : "当前影响分析"} />
+        <SectionHeader eyebrow="Season" title={isEnded ? "赛季回顾" : "赛季进行中"} />
         <p className="mt-3 text-sm text-slate-400">
-          还没有足够的投票记录，打一轮后就能看到谁在左右战局。
+          还没有投票记录。完成第一轮对决后，这里会展示当前最受支持的作品和你的参与进度。
         </p>
       </AppCard>
     );
@@ -66,26 +66,19 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
 
   return (
     <AppCard className="p-6">
-      <SectionHeader eyebrow="Impact" title={isEnded ? "赛季影响分析" : "当前影响分析"} />
+      <SectionHeader eyebrow="Season" title={isEnded ? "赛季回顾" : "赛季进行中"} />
       <p className="mt-2 max-w-3xl text-xs leading-relaxed text-slate-500">
-        影响力按每次投票造成的 Elo 变动量累计，用来衡量玩家对本赛季排序的推动程度；它不是作品评分，也不会替代共享 Elo。
+        这里记录投票如何推动赛季排序。排序变化不是玩家积分，也不替代作品的共享 Elo；私心票只会在共享聚合时加成。
       </p>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <StatMini label="总投票数" value={impact.stats.totalVotes} />
-        <StatMini label="参与人数" value={impact.stats.totalParticipants} />
-        <StatMini label="私心票" value={impact.stats.totalBiasVotes} />
-        <StatMini label="总影响力" value={impact.stats.totalScoreSwing} />
-        <StatMini label="最大推手" value={impact.stats.topInfluencerUser?.displayName ?? "-"} em />
-        <StatMini label="被奶最多" value={impact.stats.mostSupportedAnime?.title ?? "-"} em />
-      </div>
+      <SeasonStory impact={impact} />
 
       {impact.currentUserImpact && impact.currentUserImpact.voteCount > 0 ? (
-        <div className="mt-4 rounded-2xl border border-anime-cyan/20 bg-anime-cyan/[0.03] p-4">
-          <p className="text-sm font-semibold text-anime-cyan">我的影响力</p>
+        <div className="mt-4 border-y border-anime-cyan/20 bg-anime-cyan/[0.03] px-4 py-3">
+          <p className="text-sm font-semibold text-anime-cyan">我的参与</p>
           <div className="mt-1.5 grid grid-cols-2 gap-2 text-xs text-slate-300 sm:grid-cols-4">
             <span>已投 {impact.currentUserImpact.voteCount} 票</span>
-            <span>影响力 {formatImpactNumber(impact.currentUserImpact.totalScoreSwing)}</span>
+            <span>排序变化 {formatImpactNumber(impact.currentUserImpact.totalScoreSwing)}</span>
             {impact.currentUserImpact.biasVoteCount > 0 ? (
               <span className="text-rose-300">私心票 {impact.currentUserImpact.biasVoteCount}</span>
             ) : null}
@@ -96,17 +89,17 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
           </div>
         </div>
       ) : (
-        <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-          <p className="text-sm text-slate-500">你还没有参与这个赛季。</p>
+        <div className="mt-4 border-y border-white/10 bg-white/[0.02] px-4 py-3">
+          <p className="text-sm text-slate-500">你还没有参与这个赛季，开始对决后会显示你的参与记录。</p>
         </div>
       )}
 
       <div className="mt-5 flex flex-wrap gap-2" role="tablist" aria-label="Season impact views">
         {(
           [
-            ["players", "玩家影响力"],
-            ["support", "作品支持榜"],
-            ["suppress", "作品打压榜"],
+            ["support", "当前支持"],
+            ["players", "玩家参与"],
+            ["suppress", "较少被选择"],
             ["keyvotes", "关键投票"],
           ] as const
         ).map(([key, label]) => (
@@ -141,7 +134,7 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
 
       {impact.biasVoteStats ? (
         <div className="mt-6 rounded-2xl border border-rose-400/20 bg-rose-400/[0.03] p-4">
-          <p className="text-sm font-semibold text-rose-300">私心票统计</p>
+          <p className="text-sm font-semibold text-rose-300">私心票使用</p>
           <div className="mt-2 text-xs text-slate-400">
             {impact.biasVoteStats.totalBiasVotes} 张私心票 · {impact.biasVoteStats.biasUsersCount} 人使用
           </div>
@@ -162,22 +155,40 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
   );
 }
 
-function StatMini({ label, value, em }: { label: string; value: string | number; em?: boolean }) {
-  const displayValue = typeof value === "number" ? formatImpactNumber(value) : value;
+function SeasonStory({ impact }: { impact: BattleSeasonImpact }) {
+  const supportedTitle = impact.stats.mostSupportedAnime?.title ?? "结果仍在汇总";
+  const contributor = impact.stats.topInfluencerUser?.displayName ?? "暂无";
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.025] p-3 text-center">
-      <p
-        className={
-          em
-            ? "line-clamp-3 min-h-[3rem] break-words text-sm font-black leading-snug text-amber-200"
-            : "text-lg font-black text-white"
-        }
-      >
-        {displayValue}
+    <section className="mt-5 border-y border-white/10 py-4" aria-label="赛季当前结论">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="min-w-0">
+          <p className="text-xs text-slate-500">当前最受支持</p>
+          <p className="mt-1 line-clamp-2 text-sm font-black leading-snug text-amber-100">{supportedTitle}</p>
+        </div>
+        <div>
+          <p className="text-xs text-slate-500">带来最多排序变化的玩家</p>
+          <p className="mt-1 text-sm font-black text-white">{contributor}</p>
+        </div>
+        <dl className="grid grid-cols-3 gap-2 text-center text-xs sm:grid-cols-3">
+          <div>
+            <dt className="text-slate-500">投票</dt>
+            <dd className="mt-1 text-sm font-black text-white">{impact.stats.totalVotes}</dd>
+          </div>
+          <div>
+            <dt className="text-slate-500">参与者</dt>
+            <dd className="mt-1 text-sm font-black text-white">{impact.stats.totalParticipants}</dd>
+          </div>
+          <div>
+            <dt className="text-slate-500">私心票</dt>
+            <dd className="mt-1 text-sm font-black text-rose-200">{impact.stats.totalBiasVotes}</dd>
+          </div>
+        </dl>
+      </div>
+      <p className="mt-3 text-xs text-slate-500">
+        全部投票累计带来 {formatImpactNumber(impact.stats.totalScoreSwing)} 的排序变化。
       </p>
-      <p className="mt-0.5 text-[10px] text-slate-500">{label}</p>
-    </div>
+    </section>
   );
 }
 
@@ -191,7 +202,7 @@ function PlayerImpactTable({ ranking }: { ranking: NonNullable<BattleSeasonImpac
             <th className="py-2 text-left font-normal">玩家</th>
             <th className="py-2 text-right font-normal">投票</th>
             <th className="py-2 text-right font-normal">私心</th>
-            <th className="py-2 text-right font-normal">影响力</th>
+            <th className="py-2 text-right font-normal">排序贡献</th>
             <th className="py-2 text-left font-normal hidden sm:table-cell">主要支持</th>
           </tr>
         </thead>
@@ -270,9 +281,9 @@ function AnimeSuppressTable({ items }: { items: NonNullable<BattleSeasonImpact>[
           <tr className="border-b border-white/10 text-xs text-slate-500">
             <th className="py-2 text-left font-normal">#</th>
             <th className="py-2 text-left font-normal">作品</th>
-            <th className="py-2 text-right font-normal">打压分</th>
+            <th className="py-2 text-right font-normal">落选次数</th>
             <th className="py-2 text-right font-normal">次数</th>
-            <th className="py-2 text-left font-normal hidden sm:table-cell">主要打压者</th>
+            <th className="py-2 text-left font-normal hidden sm:table-cell">相关对决选择</th>
           </tr>
         </thead>
         <tbody>
@@ -320,7 +331,7 @@ function KeyVotesTable({ votes }: { votes: NonNullable<BattleSeasonImpact>["keyV
           <span className="font-semibold text-amber-200">{v.winnerTitle}</span>
           <span className="text-slate-500">战胜</span>
           <span className="text-slate-400">{v.loserTitle}</span>
-          <span className="ml-auto text-xs font-semibold text-amber-200">影响力 {formatImpactNumber(v.totalSwing)}</span>
+          <span className="ml-auto text-xs font-semibold text-amber-200">排序变化 {formatImpactNumber(v.totalSwing)}</span>
           {v.voteType === "BIAS" ? (
             <span className="text-[10px] text-rose-400/70">权重 {v.weight}</span>
           ) : null}

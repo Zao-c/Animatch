@@ -224,6 +224,9 @@ export default function SeasonDetailPage() {
   if (error && detail === null) return <PageShell><main className="mx-auto max-w-6xl px-4 py-8"><AppCard className="p-8 text-center"><AppBadge tone="tier">AniMatch</AppBadge><h1 className="mt-4 text-xl font-black text-white">加载失败</h1><p className="mt-2 text-sm text-slate-400">{error}</p><AppButton type="button" onClick={fetchDetail} variant="secondary" className="mt-5">重新加载赛季</AppButton></AppCard></main></PageShell>;
   if (!detail) return null;
 
+  const seasonState = getSeasonDisplayState(detail);
+  const seasonModeLabel = detail.mode === "BIAS" ? "加成票模式" : "标准对决";
+
   return (
     <PageShell>
       <main className="mx-auto max-w-6xl px-4 py-8">
@@ -233,26 +236,24 @@ export default function SeasonDetailPage() {
 
         <AppCard className="mb-8 p-6">
           <div className="mb-4 flex flex-wrap gap-2">
-            <AppBadge tone={detail.status === "ACTIVE" ? "success" : detail.status === "ENDED" ? "muted" : "warning"}>
-              {detail.status === "ACTIVE" ? "进行中" : detail.status === "ENDED" ? "已结束" : "未开始"}
-            </AppBadge>
-            <AppBadge tone="source">{detail.mode === "BIAS" ? "偏爱模式" : "传统模式"}</AppBadge>
+            <AppBadge tone={seasonState.tone}>{seasonState.label}</AppBadge>
+            <AppBadge tone="source">{seasonModeLabel}</AppBadge>
           </div>
           <h1 className="text-2xl font-black text-white">{detail.title}</h1>
           {detail.description ? <p className="mt-2 text-sm text-slate-400">{detail.description}</p> : null}
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">{seasonState.description}</p>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard label="当前状态" value={seasonState.shortLabel} />
             <StatCard label="参与人数" value={String(detail.participantCount)} />
             <StatCard label="总投票" value={String(detail.totalVotes)} />
-            <StatCard label="私心票使用" value={String(detail.biasVotesUsed)} />
-            <StatCard label="开始时间" value={formatDateTimeStable(detail.startsAt).split(" ")[0]} />
+            <StatCard label={detail.endsAt ? "投票截止" : "开始时间"} value={formatDateTimeStable(detail.endsAt ?? detail.startsAt).split(" ")[0]} />
           </div>
 
           <div className="mt-5 flex flex-wrap gap-2 text-xs text-slate-500">
             <span>每人最多 {detail.maxVotesPerUser} 票</span>
             {detail.maxVotesPerUserPerDay ? <span>· 每天 {detail.maxVotesPerUserPerDay} 票</span> : null}
-            {detail.mode === "BIAS" ? <span>· 私心票 ×{detail.biasVotesPerUser}</span> : null}
-            {detail.endsAt ? <span>· 至 {formatDateTimeStable(detail.endsAt).split(" ")[0]}</span> : null}
+            {detail.mode === "BIAS" ? <span>· 加成票 {detail.biasVotesPerUser} 张，只在共享榜单聚合时加成</span> : null}
           </div>
 
           {detail.currentUserState ? (
@@ -268,7 +269,7 @@ export default function SeasonDetailPage() {
           ) : null}
 
           <div className="mt-5 flex flex-wrap gap-3">
-            {detail.status === "ACTIVE" ? (
+            {seasonState.canVote ? (
               <Link href={`/pools/${poolId}/seasons/${seasonId}/match`} className={appButtonClasses({ variant: "primary" })}>
                 开始对决
               </Link>
@@ -522,6 +523,52 @@ export default function SeasonDetailPage() {
       </main>
     </PageShell>
   );
+}
+
+function getSeasonDisplayState(detail: Pick<SeasonDetail, "status" | "startsAt" | "endsAt">) {
+  const now = Date.now();
+  const startsAt = new Date(detail.startsAt).getTime();
+  const endsAt = detail.endsAt ? new Date(detail.endsAt).getTime() : null;
+
+  if (detail.status === "ENDED") {
+    return {
+      label: "已结束",
+      shortLabel: "结果已定格",
+      description: "本赛季投票已经结束。你仍可以查看个人赛季结果与匿名聚合的共享榜单。",
+      tone: "muted" as const,
+      canVote: false,
+    };
+  }
+
+  if (detail.status === "DRAFT" || now < startsAt) {
+    return {
+      label: "未开始",
+      shortLabel: "等待开放",
+      description: `赛季尚未开放投票，将在 ${formatDateTimeStable(detail.startsAt)} 开放。`,
+      tone: "warning" as const,
+      canVote: false,
+    };
+  }
+
+  if (endsAt !== null && now > endsAt) {
+    return {
+      label: "投票已截止",
+      shortLabel: "查看结果",
+      description: "投票时间已经结束。结果会保留在个人赛季和共享榜单中，等待管理员结算或结束赛季。",
+      tone: "muted" as const,
+      canVote: false,
+    };
+  }
+
+  return {
+    label: "开放中",
+    shortLabel: "可以投票",
+    description: detail.endsAt
+      ? `现在可以开始对决，投票截止到 ${formatDateTimeStable(detail.endsAt)}。`
+      : "现在可以开始对决。达到个人票数上限或管理员结束赛季前，都可以继续校准你的个人赛季排名。",
+    tone: "success" as const,
+    canVote: true,
+  };
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {

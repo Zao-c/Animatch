@@ -202,21 +202,24 @@ describe("SeasonImpactPanel UI", () => {
   });
 
   it("has empty state for zero votes", () => {
-    expect(source).toContain("还没有足够的投票记录");
+    expect(source).toContain("还没有投票记录");
+    expect(source).toContain("完成第一轮对决后");
   });
 
-  it("shows total stats", () => {
-    expect(source).toContain("总投票数");
-    expect(source).toContain("参与人数");
-    expect(source).toContain("总影响力");
+  it("leads with a player-readable season story instead of raw impact stats", () => {
+    expect(source).toContain("SeasonStory");
+    expect(source).toContain("当前最受支持");
+    expect(source).toContain("带来最多排序变化的玩家");
+    expect(source).toContain("排序变化不是玩家积分");
   });
 
   it("shows private vote count", () => {
     expect(source).toContain("私心票");
   });
 
-  it("has current user impact section", () => {
-    expect(source).toContain("我的影响力");
+  it("has current user participation section", () => {
+    expect(source).toContain("我的参与");
+    expect(source).toContain("排序变化 {formatImpactNumber(impact.currentUserImpact.totalScoreSwing)}");
   });
 
   it("shows rank when user participated", () => {
@@ -229,10 +232,15 @@ describe("SeasonImpactPanel UI", () => {
   });
 
   it("has tab buttons", () => {
-    expect(source).toContain("玩家影响力");
-    expect(source).toContain("作品支持榜");
-    expect(source).toContain("作品打压榜");
+    expect(source).toContain("当前支持");
+    expect(source).toContain("玩家参与");
+    expect(source).toContain("较少被选择");
     expect(source).toContain("关键投票");
+  });
+
+  it("defaults to the work-focused view and keeps raw ranking data optional", () => {
+    expect(source).toContain('useState<"players" | "support" | "suppress" | "keyvotes">("support")');
+    expect(source).toContain("tab === \"support\"");
   });
 
   it("has PlayerImpactTable with columns", () => {
@@ -252,8 +260,13 @@ describe("SeasonImpactPanel UI", () => {
     expect(source).toContain("KeyVotesTable");
   });
 
-  it("shows bias stats when present", () => {
-    expect(source).toContain("私心票统计");
+  it("shows bias usage when present", () => {
+    expect(source).toContain("私心票使用");
+  });
+
+  it("keeps support and loss metrics aligned with their actual data meaning", () => {
+    expect(source).toContain("落选次数");
+    expect(source).toContain("相关对决选择");
   });
 
   it("shows 'no bias' when none", () => {

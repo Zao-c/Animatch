@@ -68,6 +68,12 @@ describe("community ranking UI wiring", () => {
     expect(detailSource).toContain("item.comparisonCount");
   });
 
+  it("keeps shared Tier summary metrics in the parent section instead of duplicating them in the Tier view", () => {
+    const averageTierSource = readFileSync("src/components/CommunityAverageTierList.tsx", "utf8");
+    expect(averageTierSource).not.toContain("CommunityTierStat");
+    expect(averageTierSource).toContain("样本不足的作品会保留展示");
+  });
+
   it("exports the shared community Tier List through the same image export pipeline", () => {
     expect(detailSource).toContain("buildCommunityTierShareTiers");
     expect(detailSource).toContain("exportShareCardAsPng");

@@ -54,15 +54,6 @@ export function CommunityAverageTierList({
 
   return (
     <div className="mt-5 space-y-5">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <CommunityTierStat label="参与人数" value={String(ranking.totalParticipants)} />
-        <CommunityTierStat label="有效轮次" value={String(ranking.totalRuns)} />
-        <CommunityTierStat
-          label="正式排名门槛"
-          value={`${ranking.minSampleThreshold.minUsers} 人 / ${ranking.minSampleThreshold.minComparisons} 次`}
-        />
-      </div>
-
       <p className="rounded-xl border border-cyan-300/15 bg-cyan-300/[0.06] px-4 py-3 text-sm leading-6 text-slate-300">
         社区平均 Tier List 使用宽版布局，按社区聚合 Elo 排序后分桶。样本不足的作品会保留展示，但不会挤进正式排名。
       </p>
@@ -181,17 +172,6 @@ function CommunityTierEmptyState({
           </div>
         </section>
       ) : null}
-    </div>
-  );
-}
-
-function CommunityTierStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-1 text-xl font-black leading-tight text-white [overflow-wrap:anywhere]">
-        {value}
-      </p>
     </div>
   );
 }
