@@ -254,7 +254,9 @@ function PoolsPageContent() {
   }
 
   const hasSearch = query.trim().length > 0;
-  const readyCount = pools.filter((pool) => pool.uiStatus === "READY").length;
+  const playableCount = pools.filter(
+    (pool) => !isPoolArchived(pool) && (pool.animeCount ?? 0) >= 2
+  ).length;
   const isPublicView = view === "PUBLIC";
   const viewCopy = getPoolViewCopy(view);
 
@@ -275,7 +277,7 @@ function PoolsPageContent() {
         <div className="flex flex-wrap items-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-4 py-2 text-xs text-slate-400">
           <span className="font-black text-white">{String(pools.length)}</span> 个番组
           <span className="text-slate-500">·</span>
-          <span className="font-black text-emerald-200">{String(readyCount)}</span> 可开始
+          <span className="font-black text-emerald-200">{String(playableCount)}</span> 可对决
           <span className="text-slate-500">·</span>
           <span className="text-slate-400">筛选 {FILTERS.find((item) => item.value === filter)?.label ?? "全部"}</span>
         </div>
@@ -387,7 +389,7 @@ function PoolsPageContent() {
       <section className="mt-8">
         <SectionHeader
           eyebrow="Pools"
-          title={isPublicView ? "公开番组列表" : "番组列表"}
+          title={isPublicView ? "正在开放的大乱斗" : "番组列表"}
           description={isPublicView ? "所有人都可以浏览公开番组；登录后加入大乱斗会进入你自己的个人对决。" : "默认隐藏已归档番组；切到已归档可以恢复或查看历史。"}
         />
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -563,11 +565,7 @@ function PoolCard({
             </Link>
             {officialDemoLabel ? <AppBadge tone="source">{officialDemoLabel}</AppBadge> : null}
           </div>
-          {officialDemoLabel ? (
-            <div className="flex flex-wrap gap-2">
-              <AppBadge tone="source">{officialDemoLabel}</AppBadge>
-            </div>
-          ) : (
+          {!officialDemoLabel ? (
             <div className="flex flex-wrap gap-2">
               <AppBadge tone={visibilityTone(pool.visibility)}>
                 {formatPoolVisibility(pool.visibility)}
@@ -576,32 +574,22 @@ function PoolCard({
                 <AppBadge tone="status">可参与社区大乱斗</AppBadge>
               ) : null}
             </div>
-          )}
+          ) : null}
           <p className="mt-3 line-clamp-2 min-h-10 text-sm leading-5 text-slate-400">
             {pool.description ?? "暂无描述"}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <AppBadge tone={toneForStatus(uiStatus)}>{statusLabel}</AppBadge>
+            {!isPublicView ? <AppBadge tone={toneForStatus(uiStatus)}>{statusLabel}</AppBadge> : null}
             {animeCount > 0 ? (
               <AppBadge tone="muted">{animeCount} 部动画</AppBadge>
             ) : null}
-            {comparisonCount > 0 ? (
+            {!isPublicView && comparisonCount > 0 ? (
               <AppBadge tone="muted">{comparisonLabel}</AppBadge>
             ) : null}
-            {isArchived ? <AppBadge tone="danger">已归档</AppBadge> : null}
+            {!isPublicView && isArchived ? <AppBadge tone="danger">已归档</AppBadge> : null}
           </div>
-          {pool.tags.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {pool.tags.slice(0, 4).map((tag) => (
-                <AppBadge key={tag} tone="muted">
-                  {labelAnimeTag(tag)}
-                </AppBadge>
-              ))}
-            </div>
-          ) : null}
-
           {isPublicView && pool.visibility === "PUBLIC" && pool.communitySummary ? (
-            <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.025] p-3">
+            <div className="mt-3 border-t border-white/10 pt-3">
               {pool.communitySummary.sampleLabel === "empty" ? (
                 <p className="text-xs leading-5 text-slate-500">
                   还没有社区结果。成为第一个参与的人。
@@ -639,10 +627,6 @@ function PoolCard({
             </div>
           ) : null}
 
-          <p className="mt-3 text-xs text-slate-500">
-            更新于 {formatDateTimeStable(pool.updatedAt)}
-            {confidenceScore > 0 ? ` · ${confidenceLabel} ${confidenceScore.toFixed(1)}` : ""}
-          </p>
           <div className="mt-auto pt-4">
             {canMatch || canPromptLoginToMatch ? (
               <AppButton
@@ -653,7 +637,7 @@ function PoolCard({
                 }
                 disabled={isMutating}
                 variant="primary"
-                size="sm"
+                size="md"
                 className="w-full"
               >
                 {isPublicView && pool.visibility === "PUBLIC"
@@ -677,9 +661,22 @@ function PoolCard({
             <summary className="cursor-pointer select-none text-sm font-semibold text-slate-300">
               更多操作
             </summary>
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              更新于 {formatDateTimeStable(pool.updatedAt)}
+              {confidenceScore > 0 ? ` · ${confidenceLabel} ${confidenceScore.toFixed(1)}` : ""}
+            </p>
+            {pool.tags.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {pool.tags.slice(0, 4).map((tag) => (
+                  <AppBadge key={tag} tone="muted">
+                    {labelAnimeTag(tag)}
+                  </AppBadge>
+                ))}
+              </div>
+            ) : null}
             <div className="mt-3 flex flex-wrap gap-2">
               <Link href={`/pools/${pool.id}`} className={appButtonClasses({ variant: "secondary", size: "sm" })}>
-                进入
+                查看详情
               </Link>
               {!isPublicView && !isArchived && canAddAnime ? (
                 <Link href={`/pools/${pool.id}#add-anime`} className={appButtonClasses({ variant: "ghost", size: "sm" })}>

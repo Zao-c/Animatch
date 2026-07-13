@@ -60,6 +60,12 @@ services:
       ANIMATCH_IMAGE_PROXY_BLOCKED_HOSTS: ${ANIMATCH_IMAGE_PROXY_BLOCKED_HOSTS:-}
     ports:
       - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/api/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     volumes:
       - anime_uploads:/app/public/uploads
       - animatch_image_cache:/app/data/image-cache

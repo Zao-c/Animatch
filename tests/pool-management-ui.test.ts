@@ -46,6 +46,12 @@ describe("pool management UI", () => {
     expect(poolsSource).toContain("社区榜单稳定度");
   });
 
+  it("counts cards that can actually enter a duel instead of only ready-status cards", () => {
+    expect(poolsSource).toContain("const playableCount = pools.filter(");
+    expect(poolsSource).toContain("!isPoolArchived(pool) && (pool.animeCount ?? 0) >= 2");
+    expect(poolsSource).toContain("可对决");
+  });
+
   it("renders pool card visibility labels without question-mark placeholders", () => {
     const apiSource = readFileSync("src/app/api/pools/route.ts", "utf8");
 

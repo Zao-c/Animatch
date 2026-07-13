@@ -31,6 +31,7 @@ Windows PowerShell 下复制 `.env`：
 
 ```powershell
 Copy-Item .env.example .env
+```
 
 Friend Auth uses these local environment variables:
 
@@ -42,7 +43,6 @@ For production, generate `AUTH_SECRET` with:
 
 ```bash
 openssl rand -base64 32
-```
 ```
 
 也可以使用脚本：

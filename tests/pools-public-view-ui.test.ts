@@ -177,4 +177,14 @@ describe("public pools community summary", () => {
     const variantPrimaryCount = (poolsSource.match(/variant="primary"/g) ?? []).length;
     expect(variantPrimaryCount).toBeGreaterThanOrEqual(1);
   });
+
+  it("keeps the card focused by folding metadata and avoiding duplicate demo badges", () => {
+    expect(poolsSource).toContain('size="md"');
+    expect(poolsSource).toContain("更新于 {formatDateTimeStable(pool.updatedAt)}");
+    expect(poolsSource).toContain("!officialDemoLabel ?");
+    expect(poolsSource).toContain("pool.tags.slice(0, 4)");
+    expect(poolsSource).toContain("!isPublicView ? <AppBadge tone={toneForStatus(uiStatus)}>");
+    expect(poolsSource).toContain('className="mt-3 border-t border-white/10 pt-3"');
+    expect(poolsSource).toContain("查看详情");
+  });
 });
