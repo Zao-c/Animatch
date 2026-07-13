@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PageShell } from "@/components/PageShell";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
@@ -33,6 +33,8 @@ const STATUS_TONES: Record<string, string> = {
   LOCKED: "bg-amber-500/20 text-amber-300",
   ARCHIVED: "bg-rose-500/20 text-rose-300"
 };
+
+type AdminDangerousAction = "archive" | "restoreArchived" | "softDelete" | "restoreDeleted";
 
 function StatusBadge({ status }: { status: string }) {
   return (
@@ -75,9 +77,15 @@ export default function AdminPage() {
 
   const [confirmTarget, setConfirmTarget] = useState<{
     pool: AdminPoolItem;
-    action: string;
+    action: AdminDangerousAction;
   } | null>(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
+  const [confirmPhrase, setConfirmPhrase] = useState("");
+  const pageHeadingRef = useRef<HTMLHeadingElement | null>(null);
+  const editNameInputRef = useRef<HTMLInputElement | null>(null);
+  const confirmPhraseInputRef = useRef<HTMLInputElement | null>(null);
+  const lastFocusedElementRef = useRef<HTMLElement | null>(null);
+  const shouldFocusHeadingRef = useRef(false);
 
   useEffect(() => {
     getMe()
@@ -115,6 +123,96 @@ export default function AdminPage() {
       setLoadingPools(false);
     }
   }, [q, filterVisibility, filterStatus, filterDeleted, filterDemo, page]);
+
+  const openEditor = (pool: AdminPoolItem) => {
+    lastFocusedElementRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    setEditTarget(pool);
+    setEditName(pool.name);
+    setEditDescription(pool.description ?? "");
+    setEditVisibility(pool.visibility);
+    setEditError("");
+  };
+
+  const openDangerousAction = (pool: AdminPoolItem, action: AdminDangerousAction) => {
+    lastFocusedElementRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    setConfirmPhrase("");
+    setConfirmTarget({ pool, action });
+  };
+
+  const closeEditor = useCallback(() => {
+    if (!editLoading) {
+      setEditTarget(null);
+    }
+  }, [editLoading]);
+
+  const closeDangerousAction = useCallback(() => {
+    if (!confirmLoading) {
+      setConfirmTarget(null);
+      setConfirmPhrase("");
+    }
+  }, [confirmLoading]);
+
+  useEffect(() => {
+    const isDialogOpen = editTarget !== null || confirmTarget !== null;
+
+    if (!isDialogOpen) {
+      const focusTarget = shouldFocusHeadingRef.current
+        ? pageHeadingRef.current
+        : lastFocusedElementRef.current;
+      shouldFocusHeadingRef.current = false;
+      if (focusTarget?.isConnected) {
+        focusTarget.focus();
+      }
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const initialFocus = editTarget !== null ? editNameInputRef.current : confirmPhraseInputRef.current;
+    const focusTimer = window.setTimeout(() => initialFocus?.focus(), 0);
+
+    const handleDialogKeyDown = (event: KeyboardEvent) => {
+      const isBusy = editLoading || confirmLoading;
+
+      if (event.key === "Escape" && !isBusy) {
+        event.preventDefault();
+        if (editTarget !== null) closeEditor();
+        if (confirmTarget !== null) closeDangerousAction();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const dialog = document.querySelector<HTMLElement>("[data-admin-dialog='true']");
+      const focusable = dialog
+        ? Array.from(dialog.querySelectorAll<HTMLElement>(
+            "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href]"
+          )).filter((element) => element.tabIndex >= 0)
+        : [];
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleDialogKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.removeEventListener("keydown", handleDialogKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [closeDangerousAction, closeEditor, confirmLoading, confirmTarget, editLoading, editTarget]);
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,8 +253,9 @@ export default function AdminPage() {
         description: editDescription || undefined,
         visibility: editVisibility
       });
+      await loadPools();
+      shouldFocusHeadingRef.current = true;
       setEditTarget(null);
-      loadPools();
     } catch (err) {
       setEditError(err instanceof Error ? err.message : "更新失败");
     } finally {
@@ -165,17 +264,19 @@ export default function AdminPage() {
   };
 
   const handleDangerousAction = async () => {
-    if (!confirmTarget) return;
+    if (!confirmTarget || confirmPhrase !== "CONFIRM") return;
     setConfirmLoading(true);
     try {
-      const body: Record<string, unknown> = { confirm: "CONFIRM" };
+      const body: Record<string, unknown> = { confirm: confirmPhrase };
       if (confirmTarget.action === "archive") body.archive = true;
       if (confirmTarget.action === "restoreArchived") body.restoreArchived = true;
       if (confirmTarget.action === "softDelete") body.softDelete = true;
       if (confirmTarget.action === "restoreDeleted") body.restoreDeleted = true;
       await updateAdminPool(confirmTarget.pool.id, body as any);
+      await loadPools();
+      shouldFocusHeadingRef.current = true;
       setConfirmTarget(null);
-      loadPools();
+      setConfirmPhrase("");
     } catch (err) {
       setPoolError(err instanceof Error ? err.message : "操作失败");
     } finally {
@@ -253,7 +354,7 @@ export default function AdminPage() {
       <div className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white">站长后台</h1>
+            <h1 ref={pageHeadingRef} tabIndex={-1} className="text-2xl font-bold text-white">站长后台</h1>
             <p className="mt-2 text-xs text-amber-400">
               站长操作会影响所有用户可见内容。不会硬删除对决记录；归档和软删除可恢复。
             </p>
@@ -463,13 +564,7 @@ export default function AdminPage() {
                           <AppButton
                             size="sm"
                             variant="ghost"
-                            onClick={() => {
-                              setEditTarget(pool);
-                              setEditName(pool.name);
-                              setEditDescription(pool.description ?? "");
-                              setEditVisibility(pool.visibility);
-                              setEditError("");
-                            }}
+                            onClick={() => openEditor(pool)}
                           >
                             编辑
                           </AppButton>
@@ -477,12 +572,7 @@ export default function AdminPage() {
                             <AppButton
                               size="sm"
                               variant="ghost"
-                              onClick={() =>
-                                setConfirmTarget({
-                                  pool,
-                                  action: "archive"
-                                })
-                              }
+                              onClick={() => openDangerousAction(pool, "archive")}
                             >
                               归档
                             </AppButton>
@@ -491,12 +581,7 @@ export default function AdminPage() {
                             <AppButton
                               size="sm"
                               variant="ghost"
-                              onClick={() =>
-                                setConfirmTarget({
-                                  pool,
-                                  action: "restoreArchived"
-                                })
-                              }
+                              onClick={() => openDangerousAction(pool, "restoreArchived")}
                             >
                               恢复
                             </AppButton>
@@ -506,12 +591,7 @@ export default function AdminPage() {
                               size="sm"
                               variant="ghost"
                               className="text-rose-400 hover:text-rose-300"
-                              onClick={() =>
-                                setConfirmTarget({
-                                  pool,
-                                  action: "softDelete"
-                                })
-                              }
+                              onClick={() => openDangerousAction(pool, "softDelete")}
                             >
                               软删除
                             </AppButton>
@@ -521,12 +601,7 @@ export default function AdminPage() {
                               size="sm"
                               variant="ghost"
                               className="text-emerald-400 hover:text-emerald-300"
-                              onClick={() =>
-                                setConfirmTarget({
-                                  pool,
-                                  action: "restoreDeleted"
-                                })
-                              }
+                              onClick={() => openDangerousAction(pool, "restoreDeleted")}
                             >
                               恢复
                             </AppButton>
@@ -566,15 +641,28 @@ export default function AdminPage() {
         )}
 
         {editTarget ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <div className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6">
-              <h2 className="text-lg font-bold text-white">编辑番组</h2>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) closeEditor();
+            }}
+          >
+            <div
+              data-admin-dialog="true"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="admin-edit-dialog-title"
+              aria-busy={editLoading}
+              className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6"
+            >
+              <h2 id="admin-edit-dialog-title" className="text-lg font-bold text-white">编辑番组</h2>
               <form onSubmit={handleUpdate} className="mt-4 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-300">
                     名称
                   </label>
                   <input
+                    ref={editNameInputRef}
                     type="text"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
@@ -616,7 +704,8 @@ export default function AdminPage() {
                   <AppButton
                     type="button"
                     variant="ghost"
-                    onClick={() => setEditTarget(null)}
+                    onClick={closeEditor}
+                    disabled={editLoading}
                     className="flex-1"
                   >
                     取消
@@ -635,10 +724,23 @@ export default function AdminPage() {
         ) : null}
 
         {confirmTarget ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <div className="w-full max-w-sm rounded-xl border border-amber-500/30 bg-slate-900 p-6">
-              <h2 className="text-lg font-bold text-amber-400">确认操作</h2>
-              <p className="mt-2 text-sm text-slate-300">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) closeDangerousAction();
+            }}
+          >
+            <div
+              data-admin-dialog="true"
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="admin-danger-dialog-title"
+              aria-describedby="admin-danger-dialog-description"
+              aria-busy={confirmLoading}
+              className="w-full max-w-sm rounded-xl border border-amber-500/30 bg-slate-900 p-6"
+            >
+              <h2 id="admin-danger-dialog-title" className="text-lg font-bold text-amber-400">确认操作</h2>
+              <p id="admin-danger-dialog-description" className="mt-2 text-sm text-slate-300">
                 {confirmTarget.action === "archive" &&
                   `确定要归档「${confirmTarget.pool.name}」吗？归档后用户无法参与对决。`}
                 {confirmTarget.action === "restoreArchived" &&
@@ -651,11 +753,25 @@ export default function AdminPage() {
               <p className="mt-3 text-xs text-slate-500">
                 此操作需要输入 CONFIRM 确认。
               </p>
+              <label className="mt-3 block text-sm font-medium text-slate-300">
+                输入 CONFIRM
+                <input
+                  ref={confirmPhraseInputRef}
+                  type="text"
+                  value={confirmPhrase}
+                  onChange={(event) => setConfirmPhrase(event.target.value)}
+                  autoComplete="off"
+                  spellCheck={false}
+                  disabled={confirmLoading}
+                  className="mt-1 block w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white transition focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                />
+              </label>
               <div className="mt-4 flex gap-3">
                 <AppButton
                   type="button"
                   variant="ghost"
-                  onClick={() => setConfirmTarget(null)}
+                  onClick={closeDangerousAction}
+                  disabled={confirmLoading}
                   className="flex-1"
                 >
                   取消
@@ -663,7 +779,7 @@ export default function AdminPage() {
                 <AppButton
                   type="button"
                   variant="danger"
-                  disabled={confirmLoading}
+                  disabled={confirmLoading || confirmPhrase !== "CONFIRM"}
                   onClick={handleDangerousAction}
                   className="flex-1"
                 >

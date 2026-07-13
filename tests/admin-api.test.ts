@@ -262,6 +262,24 @@ describe("Admin Pools API", () => {
     expect(response.status).toBe(400);
   });
 
+  it("rejects requests that combine multiple dangerous operations", async () => {
+    setAdminOk();
+
+    const pool = makePool({ id: "pool-1", status: PoolStatus.PUBLISHED });
+    mockedCustomPool.findUnique.mockResolvedValue(pool as any);
+
+    const req = new Request("http://localhost/api/admin/pools/pool-1", {
+      method: "PATCH",
+      body: JSON.stringify({ archive: true, softDelete: true, confirm: "CONFIRM" })
+    });
+    const response = await PATCH_ADMIN_POOL(req, { params: { poolId: "pool-1" } });
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload.error.message).toContain("Only one dangerous operation");
+    expect(mockedCustomPool.update).not.toHaveBeenCalled();
+  });
+
   it("admin can soft delete a pool with confirm", async () => {
     setAdminOk();
 

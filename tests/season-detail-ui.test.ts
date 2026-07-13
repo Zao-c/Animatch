@@ -27,9 +27,13 @@ describe("season detail UI", () => {
   it("offers a one-click season share action", () => {
     expect(source).toContain("handleCopySeasonShare");
     expect(source).toContain("AniMatch 大乱斗赛季《");
-    expect(source).toContain("打开后登录即可开始对决。");
+    expect(source).toContain("打开链接后登录即可参与对决");
+    expect(source).toContain("赛季已结束或投票已截止");
+    expect(source).toContain("#season-results");
     expect(source).toContain("分享赛季");
-    expect(source).toContain("已复制赛季分享链接。");
+    expect(source).toContain("分享结果");
+    expect(source).toContain("已复制赛季参与链接。");
+    expect(source).toContain("已复制赛季结果链接。");
   });
 
   it("shows personal season results before shared aggregation", () => {

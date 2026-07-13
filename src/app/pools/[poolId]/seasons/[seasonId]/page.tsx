@@ -147,17 +147,24 @@ export default function SeasonDetailPage() {
   const handleCopySeasonShare = async () => {
     if (!detail) return;
 
-    const seasonUrl = `${window.location.origin}/pools/${poolId}/seasons/${seasonId}`;
+    const canVote = getSeasonScheduleState(detail).canVote;
+    const seasonUrl = `${window.location.origin}/pools/${poolId}/seasons/${seasonId}${
+      canVote ? "" : "#season-results"
+    }`;
     const shareText = [
       `AniMatch 大乱斗赛季《${detail.title}》`,
       seasonUrl,
-      "打开后登录即可开始对决。"
+      canVote
+        ? "打开链接后登录即可参与对决（需要拥有番组访问权限）。"
+        : "赛季已结束或投票已截止，打开链接可查看赛季共享结果。"
     ].join("\n");
     const result = await copyTextWithFallback(shareText);
 
     setShareNotice(
       result === "copied"
-        ? "已复制赛季分享链接。"
+        ? canVote
+          ? "已复制赛季参与链接。"
+          : "已复制赛季结果链接。"
         : `浏览器禁止自动复制，请手动复制地址：${seasonUrl}`
     );
   };
@@ -311,7 +318,7 @@ export default function SeasonDetailPage() {
               </AppButton>
             ) : null}
             <AppButton type="button" onClick={handleCopySeasonShare} variant="secondary">
-              分享赛季
+              {seasonState.canVote ? "分享赛季" : "分享结果"}
             </AppButton>
           </div>
           {shareNotice ? (

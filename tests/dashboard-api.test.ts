@@ -11,8 +11,10 @@ vi.mock("../src/lib/auth-session", () => ({
 
 vi.mock("../src/lib/db", () => ({
   prisma: {
+    personalRun: {
+      findFirst: vi.fn()
+    },
     customPool: {
-      findMany: vi.fn(),
       findUnique: vi.fn()
     }
   }
@@ -23,6 +25,7 @@ vi.mock("../src/lib/demo-pool", () => ({
 }));
 
 const mockedCustomPool = vi.mocked(prisma.customPool);
+const mockedPersonalRun = vi.mocked(prisma.personalRun);
 const mockedGetOrCreateOfficialDemoPool = vi.mocked(getOrCreateOfficialDemoPool);
 
 function pool(overrides: Record<string, unknown> = {}) {
@@ -85,12 +88,10 @@ describe("GET /api/dashboard miniMatchPreview", () => {
   });
 
   it("returns real preview pairs for a continue run", async () => {
-    mockedCustomPool.findMany.mockResolvedValue([
-      pool({
-        poolAnime: [entry(1), entry(2), entry(3), entry(4)],
-        personalRuns: [{ id: "run-1" }]
-      })
-    ] as any);
+    mockedPersonalRun.findFirst.mockResolvedValue({
+      id: "run-1",
+      pool: pool({ poolAnime: [entry(1), entry(2), entry(3), entry(4)] })
+    } as any);
 
     const response = await GET();
     const payload = await response.json();
@@ -101,18 +102,17 @@ describe("GET /api/dashboard miniMatchPreview", () => {
       poolId: "pool-1",
       runId: "run-1",
       ctaHref: "/pools/pool-1/runs/run-1/match",    });
+    expect(payload.data.miniMatchPreview.ctaLabel).toBe("继续当前对决");
     expect(payload.data.miniMatchPreview.pairs).toHaveLength(2);
     expect(payload.data.miniMatchPreview.pairs[0].left.title).toBe("Anime 1");
     expect(payload.data.miniMatchPreview.pairs[0].right.imageUrl).toBe("https://img.example.test/2.jpg");
   });
 
   it("uses only current active PoolAnime entries for preview pairs", async () => {
-    mockedCustomPool.findMany.mockResolvedValue([
-      pool({
-        poolAnime: [entry(1), entry(3)],
-        personalRuns: [{ id: "run-1" }]
-      })
-    ] as any);
+    mockedPersonalRun.findFirst.mockResolvedValue({
+      id: "run-1",
+      pool: pool({ poolAnime: [entry(1), entry(3)] })
+    } as any);
 
     const response = await GET();
     const payload = await response.json();
@@ -122,7 +122,7 @@ describe("GET /api/dashboard miniMatchPreview", () => {
   });
 
   it("falls back to the official demo preview when no continue run exists", async () => {
-    mockedCustomPool.findMany.mockResolvedValue([]);
+    mockedPersonalRun.findFirst.mockResolvedValue(null);
     mockedCustomPool.findUnique.mockResolvedValue(
       pool({
         id: "official-demo",
@@ -142,5 +142,29 @@ describe("GET /api/dashboard miniMatchPreview", () => {
       ctaLabel: "体验示例番组"
     });
     expect(payload.data.miniMatchPreview.pairs).toHaveLength(2);
+  });
+
+  it("uses the most recently updated active run instead of the most recently edited pool", async () => {
+    mockedPersonalRun.findFirst.mockResolvedValue({
+      id: "recent-run",
+      pool: pool({
+        id: "older-pool",
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        poolAnime: [entry(1), entry(2)]
+      })
+    } as any);
+
+    const response = await GET();
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data.miniMatchPreview).toMatchObject({
+      poolId: "older-pool",
+      runId: "recent-run",
+      ctaHref: "/pools/older-pool/runs/recent-run/match"
+    });
+    expect(mockedPersonalRun.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: { updatedAt: "desc" } })
+    );
   });
 });

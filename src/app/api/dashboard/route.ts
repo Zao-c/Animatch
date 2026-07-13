@@ -11,67 +11,49 @@ export async function GET() {
     const user = await getCurrentUser();
 
     if (user !== null) {
-      const pools = await prisma.customPool.findMany({
+      const continueRun = await prisma.personalRun.findFirst({
         where: {
-          personalRuns: {
-            some: {
-              userId: user.id,
-              isDefault: true,
-              status: {
-                not: "DELETED"
-              },
-              deletedAt: null
-            }
-          },
+          userId: user.id,
+          isDefault: true,
           status: {
-            not: PoolStatus.ARCHIVED
+            not: "DELETED"
           },
-          deletedAt: null
+          deletedAt: null,
+          pool: {
+            status: {
+              not: PoolStatus.ARCHIVED
+            },
+            deletedAt: null
+          }
         },
         include: {
-          poolAnime: {
-            orderBy: {
-              position: "asc"
-            },
+          pool: {
             include: {
-              anime: true
+              poolAnime: {
+                orderBy: {
+                  position: "asc"
+                },
+                include: {
+                  anime: true
+                }
+              }
             }
-          },
-          personalRuns: {
-            where: {
-              userId: user.id,
-              isDefault: true,
-              status: {
-                not: "DELETED"
-              },
-              deletedAt: null
-            },
-            orderBy: {
-              updatedAt: "desc"
-            },
-            take: 1
           }
         },
         orderBy: {
           updatedAt: "desc"
-        },
-        take: 8
+        }
       });
 
-      const continuePool = pools.find(
-        (pool) => pool.poolAnime.length >= 2 && pool.personalRuns[0] !== undefined
-      );
-
-      if (continuePool !== undefined) {
-        const runId = continuePool.personalRuns[0].id;
+      if (continueRun !== null && continueRun.pool.poolAnime.length >= 2) {
         return ok({
           miniMatchPreview: buildPreview({
             source: "CONTINUE_RUN",
-            poolId: continuePool.id,
-            runId,
-            ctaHref: `/pools/${continuePool.id}/runs/${runId}/match`,
-            ctaLabel: "\u5f00\u59cb\u771f\u5b9e\u5bf9\u51b3",
-            entries: continuePool.poolAnime
+            poolId: continueRun.pool.id,
+            runId: continueRun.id,
+            ctaHref: `/pools/${continueRun.pool.id}/runs/${continueRun.id}/match`,
+            ctaLabel: "\u7ee7\u7eed\u5f53\u524d\u5bf9\u51b3",
+            entries: continueRun.pool.poolAnime
           })
         });
       }

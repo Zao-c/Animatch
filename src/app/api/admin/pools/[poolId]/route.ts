@@ -42,11 +42,18 @@ export async function PATCH(request: Request, context: RouteContext) {
       return notFound("Pool not found");
     }
 
-    const isDangerousOp =
-      body.archive === true ||
-      body.softDelete === true ||
-      body.restoreDeleted === true ||
-      body.restoreArchived === true;
+    const dangerousOperationCount = [
+      body.archive === true,
+      body.softDelete === true,
+      body.restoreDeleted === true,
+      body.restoreArchived === true
+    ].filter(Boolean).length;
+
+    if (dangerousOperationCount > 1) {
+      return badRequest("Only one dangerous operation may be requested at a time");
+    }
+
+    const isDangerousOp = dangerousOperationCount === 1;
 
     if (isDangerousOp) {
       if (typeof body.confirm !== "string" || body.confirm !== "CONFIRM") {
