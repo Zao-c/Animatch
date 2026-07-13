@@ -67,4 +67,15 @@ describe("season detail UI", () => {
     expect(source).toContain("只在共享榜单聚合时加成");
     expect(source).toContain("加成票模式");
   });
+
+  it("lets managers configure opening and deadline times with local datetime inputs", () => {
+    expect(source).toContain("type=\"datetime-local\"");
+    expect(source).toContain("toDateTimeLocalInputValue(detail.startsAt)");
+    expect(source).toContain("dateTimeLocalToIso(editForm.startsAt)");
+    expect(source).toContain("editForm.endsAt.trim() === \"\" ? null");
+  });
+
+  it("labels draft activation as publishing so a scheduled opening is not implied to start immediately", () => {
+    expect(source).toContain("发布赛季");
+  });
 });

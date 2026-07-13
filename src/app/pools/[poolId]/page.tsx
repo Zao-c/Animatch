@@ -1537,7 +1537,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
       <nav
         aria-label="番组导航"
-        className="sticky top-20 z-20 mt-5 rounded-xl border border-white/10 bg-slate-950/90 p-1.5 shadow-lg shadow-slate-950/25 backdrop-blur sm:top-24"
+        className="z-20 mt-5 rounded-xl border border-white/10 bg-slate-950/90 p-1.5 shadow-lg shadow-slate-950/25 backdrop-blur sm:sticky sm:top-24"
       >
         <div className="flex flex-wrap gap-1.5">
           <a href="#anime-wall" className={appButtonClasses({ variant: "quiet", size: "md" })}>
@@ -2587,18 +2587,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                           .map((item) => {
                             const isSelected = tiermakerSelectedIndexes.has(item.sourceIndex);
                             return (
-                              <div
+                              <label
                                 key={item.sourceIndex}
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => toggleTiermakerItem(item.sourceIndex)}
-                                onKeyDown={(event) => {
-                                  if (event.key === "Enter" || event.key === " ") {
-                                    event.preventDefault();
-                                    toggleTiermakerItem(item.sourceIndex);
-                                  }
-                                }}
-                                className={`overflow-hidden rounded-xl border transition duration-anime ${
+                                className={`cursor-pointer overflow-hidden rounded-xl border transition duration-anime ${
                                   isSelected
                                     ? "border-anime-cyan/60 bg-anime-cyan/[0.08] ring-1 ring-anime-cyan/30"
                                     : "border-anime-border bg-white/[0.03] hover:border-anime-cyan/25"
@@ -2623,7 +2614,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                                     {item.title}
                                   </p>
                                 </div>
-                              </div>
+                              </label>
                             );
                           })}
                       </div>
@@ -3290,7 +3281,7 @@ function PoolAnimeCard({
           </p>
         ) : null}
         {canManage && !batchMode ? (
-        <div className="absolute inset-x-3 bottom-3 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-slate-950/78 p-2 opacity-0 shadow-anime-panel backdrop-blur-xl transition-opacity duration-anime group-hover:opacity-100 group-focus-within:opacity-100">
+        <div className="absolute inset-x-3 bottom-3 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-slate-950/78 p-2 opacity-100 shadow-anime-panel backdrop-blur-xl transition-opacity duration-anime sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
           {!isArchived ? (
             <AppButton onClick={onEdit} disabled={isMutating} variant="quiet" size="sm">
               编辑显示

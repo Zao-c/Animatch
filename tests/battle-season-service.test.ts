@@ -4,7 +4,8 @@ import {
   SEASON_DAILY_LIMIT_TIME_ZONE,
   getSeasonDailyVoteWindow,
   normalizeSeasonCreateInput,
-  normalizeSeasonUpdateInput
+  normalizeSeasonUpdateInput,
+  resolveSeasonScheduleUpdate
 } from "../src/lib/season-service";
 
 function readSource(path: string): string {
@@ -164,6 +165,29 @@ describe("Season service permissions and limits", () => {
       description: null,
       maxVotesPerUserPerDay: null
     });
+  });
+
+  it("validates a date update against the untouched side of an existing schedule", () => {
+    const current = {
+      startsAt: new Date("2026-07-10T00:00:00.000Z"),
+      endsAt: new Date("2026-07-20T00:00:00.000Z")
+    };
+
+    expect(() => resolveSeasonScheduleUpdate(current, {
+      endsAt: new Date("2026-07-09T00:00:00.000Z")
+    })).toThrow("endsAt must be after startsAt");
+
+    expect(resolveSeasonScheduleUpdate(current, { endsAt: null })).toEqual({
+      startsAt: current.startsAt,
+      endsAt: null
+    });
+  });
+
+  it("publishes a configured season without replacing its opening time", () => {
+    const startSeasonBody = source.slice(source.indexOf("export async function startSeason"));
+    expect(startSeasonBody).toContain('status: "ACTIVE"');
+    expect(startSeasonBody).toContain("SEASON_END_TIME_PASSED");
+    expect(startSeasonBody).not.toContain("startsAt: new Date()");
   });
 });
 

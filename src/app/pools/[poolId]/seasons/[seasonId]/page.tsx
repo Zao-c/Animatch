@@ -17,6 +17,8 @@ import { copyTextWithFallback } from "@/lib/browser-copy";
 import { exportShareCardAsPng } from "@/lib/share-export";
 import { formatTierExportTimestamp, sanitizeFilenameSegment } from "@/lib/tier-export";
 import { DEFAULT_TIER_CONFIG, type TierRowConfig } from "@/lib/tier-config";
+import { getSeasonScheduleState } from "@/lib/season-schedule";
+import { dateTimeLocalToIso, toDateTimeLocalInputValue } from "@/lib/date-time-local";
 
 interface SeasonTierBucket {
   row: TierRowConfig;
@@ -58,6 +60,8 @@ export default function SeasonDetailPage() {
     title: "",
     description: "",
     mode: "CLASSIC" as SeasonDetail["mode"],
+    startsAt: "",
+    endsAt: "",
     maxVotesPerUser: 50,
     maxVotesPerUserPerDay: "",
     biasVotesPerUser: 3
@@ -79,6 +83,8 @@ export default function SeasonDetailPage() {
       title: detail.title,
       description: detail.description ?? "",
       mode: detail.mode,
+      startsAt: toDateTimeLocalInputValue(detail.startsAt),
+      endsAt: toDateTimeLocalInputValue(detail.endsAt),
       maxVotesPerUser: detail.maxVotesPerUser,
       maxVotesPerUserPerDay: detail.maxVotesPerUserPerDay ? String(detail.maxVotesPerUserPerDay) : "",
       biasVotesPerUser: detail.biasVotesPerUser
@@ -106,6 +112,8 @@ export default function SeasonDetailPage() {
         title: editForm.title,
         description: editForm.description,
         mode: editForm.mode,
+        startsAt: dateTimeLocalToIso(editForm.startsAt),
+        endsAt: editForm.endsAt.trim() === "" ? null : dateTimeLocalToIso(editForm.endsAt),
         maxVotesPerUser: Number(editForm.maxVotesPerUser),
         maxVotesPerUserPerDay:
           editForm.maxVotesPerUserPerDay.trim() === ""
@@ -275,7 +283,7 @@ export default function SeasonDetailPage() {
               </Link>
             ) : null}
             {detail.status === "DRAFT" ? (
-              <AppButton onClick={handleStart} disabled={actionLoading} variant="primary">启动赛季</AppButton>
+              <AppButton onClick={handleStart} disabled={actionLoading} variant="primary">发布赛季</AppButton>
             ) : null}
             {detail.currentUserCanManage && detail.status === "ACTIVE" ? (
               <AppButton onClick={handleEnd} disabled={actionLoading} variant="danger">结束赛季</AppButton>
@@ -327,6 +335,29 @@ export default function SeasonDetailPage() {
                   disabled={detail.status === "ENDED" || actionLoading}
                 />
               </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-1 text-sm">
+                  <span className="text-xs font-semibold text-slate-400">开放时间</span>
+                  <input
+                    type="datetime-local"
+                    value={editForm.startsAt}
+                    onChange={(event) => setEditForm((form) => ({ ...form, startsAt: event.target.value }))}
+                    className="min-h-11 rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
+                    disabled={detail.status === "ENDED" || actionLoading}
+                  />
+                </label>
+                <label className="grid gap-1 text-sm">
+                  <span className="text-xs font-semibold text-slate-400">投票截止</span>
+                  <input
+                    type="datetime-local"
+                    value={editForm.endsAt}
+                    onChange={(event) => setEditForm((form) => ({ ...form, endsAt: event.target.value }))}
+                    className="min-h-11 rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
+                    disabled={detail.status === "ENDED" || actionLoading}
+                  />
+                  <span className="text-xs leading-5 text-slate-500">清空后由管理员手动结束赛季。</span>
+                </label>
+              </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <label className="grid gap-1 text-sm">
                   <span className="text-xs font-semibold text-slate-400">模式</span>
@@ -526,11 +557,9 @@ export default function SeasonDetailPage() {
 }
 
 function getSeasonDisplayState(detail: Pick<SeasonDetail, "status" | "startsAt" | "endsAt">) {
-  const now = Date.now();
-  const startsAt = new Date(detail.startsAt).getTime();
-  const endsAt = detail.endsAt ? new Date(detail.endsAt).getTime() : null;
+  const schedule = getSeasonScheduleState(detail);
 
-  if (detail.status === "ENDED") {
+  if (schedule.phase === "ENDED") {
     return {
       label: "已结束",
       shortLabel: "结果已定格",
@@ -540,7 +569,7 @@ function getSeasonDisplayState(detail: Pick<SeasonDetail, "status" | "startsAt" 
     };
   }
 
-  if (detail.status === "DRAFT" || now < startsAt) {
+  if (schedule.phase === "DRAFT" || schedule.phase === "UPCOMING") {
     return {
       label: "未开始",
       shortLabel: "等待开放",
@@ -550,7 +579,7 @@ function getSeasonDisplayState(detail: Pick<SeasonDetail, "status" | "startsAt" 
     };
   }
 
-  if (endsAt !== null && now > endsAt) {
+  if (schedule.phase === "CLOSED") {
     return {
       label: "投票已截止",
       shortLabel: "查看结果",
@@ -567,7 +596,7 @@ function getSeasonDisplayState(detail: Pick<SeasonDetail, "status" | "startsAt" 
       ? `现在可以开始对决，投票截止到 ${formatDateTimeStable(detail.endsAt)}。`
       : "现在可以开始对决。达到个人票数上限或管理员结束赛季前，都可以继续校准你的个人赛季排名。",
     tone: "success" as const,
-    canVote: true,
+    canVote: schedule.canVote,
   };
 }
 

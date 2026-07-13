@@ -1,5 +1,7 @@
 const PROXY_PATH = "/api/image-proxy";
 const warmedProxyUrls = new Set<string>();
+const ANIMATCH_COS_COVER_HOST = /^[a-z0-9][a-z0-9-]*\.cos\.[a-z0-9-]+\.myqcloud\.com$/i;
+const ANIMATCH_COS_COVER_PATH = "/animatch/covers/";
 
 export function proxyExternalImageUrl(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -45,7 +47,15 @@ export function isDirectImageUrl(url: string | null | undefined): boolean {
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
 
-  return directHosts.includes(parsed.hostname.toLowerCase());
+  return isAniMatchCosCoverUrl(parsed) || directHosts.includes(parsed.hostname.toLowerCase());
+}
+
+function isAniMatchCosCoverUrl(url: URL): boolean {
+  return (
+    url.protocol === "https:" &&
+    ANIMATCH_COS_COVER_HOST.test(url.hostname) &&
+    url.pathname.startsWith(ANIMATCH_COS_COVER_PATH)
+  );
 }
 
 function hostFromPublicBaseUrl(value: string | null | undefined): string {

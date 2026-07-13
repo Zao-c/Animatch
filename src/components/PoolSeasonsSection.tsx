@@ -7,6 +7,8 @@ import { AppCard } from "@/components/ui/AppCard";
 import { AppButton } from "@/components/ui/AppButton";
 import { createSeason, getSeasons } from "@/lib/client-api";
 import type { SeasonListItem } from "@/lib/client-api";
+import { getSeasonScheduleState } from "@/lib/season-schedule";
+import { dateTimeLocalToIso } from "@/lib/date-time-local";
 
 export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdit?: boolean }) {
   const [seasons, setSeasons] = useState<SeasonListItem[] | null>(null);
@@ -16,17 +18,24 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
     title: "",
     description: "",
     mode: "CLASSIC" as "CLASSIC" | "BIAS",
+    startsAt: "",
+    endsAt: "",
     maxVotesPerUser: 100,
     biasVotesPerUser: 3,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
+    setLoadError(null);
     getSeasons(poolId)
       .then((data) => { setSeasons(data); setLoading(false); })
-      .catch(() => { setLoading(false); });
+      .catch(() => {
+        setLoadError("赛季暂时加载失败，请重新加载。");
+        setLoading(false);
+      });
   }, [poolId]);
 
   useEffect(() => { load(); }, [load]);
@@ -40,11 +49,13 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
         title: formData.title.trim(),
         description: formData.description.trim() || undefined,
         mode: formData.mode,
+        startsAt: dateTimeLocalToIso(formData.startsAt),
+        endsAt: dateTimeLocalToIso(formData.endsAt),
         maxVotesPerUser: formData.maxVotesPerUser,
         biasVotesPerUser: formData.mode === "BIAS" ? formData.biasVotesPerUser : undefined,
       });
       setShowForm(false);
-      setFormData({ title: "", description: "", mode: "CLASSIC", maxVotesPerUser: 100, biasVotesPerUser: 3 });
+      setFormData({ title: "", description: "", mode: "CLASSIC", startsAt: "", endsAt: "", maxVotesPerUser: 100, biasVotesPerUser: 3 });
       load();
     } catch (e) {
       setError("创建失败，请重试");
@@ -54,10 +65,23 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
   };
 
   if (loading) return <AppCard className="p-5"><div className="h-16 animate-pulse rounded-xl bg-white/5" /></AppCard>;
-  if (!seasons || (seasons.length === 0 && !canEdit)) return null;
+  if (!seasons) {
+    if (!loadError) return null;
+    return (
+      <section id="battle-seasons" className="mt-6 scroll-mt-24 sm:scroll-mt-32">
+        <AppCard className="p-5" variant="focus">
+          <p className="text-sm text-amber-100">{loadError}</p>
+          <AppButton className="mt-3" variant="secondary" size="md" onClick={load}>
+            重新加载赛季
+          </AppButton>
+        </AppCard>
+      </section>
+    );
+  }
+  if (seasons.length === 0 && !canEdit) return null;
 
   return (
-    <section id="battle-seasons" className="mt-6 scroll-mt-24">
+    <section id="battle-seasons" className="mt-6 scroll-mt-24 sm:scroll-mt-32">
       <AppCard className="p-5" variant="focus">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
@@ -73,6 +97,13 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
             </AppButton>
           ) : null}
         </div>
+
+        {loadError ? (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/25 bg-amber-300/10 p-3 text-sm text-amber-100">
+            <span>{loadError}</span>
+            <AppButton variant="quiet" size="sm" onClick={load}>重新加载</AppButton>
+          </div>
+        ) : null}
 
         {canEdit && showForm ? (
           <div className="mb-5 rounded-2xl border border-white/10 bg-slate-950/60 p-5">
@@ -96,6 +127,28 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
                   placeholder="赛季说明"
                   className="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-amber-400/50 focus:outline-none"
                 />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-1 text-sm">
+                  <span className="text-xs font-semibold text-slate-300">开放时间（可选）</span>
+                  <input
+                    type="datetime-local"
+                    value={formData.startsAt}
+                    onChange={(e) => setFormData((f) => ({ ...f, startsAt: e.target.value }))}
+                    className="min-h-11 rounded-lg border border-white/10 bg-slate-900 px-3 text-sm text-white focus:border-amber-400/50 focus:outline-none"
+                  />
+                  <span className="text-xs leading-5 text-slate-500">留空表示发布后立即开放。</span>
+                </label>
+                <label className="grid gap-1 text-sm">
+                  <span className="text-xs font-semibold text-slate-300">投票截止（可选）</span>
+                  <input
+                    type="datetime-local"
+                    value={formData.endsAt}
+                    onChange={(e) => setFormData((f) => ({ ...f, endsAt: e.target.value }))}
+                    className="min-h-11 rounded-lg border border-white/10 bg-slate-900 px-3 text-sm text-white focus:border-amber-400/50 focus:outline-none"
+                  />
+                  <span className="text-xs leading-5 text-slate-500">留空表示由管理员手动结束赛季。</span>
+                </label>
               </div>
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-300">赛季模式</label>
@@ -199,12 +252,9 @@ function SeasonListCard({ poolId, season }: { poolId: string; season: SeasonList
 }
 
 function getSeasonListDisplayState(season: SeasonListItem) {
-  const now = Date.now();
-  const startsAt = new Date(season.startsAt).getTime();
-  const endsAt = season.endsAt ? new Date(season.endsAt).getTime() : null;
-
-  if (season.status === "ENDED") return { label: "已结束", description: "结果已定格，可查看个人和共享榜单。", tone: "muted" as const, canVote: false };
-  if (season.status === "DRAFT" || now < startsAt) return { label: "未开始", description: "赛季尚未开放投票。", tone: "warning" as const, canVote: false };
-  if (endsAt !== null && now > endsAt) return { label: "投票已截止", description: "投票已停止，可查看当前赛季结果。", tone: "muted" as const, canVote: false };
-  return { label: "开放中", description: season.endsAt ? `可以投票，截止到 ${new Date(season.endsAt).toLocaleDateString("zh-CN")}。` : "现在可以开始对决。", tone: "success" as const, canVote: true };
+  const schedule = getSeasonScheduleState(season);
+  if (schedule.phase === "ENDED") return { label: "已结束", description: "结果已定格，可查看个人和共享榜单。", tone: "muted" as const, canVote: false };
+  if (schedule.phase === "DRAFT" || schedule.phase === "UPCOMING") return { label: "未开始", description: "赛季尚未开放投票。", tone: "warning" as const, canVote: false };
+  if (schedule.phase === "CLOSED") return { label: "投票已截止", description: "投票已停止，可查看当前赛季结果。", tone: "muted" as const, canVote: false };
+  return { label: "开放中", description: season.endsAt ? `可以投票，截止到 ${new Date(season.endsAt).toLocaleDateString("zh-CN")}。` : "现在可以开始对决。", tone: "success" as const, canVote: schedule.canVote };
 }

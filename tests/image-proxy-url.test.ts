@@ -64,9 +64,9 @@ describe("proxyExternalImageUrl", () => {
     expect(result).toBe("/api/image-proxy?url=" + encodeURIComponent("https://example.com/img.jpg"));
   });
 
-  it("proxies unconfigured Tencent COS object URLs", () => {
+  it("direct-loads AniMatch Tencent COS cover objects without public host configuration", () => {
     const url = "https://karuta-1321249409.cos.ap-shanghai.myqcloud.com/animatch/covers/a.webp";
-    expect(proxyExternalImageUrl(url)).toBe("/api/image-proxy?url=" + encodeURIComponent(url));
+    expect(proxyExternalImageUrl(url)).toBe(url);
   });
 
   it("does not proxy configured direct image hosts", () => {
@@ -99,7 +99,8 @@ describe("isProxiedUrl", () => {
 });
 
 describe("isDirectImageUrl", () => {
-  it("rejects unconfigured COS domains as direct image hosts", () => {
+  it("accepts only AniMatch COS cover paths without explicit host configuration", () => {
+    expect(isDirectImageUrl("https://bucket.cos.ap-shanghai.myqcloud.com/animatch/covers/a.webp")).toBe(true);
     expect(isDirectImageUrl("https://bucket.cos.ap-shanghai.myqcloud.com/a.webp")).toBe(false);
   });
 

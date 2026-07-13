@@ -435,8 +435,6 @@ export function normalizeSeasonUpdateInput(input: SeasonUpdateInput): Normalized
   if (input.endsAt !== undefined) {
     normalized.endsAt = input.endsAt === null ? null : assertValidDate(input.endsAt, "endsAt");
   }
-  assertSeasonDateRange(normalized.startsAt, normalized.endsAt);
-
   if (input.maxVotesPerUser !== undefined) {
     normalized.maxVotesPerUser = assertPositiveInteger(input.maxVotesPerUser, "maxVotesPerUser");
   }
@@ -451,6 +449,16 @@ export function normalizeSeasonUpdateInput(input: SeasonUpdateInput): Normalized
   }
 
   return normalized;
+}
+
+export function resolveSeasonScheduleUpdate(
+  current: Pick<BattleSeason, "startsAt" | "endsAt">,
+  update: Pick<NormalizedSeasonUpdateInput, "startsAt" | "endsAt">
+): Pick<BattleSeason, "startsAt" | "endsAt"> {
+  const startsAt = update.startsAt ?? current.startsAt;
+  const endsAt = update.endsAt === undefined ? current.endsAt : update.endsAt;
+  assertSeasonDateRange(startsAt, endsAt);
+  return { startsAt, endsAt };
 }
 
 export async function createSeason(
@@ -1531,6 +1539,7 @@ export async function updateSeason(
   }
 
   const normalized = normalizeSeasonUpdateInput(input);
+  const schedule = resolveSeasonScheduleUpdate(season, normalized);
 
   return prisma.battleSeason.update({
     where: { id: seasonId },
@@ -1538,8 +1547,8 @@ export async function updateSeason(
       title: normalized.title,
       description: normalized.description,
       mode: normalized.mode,
-      startsAt: normalized.startsAt,
-      endsAt: normalized.endsAt,
+      startsAt: schedule.startsAt,
+      endsAt: schedule.endsAt,
       maxVotesPerUser: normalized.maxVotesPerUser,
       maxVotesPerUserPerDay: normalized.maxVotesPerUserPerDay,
       biasVotesPerUser: normalized.biasVotesPerUser
@@ -1589,12 +1598,14 @@ export async function startSeason(
   if (!season) throw new AppError("Season not found", 404, "SEASON_NOT_FOUND");
   if (season.status === "ENDED") throw new AppError("Ended seasons cannot be restarted", 400, "SEASON_ENDED");
   if (season.status === "ACTIVE") throw new AppError("Season is already active", 400, "SEASON_ALREADY_ACTIVE");
+  if (season.endsAt && season.endsAt <= new Date()) {
+    throw new AppError("Season end time has passed", 400, "SEASON_END_TIME_PASSED");
+  }
 
   return prisma.battleSeason.update({
     where: { id: seasonId },
     data: {
-      status: "ACTIVE",
-      startsAt: new Date()
+      status: "ACTIVE"
     }
   });
 }

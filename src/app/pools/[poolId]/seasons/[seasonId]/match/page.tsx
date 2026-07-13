@@ -11,6 +11,7 @@ import { AnimeCover } from "@/components/AnimeCover";
 import { ApiClientError, getSeasonDetail, getSeasonMatchQueue, setSeasonAnimeHidden, submitSeasonVote } from "@/lib/client-api";
 import { getAnimeDisplayTitle, getAnimeImageFitMode } from "@/lib/anime-display";
 import type { SeasonDetail, SeasonMatchQueueItem, SeasonAnimeEntry } from "@/lib/client-api";
+import { getSeasonScheduleState } from "@/lib/season-schedule";
 
 function SeasonDuelCard({
   anime,
@@ -48,6 +49,8 @@ function SeasonDuelCard({
           size="lg"
           fit={coverFit}
           animeId={anime.animeId}
+          loading="eager"
+          warm
           className="h-full w-full rounded-none border-0"
         />
       </div>
@@ -126,7 +129,7 @@ function getDailyVotesRemaining(detail: SeasonDetail): number | null {
 }
 
 function canSubmitSeasonVote(detail: SeasonDetail | null): boolean {
-  if (detail === null || detail.status !== "ACTIVE") return false;
+  if (detail === null || !getSeasonScheduleState(detail).canVote) return false;
   const state = detail.currentUserState;
   if (state === null || state.votesRemaining <= 0) return false;
   const dailyVotesRemaining = getDailyVotesRemaining(detail);
@@ -170,15 +173,20 @@ export default function SeasonMatchPage() {
   ) => {
     setError(null);
     try {
-      const [d, q] = await Promise.all([
-        getSeasonDetail(poolId, seasonId),
-        getSeasonMatchQueue(poolId, seasonId, {
-          limit: 5,
-          excludePairKeys: [...skippedPairs],
-          hiddenAnimeIds: [...hiddenAnimeIds]
-        })
-      ]);
+      const d = await getSeasonDetail(poolId, seasonId);
       setDetail(d);
+      if (!getSeasonScheduleState(d).canVote) {
+        setQueue([]);
+        setCurrentIndex(0);
+        setVoteResult(null);
+        setLoading(false);
+        return;
+      }
+      const q = await getSeasonMatchQueue(poolId, seasonId, {
+        limit: 5,
+        excludePairKeys: [...skippedPairs],
+        hiddenAnimeIds: [...hiddenAnimeIds]
+      });
       const serverHiddenAnimeIds = new Set(d.currentUserState?.hiddenAnimeIds ?? []);
       const mergedHiddenAnimeIds = new Set([...hiddenAnimeIds, ...serverHiddenAnimeIds]);
       writeSeasonUnseenAnimeIds(seasonId, mergedHiddenAnimeIds);
@@ -396,7 +404,8 @@ export default function SeasonMatchPage() {
   if (!detail) return null;
 
   const cs = detail.currentUserState;
-  const isSeasonEnded = detail.status === "ENDED";
+  const schedule = getSeasonScheduleState(detail);
+  const isSeasonEnded = schedule.phase === "ENDED";
   const dailyVotesRemaining = getDailyVotesRemaining(detail);
   const hasTotalVotesRemaining = Boolean(cs && cs.votesRemaining > 0);
   const hasDailyVotesRemaining = dailyVotesRemaining === null || dailyVotesRemaining > 0;
@@ -415,8 +424,8 @@ export default function SeasonMatchPage() {
       <main className="mx-auto max-w-4xl px-4 py-4 sm:py-8">
         <div className="mb-3 flex flex-wrap items-center gap-2 sm:mb-4 sm:gap-3">
           <Link href={`/pools/${poolId}/seasons/${seasonId}`} className="inline-flex min-h-11 items-center text-sm text-slate-400 transition hover:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-300/60">← 返回赛季</Link>
-          <AppBadge tone={detail.status === "ACTIVE" ? "success" : "muted"}>
-            {detail.status === "ACTIVE" ? "进行中" : "已结束"}
+          <AppBadge tone={schedule.phase === "OPEN" ? "success" : schedule.phase === "UPCOMING" || schedule.phase === "DRAFT" ? "warning" : "muted"}>
+            {schedule.phase === "OPEN" ? "开放中" : schedule.phase === "UPCOMING" || schedule.phase === "DRAFT" ? "未开始" : schedule.phase === "CLOSED" ? "投票已截止" : "已结束"}
           </AppBadge>
           <AppBadge tone="source">{detail.mode === "BIAS" ? "偏爱模式" : "传统模式"}</AppBadge>
         </div>
@@ -521,11 +530,24 @@ export default function SeasonMatchPage() {
           ) : null}
         </div>
 
-        {isSeasonEnded ? (
+        {schedule.phase === "UPCOMING" || schedule.phase === "DRAFT" || schedule.phase === "CLOSED" || isSeasonEnded ? (
           <AppCard className="mt-8 p-6 text-center">
-            <AppBadge tone="muted">赛季已结束</AppBadge>
-            <h2 className="mt-4 text-xl font-black text-white">投票已关闭</h2>
-            <p className="mt-2 text-sm text-slate-400">共 {detail.totalVotes} 票 · {detail.participantCount} 人参与</p>
+            <AppBadge tone={schedule.phase === "UPCOMING" || schedule.phase === "DRAFT" ? "warning" : "muted"}>
+              {schedule.phase === "UPCOMING" || schedule.phase === "DRAFT" ? "等待开放" : schedule.phase === "CLOSED" ? "投票已截止" : "赛季已结束"}
+            </AppBadge>
+            <h2 className="mt-4 text-xl font-black text-white">
+              {schedule.phase === "UPCOMING" || schedule.phase === "DRAFT" ? "赛季还未开放投票" : "投票已关闭"}
+            </h2>
+            <p className="mt-2 text-sm text-slate-400">
+              {schedule.phase === "UPCOMING"
+                ? `将于 ${new Date(detail.startsAt).toLocaleString("zh-CN")} 开放投票。`
+                : schedule.phase === "DRAFT"
+                  ? "管理员发布赛季后即可按设定时间开放投票。"
+                  : `共 ${detail.totalVotes} 票 · ${detail.participantCount} 人参与`}
+            </p>
+            <Link href={`/pools/${poolId}/seasons/${seasonId}`} className="mt-5 inline-flex min-h-11 items-center text-sm font-semibold text-amber-200 underline">
+              返回赛季详情查看结果
+            </Link>
           </AppCard>
         ) : !canVote && cs ? (
           <AppCard className="mt-8 p-6 text-center">

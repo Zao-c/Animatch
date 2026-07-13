@@ -14,13 +14,16 @@ describe("AnimeCover background warm proxy", () => {
     );
   });
 
-  it("calls warmImageProxyCache for both src and secondarySrc in useEffect", () => {
+  it("only warms both sources when a caller opts in", () => {
+    expect(source).toContain("warm = false");
+    expect(source).toContain("if (!warm) return;");
     expect(source).toContain("warmImageProxyCache(src)");
     expect(source).toContain("warmImageProxyCache(secondarySrc)");
   });
 
-  it("useEffect has src and secondarySrc as dependencies", () => {
-    expect(source).toContain("}, [src, secondarySrc]);");
+  it("uses lazy loading by default so lists do not fetch off-screen covers", () => {
+    expect(source).toContain('loading = "lazy"');
+    expect(source).toContain("loading={loading}");
   });
 
   it("uses bounded candidate and final image waits", () => {
@@ -36,13 +39,13 @@ describe("AnimeCover background warm proxy", () => {
     expect(source).toContain('setState("loading")');
   });
 
-  it("calls warmImageProxyCache on img onLoad for the loaded imageSrc", () => {
-    expect(source).toContain("warmImageProxyCache(imageSrc)");
+  it("only warms a loaded candidate for opted-in hero covers", () => {
+    expect(source).toContain("if (warm) warmImageProxyCache(imageSrc)");
   });
 
   it("warm failure does not affect loaded state", () => {
     expect(source).toContain("setState(\"loaded\")");
-    expect(source).toContain("warmImageProxyCache(imageSrc)");
+    expect(source).toContain("if (warm) warmImageProxyCache(imageSrc)");
   });
 
   it("does not warm for null/empty src", () => {

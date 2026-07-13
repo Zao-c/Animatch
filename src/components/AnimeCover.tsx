@@ -22,7 +22,9 @@ export function AnimeCover({
   size = "md",
   fit = "cover",
   className = "",
-  animeId
+  animeId,
+  loading = "lazy",
+  warm = false
 }: {
   src: string | null | undefined;
   secondarySrc?: string | null;
@@ -31,6 +33,8 @@ export function AnimeCover({
   fit?: "cover" | "contain";
   className?: string;
   animeId?: string;
+  loading?: "eager" | "lazy";
+  warm?: boolean;
 }) {
   const candidates = useMemo(() => buildImageCandidates(src, secondarySrc), [src, secondarySrc]);
   const [state, setState] = useState<"loading" | "loaded" | "error" | "empty">(
@@ -46,9 +50,10 @@ export function AnimeCover({
   }, [candidates, animeId]);
 
   useEffect(() => {
+    if (!warm) return;
     warmImageProxyCache(src);
     warmImageProxyCache(secondarySrc);
-  }, [src, secondarySrc]);
+  }, [src, secondarySrc, warm]);
 
   const imageSrc = candidates[candidateIndex] ?? null;
 
@@ -139,7 +144,7 @@ export function AnimeCover({
         <img
           src={imageSrc ?? ""}
           alt={title}
-          loading="eager"
+          loading={loading}
           referrerPolicy="no-referrer"
           data-export-secondary-src={secondarySrc ?? undefined}
           data-cover-candidate-index={candidateIndex}
@@ -149,7 +154,7 @@ export function AnimeCover({
           onLoad={() => {
             setState("loaded");
             setRetryAttempt(0);
-            warmImageProxyCache(imageSrc);
+            if (warm) warmImageProxyCache(imageSrc);
           }}
           onError={() => {
             if (candidateIndex < candidates.length - 1) {

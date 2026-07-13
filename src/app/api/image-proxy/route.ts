@@ -64,9 +64,14 @@ const MEM_MAX_CACHE_ENTRIES = 250;
 const MEM_MAX_CACHE_BYTES = 48 * 1024 * 1024;
 const DISK_MAX_CACHE_ENTRIES = 20000;
 const DISK_MAX_CACHE_BYTES = 5 * 1024 * 1024 * 1024;
+const DISK_PRUNE_MIN_INTERVAL_MS = 60 * 1000;
 const UPSTREAM_FETCH_CONCURRENCY = parsePositiveInt(
   process.env.ANIMATCH_IMAGE_PROXY_CONCURRENCY,
   4
+);
+const UPSTREAM_FETCH_QUEUE_MAX = parsePositiveInt(
+  process.env.ANIMATCH_IMAGE_PROXY_QUEUE_MAX,
+  80
 );
 const DISK_CACHE_DIR =
   process.env.ANIMATCH_IMAGE_CACHE_DIR ??
@@ -129,6 +134,12 @@ type ImageFetchResult =
       cacheStatus?: never;
     };
 
+class ImageProxyOverloadedError extends Error {
+  constructor() {
+    super("image proxy busy");
+  }
+}
+
 interface ImageProxyFetchState {
   activeUpstreamFetches: number;
   upstreamFetchQueue: Array<() => void>;
@@ -142,11 +153,18 @@ interface DiskCacheMetadata {
   byteLength: number;
 }
 
+interface DiskCachePruneState {
+  isRunning: boolean;
+  lastStartedAt: number;
+}
+
 declare global {
   // eslint-disable-next-line no-var
   var __animatchImageProxyCache: ImageCacheStore | undefined;
   // eslint-disable-next-line no-var
   var __animatchImageProxyFetchState: ImageProxyFetchState | undefined;
+  // eslint-disable-next-line no-var
+  var __animatchDiskCachePruneState: DiskCachePruneState | undefined;
 }
 
 const imageCache =
@@ -162,6 +180,13 @@ const imageProxyFetchState =
     activeUpstreamFetches: 0,
     upstreamFetchQueue: [],
     inFlightByCacheKey: new Map<string, Promise<ImageFetchResult>>()
+  });
+
+const diskCachePruneState =
+  globalThis.__animatchDiskCachePruneState ??
+  (globalThis.__animatchDiskCachePruneState = {
+    isRunning: false,
+    lastStartedAt: 0
   });
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
@@ -271,6 +296,14 @@ function isAllowedProxyHostname(hostname: string): boolean {
   return getAllowedProxyHosts().has(normalized);
 }
 
+function isAniMatchCosCoverUrl(url: URL): boolean {
+  return (
+    url.protocol === "https:" &&
+    /^[a-z0-9][a-z0-9-]*\.cos\.[a-z0-9-]+\.myqcloud\.com$/i.test(url.hostname) &&
+    url.pathname.startsWith("/animatch/covers/")
+  );
+}
+
 function validateProxyTarget(url: URL, blockedProxyHosts: ReadonlySet<string>): string | null {
   if (!ALLOWED_PROTOCOLS.has(url.protocol)) {
     return "protocol not allowed";
@@ -281,7 +314,7 @@ function validateProxyTarget(url: URL, blockedProxyHosts: ReadonlySet<string>): 
     return "hostname not allowed";
   }
 
-  if (!isAllowedProxyHostname(hostname)) {
+  if (!isAllowedProxyHostname(hostname) && !isAniMatchCosCoverUrl(url)) {
     return "hostname not allowed";
   }
 
@@ -450,6 +483,9 @@ async function fetchAndCacheUpstreamImage(
       response = await fetchWithValidatedRedirects(sourceUrl, headers, controller.signal, blockedProxyHosts);
     } catch (error) {
       lastError = error;
+      if (error instanceof ImageProxyOverloadedError) {
+        return { entry: null, error: "image proxy busy", status: 503 };
+      }
       if (attempt < maxAttempts) {
         await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
         continue;
@@ -572,6 +608,9 @@ function isRedirectResponse(status: number): boolean {
 
 async function withUpstreamFetchSlot<T>(operation: () => Promise<T>): Promise<T> {
   if (imageProxyFetchState.activeUpstreamFetches >= UPSTREAM_FETCH_CONCURRENCY) {
+    if (imageProxyFetchState.upstreamFetchQueue.length >= UPSTREAM_FETCH_QUEUE_MAX) {
+      throw new ImageProxyOverloadedError();
+    }
     await new Promise<void>((resolve) => {
       imageProxyFetchState.upstreamFetchQueue.push(resolve);
     });
@@ -715,13 +754,31 @@ async function writeDiskCacheEntry(cacheKey: string, entry: ImageCacheEntry): Pr
       fs.rename(tmpBodyPath, paths.bodyPath),
       fs.rename(tmpMetaPath, paths.metaPath)
     ]);
-    await pruneDiskCache();
+    scheduleDiskCachePrune();
   } catch {
     await Promise.allSettled([
       fs.unlink(tmpBodyPath),
       fs.unlink(tmpMetaPath)
     ]);
   }
+}
+
+function scheduleDiskCachePrune(): void {
+  const now = Date.now();
+  if (
+    diskCachePruneState.isRunning ||
+    now - diskCachePruneState.lastStartedAt < DISK_PRUNE_MIN_INTERVAL_MS
+  ) {
+    return;
+  }
+
+  diskCachePruneState.isRunning = true;
+  diskCachePruneState.lastStartedAt = now;
+  void pruneDiskCache()
+    .catch(() => undefined)
+    .finally(() => {
+      diskCachePruneState.isRunning = false;
+    });
 }
 
 async function writeDiskMetadata(metaPath: string, metadata: DiskCacheMetadata): Promise<void> {

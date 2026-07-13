@@ -66,7 +66,7 @@ function makePngResponse(data: Uint8Array = new Uint8Array([1, 2, 3])) {
 }
 
 function pngProxyUrl(name: string): string {
-  const raw = `https://cdn.example.com/${name}.png`;
+  const raw = `https://lain.bgm.tv/${name}.png`;
   return `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(raw)}`;
 }
 
@@ -130,7 +130,7 @@ describe("image proxy disk cache", () => {
 
     const hash = crypto
       .createHash("sha256")
-      .update("https://cdn.example.com/disk-stale-test.png")
+      .update("https://lain.bgm.tv/disk-stale-test.png")
       .digest("hex");
     const metaPath = path.join(DISK_CACHE_DIR, `${hash}.json`);
     const metadata = JSON.parse(await readFile(metaPath, "utf8"));
@@ -241,7 +241,7 @@ describe("image proxy disk cache", () => {
 
     const hash = crypto
       .createHash("sha256")
-      .update("https://cdn.example.com/corrupt-test.png")
+      .update("https://lain.bgm.tv/corrupt-test.png")
       .digest("hex");
     const metaPath = path.join(DISK_CACHE_DIR, `${hash}.json`);
 
@@ -262,10 +262,20 @@ describe("image proxy disk cache", () => {
     expect(source).toContain("entries.sort((left, right) => left.lastAccessedAt - right.lastAccessedAt)");
   });
 
-  it("prune failure does not crash the request", () => {
-    expect(source).toContain("await pruneDiskCache()");
+  it("prunes asynchronously at a bounded interval so writes do not scan the full cache", () => {
+    expect(source).toContain("scheduleDiskCachePrune()");
+    expect(source).not.toContain("await pruneDiskCache()");
+    expect(source).toContain("DISK_PRUNE_MIN_INTERVAL_MS");
+    expect(source).toContain("diskCachePruneState.isRunning");
     expect(source).toContain("files = await fs.readdir(DISK_CACHE_DIR)");
     expect(source).toContain("} catch {");
+  });
+
+  it("bounds the upstream wait queue and returns a retryable overload response", () => {
+    expect(source).toContain("UPSTREAM_FETCH_QUEUE_MAX");
+    expect(source).toContain("imageProxyFetchState.upstreamFetchQueue.length >= UPSTREAM_FETCH_QUEUE_MAX");
+    expect(source).toContain("new ImageProxyOverloadedError()");
+    expect(source).toContain('error: "image proxy busy", status: 503');
   });
 
   it("disk write uses atomic temp-file-then-rename pattern", () => {
@@ -340,9 +350,9 @@ describe("image proxy security boundaries", () => {
   it("blocks internal-only IPs", () => {
     expect(source).toContain("BLOCKED_HOSTNAMES");
     expect(source).toContain('"localhost"');
-    expect(source).toContain('"127.0.0.1"');
+    expect(source).toContain("/^127\\./");
     expect(source).toContain("INTERNAL_IP_PATTERNS");
-    expect(source).toContain("isBlockedHostname(parsed.hostname)");
+    expect(source).toContain("isBlockedHostname(hostname)");
   });
 
   it("does not log full URLs in plain console calls", () => {

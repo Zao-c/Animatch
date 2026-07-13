@@ -102,6 +102,16 @@ describe("season match UI", () => {
     expect(source).toContain("今日剩余");
   });
 
+  it("checks the schedule before loading a queue and explains unavailable voting states", () => {
+    const detailIndex = source.indexOf("const d = await getSeasonDetail(poolId, seasonId)");
+    const queueIndex = source.indexOf("const q = await getSeasonMatchQueue(poolId, seasonId");
+    expect(source).toContain("getSeasonScheduleState");
+    expect(detailIndex).toBeGreaterThan(-1);
+    expect(queueIndex).toBeGreaterThan(detailIndex);
+    expect(source).toContain("赛季还未开放投票");
+    expect(source).toContain("投票已截止");
+  });
+
   it("lets users mark unseen anime without submitting a vote", () => {
     expect(source).toContain("const handleMarkUnseen = useCallback");
     expect(source).toContain("LEFT_UNSEEN");

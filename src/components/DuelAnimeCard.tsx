@@ -65,6 +65,8 @@ export function DuelAnimeCard({
           size="lg"
           fit={coverFit}
           animeId={anime.id}
+          loading="eager"
+          warm
           className="rounded-xl border-cyan-200/10 sm:rounded-2xl"
         />
         <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-t from-slate-950/18 via-transparent to-transparent sm:rounded-2xl" />
