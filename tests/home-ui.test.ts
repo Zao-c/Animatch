@@ -68,11 +68,17 @@ describe("HomeActions anonymous state", () => {
   });
 
   it("distinguishes null user from logged-in user in getMe response", () => {
-    expect(source).toContain("data.user !== null");
+    expect(source).toContain("me.user !== null");
+    expect(source).toContain("if (me.user === null) return;");
   });
 
   it("shows logged-in CTA when authenticated", () => {
     expect(source).toContain("continueHref");
+    expect(source).toContain("getDashboard");
+    expect(source).toContain('preview.source === "CONTINUE_RUN"');
+    expect(source).toContain("preview.ctaHref");
+    expect(source).not.toContain("listPools");
+    expect(source).not.toContain("getPool");
     expect(source).toContain('href="/pools?view=public"');
     expect(source).toContain("进入番组大厅");
     expect(source).toContain("体验示例番组");

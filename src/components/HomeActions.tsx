@@ -4,17 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
-import { createDemoPool, getMe, getPool, listPools } from "@/lib/client-api";
+import { createDemoPool, getDashboard, getMe } from "@/lib/client-api";
 
-type ReadyPool = {
-  id: string;
-  name: string;
+type ContinueAction = {
+  href: string;
+  label: string;
 };
 
-type PoolDetailResult = Awaited<ReturnType<typeof getPool>>;
-
 export function HomeActions() {
-  const [readyPool, setReadyPool] = useState<ReadyPool | null>(null);
+  const [continueAction, setContinueAction] = useState<ContinueAction | null>(null);
   const [isPreparingDemoPool, setIsPreparingDemoPool] = useState(false);
   const [demoPoolError, setDemoPoolError] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
@@ -22,51 +20,36 @@ export function HomeActions() {
   useEffect(() => {
     let cancelled = false;
 
-    getMe()
-      .then((data) => { if (!cancelled) setIsLoggedIn(data.user !== null); })
-      .catch(() => { if (!cancelled) setIsLoggedIn(false); });
-
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function findRecentReadyPool() {
+    async function loadActions() {
       try {
-        const data = await listPools({ status: "ACTIVE" });
-        const candidates = data.items.slice(0, 4);
-        const details = await Promise.allSettled(candidates.map((pool) => getPool(pool.id)));
-        const ready = details
-          .map((result) => (result.status === "fulfilled" ? result.value : null))
-          .find((detail): detail is PoolDetailResult => {
-            return (
-              detail !== null &&
-              detail.anime.length >= 2 &&
-              detail.deletedAt == null &&
-              detail.status !== "ARCHIVED"
-            );
-          });
+        const me = await getMe();
+        if (cancelled) return;
 
-        if (ready !== undefined && !cancelled) {
-          setReadyPool({ id: ready.id, name: ready.name });
+        setIsLoggedIn(me.user !== null);
+        if (me.user === null) return;
+
+        const dashboard = await getDashboard();
+        const preview = dashboard.miniMatchPreview;
+        if (!cancelled && preview.source === "CONTINUE_RUN" && preview.ctaHref) {
+          setContinueAction({ href: preview.ctaHref, label: preview.ctaLabel });
         }
       } catch {
         if (!cancelled) {
-          setReadyPool(null);
+          setIsLoggedIn(false);
+          setContinueAction(null);
         }
       }
     }
 
-    void findRecentReadyPool();
+    void loadActions();
 
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const continueHref = readyPool === null ? "/pools/new" : `/pools/${readyPool.id}`;
-  const continueLabel = readyPool === null ? "创建第一个番组" : "继续对决";
+  const continueHref = continueAction?.href ?? "/pools/new";
+  const continueLabel = continueAction?.label ?? "创建第一个番组";
 
   async function handleCreateDemoPool() {
     setIsPreparingDemoPool(true);
@@ -147,7 +130,7 @@ export function HomeActions() {
             size: "lg",
             className: "w-full sm:w-auto"
           })}
-          aria-label={readyPool === null ? continueLabel : `${continueLabel}：${readyPool.name}`}
+          aria-label={continueLabel}
         >
           {continueLabel}
         </Link>
