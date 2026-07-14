@@ -1,6 +1,17 @@
 import { readFileSync } from "node:fs";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import dns from "dns/promises";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "../src/app/api/image-proxy/route";
+
+const TEST_IMAGE_URL = "https://lain.bgm.tv/pic/cover/l/12/34/cache-test.jpg";
+
+function testImageUrl(caseName: string) {
+  return `${TEST_IMAGE_URL}?case=${caseName}&test=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function mockPublicDns() {
+  vi.spyOn(dns, "lookup").mockResolvedValue([{ address: "203.0.113.10", family: 4 }] as never);
+}
 
 function resetImageCache() {
   const store = (globalThis as Record<string, unknown>).__animatchImageProxyCache as
@@ -28,6 +39,10 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   resetImageCache();
+});
+
+beforeEach(() => {
+  mockPublicDns();
 });
 
 describe("image proxy LRU cache", () => {
@@ -69,7 +84,7 @@ describe("image proxy LRU cache", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const url = "https://cdn.example.com/coalesced-cache.png";
+    const url = testImageUrl("coalesced");
     const req = new Request(
       `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(url)}`
     );
@@ -106,7 +121,7 @@ describe("image proxy LRU cache", () => {
       )
     );
 
-    const url = "https://cdn.example.com/test-cache.png";
+    const url = testImageUrl("miss");
     const response = await GET(
       new Request(
         `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(url)}`
@@ -135,7 +150,7 @@ describe("image proxy LRU cache", () => {
       })
     );
 
-    const url = "https://cdn.example.com/cache-hit.png";
+    const url = testImageUrl("hit");
     const req = new Request(
       `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(url)}`
     );
@@ -161,7 +176,7 @@ describe("image proxy LRU cache", () => {
 
     const response = await GET(
       new Request(
-        "http://localhost:3000/api/image-proxy?url=https%3A%2F%2Fcdn.unknown.example%2Fnonexistent.png"
+        `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(testImageUrl("upstream-error"))}`
       )
     );
 
@@ -202,7 +217,7 @@ describe("image proxy LRU cache", () => {
 
     const response = await GET(
       new Request(
-        "http://localhost:3000/api/image-proxy?url=https%3A%2F%2Fcdn.example.com%2Fcdn-test.png"
+        `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(testImageUrl("cdn"))}`
       )
     );
 
@@ -227,7 +242,7 @@ describe("image proxy LRU cache", () => {
 
     const response = await GET(
       new Request(
-        "http://localhost:3000/api/image-proxy?url=https%3A%2F%2Fcdn.unknown.example%2F404.png"
+        `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(testImageUrl("no-store"))}`
       )
     );
 
@@ -267,7 +282,7 @@ describe("image proxy LRU cache", () => {
   });
 
   it("bgRefetch writes to cache using normalized cacheKey", () => {
-    expect(source).toContain("async function bgRefetch(sourceUrl: string, cacheKey: string");
+    expect(source).toMatch(/async function bgRefetch\s*\(\s*sourceUrl: string,\s*cacheKey: string,/);
     expect(source).toContain("setCacheEntry(cacheKey, entry)");
     expect(source).toContain("writeDiskCacheEntry(cacheKey, entry)");
   });
@@ -275,6 +290,6 @@ describe("image proxy LRU cache", () => {
   it("pendingBgRefetch uses cacheKey for deduplication", () => {
     expect(source).toContain("pendingBgRefetch.has(cacheKey)");
     expect(source).toContain("pendingBgRefetch.add(cacheKey)");
-    expect(source).toContain("bgRefetch(parsed.toString(), cacheKey, headers)");
+    expect(source).toContain("bgRefetch(parsed.toString(), cacheKey, headers, blockedProxyHosts)");
   });
 });

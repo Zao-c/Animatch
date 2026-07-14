@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { AnimeCover } from "./AnimeCover";
 import type { CommunityRankingResponse, CommunityRankingItem } from "@/lib/client-api";
 import { buildCommunityTierBuckets } from "@/lib/community-tier-buckets";
@@ -27,6 +27,7 @@ export function CommunityAverageTierList({
   previewItems?: CommunityTierPreviewItem[];
 }) {
   const resolvedRows = tierRows ?? DEFAULT_TIER_CONFIG.rows;
+  const [showInsufficient, setShowInsufficient] = useState(false);
 
   if (isLoading) {
     return <CommunityTierListSkeleton rows={resolvedRows} />;
@@ -92,10 +93,27 @@ export function CommunityAverageTierList({
                 样本不足
               </span>
             </div>
-            <div className="flex min-h-24 flex-wrap content-start gap-3 bg-[#171b20] p-3 sm:gap-4 sm:p-4">
-              {insufficient.map((item) => (
-                <CommunityAverageCard key={item.animeId} item={item} />
-              ))}
+            <div className="bg-[#171b20] p-3 sm:p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm leading-6 text-slate-400">
+                  {insufficient.length} 部作品还在等待更多玩家与有效比较，不参与 S-D 正式分档。
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowInsufficient((value) => !value)}
+                  aria-expanded={showInsufficient}
+                  className="min-h-11 rounded-lg border border-white/10 px-3 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300/35 hover:bg-cyan-300/10"
+                >
+                  {showInsufficient ? "收起作品" : `查看 ${insufficient.length} 部作品`}
+                </button>
+              </div>
+              {showInsufficient ? (
+                <div className="mt-4 flex flex-wrap content-start gap-3 sm:gap-4">
+                  {insufficient.map((item) => (
+                    <CommunityAverageCard key={item.animeId} item={item} />
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}

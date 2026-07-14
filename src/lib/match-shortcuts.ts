@@ -28,7 +28,7 @@ export function getComparisonResultForShortcut(event: {
   }
 }
 
-function isInteractiveShortcutTarget(target: EventTarget | null) {
+export function isInteractiveShortcutTarget(target: EventTarget | null) {
   if (target === null) {
     return false;
   }

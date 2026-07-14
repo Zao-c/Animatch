@@ -416,6 +416,7 @@ export interface TierShareSnapshot {
   tierRows?: TierRowConfig[];
   animeCount: number;
   comparisonCount: number;
+  isInitialEstimate?: boolean;
 }
 
 export interface PublicTierShare {

@@ -9,9 +9,7 @@ describe("AnimeCover background warm proxy", () => {
   const imageProxySource = readFileSync("src/lib/image-proxy.ts", "utf8");
 
   it("imports warmImageProxyCache from image-proxy", () => {
-    expect(source).toContain(
-      'import { getProxiedCoverCandidates, warmImageProxyCache } from "@/lib/image-proxy"'
-    );
+    expect(source).toMatch(/import \{[^}]*getProxiedCoverCandidates[^}]*warmImageProxyCache[^}]*\} from "@\/lib\/image-proxy"/);
   });
 
   it("only warms both sources when a caller opts in", () => {

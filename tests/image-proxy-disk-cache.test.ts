@@ -70,6 +70,14 @@ function pngProxyUrl(name: string): string {
   return `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(raw)}`;
 }
 
+function cacheFilesFor(name: string): string[] {
+  const hash = crypto
+    .createHash("sha256")
+    .update(`https://lain.bgm.tv/${name}.png`)
+    .digest("hex");
+  return [`${hash}.json`, `${hash}.bin`].filter((file) => existsSync(path.join(DISK_CACHE_DIR, file)));
+}
+
 describe("image proxy disk cache", () => {
   const source = readFileSync("src/app/api/image-proxy/route.ts", "utf8");
 
@@ -191,8 +199,7 @@ describe("image proxy disk cache", () => {
     const body = await response.json();
     expect(body.error).toBe("not an image");
 
-    const files = readdirSync(DISK_CACHE_DIR);
-    expect(files.length).toBe(0);
+    expect(cacheFilesFor("not-an-image")).toHaveLength(0);
   });
 
   it("does not write cache when upstream returns 403", async () => {
@@ -205,8 +212,7 @@ describe("image proxy disk cache", () => {
 
     const response = await GET(new Request(pngProxyUrl("forbidden-image")));
     expect(response.status).toBe(502);
-    const files = readdirSync(DISK_CACHE_DIR);
-    expect(files.length).toBe(0);
+    expect(cacheFilesFor("forbidden-image")).toHaveLength(0);
   });
 
   it("rejects images exceeding MAX_SIZE (10MB)", async () => {

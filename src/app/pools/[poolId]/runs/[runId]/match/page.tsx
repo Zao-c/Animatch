@@ -88,7 +88,7 @@ export default function MatchPage({
         progress: data.progress
       });
       setQueue(data.pairs);
-      void preloadPairs(data.pairs.slice(0, 4), { preloadCount: 4 });
+       void preloadPairs(data.pairs.slice(1, 4), { preloadCount: 3 });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "加载对决队列失败");
     } finally {
@@ -420,7 +420,7 @@ export default function MatchPage({
         />
       </div>
 
-      <div className="mt-5 space-y-3 rounded-2xl border border-white/10 bg-slate-950/24 p-3">
+       <div className="mt-5 space-y-3 rounded-2xl border border-white/10 bg-slate-950/24 p-3">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-5">
           <AppButton disabled={isSubmitting} onClick={() => handleSubmit("DRAW")} variant="quiet">
             <ShortcutKey>↑</ShortcutKey>
@@ -442,8 +442,11 @@ export default function MatchPage({
             <ShortcutKey>0</ShortcutKey>
             <span>两个都没看过</span>
           </AppButton>
-        </div>
-      </div>
+         </div>
+         <p className="px-1 text-xs leading-5 text-slate-500">
+           跳过不计分，之后仍可能再次出现；标记没看过会从本轮隐藏，不会进入你的 Tier List。
+         </p>
+       </div>
 
       {queueMeta ? (
         <div className="mt-5">

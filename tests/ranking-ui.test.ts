@@ -35,7 +35,7 @@ describe("ranking UI wiring", () => {
     expect(source).toContain("isInitialEstimate");
     expect(source).toContain("还没有对决记录，榜单不是正式结果");
     expect(source).toContain("对决样本还少，分档可能会明显变化");
-    expect(source).toContain("导出和分享前建议先继续完成几轮对决");
+    expect(source).toContain("完成至少一轮对决前不能创建公开分享链接");
     expect(source).toContain("先完成几轮对决后，再导出或分享会更可信");
   });
 

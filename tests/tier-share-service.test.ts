@@ -255,6 +255,27 @@ describe("tier share service", () => {
     );
   });
 
+  it("rejects public sharing before the user has completed a comparison", async () => {
+    mockSuccessfulTierShare();
+    mockedGetRunTierList.mockResolvedValue({
+      ...tierListFixture(),
+      totalComparisons: 0,
+      effectiveComparisons: 0
+    });
+
+    await expect(
+      createTierShare({
+        userId: "user-1",
+        poolId: "pool-1",
+        runId: "run-1"
+      })
+    ).rejects.toMatchObject({
+      statusCode: 422,
+      code: "TIER_SHARE_NOT_READY"
+    });
+    expect(mockedTierShare.create).not.toHaveBeenCalled();
+  });
+
   it("creates a tier share for an archived pool", async () => {
     mockSuccessfulTierShare({
       pool: {

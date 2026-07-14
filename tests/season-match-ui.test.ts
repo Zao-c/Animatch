@@ -88,7 +88,7 @@ describe("season match UI", () => {
     expect(source).toContain('e.key === "1"');
     expect(source).toContain('e.key === "2"');
     expect(source).toContain('e.key === "3" || e.key === "0"');
-    expect(source).toContain("isEditableShortcutTarget");
+    expect(source).toContain("isInteractiveShortcutTarget");
   });
 
   it("disables vote submission when today's season vote quota is exhausted", () => {

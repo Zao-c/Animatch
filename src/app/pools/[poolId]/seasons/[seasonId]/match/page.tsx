@@ -11,6 +11,7 @@ import { AnimeCover } from "@/components/AnimeCover";
 import { ApiClientError, getSeasonDetail, getSeasonMatchQueue, setSeasonAnimeHidden, submitSeasonVote } from "@/lib/client-api";
 import { getAnimeDisplayTitle, getAnimeImageFitMode } from "@/lib/anime-display";
 import type { SeasonDetail, SeasonMatchQueueItem, SeasonAnimeEntry } from "@/lib/client-api";
+import { isInteractiveShortcutTarget } from "@/lib/match-shortcuts";
 import { getSeasonScheduleState } from "@/lib/season-schedule";
 
 function SeasonDuelCard({
@@ -114,12 +115,6 @@ function isVoteWriteConflict(error: unknown): boolean {
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
-function isEditableShortcutTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  const tagName = target.tagName.toLowerCase();
-  return tagName === "input" || tagName === "textarea" || tagName === "select" || target.isContentEditable;
 }
 
 function getDailyVotesRemaining(detail: SeasonDetail): number | null {
@@ -366,7 +361,7 @@ export default function SeasonMatchPage() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!currentPair || submitting) return;
-      if (isEditableShortcutTarget(e.target)) return;
+      if (isInteractiveShortcutTarget(e.target)) return;
       if (e.repeat) return;
 
       const canUseBiasShortcut =
@@ -655,6 +650,9 @@ export default function SeasonMatchPage() {
                 <span className="inline-flex items-center gap-2"><ShortcutKey>3</ShortcutKey> 都没看过</span>
               </button>
             </div>
+            <p className="mt-3 text-center text-xs leading-5 text-slate-500">
+              跳过只更换当前对局，不计票也不会隐藏作品；标记没看过会从你的赛季候选池隐藏，可在赛季详情恢复。
+            </p>
           </div>
         ) : (
           <AppCard className="mt-8 p-6 text-center">

@@ -122,7 +122,8 @@ function buildLocalTierExportShare(input: {
       })),
       tierRows: input.tierRows,
       animeCount: input.tierList.totalAnime,
-      comparisonCount: input.tierList.totalComparisons
+      comparisonCount: input.tierList.totalComparisons,
+      isInitialEstimate: input.tierList.totalComparisons === 0 || input.tierList.effectiveComparisons === 0
     }
   };
 }
@@ -179,6 +180,7 @@ export default function TierPage({
   const [shareCopied, setShareCopied] = useState(false);
   const [shareCopyFallback, setShareCopyFallback] = useState(false);
   const [shareToken, setShareToken] = useState<string | null>(null);
+  const [showShareConfirm, setShowShareConfirm] = useState(false);
   const [shareSnapshot, setShareSnapshot] = useState<PublicTierShare | null>(null);
   const exportCardRef = useRef<HTMLDivElement | null>(null);
   const [tierLabels, setTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
@@ -463,6 +465,7 @@ export default function TierPage({
     }
 
     setIsSharing(true);
+    setShowShareConfirm(false);
     setShareError(null);
     setShareCopied(false);
     setShareCopyFallback(false);
@@ -621,11 +624,11 @@ export default function TierPage({
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="flex flex-wrap gap-2">
-            <AppBadge tone="tier">Tier Wall</AppBadge>
+            <AppBadge tone="tier">我的 Tier List</AppBadge>
             <AppBadge tone="status">{poolName}</AppBadge>
           </div>
           <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
-            Tier List 排名榜单墙
+            我的 Tier List
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
             导出和分享是这里的主动作；校准和高级设定默认折叠。
@@ -646,7 +649,7 @@ export default function TierPage({
           </p>
           {isInitialEstimate ? (
             <p className="rounded-xl border border-amber-200/20 bg-amber-200/[0.06] px-3 py-2 text-xs font-medium leading-5 text-amber-100 lg:col-span-2">
-              当前榜单仍是初始估计，导出和分享前建议先继续完成几轮对决。
+              当前榜单仍是初始估计。可以导出留存，但完成至少一轮对决前不能创建公开分享链接。
             </p>
           ) : null}
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -658,9 +661,13 @@ export default function TierPage({
             {isExporting ? "生成中..." : "导出图片"}
           </AppButton>
           <AppButton
-            onClick={handleCreateShare}
-            disabled={isSharing || tierList === null}
+            onClick={() => {
+              setShareError(null);
+              setShowShareConfirm(true);
+            }}
+            disabled={isSharing || tierList === null || isInitialEstimate}
             variant="secondary"
+            title={isInitialEstimate ? "完成至少一轮对决后才能创建公开分享链接" : undefined}
           >
             {isSharing ? "生成分享链接中..." : "分享榜单"}
           </AppButton>
@@ -733,7 +740,7 @@ export default function TierPage({
           <div>
             <h2 className="text-lg font-semibold text-white">高级控制</h2>
             <p className="mt-1 text-sm text-slate-400">
-              这些操作会影响最终展示或进入校准流程，默认收起以保持榜单墙聚焦。
+              这些操作会影响最终展示或进入校准流程，默认收起以保持榜单聚焦。
             </p>
           </div>
           <AppButton onClick={() => setShowRecalibration((value) => !value)} variant="secondary">
@@ -771,6 +778,29 @@ export default function TierPage({
           />
         </div>
       </AppCard>
+
+      ) : null}
+
+      {showShareConfirm ? (
+        <AppCard className="mb-5 border-cyan-300/25 p-4" variant="focus">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              <AppBadge tone="source">公开快照</AppBadge>
+              <h2 className="mt-2 text-lg font-semibold text-white">创建可访问的榜单链接</h2>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">
+                这会生成一份固定的公开快照。拿到链接的任何人都能查看当前榜单；之后的对决不会修改这份快照。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <AppButton type="button" onClick={() => setShowShareConfirm(false)} disabled={isSharing} variant="quiet">
+                取消
+              </AppButton>
+              <AppButton type="button" onClick={handleCreateShare} disabled={isSharing} variant="primary">
+                {isSharing ? "创建中..." : "确认创建公开链接"}
+              </AppButton>
+            </div>
+          </div>
+        </AppCard>
       ) : null}
 
       {showTierLabelEditor ? (
@@ -820,7 +850,7 @@ export default function TierPage({
         <AppCard className="mb-8 p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <AppBadge tone="source">校准实验室</AppBadge>
+              <AppBadge tone="source">排名校准</AppBadge>
               <h2 className="mt-3 text-2xl font-black text-white">微调你的榜单边界</h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">
                 选择校准方式和计划场数，系统会优先选择分数接近、信息不足或未直接比较过的作品。
@@ -918,7 +948,7 @@ export default function TierPage({
             <div>
               <div className="flex flex-wrap gap-2">
                 <AppBadge tone="source">AniMatch</AppBadge>
-                <AppBadge tone="tier">Tier Wall</AppBadge>
+                <AppBadge tone="tier">Tier List</AppBadge>
                 <AppBadge tone="status">{poolName}</AppBadge>
               </div>
               <h2 className="tier-export-title mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">

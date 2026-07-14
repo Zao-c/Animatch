@@ -32,7 +32,8 @@ describe("P1 match arena UI", () => {
   it("renders a VS arena with two duel cards", () => {
     expect(source).toContain("VS");
     expect(source.match(/<DuelAnimeCard/g)?.length).toBe(2);
-    expect(source).toContain("MatchShortcutHint");
+    expect(source).toContain("getComparisonResultForShortcut");
+    expect(source).toContain("ShortcutKey");
   });
 
   it("keeps the match cards side by side on mobile", () => {

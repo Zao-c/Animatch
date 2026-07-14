@@ -1550,7 +1550,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
       <nav
         aria-label="番组导航"
-        className="sticky top-[6.75rem] z-20 mt-5 rounded-xl border border-white/10 bg-slate-950/90 p-1.5 shadow-lg shadow-slate-950/25 backdrop-blur sm:top-24"
+        className="z-20 mt-5 rounded-xl border border-white/10 bg-slate-950/90 p-1.5 shadow-lg shadow-slate-950/25 backdrop-blur sm:sticky sm:top-24"
       >
         <div className="flex flex-wrap gap-1.5">
           <a href="#anime-wall" className={appButtonClasses({ variant: "quiet", size: "md" })}>

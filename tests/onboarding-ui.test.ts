@@ -32,9 +32,11 @@ describe("onboarding guide copy", () => {
   });
 
   it("explains match undo, skip, unseen, and reset actions", () => {
-    expect(matchSource).toContain("点击整张卡或使用方向键快速选择");
+    expect(matchSource).toContain("ShortcutKey");
+    expect(matchSource).toContain("选择左边");
+    expect(matchSource).toContain("选择右边");
     expect(matchSource).toContain("对决设置");
-    expect(matchSource).toContain("快捷键");
+    expect(matchSource).toContain("getComparisonResultForShortcut");
     expect(matchSource).toContain("撤回上次选择");
     expect(matchSource).toContain("重开本轮");
     expect(matchSource).toContain("左边没看过");

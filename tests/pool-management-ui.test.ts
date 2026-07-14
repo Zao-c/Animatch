@@ -167,7 +167,7 @@ describe("pool management UI", () => {
     expect(detailSource).toContain('aria-label="番组导航"');
     expect(detailSource).toContain('href="#anime-wall"');
     expect(detailSource).toContain('href="#battle-seasons"');
-    expect(detailSource).toContain('sticky top-[6.75rem]');
+    expect(detailSource).toContain("sm:sticky sm:top-24");
     expect(detailSource).toContain('size="md"');
     expect(detailSource).toContain('canManagePool ? "返回我的番组" : "返回番组大厅"');
     expect(detailSource).toContain('canManagePool ? "/pools" : "/pools?view=public"');

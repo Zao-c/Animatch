@@ -54,6 +54,7 @@ export interface TierShareSnapshot {
   tierRows?: TierRowConfig[];
   animeCount: number;
   comparisonCount: number;
+  isInitialEstimate?: boolean;
 }
 
 export interface PublicTierShare {
@@ -204,6 +205,13 @@ export async function createTierShare(params: {
   });
   const tierLabels = sanitizeTierShareLabels(params.tierLabels);
   const description = sanitizeTierShareDescription(params.description);
+  if (tierList.totalComparisons === 0 || tierList.effectiveComparisons === 0) {
+    throw new AppError(
+      "Complete at least one comparison before creating a public Tier share",
+      422,
+      "TIER_SHARE_NOT_READY"
+    );
+  }
   const snapshot = buildTierShareSnapshot({
     poolId: pool.id,
     poolName: pool.name,

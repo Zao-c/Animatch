@@ -47,7 +47,7 @@ export function TierShareView({
             <div>
               <div className="flex flex-wrap gap-2">
                 <AppBadge tone="source">AniMatch</AppBadge>
-                <AppBadge tone="tier">Tier Wall</AppBadge>
+                <AppBadge tone="tier">Tier List</AppBadge>
               </div>
               <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-5xl">
                 {share.title}
@@ -148,6 +148,11 @@ export function TierShareCard({
               <h1 className="mt-2 text-2xl font-black leading-tight text-white sm:text-3xl">
                 {share.title}
               </h1>
+              {share.snapshot.isInitialEstimate ? (
+                <p className="mt-2 inline-flex rounded-full border border-amber-200/30 bg-amber-200/10 px-2.5 py-1 text-xs font-semibold text-amber-100">
+                  初始预览 · 尚未完成对决
+                </p>
+              ) : null}
               {creatorLabel ? (
                 <p className="mt-1.5 text-sm font-semibold text-slate-300">
                   由{" "}

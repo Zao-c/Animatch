@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import { preloadImage } from "../src/lib/preload-images";
+import { preloadImage, preloadPairs } from "../src/lib/preload-images";
 
 class MockImage {
   onload: (() => void) | null = null;
@@ -23,6 +23,17 @@ class HangingImage {
 
   set src(_value: string) {
     // Intentionally never calls load or error.
+  }
+}
+
+class CountingImage {
+  static assignedSources: string[] = [];
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+
+  set src(value: string) {
+    CountingImage.assignedSources.push(value);
+    setTimeout(() => this.onload?.(), 0);
   }
 }
 
@@ -59,6 +70,18 @@ describe("preloadImage", () => {
 
     await expect(result).resolves.toBe(false);
   });
+
+  it("coalesces concurrent loads for the same URL", async () => {
+    CountingImage.assignedSources = [];
+    vi.stubGlobal("Image", CountingImage);
+
+    await Promise.all([
+      preloadImage("https://img.example/shared.jpg"),
+      preloadImage("https://img.example/shared.jpg")
+    ]);
+
+    expect(CountingImage.assignedSources).toEqual(["https://img.example/shared.jpg"]);
+  });
 });
 
 describe("match preload priority", () => {
@@ -70,8 +93,14 @@ describe("match preload priority", () => {
     expect(preloadSource).not.toContain("await preloadPair(targetPairs[0])");
   });
 
-  it("warms the queue in the background instead of blocking the first playable pair", () => {
-    expect(matchSource).toContain("void preloadPairs(data.pairs.slice(0, 4), { preloadCount: 4 })");
+  it("warms future queue items in the background instead of competing with the first playable pair", () => {
+    expect(matchSource).toContain("void preloadPairs(data.pairs.slice(1, 4), { preloadCount: 3 })");
     expect(matchSource).not.toContain("await preloadPairs(data.pairs.slice(0, 1)");
+  });
+
+  it("retains pair-level preload accounting", async () => {
+    vi.stubGlobal("Image", MockImage);
+    const result = await preloadPairs([], { preloadCount: 3 });
+    expect(result).toEqual({ loaded: 0, total: 0 });
   });
 });

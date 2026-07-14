@@ -3,6 +3,7 @@ import { getAnimeCoverUrl, type AnimeCoverUrlFields } from "./anime-cover-url";
 import { getProxiedCoverCandidates } from "./image-proxy";
 
 const DEFAULT_PRELOAD_TIMEOUT_MS = 4000;
+const inFlightPreloads = new Map<string, Promise<boolean>>();
 
 export function preloadImage(
   src: string | null | undefined,
@@ -12,7 +13,12 @@ export function preloadImage(
     return Promise.resolve(false);
   }
 
-  return new Promise((resolve) => {
+  const existing = inFlightPreloads.get(src);
+  if (existing !== undefined) {
+    return existing;
+  }
+
+  const preload = new Promise<boolean>((resolve) => {
     const image = new Image();
     const timeoutMs = Math.max(1, Math.trunc(options.timeoutMs ?? DEFAULT_PRELOAD_TIMEOUT_MS));
     let settled = false;
@@ -37,6 +43,12 @@ export function preloadImage(
     image.onerror = () => finish(false);
     image.src = src;
   });
+
+  inFlightPreloads.set(src, preload);
+  void preload.then(() => {
+    inFlightPreloads.delete(src);
+  });
+  return preload;
 }
 
 export async function preloadPair(pair: MatchPair): Promise<boolean> {
