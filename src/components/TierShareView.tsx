@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import Link from "next/link";
 import React, { useState } from "react";
 import { AnimeCover } from "./AnimeCover";
@@ -136,6 +138,7 @@ export function TierShareCard({
   return (
     <section
       data-tier-share-card={exportMode ? "true" : undefined}
+      style={exportMode ? { width: 1280 } : undefined}
       className="overflow-hidden rounded-2xl border border-black/80 bg-[#191d21] shadow-[0_20px_90px_rgba(0,0,0,0.35)]"
     >
       {exportMode ? (
@@ -250,14 +253,29 @@ function ShareItemCard({
 
   return (
     <article className="w-28 rounded-xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_12px_36px_rgba(0,0,0,0.25)] sm:w-32">
-      <AnimeCover
+      {exportMode ? (
+        <div className="relative h-28 w-full overflow-hidden rounded-lg bg-slate-900 sm:h-32">
+          <span className="absolute inset-0 flex items-center justify-center p-2 text-center text-xs text-slate-300">{title}</span>
+          {coverUrl ? (
+            <img
+              data-export-src={coverUrl}
+              alt={title}
+              loading="eager"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              data-export-secondary-src={rawCoverUrl ?? undefined}
+              className={`relative h-full w-full ${coverFit === "contain" ? "object-contain" : "object-cover"}`}
+            />
+          ) : null}
+        </div>
+      ) : <AnimeCover
         src={coverUrl}
         secondarySrc={exportMode ? rawCoverUrl : undefined}
         title={title}
         size="sm"
         fit={coverFit}
         className="h-28 w-full rounded-lg sm:h-32"
-      />
+      />}
       {!exportMode ? (
         <h2 className="mt-2 line-clamp-2 text-[10px] font-semibold leading-snug text-slate-400">
           {title}

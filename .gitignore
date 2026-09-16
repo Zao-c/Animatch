@@ -32,3 +32,4 @@ animatch-*.bundle
 mihomo-upload/
 screenshots/
 output/
+.playwright-cli/

@@ -14,19 +14,19 @@ describe("AnimeCover background warm proxy", () => {
 
   it("only warms both sources when a caller opts in", () => {
     expect(source).toContain("warm = false");
-    expect(source).toContain("if (!warm) return;");
+    expect(source).toContain("if (!warm || !isNearViewport) return;");
     expect(source).toContain("warmImageProxyCache(src)");
     expect(source).toContain("warmImageProxyCache(secondarySrc)");
   });
 
   it("uses lazy loading by default so lists do not fetch off-screen covers", () => {
     expect(source).toContain('loading = "lazy"');
-    expect(source).toContain("loading={loading}");
+    expect(source).toContain('loading={isNearViewport ? "eager" : loading}');
   });
 
   it("uses bounded candidate and final image waits", () => {
-    expect(source).toContain("IMAGE_CANDIDATE_TIMEOUT_MS = 5000");
-    expect(source).toContain("FINAL_IMAGE_TIMEOUT_MS = 8000");
+    expect(source).toContain("IMAGE_CANDIDATE_TIMEOUT_MS = 15000");
+    expect(source).toContain("FINAL_IMAGE_TIMEOUT_MS = 20000");
   });
 
   it("automatically retries failed cover candidates after a short delay", () => {

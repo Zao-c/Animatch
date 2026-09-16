@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getProxiedCoverCandidates, isDirectImageUrl, warmImageProxyCache } from "@/lib/image-proxy";
 
 const SIZE_CLASS = {
@@ -10,8 +10,8 @@ const SIZE_CLASS = {
   md: "h-36 w-24",
   lg: "aspect-[2/3] w-full sm:max-h-[420px]"
 } as const;
-const IMAGE_CANDIDATE_TIMEOUT_MS = 5000;
-const FINAL_IMAGE_TIMEOUT_MS = 8000;
+const IMAGE_CANDIDATE_TIMEOUT_MS = 15000;
+const FINAL_IMAGE_TIMEOUT_MS = 20000;
 const DIRECT_IMAGE_TIMEOUT_MS = 15000;
 const IMAGE_ERROR_RETRY_DELAY_MS = 2500;
 const IMAGE_ERROR_RETRY_LIMIT = 2;
@@ -43,6 +43,27 @@ export function AnimeCover({
   );
   const [candidateIndex, setCandidateIndex] = useState(0);
   const [retryAttempt, setRetryAttempt] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isNearViewport, setIsNearViewport] = useState(loading === "eager");
+
+  // Native lazy images can wait offscreen indefinitely. Their network timeout
+  // must not start until the browser has a reason to request them.
+  useEffect(() => {
+    if (loading === "eager" || typeof IntersectionObserver === "undefined") {
+      setIsNearViewport(true);
+      return;
+    }
+    const element = containerRef.current;
+    if (!element) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        setIsNearViewport(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: "300px" });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [loading]);
 
   useEffect(() => {
     setCandidateIndex(0);
@@ -51,15 +72,15 @@ export function AnimeCover({
   }, [candidates, animeId]);
 
   useEffect(() => {
-    if (!warm) return;
+    if (!warm || !isNearViewport) return;
     warmImageProxyCache(src);
     warmImageProxyCache(secondarySrc);
-  }, [src, secondarySrc, warm]);
+  }, [src, secondarySrc, warm, isNearViewport]);
 
   const imageSrc = candidates[candidateIndex] ?? null;
 
   useEffect(() => {
-    if (state !== "loading" || candidates.length === 0 || imageSrc === null) {
+    if (state !== "loading" || !isNearViewport || candidates.length === 0 || imageSrc === null) {
       return;
     }
 
@@ -82,7 +103,7 @@ export function AnimeCover({
     );
 
     return () => window.clearTimeout(timeout);
-  }, [candidateIndex, candidates.length, imageSrc, state]);
+  }, [candidateIndex, candidates.length, imageSrc, state, isNearViewport]);
 
   useEffect(() => {
     if (state !== "error" || candidates.length === 0 || retryAttempt >= IMAGE_ERROR_RETRY_LIMIT) {
@@ -98,7 +119,8 @@ export function AnimeCover({
     return () => window.clearTimeout(timeout);
   }, [candidates.length, retryAttempt, state]);
 
-  const shouldShowImage = Boolean(imageSrc) && state !== "empty" && state !== "error";
+  // Keep a slow image mounted so a late successful load can still recover.
+  const shouldShowImage = Boolean(imageSrc) && state !== "empty";
   const coverState: "loading" | "loaded" | "error" | "empty" =
     candidates.length === 0 ? "empty" : state;
   const isCoverUnavailable = coverState === "error" || coverState === "empty";
@@ -110,6 +132,7 @@ export function AnimeCover({
 
   return (
     <div
+      ref={containerRef}
       className={`${SIZE_CLASS[size]} relative overflow-hidden rounded-lg border border-white/10 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 ${className}`}
       data-cover-fit={fit}
       data-cover-state={coverState}
@@ -148,9 +171,11 @@ export function AnimeCover({
 
       {shouldShowImage && (
         <img
+          key={`${imageSrc}-${retryAttempt}`}
           src={imageSrc ?? ""}
           alt={title}
-          loading={loading}
+          loading={isNearViewport ? "eager" : loading}
+          decoding="async"
           referrerPolicy="no-referrer"
           data-export-secondary-src={secondarySrc ?? undefined}
           data-cover-candidate-index={candidateIndex}
@@ -159,7 +184,6 @@ export function AnimeCover({
           }`}
           onLoad={() => {
             setState("loaded");
-            setRetryAttempt(0);
             if (warm) warmImageProxyCache(imageSrc);
           }}
           onError={() => {

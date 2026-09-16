@@ -7,12 +7,12 @@ import { AnimeCover } from "../src/components/AnimeCover";
 describe("AnimeCover timeout fallback", () => {
   const source = readFileSync("src/components/AnimeCover.tsx", "utf8");
 
-  it("defines IMAGE_CANDIDATE_TIMEOUT_MS = 5000 for non-final candidates", () => {
-    expect(source).toContain("IMAGE_CANDIDATE_TIMEOUT_MS = 5000");
+  it("defines IMAGE_CANDIDATE_TIMEOUT_MS = 15000 for non-final candidates", () => {
+    expect(source).toContain("IMAGE_CANDIDATE_TIMEOUT_MS = 15000");
   });
 
-  it("defines FINAL_IMAGE_TIMEOUT_MS = 8000 for the last candidate", () => {
-    expect(source).toContain("FINAL_IMAGE_TIMEOUT_MS = 8000");
+  it("defines FINAL_IMAGE_TIMEOUT_MS = 20000 for the last candidate", () => {
+    expect(source).toContain("FINAL_IMAGE_TIMEOUT_MS = 20000");
   });
 
   it("gives direct COS/CDN images a longer window before falling back", () => {

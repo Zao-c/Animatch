@@ -1,10 +1,20 @@
 "use client";
 
 import { toPng } from "html-to-image";
+import { isRemoteImageUrl } from "./image-proxy";
 
 const EXPORT_IMAGE_PLACEHOLDER =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
-const IMAGE_INLINE_CONCURRENCY = 8;
+const IMAGE_INLINE_CONCURRENCY = 4;
+const IMAGE_REQUEST_TIMEOUT_MS = 8000;
+
+export function getExportPixelRatio(width: number, height: number): number {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    throw new Error("榜单尺寸无效，请等待页面加载完成后重试。");
+  }
+  // Limit both dimensions and total canvas memory, including on mobile Safari.
+  return Math.min(2, 4096 / width, 4096 / height, Math.sqrt(8_000_000 / (width * height)));
+}
 
 export interface ExportShareCardOptions {
   filename?: string;
@@ -15,7 +25,7 @@ export async function exportShareCardAsPng(
   container: HTMLElement,
   options: ExportShareCardOptions = {}
 ): Promise<{ dataUrl: string }> {
-  const { timeoutMs = 20000, filename = "animatch-tier" } = options;
+  const { timeoutMs = 30000, filename = "animatch-tier" } = options;
 
   const card = container.querySelector<HTMLElement>(
     "[data-tier-share-card=\"true\"]"
@@ -25,22 +35,48 @@ export async function exportShareCardAsPng(
     throw new Error("Export container has no share card element.");
   }
 
-  await waitForShareCardImages(card, timeoutMs);
-  await inlineShareCardImagesForExport(card, timeoutMs);
+  // Work on an isolated copy: React must not remove or replace images while
+  // they are being fetched, decoded and captured.
+  const clone = card.cloneNode(true) as HTMLElement;
+  const host = document.createElement("div");
+  host.setAttribute("aria-hidden", "true");
+  host.style.cssText = "position:fixed;left:-10000px;top:0;width:1280px;pointer-events:none;";
+  clone.style.width = "1280px";
+  host.appendChild(clone);
 
-  const dataUrl = await toPng(card, {
-    cacheBust: true,
-    pixelRatio: 2,
-    backgroundColor: "#101310",
-    imagePlaceholder: EXPORT_IMAGE_PLACEHOLDER,
-    skipAutoScale: true
-  });
-
-  if (typeof window !== "undefined") {
+  try {
+    // Inline before attaching so hundreds of eager images do not issue an
+    // uncontrolled second set of browser requests.
+    await inlineShareCardImagesForExport(clone, timeoutMs);
+    document.body.appendChild(host);
+    await waitForShareCardImages(clone, 3000);
+    const undecoded = Array.from(clone.querySelectorAll("img")).filter(
+      (image) => !image.complete || image.naturalWidth === 0
+    );
+    if (undecoded.length > 0) {
+      throw new Error(`${undecoded.length} 张封面未能解码，请重试导出。`);
+    }
+    const width = Math.ceil(clone.scrollWidth);
+    const height = Math.ceil(clone.scrollHeight);
+    const dataUrl = await toPng(clone, {
+      cacheBust: false,
+      includeQueryParams: true,
+      pixelRatio: getExportPixelRatio(width, height),
+      width,
+      height,
+      backgroundColor: "#101310",
+      imagePlaceholder: EXPORT_IMAGE_PLACEHOLDER,
+      skipFonts: true,
+      skipAutoScale: false
+    });
+    if (!dataUrl.startsWith("data:image/png;base64,") || dataUrl.length < 100) {
+      throw new Error("浏览器未能生成有效图片，请减少榜单作品数量后重试。");
+    }
     downloadDataUrl(dataUrl, `${filename}.png`);
+    return { dataUrl };
+  } finally {
+    host.remove();
   }
-
-  return { dataUrl };
 }
 
 export async function inlineShareCardImagesForExport(
@@ -54,34 +90,53 @@ export async function inlineShareCardImagesForExport(
   }
 
   let cursor = 0;
+  let failedCount = 0;
+  const deadline = Date.now() + timeoutMs;
+  const downloads = new Map<string, Promise<string | null>>();
+  const fetchOnce = (url: string) => {
+    let result = downloads.get(url);
+    if (!result) {
+      const remainingMs = deadline - Date.now();
+      result = remainingMs <= 0 ? Promise.resolve(null) :
+        fetchImageAsDataUrl(url, Math.min(IMAGE_REQUEST_TIMEOUT_MS, remainingMs));
+      downloads.set(url, result);
+    }
+    return result;
+  };
   const workers = Array.from(
     { length: Math.min(IMAGE_INLINE_CONCURRENCY, images.length) },
     async () => {
       while (cursor < images.length) {
         const image = images[cursor];
         cursor += 1;
-        await inlineOneImageForExport(image, timeoutMs);
+        if (!await inlineOneImageForExport(image, fetchOnce)) failedCount += 1;
       }
     }
   );
 
   await Promise.all(workers);
+  if (failedCount > 0) {
+    throw new Error(`${failedCount} 张封面暂时无法读取，已取消导出以避免缺图。请稍后重试。`);
+  }
 }
 
 async function inlineOneImageForExport(
   image: HTMLImageElement,
-  timeoutMs: number
-): Promise<void> {
+  fetchOnce: (url: string) => Promise<string | null>
+): Promise<boolean> {
   const candidates = getExportImageCandidates(image);
 
   for (const candidate of candidates) {
-    const dataUrl = await fetchImageAsDataUrl(candidate, timeoutMs);
+    const dataUrl = await fetchOnce(candidate);
     if (dataUrl !== null) {
       image.src = dataUrl;
       image.removeAttribute("srcset");
       image.style.display = "";
+      image.style.opacity = "1";
+      image.style.transition = "none";
+      image.loading = "eager";
       image.dataset.exportInlined = "true";
-      return;
+      return true;
     }
   }
 
@@ -92,10 +147,12 @@ async function inlineOneImageForExport(
   console.warn("[share-export] image could not be inlined", {
     candidates
   });
+  return false;
 }
 
 function getExportImageCandidates(image: HTMLImageElement): string[] {
   const values = [
+    image.dataset.exportSrc,
     image.currentSrc,
     image.src,
     image.dataset.exportSecondarySrc,
@@ -114,6 +171,19 @@ function getExportImageCandidates(image: HTMLImageElement): string[] {
     }
 
     seen.add(trimmed);
+    // A COS image can display in <img> without CORS while fetch cannot read it.
+    // Same-origin proxy is an export-only fallback, keeping normal views on COS.
+    if (isRemoteImageUrl(trimmed)) {
+      const origin = typeof window === "undefined" ? "http://localhost" : window.location.origin;
+      const parsed = new URL(trimmed);
+      if (parsed.origin !== origin) {
+        const proxy = `/api/image-proxy?url=${encodeURIComponent(trimmed)}`;
+        if (!seen.has(proxy)) {
+          seen.add(proxy);
+          return [trimmed, proxy];
+        }
+      }
+    }
     return [trimmed];
   });
 }
@@ -166,6 +236,7 @@ async function fetchImageAsDataUrl(
     }
 
     const blob = await response.blob();
+    if (blob.size === 0 || blob.size > 10 * 1024 * 1024) return null;
     return await blobToDataUrl(blob, contentType);
   } catch (error) {
     console.warn("[share-export] image fetch threw", {
@@ -262,6 +333,7 @@ export async function waitForShareCardImages(
 
           img.addEventListener("load", handleLoad, { once: true });
           img.addEventListener("error", handleError, { once: true });
+          img.loading = "eager";
 
           if (img.complete) {
             if (img.naturalWidth > 0) {

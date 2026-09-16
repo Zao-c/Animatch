@@ -7,6 +7,7 @@ interface Args {
   concurrency: number;
   force: boolean;
   allLibrary: boolean;
+  dryRun: boolean;
 }
 
 interface CacheCandidate {
@@ -35,7 +36,8 @@ function parseArgs(): Args {
     limit: 100,
     concurrency: 2,
     force: false,
-    allLibrary: false
+    allLibrary: false,
+    dryRun: false
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -50,6 +52,8 @@ function parseArgs(): Args {
       result.force = true;
     } else if (arg === "--all-library") {
       result.allLibrary = true;
+    } else if (arg === "--dry-run") {
+      result.dryRun = true;
     }
   }
 
@@ -124,6 +128,8 @@ async function main() {
     usedStaleAnimeCount,
     usedAnimeCoverRate: usedAnimeCount > 0 ? Number((usedCachedAnimeCount / usedAnimeCount).toFixed(4)) : 0
   }, null, 2));
+
+  if (args.dryRun) return;
 
   const scanLimit = args.allLibrary ? Math.max(args.limit * 10, args.limit) : undefined;
   const animes = await prisma.anime.findMany({

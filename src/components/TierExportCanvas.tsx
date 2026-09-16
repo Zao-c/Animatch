@@ -82,7 +82,7 @@ function TierExportItem({
   const useContain = getAnimeImageFitMode(item) === "contain";
   const fallback = title.trim().slice(0, 1).toUpperCase() || "A";
 
-  useImageLoadTimeout(rawCoverUrl, () => setImageFailed(true));
+  React.useEffect(() => setImageFailed(initiallyFailed), [initiallyFailed, coverUrl]);
 
   return (
     <div className="tiermaker-export-item" aria-label={title}>
@@ -90,6 +90,7 @@ function TierExportItem({
         <img
           className={`tiermaker-export-image ${useContain ? "tiermaker-export-image-contain" : ""}`}
           src={coverUrl}
+          loading="eager"
           alt=""
           referrerPolicy="no-referrer"
           data-tier-export-image="true"
@@ -107,13 +108,4 @@ function TierExportItem({
       )}
     </div>
   );
-}
-
-function useImageLoadTimeout(imageUrl: string | null, onTimeout: () => void) {
-  React.useEffect(() => {
-    if (!imageUrl) return;
-
-    const timer = window.setTimeout(onTimeout, 15000);
-    return () => window.clearTimeout(timer);
-  }, [imageUrl, onTimeout]);
 }

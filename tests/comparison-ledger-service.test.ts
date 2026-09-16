@@ -1,4 +1,5 @@
 import {
+  Prisma,
   PoolComparisonMode,
   PoolComparisonResult,
   RecalibrationSessionStatus
@@ -23,6 +24,28 @@ const mockedPrisma = vi.mocked(prisma);
 describe("comparison ledger service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("retries a serialization conflict before recording the comparison once", async () => {
+    const tx = createTx();
+    mockedPrisma.$transaction
+      .mockRejectedValueOnce(new Prisma.PrismaClientKnownRequestError("conflict", { code: "P2034", clientVersion: "6" }))
+      .mockImplementation(async (callback) => callback(tx as any));
+    await submitComparison(baseSubmitParams({ result: PoolComparisonResult.LEFT_WIN }));
+    expect(mockedPrisma.$transaction).toHaveBeenCalledTimes(2);
+    expect(tx.poolComparison.create).toHaveBeenCalledTimes(1);
+    expect(mockedPrisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+    });
+  });
+
+  it("bounds retries and returns a conflict when writes keep colliding", async () => {
+    mockedPrisma.$transaction.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("conflict", { code: "P2034", clientVersion: "6" })
+    );
+    await expect(submitComparison(baseSubmitParams({ result: PoolComparisonResult.LEFT_WIN })))
+      .rejects.toMatchObject({ code: "COMPARISON_WRITE_CONFLICT", statusCode: 409 });
+    expect(mockedPrisma.$transaction).toHaveBeenCalledTimes(3);
   });
 
   it("writes LEFT_WIN ledger fields with winner, loser, Elo, delta, position, and clientMutationId", async () => {
