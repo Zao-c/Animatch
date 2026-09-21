@@ -248,7 +248,9 @@ function ShareItemCard({
 }) {
   const title = getAnimeDisplayTitle(item);
   const coverFit = shouldUseContainCover(item) ? "contain" : "cover";
-  const rawCoverUrl = getAnimeCoverUrl(item, { intent: "export" });
+  // A snapshot already resolved its cover (including COS and user overrides).
+  // Legacy source fields must not replace it with an unstable original image.
+  const rawCoverUrl = item.coverUrl?.trim() || getAnimeCoverUrl(item, { intent: "export" });
   const coverUrl = exportMode ? proxyExternalImageUrl(rawCoverUrl) : rawCoverUrl;
 
   return (

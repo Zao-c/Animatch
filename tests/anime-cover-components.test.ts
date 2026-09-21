@@ -284,7 +284,7 @@ describe("anime cover rendering", () => {
     );
 
     expect(html).toContain("/ 10");
-    expect(html).toContain("3 battles");
+    expect(html).toContain("3 场");
     expect(html).not.toContain("Elo 1554.3");
   });
 });

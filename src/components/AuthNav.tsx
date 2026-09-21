@@ -40,7 +40,7 @@ export function AuthNav() {
     return (
       <Link
         href={`/login${next}`}
-        className="min-h-11 rounded-full border border-anime-border bg-white/[0.04] px-4 py-2 transition duration-anime hover:border-anime-purple/40 hover:text-white"
+        className="inline-flex min-h-11 items-center rounded-full border border-anime-border bg-white/[0.04] px-4 py-2 transition duration-anime hover:border-anime-purple/40 hover:text-white"
       >
         登录
       </Link>

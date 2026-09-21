@@ -57,7 +57,7 @@ export function TierAnimeCard({
         event.stopPropagation();
         onDropBefore();
       }}
-      className={`w-40 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/50 shadow-anime-panel transition duration-anime hover:-translate-y-0.5 hover:border-anime-cyan/30 ${
+      className={`w-full min-w-0 overflow-hidden rounded-xl border border-anime-border bg-anime-panel transition duration-anime hover:border-anime-cyan/30 ${
         editable ? "cursor-grab active:cursor-grabbing" : ""
       } ${className}`}
     >
@@ -67,19 +67,19 @@ export function TierAnimeCard({
         title={title}
         size="md"
         fit={coverFit}
-        className="h-52 w-full rounded-none border-0"
+        className="aspect-[2/3] h-auto w-full rounded-none border-0"
       />
-      <div className="p-3">
-        <div className="flex min-h-6 flex-wrap items-start gap-1.5">
-          {item.manualLocked ? <AppBadge tone="tier">Locked</AppBadge> : null}
-          {item.display?.isOverridden ? <AppBadge tone="source">Edited</AppBadge> : null}
-        </div>
-        <h3 className="mt-1 line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-white">
+      <div className="p-2 sm:p-3">
+        {item.manualLocked || item.display?.isOverridden ? <div className="mb-1 flex flex-wrap items-start gap-1.5">
+          {item.manualLocked ? <AppBadge tone="tier">已手动排序</AppBadge> : null}
+          {item.display?.isOverridden ? <AppBadge tone="source">自定义</AppBadge> : null}
+        </div> : null}
+        <h3 title={title} className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-white">
           {title}
         </h3>
-        <div className="mt-2 flex items-end justify-between gap-2">
-          <p className="text-sm font-black text-cyan-100">{aniScore.label}</p>
-          <p className="text-[11px] text-slate-500">{item.compareCount} battles</p>
+        <div className="mt-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <p className="whitespace-nowrap text-xs font-black text-cyan-100 sm:text-sm">{aniScore.label}</p>
+          <p className="whitespace-nowrap text-xs text-slate-400">{item.compareCount} 场</p>
         </div>
         {editable && onMoveToTier ? (
           <div

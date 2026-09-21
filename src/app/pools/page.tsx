@@ -280,7 +280,7 @@ function PoolsPageContent() {
       <section className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
         <div>
           <AppBadge tone={isPublicView ? "status" : "source"}>
-            {isPublicView ? "Public Pools" : "Pool Control"}
+            {isPublicView ? "一起发现好动画" : "我的动画收藏"}
           </AppBadge>
           <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
             {viewCopy.title}
@@ -299,13 +299,20 @@ function PoolsPageContent() {
       </section>
 
       <div className="mt-7 rounded-2xl border border-white/10 bg-slate-950/22 p-3">
-        <form onSubmit={handleSearch} className="grid gap-2 lg:grid-cols-[1fr_140px_140px_140px_auto]">
+        <form onSubmit={handleSearch} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="搜索番组名称或描述"
+            aria-label="搜索番组名称或描述"
             className="anime-field"
           />
+          <AppButton type="submit" variant="ghost" disabled={isLoading}>
+            搜索
+          </AppButton>
+          <details className="col-span-2">
+            <summary className="flex min-h-11 cursor-pointer items-center text-sm text-slate-300">筛选与排序 · {viewCopy.title} · {FILTERS.find((item) => item.value === filter)?.label} · {SORTS.find((item) => item.value === sort)?.label}</summary>
+            <div className="mt-2 grid gap-2 sm:grid-cols-3">
           <select
             value={view}
             onChange={(event) => handleViewChange(event.target.value as PoolView)}
@@ -341,9 +348,8 @@ function PoolsPageContent() {
               </option>
             ))}
           </select>
-          <AppButton type="submit" variant="ghost" disabled={isLoading}>
-            搜索
-          </AppButton>
+            </div>
+          </details>
         </form>
       </div>
 
@@ -403,7 +409,7 @@ function PoolsPageContent() {
 
       <section className="mt-8">
         <SectionHeader
-          eyebrow="Pools"
+          eyebrow={isPublicView ? "发现" : "收藏"}
           title={isPublicView ? "正在开放的大乱斗" : "番组列表"}
           description={isPublicView ? "所有人都可以浏览公开番组；登录后加入大乱斗会进入你自己的个人对决。" : "默认隐藏已归档番组；切到已归档可以恢复或查看历史。"}
         />

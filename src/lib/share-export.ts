@@ -19,13 +19,14 @@ export function getExportPixelRatio(width: number, height: number): number {
 export interface ExportShareCardOptions {
   filename?: string;
   timeoutMs?: number;
+  onProgress?: (message: string) => void;
 }
 
 export async function exportShareCardAsPng(
   container: HTMLElement,
   options: ExportShareCardOptions = {}
 ): Promise<{ dataUrl: string }> {
-  const { timeoutMs = 30000, filename = "animatch-tier" } = options;
+  const { timeoutMs = 30000, filename = "animatch-tier", onProgress } = options;
 
   const card = container.querySelector<HTMLElement>(
     "[data-tier-share-card=\"true\"]"
@@ -47,7 +48,8 @@ export async function exportShareCardAsPng(
   try {
     // Inline before attaching so hundreds of eager images do not issue an
     // uncontrolled second set of browser requests.
-    await inlineShareCardImagesForExport(clone, timeoutMs);
+    await inlineShareCardImagesForExport(clone, timeoutMs, onProgress);
+    onProgress?.("封面已就绪，正在生成图片…");
     document.body.appendChild(host);
     await waitForShareCardImages(clone, 3000);
     const undecoded = Array.from(clone.querySelectorAll("img")).filter(
@@ -73,6 +75,7 @@ export async function exportShareCardAsPng(
       throw new Error("浏览器未能生成有效图片，请减少榜单作品数量后重试。");
     }
     downloadDataUrl(dataUrl, `${filename}.png`);
+    onProgress?.("图片已生成，请在浏览器下载中查看。");
     return { dataUrl };
   } finally {
     host.remove();
@@ -81,7 +84,8 @@ export async function exportShareCardAsPng(
 
 export async function inlineShareCardImagesForExport(
   card: HTMLElement,
-  timeoutMs: number = 15000
+  timeoutMs: number = 15000,
+  onProgress?: (message: string) => void
 ): Promise<void> {
   const images = Array.from(card.querySelectorAll<HTMLImageElement>("img"));
 
@@ -91,6 +95,8 @@ export async function inlineShareCardImagesForExport(
 
   let cursor = 0;
   let failedCount = 0;
+  let completedCount = 0;
+  onProgress?.(`正在准备封面 0 / ${images.length}`);
   const deadline = Date.now() + timeoutMs;
   const downloads = new Map<string, Promise<string | null>>();
   const fetchOnce = (url: string) => {
@@ -110,6 +116,8 @@ export async function inlineShareCardImagesForExport(
         const image = images[cursor];
         cursor += 1;
         if (!await inlineOneImageForExport(image, fetchOnce)) failedCount += 1;
+        completedCount += 1;
+        onProgress?.(`正在准备封面 ${completedCount} / ${images.length}`);
       }
     }
   );

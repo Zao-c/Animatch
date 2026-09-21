@@ -37,7 +37,6 @@ import {
 import { isCommunityBattleVisiblePool } from "@/lib/community-battle-visibility";
 import { computeCommunityDivergence, buildPersonalItemList, type DivergenceResult } from "@/lib/community-divergence";
 import { exportShareCardAsPng } from "@/lib/share-export";
-import { formatTierExportTimestamp } from "@/lib/tier-export";
 import { DEFAULT_TIER_CONFIG, type TierRowConfig } from "@/lib/tier-config";
 import { isSlowNetwork, prewarmCoverUrls } from "@/lib/cover-prewarm";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
@@ -172,8 +171,7 @@ export default function TierPage({
   const [plannedCount, setPlannedCount] = useState(20);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [exportedAt, setExportedAt] = useState<Date | null>(null);
-  const [exportPreviewedAt, setExportPreviewedAt] = useState<Date | null>(null);
+  const [exportProgress, setExportProgress] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -288,12 +286,6 @@ export default function TierPage({
 
     return () => controller.abort();
   }, [tierList]);
-
-  useEffect(() => {
-    if (tierList !== null && exportPreviewedAt === null) {
-      setExportPreviewedAt(new Date());
-    }
-  }, [exportPreviewedAt, tierList]);
 
   function startEditing() {
     if (tierList === null) {
@@ -421,8 +413,8 @@ export default function TierPage({
 
     setIsExporting(true);
     setExportError(null);
+    setExportProgress("正在准备榜单…");
     const generatedAt = new Date();
-    setExportedAt(generatedAt);
 
     try {
       const share = buildLocalTierExportShare({
@@ -446,6 +438,7 @@ export default function TierPage({
       }
 
       await exportShareCardAsPng(exportCardRef.current, {
+        onProgress: setExportProgress,
         filename: `animatch-tier-${poolName.replace(/[^a-zA-Z0-9\u4e00-\u9fff_-]+/g, "-").slice(0, 40)}`
       });
     } catch (reason) {
@@ -614,45 +607,38 @@ export default function TierPage({
     [tierList, tierRows]
   );
   const scoreDistribution = tierList?.scoreDistribution ?? fallbackScoreDistribution;
-  const displayedExportedAt = exportedAt ?? exportPreviewedAt;
   const isInitialEstimate =
     tierList !== null &&
     (tierList.totalComparisons === 0 || tierList.progress.stage === "EMPTY" || tierList.progress.stage === "DRAFTING");
 
   return (
     <PageShell>
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="flex flex-wrap gap-2">
             <AppBadge tone="tier">我的 Tier List</AppBadge>
-            <AppBadge tone="status">{poolName}</AppBadge>
           </div>
-          <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
-            我的 Tier List
+          <h1 className="mt-3 break-words text-3xl font-black tracking-tight text-white sm:text-4xl">
+            {poolName}
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-            导出和分享是这里的主动作；校准和高级设定默认折叠。
+            挑出你的心头好，把这份喜好保存下来。
           </p>
         </div>
       </div>
 
-      <AppCard className="mb-6 p-4" variant="focus">
+      <AppCard className="mb-4 p-3 sm:p-4" variant="soft">
         <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div>
-            <h2 className="text-lg font-semibold text-white">生成你的榜单作品</h2>
-            <p className="mt-1 text-sm text-slate-400">
-              导出、分享和继续对决是这个页面的主动作。
-            </p>
-          </div>
-          <p className="max-w-2xl text-xs leading-5 text-slate-500 lg:col-span-2">
+          <h2 className="sr-only">保存这份榜单</h2>
+          {showTierInfo ? <p className="max-w-2xl text-xs leading-5 text-slate-400 lg:col-span-2">
             Tier List 根据你的对决结果生成。手动调整只影响榜单展示和当前手动排序，不会改写对决历史。
-          </p>
+          </p> : null}
           {isInitialEstimate ? (
             <p className="rounded-xl border border-amber-200/20 bg-amber-200/[0.06] px-3 py-2 text-xs font-medium leading-5 text-amber-100 lg:col-span-2">
               当前榜单仍是初始估计。可以导出留存，但完成至少一轮对决前不能创建公开分享链接。
             </p>
           ) : null}
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
           <AppButton
             onClick={handleExportImage}
             disabled={isExporting || tierList === null}
@@ -698,7 +684,7 @@ export default function TierPage({
         </div>
       </AppCard>
 
-      {canShowCommunityRanking ? (
+      {canShowCommunityRanking && showTierInfo ? (
         <AppCard className="mb-5 p-4" variant="soft">
           <div className="min-w-0">
             <AppBadge tone="source">社区大乱斗</AppBadge>
@@ -717,7 +703,9 @@ export default function TierPage({
           </AppButton>
         </div>
       ) : null}
-      {exportError ? <ErrorAlert message={exportError} className="mb-5" /> : null}
+      {exportError ? <ErrorAlert message={exportError} className="mb-5" /> : exportProgress ? (
+        <p role="status" aria-live="polite" className="mb-4 text-sm text-slate-300">{exportProgress}</p>
+      ) : null}
       <TierSharePanel
         shareError={shareError}
         shareUrl={shareUrl}
@@ -740,7 +728,7 @@ export default function TierPage({
           <div>
             <h2 className="text-lg font-semibold text-white">高级控制</h2>
             <p className="mt-1 text-sm text-slate-400">
-              这些操作会影响最终展示或进入校准流程，默认收起以保持榜单聚焦。
+              调整作品位置、修改分层名称，或通过更多对决校准排名。
             </p>
           </div>
           <AppButton onClick={() => setShowRecalibration((value) => !value)} variant="secondary">
@@ -944,22 +932,11 @@ export default function TierPage({
 
       {tierList && visibleTiers ? (
         <div className="tier-export-surface">
-          <div className="tier-export-header mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="flex flex-wrap gap-2">
-                <AppBadge tone="source">AniMatch</AppBadge>
-                <AppBadge tone="tier">Tier List</AppBadge>
-                <AppBadge tone="status">{poolName}</AppBadge>
-              </div>
-              <h2 className="tier-export-title mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
-                {poolName}
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-slate-400">
-                生成时间 {displayedExportedAt ? formatTierExportTimestamp(displayedExportedAt) : "--"}
-              </p>
-            </div>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-bold text-white">作品分层</h2>
+            <span className="text-sm text-slate-400">{tierList.totalAnime} 部作品 · {tierList.effectiveComparisons} 场有效对决</span>
           </div>
-
+          {showTierInfo ? <>
           <div className="mb-4 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.025] p-3">
             <Stat label="我的稳定度" value={tierList.confidenceScore.toFixed(1)} />
             <Stat label="当前阶段" value={tierList.progress.stageLabel} />
@@ -975,7 +952,8 @@ export default function TierPage({
           <div className="mb-5">
             <RankingProgressCard progress={tierList.progress} compact />
           </div>
-          {isInitialEstimate ? (
+          </> : null}
+          {isInitialEstimate && showTierInfo ? (
             <StatusHint
               label="初始估计"
               title={tierList.totalComparisons === 0 ? "还没有对决记录，榜单不是正式结果" : "对决样本还少，分档可能会明显变化"}
@@ -996,7 +974,7 @@ export default function TierPage({
               }
             />
           ) : null}
-          <div className="mb-6">
+          <div className="mb-3">
             <AppButton
               onClick={() => setShowTierInfo((value) => !value)}
               variant="quiet"
@@ -1033,15 +1011,16 @@ export default function TierPage({
                 key={row.id}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={() => handleDrop(row.id)}
-                className="grid gap-4 rounded-2xl border border-white/10 bg-gradient-to-r from-slate-900/50 to-slate-950/46 p-3 backdrop-blur-xl lg:grid-cols-[104px_1fr]"
+                className="grid min-w-0 gap-3 rounded-2xl border border-anime-border bg-anime-panel p-3 sm:grid-cols-[80px_minmax(0,1fr)]"
               >
                 <div
-                  className="flex min-h-24 items-center justify-center rounded-xl border border-white/15 px-3 text-center shadow-anime-panel"
+                  className="flex min-h-11 items-center justify-between gap-2 rounded-xl px-3 py-2 text-center sm:flex-col sm:justify-center"
                   style={{ backgroundColor: row.color }}
                 >
                   <span className="max-w-full text-2xl font-black leading-tight text-slate-950 [overflow-wrap:anywhere]">
                     {tierLabels[row.id] ?? row.label}
                   </span>
+                  <span className="text-xs font-semibold text-slate-950">{rowItems.length} 部</span>
                 </div>
                 {rowItems.length === 0 ? (
                   <div className="flex min-h-24 items-center rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-4">
@@ -1050,7 +1029,7 @@ export default function TierPage({
                     </p>
                   </div>
                 ) : (
-                  <div className="flex gap-3 overflow-x-auto pb-2">
+                  <div className="grid min-w-0 grid-cols-2 items-start gap-3 min-[380px]:grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(128px,1fr))]">
                     {rowItems.map((item) => (
                       <TierAnimeCard
                         key={item.animeId}
