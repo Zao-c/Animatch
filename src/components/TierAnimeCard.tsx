@@ -17,6 +17,7 @@ export function TierAnimeCard({
   item,
   editable,
   exportMode = false,
+  compact = false,
   scoreDistribution,
   onDragStart,
   onDropBefore,
@@ -31,6 +32,7 @@ export function TierAnimeCard({
   item: TierListItem;
   editable: boolean;
   exportMode?: boolean;
+  compact?: boolean;
   scoreDistribution: RankingScoreDistribution;
   onDragStart: () => void;
   onDropBefore: () => void;
@@ -69,18 +71,18 @@ export function TierAnimeCard({
         fit={coverFit}
         className="aspect-[2/3] h-auto w-full rounded-none border-0"
       />
-      <div className="p-2 sm:p-3">
-        {item.manualLocked || item.display?.isOverridden ? <div className="mb-1 flex flex-wrap items-start gap-1.5">
+      <div className={compact ? "p-1.5" : "p-2 sm:p-3"}>
+        {!compact && (item.manualLocked || item.display?.isOverridden) ? <div className="mb-1 flex flex-wrap items-start gap-1.5">
           {item.manualLocked ? <AppBadge tone="tier">已手动排序</AppBadge> : null}
           {item.display?.isOverridden ? <AppBadge tone="source">自定义</AppBadge> : null}
         </div> : null}
-        <h3 title={title} className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-white">
+        <h3 title={title} className={compact ? "line-clamp-2 min-h-8 text-[11px] font-semibold leading-4 text-white" : "line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-white"}>
           {title}
         </h3>
-        <div className="mt-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        {!compact ? <div className="mt-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <p className="whitespace-nowrap text-xs font-black text-cyan-100 sm:text-sm">{aniScore.label}</p>
           <p className="whitespace-nowrap text-xs text-slate-400">{item.compareCount} 场</p>
-        </div>
+        </div> : null}
         {editable && onMoveToTier ? (
           <div
             className="mt-3 space-y-2 [@media(hover:hover)_and_(pointer:fine)]:hidden"

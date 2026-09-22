@@ -6,6 +6,8 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
+import { DashboardTabs } from "@/components/ui/DashboardTabs";
+import { CollectionPager } from "@/components/ui/CollectionPager";
 import { PageShell } from "@/components/PageShell";
 import { AnimeCover } from "@/components/AnimeCover";
 import { TierShareCard } from "@/components/TierShareView";
@@ -48,7 +50,10 @@ export default function SeasonDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [manageOpen, setManageOpen] = useState(false);
+  const [hashReady, setHashReady] = useState(false);
+  const [seasonView, setSeasonView] = useState("overview");
+  const [sharedView, setSharedView] = useState("tier");
+  const [rankingPage, setRankingPage] = useState(1);
   const [shareNotice, setShareNotice] = useState<string | null>(null);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -66,6 +71,18 @@ export default function SeasonDetailPage() {
     maxVotesPerUserPerDay: "",
     biasVotesPerUser: 3
   });
+
+  useEffect(() => {
+    const syncHash = () => {
+      const value = window.location.hash.slice(1);
+      setSeasonView(value === "season-impact" ? "impact" : value === "season-results" ? "shared" : ["overview", "personal", "shared", "impact", "manage"].includes(value) ? value : "overview");
+    };
+    syncHash();
+    setHashReady(true);
+    window.addEventListener("hashchange", syncHash);
+    return () => window.removeEventListener("hashchange", syncHash);
+  }, []);
+  useEffect(() => { if (!hashReady) return; window.history.replaceState(window.history.state, "", '#' + seasonView); }, [seasonView, hashReady]);
 
   const fetchDetail = useCallback(() => {
     setLoading(true);
@@ -122,7 +139,7 @@ export default function SeasonDetailPage() {
         biasVotesPerUser: Number(editForm.biasVotesPerUser)
       });
       fetchDetail();
-      setManageOpen(false);
+      setSeasonView("overview");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "保存赛季失败");
     } finally {
@@ -149,7 +166,7 @@ export default function SeasonDetailPage() {
 
     const canVote = getSeasonScheduleState(detail).canVote;
     const seasonUrl = `${window.location.origin}/pools/${poolId}/seasons/${seasonId}${
-      canVote ? "" : "#season-results"
+      canVote ? "" : "#shared"
     }`;
     const shareText = [
       `AniMatch 大乱斗赛季《${detail.title}》`,
@@ -238,8 +255,8 @@ export default function SeasonDetailPage() {
     }
   }
 
-  if (loading && detail === null) return <PageShell><main className="mx-auto max-w-6xl px-4 py-8"><SeasonSkeleton /></main></PageShell>;
-  if (error && detail === null) return <PageShell><main className="mx-auto max-w-6xl px-4 py-8"><AppCard className="p-8 text-center"><AppBadge tone="tier">AniMatch</AppBadge><h1 className="mt-4 text-xl font-black text-white">加载失败</h1><p className="mt-2 text-sm text-slate-400">{error}</p><AppButton type="button" onClick={fetchDetail} variant="secondary" className="mt-5">重新加载赛季</AppButton></AppCard></main></PageShell>;
+  if (loading && detail === null) return <PageShell><div className="mx-auto max-w-7xl"><SeasonSkeleton /></div></PageShell>;
+  if (error && detail === null) return <PageShell><div className="mx-auto max-w-7xl"><AppCard className="p-8 text-center"><AppBadge tone="tier">AniMatch</AppBadge><h1 className="mt-4 text-xl font-black text-white">加载失败</h1><p className="mt-2 text-sm text-slate-400">{error}</p><AppButton type="button" onClick={fetchDetail} variant="secondary" className="mt-5">重新加载赛季</AppButton></AppCard></div></PageShell>;
   if (!detail) return null;
 
   const seasonState = getSeasonDisplayState(detail);
@@ -247,40 +264,27 @@ export default function SeasonDetailPage() {
 
   return (
     <PageShell>
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <div className="mx-auto max-w-7xl">
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <Link href={`/pools/${poolId}`} className="inline-flex min-h-11 items-center text-sm text-slate-400 transition hover:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-300/60">← 返回番组</Link>
         </div>
-        <nav
-          aria-label="赛季页面导航"
-          className="sticky top-[6.75rem] z-20 mb-5 flex min-h-11 items-center gap-1.5 overflow-x-auto rounded-xl border border-white/10 bg-slate-950/90 p-1.5 shadow-lg shadow-slate-950/25 backdrop-blur sm:top-24"
-        >
-          <Link href={`/pools/${poolId}`} className={appButtonClasses({ variant: "quiet", size: "sm" })}>
-            番组
-          </Link>
-          <a href="#season-results" className={appButtonClasses({ variant: "quiet", size: "sm" })}>
-            赛季结果
-          </a>
-          <a href="#season-impact" className={appButtonClasses({ variant: "quiet", size: "sm" })}>
-            影响分析
-          </a>
-        </nav>
 
-        <AppCard className="mb-8 p-6">
+
+        <AppCard className="mb-5 p-4 sm:p-5">
           <div className="mb-4 flex flex-wrap gap-2">
             <AppBadge tone={seasonState.tone}>{seasonState.label}</AppBadge>
             <AppBadge tone="source">{seasonModeLabel}</AppBadge>
           </div>
           <h1 className="text-2xl font-black text-white">{detail.title}</h1>
           {detail.description ? <p className="mt-2 text-sm text-slate-400">{detail.description}</p> : null}
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">{seasonState.description}</p>
+          {seasonView === "overview" ? <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">{seasonState.description}</p> : <p className="mt-2 text-xs text-slate-400">{detail.participantCount} 人参与 · {detail.totalVotes} 票 · {seasonState.shortLabel}</p>}
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {seasonView === "overview" ? <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
             <StatCard label="当前状态" value={seasonState.shortLabel} />
             <StatCard label="参与人数" value={String(detail.participantCount)} />
             <StatCard label="总投票" value={String(detail.totalVotes)} />
             <StatCard label={detail.endsAt ? "投票截止" : "开始时间"} value={formatDateTimeStable(detail.endsAt ?? detail.startsAt).split(" ")[0]} />
-          </div>
+          </div> : null}
 
           <div className="mt-5 flex flex-wrap gap-2 text-xs text-slate-500">
             <span>每人最多 {detail.maxVotesPerUser} 票</span>
@@ -288,7 +292,7 @@ export default function SeasonDetailPage() {
             {detail.mode === "BIAS" ? <span>· 加成票 {detail.biasVotesPerUser} 张，只在共享榜单聚合时加成</span> : null}
           </div>
 
-          {detail.currentUserState ? (
+          {detail.currentUserState && seasonView === "overview" ? (
             <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
               <p className="text-sm font-semibold text-white">我的进度</p>
               <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-300 sm:grid-cols-4">
@@ -306,14 +310,14 @@ export default function SeasonDetailPage() {
                 开始对决
               </Link>
             ) : null}
-            {detail.status === "DRAFT" ? (
+            {detail.currentUserCanManage && detail.status === "DRAFT" ? (
               <AppButton onClick={handleStart} disabled={actionLoading} variant="primary">发布赛季</AppButton>
             ) : null}
             {detail.currentUserCanManage && detail.status === "ACTIVE" ? (
               <AppButton onClick={handleEnd} disabled={actionLoading} variant="danger">结束赛季</AppButton>
             ) : null}
             {detail.currentUserCanManage ? (
-              <AppButton onClick={() => setManageOpen((open) => !open)} disabled={actionLoading} variant="secondary">
+              <AppButton onClick={() => setSeasonView("manage")} disabled={actionLoading} variant="secondary">
                 管理赛季
               </AppButton>
             ) : null}
@@ -328,7 +332,15 @@ export default function SeasonDetailPage() {
           ) : null}
         </AppCard>
 
-        {detail.currentUserCanManage && manageOpen ? (
+        <div className="mb-5">
+          <DashboardTabs id="season-content" label="赛季页面导航" value={seasonView} onChange={setSeasonView} items={[
+            { value: "overview", label: "概览" }, { value: "personal", label: "我的结果" },
+            { value: "shared", label: "共享榜" }, { value: "impact", label: "影响分析" },
+            ...(detail.currentUserCanManage ? [{ value: "manage", label: "管理" }] : [])
+          ]} />
+        </div>
+        <div role="tabpanel" id={`season-content-panel-${seasonView}`} aria-labelledby={`season-content-tab-${seasonView}`}>
+        {detail.currentUserCanManage && seasonView === "manage" ? (
           <AppCard className="mb-8 p-6">
             <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -462,7 +474,7 @@ export default function SeasonDetailPage() {
           </div>
         ) : null}
 
-        <div id="season-results" className="scroll-mt-32">
+        {seasonView === "personal" ? <div id="season-results" className="scroll-mt-32">
           <SeasonPersonalResult
             ranking={detail.currentUserRanking}
             buckets={personalSeasonTierBuckets}
@@ -472,8 +484,12 @@ export default function SeasonDetailPage() {
             onExport={() => handleExportSeasonTier("personal")}
             isExporting={isPersonalExporting}
           />
-        </div>
+        </div> : null}
 
+        {seasonView === "shared" ? <>
+          <div className="mb-4"><DashboardTabs id="shared-result" label="共享榜展示" value={sharedView} onChange={setSharedView} items={[{ value: "tier", label: "封面分层" }, { value: "ranking", label: "详细排名" }]} /></div>
+          <div role="tabpanel" id={`shared-result-panel-${sharedView}`} aria-labelledby={`shared-result-tab-${sharedView}`}>
+          {sharedView === "ranking" ? (
         <AppCard className="mb-8 p-6">
           <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -491,7 +507,7 @@ export default function SeasonDetailPage() {
             <p className="text-sm text-slate-500">暂无投票数据，第一位玩家完成投票后会生成共享榜单。</p>
           ) : (
             <div className="space-y-2">
-              {detail.ranking.slice(0, 20).map((item) => (
+              {detail.ranking.slice((Math.min(rankingPage, Math.max(1, Math.ceil(detail.ranking.length / 8))) - 1) * 8, Math.min(rankingPage, Math.max(1, Math.ceil(detail.ranking.length / 8))) * 8).map((item) => (
                 <div key={item.animeId} className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.015] px-4 py-2">
                   <span className="w-8 text-center text-sm font-bold text-amber-200">
                     {item.insufficientSample ? "参考" : `#${formalRankByAnimeId.get(item.animeId) ?? "-"}`}
@@ -509,7 +525,10 @@ export default function SeasonDetailPage() {
               ))}
             </div>
           )}
+          <div className="mt-4"><CollectionPager label="排名" page={Math.min(rankingPage, Math.max(1, Math.ceil(detail.ranking.length / 8)))} total={detail.ranking.length} pageSize={8} onChange={setRankingPage} /></div>
         </AppCard>
+          ) : (
+
 
         <SeasonSharedTierList
           buckets={seasonTierResult.buckets}
@@ -520,17 +539,39 @@ export default function SeasonDetailPage() {
           onExport={() => handleExportSeasonTier("shared")}
           isExporting={isSharedExporting}
         />
+          )}</div>
+        </> : null}
 
-        <div id="season-impact" className="mb-8 scroll-mt-32">
+        {seasonView === "impact" ? <div id="season-impact" className="mb-8 scroll-mt-32">
           <SeasonImpactPanel
             poolId={poolId}
             seasonId={seasonId}
             status={detail.status}
             fetchImpact={getSeasonImpact}
           />
-        </div>
+        </div> : null}
 
-        <AppCard className="p-6">
+        {seasonView === "overview" ? <>
+          <div className="mb-5 grid gap-4 lg:grid-cols-2">
+            <AppCard className="p-5">
+              <h2 className="text-base font-bold text-white">当前领先</h2>
+              <p className="mt-1 text-xs text-slate-400">共享分数前 3 · 样本不足时仅供参考</p>
+              <div className="mt-4 space-y-3">{detail.ranking.slice(0, 3).map((item, index) => <div key={item.animeId} className="flex items-center gap-3"><span className="font-black text-amber-200">{index + 1}</span><span className="min-w-0 flex-1 truncate text-sm text-white">{item.title}</span><span className="text-sm text-slate-400">{Math.round(item.score)}</span></div>)}</div>
+              {!hasSharedVotes ? <p className="mt-3 text-sm text-slate-400">等待第一场对决</p> : null}
+              <AppButton className="mt-4" variant="quiet" onClick={() => setSeasonView("shared")}>查看完整共享榜 →</AppButton>
+            </AppCard>
+            <AppCard className="p-5">
+              <h2 className="text-base font-bold text-white">保存与分享</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">把赛季成绩保存为图片，或邀请朋友一起参与。</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <AppButton variant="secondary" disabled={isPersonalExporting || !detail.currentUserState?.votesUsed} onClick={() => handleExportSeasonTier("personal")}>{isPersonalExporting ? "导出中…" : "导出我的结果"}</AppButton>
+                <AppButton variant="ghost" disabled={isSharedExporting || !hasSharedVotes} onClick={() => handleExportSeasonTier("shared")}>{isSharedExporting ? "导出中…" : "导出共享榜"}</AppButton>
+              </div>
+              <AppButton className="mt-3" variant="quiet" onClick={() => setSeasonView("impact")}>看看投票带来了什么 →</AppButton>
+            </AppCard>
+          </div>
+        <details className="rounded-2xl border border-anime-border p-4"><summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-slate-300">最近投票 · {detail.recentVotes.length} 条</summary>
+        <AppCard className="p-4">
           <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-lg font-bold text-white">最近投票</h2>
@@ -563,6 +604,9 @@ export default function SeasonDetailPage() {
           )}
         </AppCard>
 
+        </details></> : null}
+        </div>
+
         {personalSeasonShare !== null ? (
           <div className="tiermaker-export-host" aria-hidden="true">
             <div ref={personalExportRef}>
@@ -577,7 +621,7 @@ export default function SeasonDetailPage() {
             </div>
           </div>
         ) : null}
-      </main>
+      </div>
     </PageShell>
   );
 }
@@ -885,12 +929,12 @@ function SeasonPersonalResult({
         <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.04] p-4">
           <p className="text-sm font-semibold text-amber-100">你还没有生成个人赛季结果。</p>
           <p className="mt-1 text-xs leading-relaxed text-slate-400">
-            开始对决后，这里会展示只属于你的赛季 Tier List；它和下方多人聚合的赛季共享榜单分开计算。
+            开始对决后，这里会展示只属于你的赛季 Tier List；它和多人聚合的赛季共享榜单分开计算。
           </p>
         </div>
       ) : (
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <section className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/35 shadow-[0_20px_80px_rgba(0,0,0,0.28)]">
+          <section aria-label="赛季分层作品" tabIndex={0} className="max-h-[65dvh] overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-slate-950/35">
             {buckets.map(({ row, items }) => (
               <div
                 key={row.id}
@@ -981,9 +1025,9 @@ function SeasonSharedTierList({
       {!hasAnyItems ? (
         <p className="text-sm text-slate-500">暂无投票数据，开始对决后会生成赛季共享 TierList。</p>
       ) : (
-        <div className="space-y-4">
+        <div role="region" aria-label="赛季共享分层作品" tabIndex={0} className="max-h-[65dvh] space-y-4 overflow-y-auto overscroll-contain pr-1">
           {formalItemCount > 0 ? (
-            <section className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/35 shadow-[0_20px_80px_rgba(0,0,0,0.28)]">
+            <section className="rounded-2xl border border-white/10 bg-slate-950/35">
               {buckets.map(({ row, items }) => (
                 <div
                   key={row.id}

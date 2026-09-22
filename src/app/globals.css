@@ -156,6 +156,9 @@ textarea:focus {
 }
 
 .tiermaker-export-host {
+  /* Keep offscreen export snapshots from extending a backdrop-filter card. */
+  height: 0;
+  overflow: hidden;
   position: fixed;
   top: 0;
   left: -10000px;

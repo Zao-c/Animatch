@@ -185,6 +185,7 @@ export default function TierPage({
   const [draftTierLabels, setDraftTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
   const [showTierLabelEditor, setShowTierLabelEditor] = useState(false);
   const [showAdvancedActions, setShowAdvancedActions] = useState(false);
+  const [compactBoard, setCompactBoard] = useState(true);
   const [showTierInfo, setShowTierInfo] = useState(false);
   const [canShowCommunityRanking, setCanShowCommunityRanking] = useState(false);
   const [communityRanking, setCommunityRanking] = useState<CommunityRankingResponse | null>(null);
@@ -389,6 +390,7 @@ export default function TierPage({
   }
 
   function openTierLabelEditor() {
+    setShowRecalibration(false);
     setDraftTierLabels(tierLabels);
     setShowTierLabelEditor(true);
   }
@@ -627,10 +629,184 @@ export default function TierPage({
         </div>
       </div>
 
+
+      {canShowCommunityRanking && showTierInfo ? (
+        <AppCard className="mb-5 p-4" variant="soft">
+          <div className="min-w-0">
+            <AppBadge tone="source">社区大乱斗</AppBadge>
+            <p className="mt-2 text-sm leading-6 text-slate-300">
+              这是你的个人榜单；它会以匿名聚合方式参与社区榜单。
+            </p>
+          </div>
+        </AppCard>
+      ) : null}
+
+      {error ? (
+        <div className="mb-5 space-y-3">
+          <ErrorAlert message={error} />
+          <AppButton type="button" onClick={loadTierList} variant="secondary" disabled={isLoading}>
+            {isLoading ? "正在重新加载..." : "重新加载 Tier List"}
+          </AppButton>
+        </div>
+      ) : null}
+      {exportError ? <ErrorAlert message={exportError} className="mb-5" /> : exportProgress ? (
+        <p role="status" aria-live="polite" className="mb-4 text-sm text-slate-300">{exportProgress}</p>
+      ) : null}
+
+      {isLoading ? <ErrorAlert message="正在加载榜单..." tone="notice" className="mb-5" /> : null}
+      {isEditing ? (
+        <ErrorAlert
+          message="正在编辑最终设定，保存后将锁定你的手动排序，但不会删除任何对决历史。"
+          tone="warning"
+          className="mb-5"
+        />
+      ) : null}
+
+      <div className="mb-4 flex gap-2 xl:hidden">
+        <AppButton onClick={handleExportImage} disabled={isExporting || tierList === null} variant="primary">{isExporting ? "生成中..." : "导出图片"}</AppButton>
+        <a href="#tier-tools" className={appButtonClasses({ variant: "secondary" })}>设置与分享 ↓</a>
+      </div>
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="min-w-0">
+      {tierList && visibleTiers ? (
+        <div className="tier-export-surface">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-bold text-white">作品分层</h2>
+            <span className="text-sm text-slate-400">{tierList.totalAnime} 部作品 · {tierList.effectiveComparisons} 场有效对决</span>
+          </div>
+          {showTierInfo ? <>
+          <div className="mb-4 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.025] p-3">
+            <Stat label="我的稳定度" value={tierList.confidenceScore.toFixed(1)} />
+            <Stat label="当前阶段" value={tierList.progress.stageLabel} />
+            <Stat
+              label="有效对决"
+              value={`${tierList.effectiveComparisons}/${tierList.progress.highConfidenceTarget}`}
+            />
+            <Stat label="总作品" value={String(tierList.totalAnime)} />
+            {communityRanking !== null && communityRanking.totalParticipants > 0 ? (
+              <Stat label="社区参与" value={`${communityRanking.totalParticipants} 人`} />
+            ) : null}
+          </div>
+          <div className="mb-5">
+            <RankingProgressCard progress={tierList.progress} compact />
+          </div>
+          </> : null}
+          {isInitialEstimate && showTierInfo ? (
+            <StatusHint
+              label="初始估计"
+              title={tierList.totalComparisons === 0 ? "还没有对决记录，榜单不是正式结果" : "对决样本还少，分档可能会明显变化"}
+              description={
+                tierList.totalComparisons === 0
+                  ? "当前 Tier List 只是按初始分数生成的占位预览。先完成几轮对决后，再导出或分享会更可信。"
+                  : "当前结果已经能作为临时参考，但稳定度还低。继续对决可以让相近作品重新排序，减少误分档。"
+              }
+              tone="warning"
+              className="mb-5"
+              actions={
+                <Link
+                  href={`/pools/${params.poolId}/runs/${params.runId}/match`}
+                  className={appButtonClasses({ variant: "primary", size: "sm" })}
+                >
+                  继续对决
+                </Link>
+              }
+            />
+          ) : null}
+          <div className="mb-3">
+            <AppButton variant="secondary" size="sm" aria-pressed={compactBoard} onClick={() => setCompactBoard((value) => !value)}>{compactBoard ? "切换大图详情" : "切换紧凑总览"}</AppButton>
+            <AppButton
+              onClick={() => setShowTierInfo((value) => !value)}
+              variant="quiet"
+              size="sm"
+              aria-expanded={showTierInfo}
+            >
+              {showTierInfo ? "收起说明" : "榜单说明与初始估计"}
+            </AppButton>
+            {showTierInfo ? (
+              <div className="mt-3 space-y-3">
+                <StatusHint
+                  label="榜单说明"
+                  title="系统排序来自两两对决"
+                  description="每次选择都会更新作品的相对位置；手动最终设定不会删除对决历史，锁标记代表用户手动确认过最终排序。"
+                  tone="guide"
+                />
+                {tierList.totalComparisons === 0 ? (
+                  <StatusHint
+                    label="初始估计"
+                    title="还没有对决记录"
+                    description="当前 Tier List 只是初始估计。完成几轮对决后，分数、分层和稳定度会更准确。"
+                    tone="warning"
+                  />
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div role="region" aria-label="作品分层榜单" tabIndex={0} className={compactBoard && !isEditing ? "max-h-[70dvh] space-y-3 overflow-y-auto overscroll-contain pr-1" : "space-y-4"}>
+            {tierRows.map((row) => {
+              const rowItems = visibleTiers?.[row.id] ?? [];
+              return (
+              <section
+                key={row.id}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={() => handleDrop(row.id)}
+                className="grid min-w-0 gap-3 rounded-2xl border border-anime-border bg-anime-panel p-3 sm:grid-cols-[80px_minmax(0,1fr)]"
+              >
+                <div
+                  className="flex min-h-11 items-center justify-between gap-2 rounded-xl px-3 py-2 text-center sm:flex-col sm:justify-center"
+                  style={{ backgroundColor: row.color }}
+                >
+                  <span className="max-w-full text-2xl font-black leading-tight text-slate-950 [overflow-wrap:anywhere]">
+                    {tierLabels[row.id] ?? row.label}
+                  </span>
+                  <span className="text-xs font-semibold text-slate-950">{rowItems.length} 部</span>
+                </div>
+                {rowItems.length === 0 ? (
+                  <div className="flex min-h-24 items-center rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-4">
+                    <p className="text-sm text-slate-500">
+                      {row.label} Tier 暂无作品。继续对决后作品会自动进入对应区间。
+                    </p>
+                  </div>
+                ) : (
+                  <div className={compactBoard && !isEditing ? "grid min-w-0 grid-cols-4 items-start gap-2 sm:grid-cols-[repeat(auto-fill,minmax(88px,1fr))]" : "grid min-w-0 grid-cols-2 items-start gap-3 min-[380px]:grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(128px,1fr))]"}>
+                    {rowItems.map((item) => (
+                      <TierAnimeCard
+                        key={item.animeId}
+                        item={item}
+                        editable={isEditing}
+                        compact={compactBoard && !isEditing}
+                        scoreDistribution={scoreDistribution}
+                        onDragStart={() => setDragSource({ tier: row.id, animeId: item.animeId })}
+                        onDropBefore={() => handleDrop(row.id, item.animeId)}
+                        moveOptions={tierRows
+                          .filter((candidate) => candidate.id !== row.id)
+                          .map((candidate) => ({
+                            id: candidate.id,
+                            label: tierLabels[candidate.id] ?? candidate.label
+                          }))}
+                        onMoveToTier={(targetTierId) => moveAnimeToTier(item.animeId, targetTierId)}
+                        onMoveEarlier={() => moveAnimeWithinTier(row.id, item.animeId, -1)}
+                        onMoveLater={() => moveAnimeWithinTier(row.id, item.animeId, 1)}
+                        canMoveEarlier={rowItems.findIndex((current) => current.animeId === item.animeId) > 0}
+                        canMoveLater={rowItems.findIndex((current) => current.animeId === item.animeId) < rowItems.length - 1}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      </div>
+      <aside id="tier-tools" aria-label="榜单工具" className="min-w-0 scroll-mt-32 xl:sticky xl:top-24 xl:max-h-[calc(100dvh-7rem)] xl:overflow-y-auto xl:pr-1">
+        <h2 className="mb-3 text-base font-bold text-white">设置与分享</h2>
       <AppCard className="mb-4 p-3 sm:p-4" variant="soft">
-        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
+        <div className="grid gap-3">
           <h2 className="sr-only">保存这份榜单</h2>
-          {showTierInfo ? <p className="max-w-2xl text-xs leading-5 text-slate-400 lg:col-span-2">
+          {showTierInfo ? <p className="max-w-2xl text-xs leading-5 text-slate-400 ">
             Tier List 根据你的对决结果生成。手动调整只影响榜单展示和当前手动排序，不会改写对决历史。
           </p> : null}
           {isInitialEstimate ? (
@@ -683,55 +859,22 @@ export default function TierPage({
           </AppButton>
         </div>
       </AppCard>
-
-      {canShowCommunityRanking && showTierInfo ? (
-        <AppCard className="mb-5 p-4" variant="soft">
-          <div className="min-w-0">
-            <AppBadge tone="source">社区大乱斗</AppBadge>
-            <p className="mt-2 text-sm leading-6 text-slate-300">
-              这是你的个人榜单；它会以匿名聚合方式参与社区榜单。
-            </p>
-          </div>
-        </AppCard>
-      ) : null}
-
-      {error ? (
-        <div className="mb-5 space-y-3">
-          <ErrorAlert message={error} />
-          <AppButton type="button" onClick={loadTierList} variant="secondary" disabled={isLoading}>
-            {isLoading ? "正在重新加载..." : "重新加载 Tier List"}
-          </AppButton>
-        </div>
-      ) : null}
-      {exportError ? <ErrorAlert message={exportError} className="mb-5" /> : exportProgress ? (
-        <p role="status" aria-live="polite" className="mb-4 text-sm text-slate-300">{exportProgress}</p>
-      ) : null}
       <TierSharePanel
         shareError={shareError}
         shareUrl={shareUrl}
         shareCopied={shareCopied}
         shareCopyFallback={shareCopyFallback}
         onCopyShareUrl={handleCopyShareUrl}
-      />
-      {isLoading ? <ErrorAlert message="正在加载榜单..." tone="notice" className="mb-5" /> : null}
-      {isEditing ? (
-        <ErrorAlert
-          message="正在编辑最终设定，保存后将锁定你的手动排序，但不会删除任何对决历史。"
-          tone="warning"
-          className="mb-5"
-        />
-      ) : null}
-
-      {showAdvancedActions ? (
+      />      {showAdvancedActions ? (
       <AppCard className="mb-8 p-4" variant="soft">
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-col sm:items-stretch">
           <div>
             <h2 className="text-lg font-semibold text-white">高级控制</h2>
             <p className="mt-1 text-sm text-slate-400">
               调整作品位置、修改分层名称，或通过更多对决校准排名。
             </p>
           </div>
-          <AppButton onClick={() => setShowRecalibration((value) => !value)} variant="secondary">
+          <AppButton onClick={() => { setShowTierLabelEditor(false); setShowRecalibration((value) => !value); }} variant="secondary">
             {showRecalibration ? "收起校准" : "校准榜单"}
           </AppButton>
         </div>
@@ -757,14 +900,15 @@ export default function TierPage({
             编辑分层标签
           </AppButton>
         </div>
-        <div className="mt-5 border-t border-anime-border pt-5">
+        <details className="mt-4 border-t border-anime-border pt-3">
+          <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-slate-300">设置层级数量与颜色</summary>
           <PoolTierConfigEditor
             tierConfig={poolTierConfig}
             onSave={handleSaveTierConfig}
             isSaving={tierConfigSaving}
             compact
           />
-        </div>
+        </details>
       </AppCard>
 
       ) : null}
@@ -813,7 +957,7 @@ export default function TierPage({
               </AppButton>
             </div>
           </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-5">
+          <div className="mt-5 grid gap-3 grid-cols-2">
             {tierRows.map((row) => (
               <label key={row.id} className="block">
                 <span className="text-sm text-slate-300">{row.id}</span>
@@ -870,7 +1014,7 @@ export default function TierPage({
             })}
           </div>
 
-          <div className="mt-5 grid gap-4 lg:grid-cols-3">
+          <div className="mt-5 grid gap-4 grid-cols-1">
             <label className="block">
               <span className="text-sm text-slate-300">目标 Tier</span>
               <select
@@ -930,142 +1074,15 @@ export default function TierPage({
         </AppCard>
       ) : null}
 
-      {tierList && visibleTiers ? (
-        <div className="tier-export-surface">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-bold text-white">作品分层</h2>
-            <span className="text-sm text-slate-400">{tierList.totalAnime} 部作品 · {tierList.effectiveComparisons} 场有效对决</span>
-          </div>
-          {showTierInfo ? <>
-          <div className="mb-4 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.025] p-3">
-            <Stat label="我的稳定度" value={tierList.confidenceScore.toFixed(1)} />
-            <Stat label="当前阶段" value={tierList.progress.stageLabel} />
-            <Stat
-              label="有效对决"
-              value={`${tierList.effectiveComparisons}/${tierList.progress.highConfidenceTarget}`}
-            />
-            <Stat label="总作品" value={String(tierList.totalAnime)} />
-            {communityRanking !== null && communityRanking.totalParticipants > 0 ? (
-              <Stat label="社区参与" value={`${communityRanking.totalParticipants} 人`} />
-            ) : null}
-          </div>
-          <div className="mb-5">
-            <RankingProgressCard progress={tierList.progress} compact />
-          </div>
-          </> : null}
-          {isInitialEstimate && showTierInfo ? (
-            <StatusHint
-              label="初始估计"
-              title={tierList.totalComparisons === 0 ? "还没有对决记录，榜单不是正式结果" : "对决样本还少，分档可能会明显变化"}
-              description={
-                tierList.totalComparisons === 0
-                  ? "当前 Tier List 只是按初始分数生成的占位预览。先完成几轮对决后，再导出或分享会更可信。"
-                  : "当前结果已经能作为临时参考，但稳定度还低。继续对决可以让相近作品重新排序，减少误分档。"
-              }
-              tone="warning"
-              className="mb-5"
-              actions={
-                <Link
-                  href={`/pools/${params.poolId}/runs/${params.runId}/match`}
-                  className={appButtonClasses({ variant: "primary", size: "sm" })}
-                >
-                  继续对决
-                </Link>
-              }
-            />
-          ) : null}
-          <div className="mb-3">
-            <AppButton
-              onClick={() => setShowTierInfo((value) => !value)}
-              variant="quiet"
-              size="sm"
-              aria-expanded={showTierInfo}
-            >
-              {showTierInfo ? "收起说明" : "榜单说明与初始估计"}
-            </AppButton>
-            {showTierInfo ? (
-              <div className="mt-3 space-y-3">
-                <StatusHint
-                  label="榜单说明"
-                  title="系统排序来自两两对决"
-                  description="每次选择都会更新作品的相对位置；手动最终设定不会删除对决历史，锁标记代表用户手动确认过最终排序。"
-                  tone="guide"
-                />
-                {tierList.totalComparisons === 0 ? (
-                  <StatusHint
-                    label="初始估计"
-                    title="还没有对决记录"
-                    description="当前 Tier List 只是初始估计。完成几轮对决后，分数、分层和稳定度会更准确。"
-                    tone="warning"
-                  />
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="space-y-4">
-            {tierRows.map((row) => {
-              const rowItems = visibleTiers?.[row.id] ?? [];
-              return (
-              <section
-                key={row.id}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={() => handleDrop(row.id)}
-                className="grid min-w-0 gap-3 rounded-2xl border border-anime-border bg-anime-panel p-3 sm:grid-cols-[80px_minmax(0,1fr)]"
-              >
-                <div
-                  className="flex min-h-11 items-center justify-between gap-2 rounded-xl px-3 py-2 text-center sm:flex-col sm:justify-center"
-                  style={{ backgroundColor: row.color }}
-                >
-                  <span className="max-w-full text-2xl font-black leading-tight text-slate-950 [overflow-wrap:anywhere]">
-                    {tierLabels[row.id] ?? row.label}
-                  </span>
-                  <span className="text-xs font-semibold text-slate-950">{rowItems.length} 部</span>
-                </div>
-                {rowItems.length === 0 ? (
-                  <div className="flex min-h-24 items-center rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-4">
-                    <p className="text-sm text-slate-500">
-                      {row.label} Tier 暂无作品。继续对决后作品会自动进入对应区间。
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid min-w-0 grid-cols-2 items-start gap-3 min-[380px]:grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(128px,1fr))]">
-                    {rowItems.map((item) => (
-                      <TierAnimeCard
-                        key={item.animeId}
-                        item={item}
-                        editable={isEditing}
-                        scoreDistribution={scoreDistribution}
-                        onDragStart={() => setDragSource({ tier: row.id, animeId: item.animeId })}
-                        onDropBefore={() => handleDrop(row.id, item.animeId)}
-                        moveOptions={tierRows
-                          .filter((candidate) => candidate.id !== row.id)
-                          .map((candidate) => ({
-                            id: candidate.id,
-                            label: tierLabels[candidate.id] ?? candidate.label
-                          }))}
-                        onMoveToTier={(targetTierId) => moveAnimeToTier(item.animeId, targetTierId)}
-                        onMoveEarlier={() => moveAnimeWithinTier(row.id, item.animeId, -1)}
-                        onMoveLater={() => moveAnimeWithinTier(row.id, item.animeId, 1)}
-                        canMoveEarlier={rowItems.findIndex((current) => current.animeId === item.animeId) > 0}
-                        canMoveLater={rowItems.findIndex((current) => current.animeId === item.animeId) < rowItems.length - 1}
-                      />
-                    ))}
-                  </div>
-                )}
-              </section>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
-
       {divergenceResult !== null && canShowCommunityRanking ? (
         <CommunityDivergenceCard
           result={divergenceResult}
           className="mt-8"
         />
       ) : null}
+
+      </aside>
+      </div>
 
       {visibleTiers ? (
         <div className="tiermaker-export-host" aria-hidden="true">

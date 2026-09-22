@@ -8,7 +8,7 @@ describe("season detail UI", () => {
   );
 
   it("uses a wider desktop canvas for shared rankings", () => {
-    expect(source).toContain("max-w-6xl");
+    expect(source).toContain("max-w-7xl");
     expect(source).not.toContain("mx-auto max-w-4xl px-4 py-8");
   });
 
@@ -29,7 +29,7 @@ describe("season detail UI", () => {
     expect(source).toContain("AniMatch 大乱斗赛季《");
     expect(source).toContain("打开链接后登录即可参与对决");
     expect(source).toContain("赛季已结束或投票已截止");
-    expect(source).toContain("#season-results");
+    expect(source).toContain("#shared");
     expect(source).toContain("分享赛季");
     expect(source).toContain("分享结果");
     expect(source).toContain("已复制赛季参与链接。");
@@ -41,7 +41,7 @@ describe("season detail UI", () => {
     expect(source).toContain("我的赛季 Tier List");
     expect(source).toContain("SeasonPersonalTierCard");
     expect(source).toContain("只根据你在这个赛季里的个人 Elo 排序");
-    expect(source).toContain("它和下方多人聚合的赛季共享榜单分开计算");
+    expect(source).toContain("它和多人聚合的赛季共享榜单分开计算");
   });
 
   it("exports personal and shared season tier images through the existing share-card pipeline", () => {
@@ -84,9 +84,9 @@ describe("season detail UI", () => {
   });
 
   it("keeps season context and key result sections reachable on long pages", () => {
-    expect(source).toContain('aria-label="赛季页面导航"');
-    expect(source).toContain('href="#season-results"');
-    expect(source).toContain('href="#season-impact"');
+    expect(source).toContain('label="赛季页面导航"');
+    expect(source).toContain('seasonView === "personal"');
+    expect(source).toContain('seasonView === "impact"');
     expect(source).toContain('id="season-results"');
     expect(source).toContain('id="season-impact"');
   });

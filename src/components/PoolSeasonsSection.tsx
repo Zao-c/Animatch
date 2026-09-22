@@ -78,7 +78,7 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
       </section>
     );
   }
-  if (seasons.length === 0 && !canEdit) return null;
+  if (seasons.length === 0 && !canEdit) return <AppCard className="mt-5 p-6"><h2 className="font-bold text-white">还没有赛季</h2><p className="mt-2 text-sm text-slate-400">创建者发布赛季后，你可以在这里参与对决、查看结果。</p></AppCard>;
 
   return (
     <section id="battle-seasons" className="mt-6 scroll-mt-24 sm:scroll-mt-32">

@@ -10,7 +10,7 @@ function render(coverUrl?: string) {
     token: "test", title: "测试榜单", description: null, tierLabels: { s: "S" },
     createdAt: "2026-09-21T00:00:00.000Z",
     snapshot: {
-      version: 1, generatedAt: "2026-09-21T00:00:00.000Z", pool: { id: "test", name: "测试" },
+      version: 1, animeCount: 1, comparisonCount: 1, generatedAt: "2026-09-21T00:00:00.000Z", pool: { id: "test", name: "测试" },
       run: { id: "test" }, tiers: [{ key: "s", label: "S", items: [{ animeId: "a", title: "动画", coverUrl,
         imageLargeUrl: "https://lain.bgm.tv/old-large.jpg", source: "BANGUMI", elo: 1500, isLocked: false, isEdited: false }] }]
     }
