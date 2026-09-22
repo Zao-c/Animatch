@@ -45,7 +45,7 @@ export function SeasonPlayEntry({ poolId, canPlay, onBrowse }: {
   const matchPath = selected ? `/pools/${poolId}/seasons/${selected.id}/match` : "";
 
   return (
-    <section aria-label="参与赛季投票" className="col-span-2 min-w-0 rounded-xl border border-anime-cyan/35 bg-anime-cyan/[0.06] p-3">
+    <section aria-label="参与赛季投票" className="flex min-w-0 flex-col rounded-xl border border-anime-cyan/35 bg-anime-cyan/[0.06] p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="text-sm font-bold text-cyan-100">赛季投票</h2>
         <button type="button" onClick={onBrowse} className="min-h-9 shrink-0 px-2 text-xs text-slate-300 underline decoration-slate-500/50 underline-offset-4 hover:text-white">全部赛季 →</button>
@@ -58,7 +58,7 @@ export function SeasonPlayEntry({ poolId, canPlay, onBrowse }: {
             <select aria-label="选择投票赛季" className="anime-field mb-2 min-w-0 text-sm" value={selected.id} onChange={(event) => setSelectedId(event.target.value)}>
               {openSeasons.map((season) => <option key={season.id} value={season.id}>{season.title}</option>)}
             </select>
-          ) : <p className="mb-2 truncate text-sm font-semibold text-white" title={selected.title}>{selected.title}</p>}
+          ) : <p className="mb-2 flex min-h-11 items-center truncate text-sm font-semibold text-white" title={selected.title}>{selected.title}</p>}
           <Link href={canPlay ? matchPath : `/login?next=${encodeURIComponent(matchPath)}`} className={appButtonClasses({ variant: "primary", size: "lg", className: "w-full" })}>
             {canPlay ? "参与赛季投票 →" : "登录并参与赛季投票 →"}
           </Link>

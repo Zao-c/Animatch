@@ -1381,7 +1381,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
   return (
     <PageShell>
-      <section className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
+      <section className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_600px]">
         <div>
           <div className="flex flex-wrap gap-2">
             <AppBadge tone={isArchived ? "danger" : "status"}>
@@ -1440,8 +1440,10 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           ) : null}
         </div>
         <AppCard className="p-3" variant="focus">
-          <div className="grid min-w-0 grid-cols-2 items-center gap-2">
-            {!isArchived ? <SeasonPlayEntry key={params.poolId} poolId={params.poolId} canPlay={canPlayPool} onBrowse={() => { setWorkspaceMode("seasons"); document.getElementById("pool-navigation")?.scrollIntoView({ block: "start" }); }} /> : null}
+          <div className="grid min-w-0 grid-cols-1 items-stretch gap-3 sm:grid-cols-2">
+            <section aria-label="个人自由对决" className={`flex min-w-0 flex-col rounded-xl border border-anime-cyan/35 bg-anime-cyan/[0.06] p-3 ${isArchived ? "sm:col-span-2" : ""}`}>
+              <h2 className="mb-2 flex min-h-9 items-center text-sm font-bold text-cyan-100">个人自由对决</h2>
+              <p className="mb-2 min-h-11 text-sm leading-5 text-slate-300">按自己的节奏比较作品，排出专属榜单。</p>
             {canShowCommunityBattle ? (
               <>
                 <AppButton
@@ -1449,7 +1451,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                     canPromptLoginToBattle ? router.push(loginToPoolPath) : enterRun("match")
                   }
                   disabled={(!canStart && !canPromptLoginToBattle) || isMutating}
-                  variant="secondary"
+                  variant="primary"
+                  className="w-full"
                   size="lg"
                 >
                   {canPromptLoginToBattle ? "登录后自由对决" : "个人自由对决"}
@@ -1461,7 +1464,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                   canPromptLoginToMatch ? router.push(loginToPoolPath) : enterRun("match")
                 }
                 disabled={(!canStart && !canPromptLoginToMatch) || isMutating}
-                variant="secondary"
+                variant="primary"
+                className="w-full"
                 size="lg"
               >
                 {canPromptLoginToMatch
@@ -1471,7 +1475,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                     : "开始我的对决"}
               </AppButton>
             )}
+              <p className="mt-2 text-xs text-slate-400">自由比较 · 随时继续 · 生成个人 Tier List</p>
+            </section>
+            {!isArchived ? <SeasonPlayEntry key={params.poolId} poolId={params.poolId} canPlay={canPlayPool} onBrowse={() => { setWorkspaceMode("seasons"); document.getElementById("pool-navigation")?.scrollIntoView({ block: "start" }); }} /> : null}
             <AppButton
+              className="sm:col-span-2"
               onClick={() =>
                 isArchived && latestRun !== undefined
                   ? router.push(`/pools/${params.poolId}/runs/${latestRun.id}/tier`)
@@ -1482,7 +1490,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             >
               查看 Tier List
             </AppButton>
-            <details className="col-span-2 border-t border-anime-border pt-1">
+            <details className="sm:col-span-2 border-t border-anime-border pt-1">
               <summary className="min-h-11 cursor-pointer py-3 text-center text-xs font-semibold text-slate-300">分享与更多操作</summary>
               <div className="grid min-w-0 grid-cols-2 gap-2">
             <AppButton
