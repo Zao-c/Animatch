@@ -7,6 +7,7 @@ import { AnimeCard } from "@/components/AnimeCard";
 import { AnimeCover } from "@/components/AnimeCover";
 import { CommunityAverageTierList } from "@/components/CommunityAverageTierList";
 import { CoverRepairCard } from "@/components/CoverRepairCard";
+import { SeasonPlayEntry } from "@/components/SeasonPlayEntry";
 import { PoolSeasonsSection } from "@/components/PoolSeasonsSection";
 import { DashboardTabs } from "@/components/ui/DashboardTabs";
 import { CollectionPager } from "@/components/ui/CollectionPager";
@@ -1439,7 +1440,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           ) : null}
         </div>
         <AppCard className="p-3" variant="focus">
-          <div className="grid grid-cols-2 items-center gap-2">
+          <div className="grid min-w-0 grid-cols-2 items-center gap-2">
+            {!isArchived ? <SeasonPlayEntry key={params.poolId} poolId={params.poolId} canPlay={canPlayPool} onBrowse={() => { setWorkspaceMode("seasons"); document.getElementById("pool-navigation")?.scrollIntoView({ block: "start" }); }} /> : null}
             {canShowCommunityBattle ? (
               <>
                 <AppButton
@@ -1447,10 +1449,10 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                     canPromptLoginToBattle ? router.push(loginToPoolPath) : enterRun("match")
                   }
                   disabled={(!canStart && !canPromptLoginToBattle) || isMutating}
-                  variant="primary"
+                  variant="secondary"
                   size="lg"
                 >
-                  {canPromptLoginToBattle ? "登录后参与大乱斗" : "加入社区大乱斗"}
+                  {canPromptLoginToBattle ? "登录后自由对决" : "个人自由对决"}
                 </AppButton>
               </>
             ) : (
@@ -1459,7 +1461,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                   canPromptLoginToMatch ? router.push(loginToPoolPath) : enterRun("match")
                 }
                 disabled={(!canStart && !canPromptLoginToMatch) || isMutating}
-                variant="primary"
+                variant="secondary"
                 size="lg"
               >
                 {canPromptLoginToMatch
@@ -1480,6 +1482,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             >
               查看 Tier List
             </AppButton>
+            <details className="col-span-2 border-t border-anime-border pt-1">
+              <summary className="min-h-11 cursor-pointer py-3 text-center text-xs font-semibold text-slate-300">分享与更多操作</summary>
+              <div className="grid min-w-0 grid-cols-2 gap-2">
             <AppButton
               type="button"
               onClick={handleCopyPoolShare}
@@ -1538,6 +1543,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             >
               {canManagePool ? "返回我的番组" : "返回番组大厅"}
             </Link>
+              </div>
+            </details>
             {!canManagePool && canPlayPool ? (
               <p className="mt-2 text-center text-xs leading-5 text-slate-500">
                 你的对决和榜单只属于你，不影响创建者。

@@ -140,7 +140,7 @@ export function PoolTierConfigEditor({
   }
 
   return (
-    <AppCard className={compact ? "p-4" : "p-5"}>
+    <AppCard className={compact ? "min-w-0 p-3" : "min-w-0 p-5"}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -163,7 +163,7 @@ export function PoolTierConfigEditor({
 
       <div className="mt-4">
         <p className="text-xs text-slate-500">模板</p>
-        <div className="mt-2 flex flex-wrap gap-2">
+        {compact ? <select aria-label="选择分层模板" defaultValue="" className="anime-field mt-2 min-w-0 text-xs" disabled={isSaving} onChange={(event) => { handleTemplateChange(event.target.value); event.target.value = ""; }}><option value="" disabled>选择分层模板</option>{Object.entries(TEMPLATE_NAMES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select> : <div className="mt-2 flex flex-wrap gap-2">
           {Object.entries(TEMPLATE_NAMES).map(([key, label]) => (
             <AppButton
               key={key}
@@ -175,17 +175,17 @@ export function PoolTierConfigEditor({
               {label}
             </AppButton>
           ))}
-        </div>
+        </div>}
       </div>
 
       <div className="mt-5 space-y-2">
         {rows.map((row, index) => (
           <div
             key={`${row.id}-${index}`}
-            className="grid gap-2 rounded-xl border border-white/10 bg-slate-950/34 p-2 sm:grid-cols-[36px_minmax(120px,1fr)_minmax(180px,auto)_auto] sm:items-center"
+            className={compact ? "grid min-w-0 grid-cols-[28px_minmax(0,1fr)_36px] items-center gap-2 rounded-xl border border-white/10 bg-slate-950/35 p-2" : "grid min-w-0 gap-2 rounded-xl border border-white/10 bg-slate-950/34 p-2 lg:grid-cols-[36px_minmax(0,1fr)_minmax(0,180px)_auto] lg:items-center"}
           >
             <div
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-xs font-black text-slate-950"
+              className="flex h-9 w-full max-w-9 items-center justify-center rounded-lg text-xs font-black text-slate-950"
               style={{ backgroundColor: row.color }}
             >
               {index + 1}
@@ -194,11 +194,12 @@ export function PoolTierConfigEditor({
               value={row.label}
               onChange={(event) => handleLabelChange(index, event.target.value)}
               maxLength={12}
-              className="anime-field text-sm"
+              className="anime-field min-w-0 text-sm"
+              aria-label={`第 ${index + 1} 层名称`}
               placeholder="行名称"
               disabled={isSaving}
             />
-            <div className="flex flex-wrap gap-1.5">
+            {compact ? <input type="color" value={row.color} onChange={(event) => handleColorChange(index, event.target.value)} disabled={isSaving} aria-label={`第 ${index + 1} 层颜色`} title="修改层级颜色" className="h-11 w-9 cursor-pointer rounded-lg border border-white/15 bg-slate-900 p-1" /> : <div className="flex min-w-0 flex-wrap gap-1.5">
               {COLOR_PALETTE.map((color) => (
                 <button
                   key={color}
@@ -214,8 +215,8 @@ export function PoolTierConfigEditor({
                   aria-label={`设置颜色 ${color}`}
                 />
               ))}
-            </div>
-            <div className="flex gap-1 sm:justify-end">
+            </div>}
+            <div className={compact ? "col-span-3 flex justify-end gap-1 border-t border-white/5 pt-1" : "flex gap-1 lg:justify-end"}>
               <IconButton
                 label="上移"
                 disabled={index === 0 || isSaving}
@@ -294,7 +295,7 @@ function IconButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-sm font-bold text-slate-300 transition hover:border-cyan-300/30 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-35"
+      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-sm font-bold text-slate-300 transition hover:border-cyan-300/30 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-35"
     >
       {children}
     </button>
