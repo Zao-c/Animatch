@@ -1,5 +1,6 @@
 "use client";
 
+import { RankingEvidencePanel, EvidenceLabel } from "@/components/RankingEvidence";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, DragEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -2799,6 +2800,7 @@ function CommunitySection({
   
   return (
     <section id="community-ranking" className={compact ? "scroll-mt-24" : "mt-8 scroll-mt-24"}>
+      {ranking && <RankingEvidencePanel items={ranking.items} />}
       <AppCard className={compact ? "p-4" : "p-5"}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <SectionHeader
@@ -2982,6 +2984,7 @@ function CommunityRankingCard({
       <div className="min-w-0">
         <h3 className="line-clamp-2 text-sm font-semibold text-white">{item.title}</h3>
         <p className="mt-1 text-xs text-slate-400">{item.insufficientSample || item.rank === null ? '样本不足' : '#' + item.rank} · {item.participantCount} 人 · {item.comparisonCount} 次比较</p>
+        <EvidenceLabel item={item} />
       </div>
       <div className="text-right" title={'平均 Elo ' + averageText}>
         <p className="text-base font-black text-cyan-100">{scoreText}</p>

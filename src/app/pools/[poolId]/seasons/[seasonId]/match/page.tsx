@@ -1,5 +1,6 @@
 "use client";
 
+import { MatchRecap } from "@/components/MatchRecap";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -515,6 +516,7 @@ export default function SeasonMatchPage() {
         ) : null}
 
         <div className="mt-2 min-h-[34px] sm:mt-4 sm:min-h-[42px]" aria-live="polite" aria-atomic="true">
+          <MatchRecap count={voteResult?.stepNumber ?? detail?.currentUserState?.votesUsed ?? 0} scopeKey={seasonId} endpoint={`/api/pools/${poolId}/seasons/${seasonId}`} resultHref={`/pools/${poolId}/seasons/${seasonId}#personal`} season />
           {voteResult ? (
             <div
               role="status"

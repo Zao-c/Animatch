@@ -1,5 +1,6 @@
 "use client";
 
+import { RankingEvidencePanel, EvidenceLabel } from "@/components/RankingEvidence";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
@@ -487,6 +488,7 @@ export default function SeasonDetailPage() {
         </div> : null}
 
         {seasonView === "shared" ? <>
+          <RankingEvidencePanel items={detail.ranking} season />
           <div className="mb-4"><DashboardTabs id="shared-result" label="共享榜展示" value={sharedView} onChange={setSharedView} items={[{ value: "tier", label: "封面分层" }, { value: "ranking", label: "详细排名" }]} /></div>
           <div role="tabpanel" id={`shared-result-panel-${sharedView}`} aria-labelledby={`shared-result-tab-${sharedView}`}>
           {sharedView === "ranking" ? (
@@ -514,6 +516,7 @@ export default function SeasonDetailPage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-white">{item.title}</p>
+                    <EvidenceLabel item={item} />
                   </div>
                   <div className="flex gap-3 text-xs text-slate-400">
                     <span className="text-amber-200 font-semibold">{Math.round(item.score)} Elo</span>

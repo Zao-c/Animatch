@@ -1,5 +1,6 @@
 "use client";
 
+import { MatchRecap } from "@/components/MatchRecap";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -32,6 +33,7 @@ export default function MatchPage({
   params: { poolId: string; runId: string };
 }) {
   const router = useRouter();
+  const [effectiveCount, setEffectiveCount] = useState(0);
   const [poolName, setPoolName] = useState("当前番组");
   const [poolAnimeCount, setPoolAnimeCount] = useState<number | null>(null);
   const [queue, setQueue] = useState<MatchPair[]>([]);
@@ -79,6 +81,7 @@ export default function MatchPage({
         getPool(params.poolId),
         getMatchQueue(params.poolId, params.runId, 8)
       ]);
+      setEffectiveCount(data.progress.effectiveComparisons);
       setPoolName(pool.name);
       setPoolAnimeCount(pool.anime.length);
       setCanShowCommunityBattle(isCommunityBattleVisiblePool(pool));
@@ -160,12 +163,13 @@ export default function MatchPage({
       result === "LEFT_UNSEEN" || result === "RIGHT_UNSEEN" || result === "BOTH_UNSEEN";
 
     try {
-      await submitComparison(params.poolId, params.runId, {
+      const submitted = await submitComparison(params.poolId, params.runId, {
         leftAnimeId: currentPair.left.id,
         rightAnimeId: currentPair.right.id,
         result,
         clientMutationId: createClientMutationId("comparison")
       });
+      if (submitted.comparison.isEffective && ["LEFT_WIN", "RIGHT_WIN", "DRAW"].includes(result)) setEffectiveCount((count) => count + 1);
       setFeedbackResult(result);
       await waitForMatchFeedback();
       setQueue((current) => current.slice(1));
@@ -244,6 +248,7 @@ export default function MatchPage({
   if (isLoading) {
     return (
       <PageShell>
+      <MatchRecap count={effectiveCount} scopeKey={params.runId} endpoint={`/api/pools/${params.poolId}/runs/${params.runId}/tierlist`} resultHref={`/pools/${params.poolId}/runs/${params.runId}/tier`} />
         <LoadingRoom />
       </PageShell>
     );

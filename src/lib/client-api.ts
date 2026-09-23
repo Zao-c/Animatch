@@ -318,6 +318,9 @@ export interface CommunityRankingItem {
   title: string;
   imageUrl: string | null;
   averageRating: number | null;
+  ratingDeviation?: number | null;
+  coverage?: number;
+  sampleLabel?: string;
   communityScore: number | null;
   participantCount: number;
   comparisonCount: number;
@@ -1206,6 +1209,9 @@ export interface SeasonRankingItem {
   comparisonCount: number;
   insufficientSample: boolean;
   averageElo: number | null;
+  ratingDeviation?: number | null;
+  coverage?: number;
+  sampleLabel?: string;
   imageUrl: string | null;
 }
 

@@ -36,10 +36,11 @@ export function AppShell({
               </span>
             </span>
           </Link>
-          <nav aria-label="主导航" className="order-3 col-span-2 grid grid-cols-3 gap-2 text-sm text-slate-300 [&>a]:justify-center [&>a]:px-2 sm:order-none sm:ml-auto sm:flex sm:items-center">
+          <nav aria-label="主导航" className="order-3 col-span-2 grid grid-cols-4 gap-2 text-sm text-slate-300 [&>a]:justify-center [&>a]:px-2 sm:order-none sm:ml-auto sm:flex sm:items-center">
             <NavLink href="/pools?view=public">番组大厅</NavLink>
             <NavLink href="/pools/new">创建番组</NavLink>
             <NavLink href="/pools">我的番组</NavLink>
+            <NavLink href="/collections">年度组合</NavLink>
           </nav>
           <div className="justify-self-end text-sm text-slate-300"><AuthNav /></div>
         </div>

@@ -1,5 +1,8 @@
 "use client";
 
+import { DashboardTabs } from "@/components/ui/DashboardTabs";
+import { CollectionPager } from "@/components/ui/CollectionPager";
+import { TasteDashboard } from "@/components/TasteDashboard";
 import Link from "next/link";
 import Image from "next/image";
 import { useParams } from "next/navigation";
@@ -71,12 +74,15 @@ export default function UserProfilePage() {
   const params = useParams<{ username: string }>();
   const username = params.username;
 
+  const [contentTab, setContentTab] = useState<"shares" | "pools">("shares");
+  const [contentPage, setContentPage] = useState(1);
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true); setError(null); setProfile(null);
 
     fetch(`/api/users/${encodeURIComponent(username)}/public-profile`)
       .then((res) => {
@@ -170,6 +176,7 @@ export default function UserProfilePage() {
               </div>
             </section>
 
+            <TasteDashboard username={username} />
             <section className="mb-10 grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4 text-center">
                 <p className="text-2xl font-black text-white">{profile.stats.publicPoolsCount}</p>
@@ -185,13 +192,14 @@ export default function UserProfilePage() {
               </div>
             </section>
 
-            <section className="mb-10">
-              <h2 className="mb-4 text-lg font-bold text-white">公开榜单</h2>
+            <div className="mb-4"><DashboardTabs id="profile-library" label="公开内容" value={contentTab} onChange={(tab) => { setContentTab(tab); setContentPage(1); }} items={[{ value: "shares", label: "公开榜单", count: profile.publicTierLists.length }, { value: "pools", label: "公开番组", count: profile.publicPools.length }]} /></div>
+            {contentTab === "shares" ? <section className="mb-5" role="tabpanel" id="profile-library-panel-shares" aria-labelledby="profile-library-tab-shares">
+              <h2 className="sr-only">公开榜单</h2>
               {profile.publicTierLists.length === 0 ? (
                 <p className="text-sm text-slate-500">还没有公开榜单</p>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {profile.publicTierLists.map((tl) => (
+                  {profile.publicTierLists.slice((contentPage - 1) * 4, contentPage * 4).map((tl) => (
                     <Link
                       key={tl.token}
                       href={`/share/tier/${tl.token}`}
@@ -230,15 +238,15 @@ export default function UserProfilePage() {
                   ))}
                 </div>
               )}
-            </section>
+            </section> : null}
 
-            <section>
-              <h2 className="mb-4 text-lg font-bold text-white">公开番组</h2>
+            {contentTab === "pools" ? <section role="tabpanel" id="profile-library-panel-pools" aria-labelledby="profile-library-tab-pools">
+              <h2 className="sr-only">公开番组</h2>
               {profile.publicPools.length === 0 ? (
                 <p className="text-sm text-slate-500">还没有创建公开番组</p>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {profile.publicPools.map((pool) => (
+                  {profile.publicPools.slice((contentPage - 1) * 4, contentPage * 4).map((pool) => (
                     <Link
                       key={pool.id}
                       href={`/pools/${pool.id}`}
@@ -281,7 +289,8 @@ export default function UserProfilePage() {
                   ))}
                 </div>
               )}
-            </section>
+            </section> : null}
+            <div className="mt-4"><CollectionPager label="公开内容" page={contentPage} pageSize={4} total={contentTab === "shares" ? profile.publicTierLists.length : profile.publicPools.length} onChange={setContentPage} /></div>
           </>
         ) : null}
       </main>
