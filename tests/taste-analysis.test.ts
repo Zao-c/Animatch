@@ -31,6 +31,18 @@ describe("taste similarity", () => {
   it("does not count repeated records as additional people or works", () => {
     expect(compareTaste([...entries(10), ...entries(10)], entries(10)).commonCount).toBe(10);
   });
+  it("finds several high-versus-low Elo disagreements and unscored recommendations", () => {
+    const scores = [1800, 1750, 1700, 1400, 1350, 1300];
+    const mine = scores.map((score, index) => ({ animeId: `a${index}`, title: `作品${index}`, imageUrl: null, tags: [], score }));
+    const other = scores.map((_, index) => ({ ...mine[index], score: scores[5 - index] }));
+    other.push({ animeId: "new", title: "对方喜欢的新作品", imageUrl: null, tags: [], score: 1900 });
+    const result = compareTaste(mine, other);
+    expect(result.disagreementCount).toBeGreaterThanOrEqual(3);
+    expect(result.disagreements.length).toBeLessThanOrEqual(5);
+    expect(result.disagreements[0]).toMatchObject({ animeId: "a0", leftElo: 1800, rightElo: 1300 });
+    expect(result.recommendations).toEqual([expect.objectContaining({ animeId: "new" })]);
+    expect(compareTaste(mine, mine).agreementCount).toBeGreaterThanOrEqual(3);
+  });
 });
 
 describe("profile and stage comparisons", () => {

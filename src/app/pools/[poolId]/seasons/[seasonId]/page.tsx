@@ -15,6 +15,7 @@ import { TierShareCard } from "@/components/TierShareView";
 import { deleteSeason, getSeasonDetail, startSeason, endSeason, getSeasonImpact, updateSeason } from "@/lib/client-api";
 import { formatDateTimeStable } from "@/lib/date-format";
 import { SeasonImpactPanel } from "@/components/SeasonImpactPanel";
+import { TasteRivalryCard } from "@/components/TasteRivalryCard";
 import type { PublicTierShare, SeasonDetail, SeasonPersonalRankingItem, SeasonRankingItem, TierShareSnapshotItem } from "@/lib/client-api";
 import { copyTextWithFallback } from "@/lib/browser-copy";
 import { exportShareCardAsPng } from "@/lib/share-export";
@@ -489,6 +490,7 @@ export default function SeasonDetailPage() {
 
         {seasonView === "shared" ? <>
           <RankingEvidencePanel items={detail.ranking} season />
+          <TasteRivalryCard scope={`season:${seasonId}`} />
           <div className="mb-4"><DashboardTabs id="shared-result" label="共享榜展示" value={sharedView} onChange={setSharedView} items={[{ value: "tier", label: "封面分层" }, { value: "ranking", label: "详细排名" }]} /></div>
           <div role="tabpanel" id={`shared-result-panel-${sharedView}`} aria-labelledby={`shared-result-tab-${sharedView}`}>
           {sharedView === "ranking" ? (
@@ -573,6 +575,7 @@ export default function SeasonDetailPage() {
               <AppButton className="mt-3" variant="quiet" onClick={() => setSeasonView("impact")}>看看投票带来了什么 →</AppButton>
             </AppCard>
           </div>
+          <TasteRivalryCard scope={`season:${seasonId}`} />
         <details className="rounded-2xl border border-anime-border p-4"><summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-slate-300">最近投票 · {detail.recentVotes.length} 条</summary>
         <AppCard className="p-4">
           <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">

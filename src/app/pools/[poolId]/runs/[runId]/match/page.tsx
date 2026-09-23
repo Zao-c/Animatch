@@ -470,7 +470,7 @@ function CommunityBattleMatchHint() {
     <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
         <AppBadge tone="source">社区大乱斗</AppBadge>
         <p className="min-w-0 flex-1 text-xs leading-5 text-slate-400">
-          你正在参与这个公开番组的社区大乱斗。你的选择只会更新你的个人榜单，并以匿名聚合方式贡献到社区榜单。
+          你正在参与这个公开番组的社区大乱斗。你的选择会更新个人榜单并匿名汇入社区榜；口味对照还会展示玩家昵称和共同作品上的明显分歧。
         </p>
     </div>
   );

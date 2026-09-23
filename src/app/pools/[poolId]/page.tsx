@@ -7,6 +7,7 @@ import { ChangeEvent, DragEvent, FormEvent, useCallback, useEffect, useMemo, use
 import { AnimeCard } from "@/components/AnimeCard";
 import { AnimeCover } from "@/components/AnimeCover";
 import { CommunityAverageTierList } from "@/components/CommunityAverageTierList";
+import { TasteRivalryCard } from "@/components/TasteRivalryCard";
 import { CoverRepairCard } from "@/components/CoverRepairCard";
 import { SeasonPlayEntry } from "@/components/SeasonPlayEntry";
 import { PoolSeasonsSection } from "@/components/PoolSeasonsSection";
@@ -1590,7 +1591,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           <div className="mt-3 space-y-3 border-t border-white/8 pt-3 text-xs leading-5 text-slate-400">
             <p>{poolOnboardingHint}</p>
             {canShowCommunityBattle ? (
-              <p>公开番组的社区榜单玩法：每个人的对决产生个人榜单，你的选择以匿名聚合方式贡献到社区榜单。不影响创建者的作品墙，不覆盖你的个人 Tier List，不公开单次选择或个人身份。</p>
+              <p>公开番组的社区榜单会聚合每个人的对决结果，不影响创建者的作品墙或你的个人 Tier List。口味对照会展示玩家昵称，以及在共同作品上的高低分歧。</p>
             ) : null}
           </div>
         </details>
@@ -2941,6 +2942,7 @@ function CommunitySection({
             </div>
           ) : null}
         </AppCard>
+        <TasteRivalryCard scope={`pool:${poolId}`} />
       </section>
     );
   }

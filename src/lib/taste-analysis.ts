@@ -23,6 +23,12 @@ export function relativeRanks(items: TasteEntry[]): Map<string, number> {
   return result;
 }
 
+function medianScore(items: TasteEntry[]): number {
+  const scores = items.map((item) => item.score).filter(Number.isFinite).sort((a, b) => a - b);
+  if (!scores.length) return 1500;
+  return (scores[Math.floor((scores.length - 1) / 2)] + scores[Math.floor(scores.length / 2)]) / 2;
+}
+
 export function compareTaste(a: TasteEntry[], b: TasteEntry[]) {
   const left = new Map(a.map((item) => [item.animeId, item]));
   const right = new Map(b.map((item) => [item.animeId, item]));
@@ -44,19 +50,40 @@ export function compareTaste(a: TasteEntry[], b: TasteEntry[]) {
   const denominator = Math.sqrt((concordant + discordant + tiesA) * (concordant + discordant + tiesB));
   const tau = denominator === 0 ? null : (concordant - discordant) / denominator;
   const evidenceWeight = common.length / (common.length + 10);
+  const leftMedian = medianScore([...left.values()]);
+  const rightMedian = medianScore([...right.values()]);
+  const rightFullRanks = relativeRanks([...right.values()]);
   const differences = common.map((id) => ({
     animeId: id, title: left.get(id)!.title,
     leftRank: aRanks.get(id)!, rightRank: bRanks.get(id)!,
-    difference: Math.abs(aRanks.get(id)! - bRanks.get(id)!)
+    difference: Math.abs(aRanks.get(id)! - bRanks.get(id)!),
+    leftElo: Math.round(left.get(id)!.score), rightElo: Math.round(right.get(id)!.score),
+    leftOffset: left.get(id)!.score - leftMedian, rightOffset: right.get(id)!.score - rightMedian,
+    eloGap: Math.abs((left.get(id)!.score - leftMedian) - (right.get(id)!.score - rightMedian))
   }));
+  // Compare each player's Elo against their own middle score. Raw Elo levels can drift
+  // when two people have played different numbers of matches.
+  const agreements = differences.filter((item) => item.leftOffset >= 40 && item.rightOffset >= 40)
+    .sort((x, y) => Math.min(y.leftOffset, y.rightOffset) - Math.min(x.leftOffset, x.rightOffset));
+  const disagreements = differences.filter((item) =>
+    (item.leftOffset >= 40 && item.rightOffset <= -40) ||
+    (item.rightOffset >= 40 && item.leftOffset <= -40)
+  ).sort((x, y) => y.eloGap - x.eloGap);
+  const recommendations = [...right.values()]
+    .filter((item) => !left.has(item.animeId) && !isGeneratedOrNoisyTitle(item.title) &&
+      item.score - rightMedian >= 40 && (rightFullRanks.get(item.animeId) ?? Infinity) <= Math.ceil(right.size * 0.4))
+    .sort((x, y) => y.score - x.score)
+    .slice(0, 10)
+    .map(({ animeId, title, imageUrl }) => ({ animeId, title, imageUrl }));
   return {
     commonCount: common.length, leftCount: left.size, rightCount: right.size,
     similarity: tau === null ? null : Math.round((tau + 1) * 50),
     adjustedSimilarity: tau === null ? null : 50 + tau * evidenceWeight * 50,
     eligible: common.length >= 5 && tau !== null,
-    agreements: differences.filter((item) => item.leftRank <= common.length / 3 && item.rightRank <= common.length / 3)
-      .sort((a, b) => a.leftRank + a.rightRank - b.leftRank - b.rightRank).slice(0, 3),
-    disagreements: differences.filter((item) => item.difference > 0).sort((a, b) => b.difference - a.difference).slice(0, 3)
+    agreementCount: agreements.length, disagreementCount: disagreements.length,
+    conflictStrength: disagreements.reduce((sum, item) => sum + item.eloGap, 0),
+    agreements: agreements.slice(0, 5), disagreements: disagreements.slice(0, 5),
+    recommendations
   };
 }
 

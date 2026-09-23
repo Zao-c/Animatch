@@ -7,6 +7,7 @@ import { TierAnimeCard } from "@/components/TierAnimeCard";
 import { TierSharePanel } from "@/components/TierSharePanel";
 import { TierShareCard } from "@/components/TierShareView";
 import { CommunityDivergenceCard } from "@/components/CommunityDivergenceCard";
+import { TasteRivalryCard } from "@/components/TasteRivalryCard";
 import { PageShell } from "@/components/PageShell";
 import { PoolTierConfigEditor } from "@/components/PoolTierConfigEditor";
 import { RankingProgressCard } from "@/components/RankingProgressCard";
@@ -635,7 +636,7 @@ export default function TierPage({
           <div className="min-w-0">
             <AppBadge tone="source">社区大乱斗</AppBadge>
             <p className="mt-2 text-sm leading-6 text-slate-300">
-              这是你的个人榜单；它会以匿名聚合方式参与社区榜单。
+              这是你的个人榜单；它会匿名汇入社区榜，口味对照则会展示玩家昵称和共同作品的明显分歧。
             </p>
           </div>
         </AppCard>
@@ -1084,6 +1085,8 @@ export default function TierPage({
       </aside>
       </div>
 
+      <TasteRivalryCard scope={`pool:${params.poolId}`} />
+
       {visibleTiers ? (
         <div className="tiermaker-export-host" aria-hidden="true">
           <div ref={exportCardRef}>
@@ -1105,4 +1108,3 @@ function Stat({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-

@@ -33,24 +33,19 @@ export async function tasteScopes(userId: string, year?: number) {
 
 export async function getTasteProfile(username: string, viewerId?: string, year?: number) {
   const user = await prisma.user.findFirst({ where: { username, deletedAt: null },
-    select: { id: true, tasteProfilePublic: true, allowTasteMatching: true, profileVisibility: true } });
+    select: { id: true } });
   if (!user) throw new AppError("用户不存在", 404);
   const isOwner = user.id === viewerId;
-  if (!isOwner && (!user.tasteProfilePublic || user.profileVisibility !== "PUBLIC")) {
-    return { isOwner: false, visible: false, profile: null, scopes: [], settings: null };
-  }
   const scopes = await tasteScopes(user.id, year);
   return { isOwner, visible: true, profile: buildTasteProfile(scopes.map((scope) => scope.entries)),
-    scopes: scopes.map(({ id, title, entries }) => ({ id, title, count: entries.length })),
-    settings: isOwner ? { tasteProfilePublic: user.tasteProfilePublic, allowTasteMatching: user.allowTasteMatching } : null };
+    scopes: scopes.map(({ id, title, entries }) => ({ id, title, count: entries.length })) };
 }
 
 export async function findTasteMatches(userId: string, scopeId: string) {
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { allowTasteMatching: true, tasteProfilePublic: true, profileVisibility: true } });
-  if (!user.allowTasteMatching || !user.tasteProfilePublic || user.profileVisibility !== "PUBLIC") throw new AppError("请先公开口味画像并开启匹配", 403);
-  const mine = (await tasteScopes(userId)).find((scope) => scope.id === scopeId);
+  const myScopes = await tasteScopes(userId);
+  const mine = myScopes.find((scope) => scope.id === scopeId);
   if (!mine) throw new AppError("请选择你参与过的公开番组或赛季", 400);
-  const eligibleUser = { deletedAt: null, tasteProfilePublic: true, allowTasteMatching: true, profileVisibility: "PUBLIC" as const, id: { not: userId } };
+  const eligibleUser = { deletedAt: null, id: { not: userId } };
   const commonWhere = { user: eligibleUser, isHidden: false, compareCount: { gt: 0 }, animeId: { in: mine.entries.map((entry) => entry.animeId) } };
   const candidateRows = scopeId.startsWith("season:")
     ? await prisma.battleSeasonUserScore.groupBy({ by: ["userId"], where: { ...commonWhere, seasonId: scopeId.slice(7) }, _count: { animeId: true }, orderBy: { _count: { animeId: "desc" } }, take: 100 })
@@ -69,8 +64,26 @@ export async function findTasteMatches(userId: string, scopeId: string) {
     if (!entry.entries.has(row.animeId)) entry.entries.set(row.animeId, { animeId: row.animeId, title: row.anime.titleCn ?? row.anime.title, tags: [], imageUrl: null, score: row.eloScore });
     grouped.set(row.userId, entry);
   }
-  const matches = [...grouped.values()].map((entry) => ({ username: entry.username, name: entry.name, ...compareTaste(mine.entries, [...entry.entries.values()]) })).filter((match) => match.eligible);
-  return { scopeTitle: mine.title, candidateLimit: 100, candidateCount: matches.length,
-    closest: matches.filter((match) => match.adjustedSimilarity! > 50).sort((a, b) => b.adjustedSimilarity! - a.adjustedSimilarity!).slice(0, 3),
-    furthest: matches.filter((match) => match.adjustedSimilarity! < 50).sort((a, b) => a.adjustedSimilarity! - b.adjustedSimilarity!).slice(0, 3) };
+  const matches = [...grouped.values()].map((entry) => ({ username: entry.username, name: entry.name, ...compareTaste(mine.entries, [...entry.entries.values()]) }))
+    .filter((match) => match.eligible);
+  const alreadyRated = new Set(myScopes.flatMap((scope) => scope.entries.map((entry) => entry.animeId)));
+  const recommendationIds = [...new Set(matches.flatMap((match) => match.recommendations.map((item) => item.animeId)))].filter((id) => !alreadyRated.has(id));
+  const [statuses, otherPoolScores, otherSeasonScores] = recommendationIds.length ? await Promise.all([
+    prisma.userAnimeStatus.findMany({ where: { userId, animeId: { in: recommendationIds } }, select: { animeId: true, status: true } }),
+    prisma.userPoolScore.findMany({ where: { userId, animeId: { in: recommendationIds }, compareCount: { gt: 0 } }, select: { animeId: true } }),
+    prisma.battleSeasonUserScore.findMany({ where: { userId, animeId: { in: recommendationIds }, compareCount: { gt: 0 } }, select: { animeId: true } })
+  ]) : [[], [], []];
+  for (const row of [...otherPoolScores, ...otherSeasonScores]) alreadyRated.add(row.animeId);
+  const statusByAnime = new Map(statuses.map((row) => [row.animeId, row.status]));
+  const visibleMatches = matches.map((match) => ({ ...match, recommendations: match.recommendations
+    .filter((item) => !alreadyRated.has(item.animeId) && !["WATCHED", "WATCHING", "DROPPED"].includes(statusByAnime.get(item.animeId) ?? ""))
+    .slice(0, 3)
+    .map((item) => ({ ...item, markedUnseen: statusByAnime.get(item.animeId) === "UNSEEN" })) }));
+  const closestCount = Math.min(3, Math.ceil(visibleMatches.length / 2));
+  const closest = [...visibleMatches].sort((a, b) => b.adjustedSimilarity! - a.adjustedSimilarity! || b.agreementCount - a.agreementCount || b.commonCount - a.commonCount).slice(0, closestCount);
+  const shown = new Set(closest.map((item) => item.username));
+  const furthest = visibleMatches.filter((item) => !shown.has(item.username))
+    .sort((a, b) => b.disagreementCount - a.disagreementCount || b.conflictStrength - a.conflictStrength || a.adjustedSimilarity! - b.adjustedSimilarity!)
+    .slice(0, Math.min(3, visibleMatches.length - closestCount));
+  return { scopeTitle: mine.title, candidateLimit: 100, candidateCount: visibleMatches.length, closest, furthest };
 }
