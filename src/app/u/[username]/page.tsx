@@ -12,6 +12,7 @@ import { PageShell } from "@/components/PageShell";
 import { appButtonClasses } from "@/components/ui/AppButton";
 import { proxyExternalImageUrl } from "@/lib/image-proxy";
 import { formatDateTimeStable } from "@/lib/date-format";
+import { decodeProfileUsername } from "@/lib/profile-username";
 
 interface PublicProfile {
   user: {
@@ -72,7 +73,7 @@ function ProfileSkeleton() {
 
 export default function UserProfilePage() {
   const params = useParams<{ username: string }>();
-  const username = params.username;
+  const username = decodeProfileUsername(params.username);
 
   const [contentTab, setContentTab] = useState<"shares" | "pools">("shares");
   const [contentPage, setContentPage] = useState(1);
