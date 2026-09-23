@@ -109,7 +109,7 @@ export default function CollectionsPage() {
         <p className="mt-3 text-sm text-slate-400">组合开播与完结记录，回顾变化，再开启一轮年度对决。组合仅本人可见。</p></div>
       <AppButton onClick={() => openEditor()} disabled={busy}>新建组合</AppButton>
     </header>
-    {error && <div role="alert" className="mb-4 rounded-xl border border-rose-400/30 bg-rose-400/10 p-4 text-sm text-rose-100">{error}<div className="mt-2 flex gap-4"><button className="min-h-11 underline" onClick={() => window.location.reload()}>重试加载</button><Link className="inline-flex min-h-11 items-center underline" href="/login?next=%2Fcollections">前往登录</Link></div></div>}
+    {error && <div role="alert" className="mb-4 rounded-xl border border-rose-400/30 bg-rose-400/10 p-4 text-sm text-rose-100">{error}<div className="mt-3 flex flex-wrap gap-3">{error !== "请先登录后继续" && <button className="min-h-11 rounded-xl border border-white/15 px-4" onClick={() => window.location.reload()}>重试加载</button>}<Link className={appButtonClasses({ variant: "primary" })} href="/login?next=%2Fcollections">前往登录</Link></div></div>}
     {loading ? <p role="status" className={panel}>正在加载年度组合…</p> : <div className="grid min-w-0 gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
       <label className="block text-sm text-slate-300 lg:hidden">我的组合<select className={`${field} mt-2`} value={activeId} onChange={(e) => { setActiveId(e.target.value); setEditing(false); window.history.replaceState(null, "", `/collections?id=${e.target.value}`); }}>{!collections.length && <option value="">还没有组合</option>}{collections.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
       <aside className={`${panel} hidden self-start lg:block`}><h2 className="mb-3 font-bold">我的组合</h2>
