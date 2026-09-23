@@ -4,7 +4,11 @@ export async function withTransactionRetry<T>(operation: () => Promise<T>): Prom
   for (let attempt = 0; ; attempt++) {
     try { return await operation(); }
     catch (error) {
-      if (attempt >= 2 || !error || typeof error !== "object" || !("code" in error) || error.code !== "P2034") throw error;
+      const serializationConflict = error && typeof error === "object" && "code" in error && (
+        error.code === "P2034" || (error.code === "P2010" && "meta" in error &&
+          error.meta && typeof error.meta === "object" && "code" in error.meta && error.meta.code === "40001")
+      );
+      if (attempt >= 2 || !serializationConflict) throw error;
     }
   }
 }

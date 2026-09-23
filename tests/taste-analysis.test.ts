@@ -56,7 +56,7 @@ describe("community evidence", () => {
     expect(rankingEvidence([], 0)).toEqual({ coverage: 0, ratingDeviation: null, sampleLabel: "暂无评价" });
   });
   it("preserves small, well-liked works without promoting one-voter samples", () => {
-    const rows = [{ animeId: "a", participantCount: 5, averageRating: 1800 }, { animeId: "b", participantCount: 30, averageRating: 1700 }, { animeId: "c", participantCount: 1, averageRating: 2000 }];
+    const rows = [{ animeId: "a", participantCount: 5, comparisonCount: 10, averageRating: 1800 }, { animeId: "b", participantCount: 30, comparisonCount: 50, averageRating: 1700 }, { animeId: "c", participantCount: 1, comparisonCount: 10, averageRating: 2000 }, { animeId: "d", participantCount: 3, comparisonCount: 3, averageRating: 1900 }];
     expect(nicheRanking(rows).map((row) => row.animeId)).toEqual(["a"]);
   });
 });

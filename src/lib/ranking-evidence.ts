@@ -8,8 +8,9 @@ export function rankingEvidence(ratings: number[], totalParticipants: number) {
   };
 }
 
-export function nicheRanking<T extends { participantCount: number; averageRating?: number | null; averageElo?: number | null; animeId: string }>(items: T[]) {
+export function nicheRanking<T extends { participantCount: number; comparisonCount?: number; averageRating?: number | null; averageElo?: number | null; animeId: string }>(items: T[]) {
   return items.filter((item) => item.participantCount >= 3 && item.participantCount < 10 &&
+    (item.comparisonCount === undefined || item.comparisonCount >= 6) &&
     (item.averageRating ?? item.averageElo ?? 0) > 1500)
     .sort((a, b) => (b.averageRating ?? b.averageElo ?? 0) - (a.averageRating ?? a.averageElo ?? 0) || a.animeId.localeCompare(b.animeId));
 }
