@@ -1,3 +1,6 @@
+import { ANIME_TAG_DICTIONARY, matchTagAliases } from "./anime-tag-dictionary";
+import { isGeneratedOrNoisyTitle } from "./anime-display";
+
 export interface TasteEntry {
   animeId: string;
   title: string;
@@ -50,7 +53,7 @@ export function compareTaste(a: TasteEntry[], b: TasteEntry[]) {
     commonCount: common.length, leftCount: left.size, rightCount: right.size,
     similarity: tau === null ? null : Math.round((tau + 1) * 50),
     adjustedSimilarity: tau === null ? null : 50 + tau * evidenceWeight * 50,
-    eligible: common.length >= 10 && tau !== null,
+    eligible: common.length >= 5 && tau !== null,
     agreements: differences.filter((item) => item.leftRank <= common.length / 3 && item.rightRank <= common.length / 3)
       .sort((a, b) => a.leftRank + a.rightRank - b.leftRank - b.rightRank).slice(0, 3),
     disagreements: differences.filter((item) => item.difference > 0).sort((a, b) => b.difference - a.difference).slice(0, 3)
@@ -71,9 +74,15 @@ export function buildTasteProfile(scopes: TasteEntry[][]) {
       works.set(item.animeId, value);
     }
   }
+  const tagLabels = new Map(ANIME_TAG_DICTIONARY
+    .filter((entry) => ["类型", "场景", "氛围", "题材"].includes(entry.group))
+    .map((entry) => [entry.key, entry.label]));
   const tags = new Map<string, { count: number; sum: number; examples: string[] }>();
   for (const { item, sum, count } of works.values()) {
-    for (const tag of new Set(item.tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean))) {
+    const meaningfulTags = new Set(item.tags
+      .map((tag) => tagLabels.get(matchTagAliases(tag) ?? ""))
+      .filter((tag): tag is string => Boolean(tag)));
+    for (const tag of meaningfulTags) {
       const value = tags.get(tag) ?? { count: 0, sum: 0, examples: [] };
       value.count++; value.sum += sum / count;
       if (value.examples.length < 3) value.examples.push(item.title);
@@ -82,10 +91,16 @@ export function buildTasteProfile(scopes: TasteEntry[][]) {
   }
   return {
     animeCount: works.size, scopeCount: scopes.filter((scope) => scope.length >= 2).length,
-    tags: [...tags].map(([tag, value]) => ({ tag, count: value.count,
+    favorites: [...works.values()]
+      .map(({ item, sum, count }) => ({ animeId: item.animeId, title: item.title, imageUrl: item.imageUrl,
+        scopeCount: count, preference: sum / count }))
+      .filter((item) => item.preference >= 0.65 && !isGeneratedOrNoisyTitle(item.title))
+      .sort((a, b) => b.preference - a.preference || b.scopeCount - a.scopeCount || a.title.localeCompare(b.title))
+      .slice(0, 4).map(({ preference: _preference, ...item }) => item),
+    tags: [...tags].filter(([, value]) => value.count >= 2).map(([tag, value]) => ({ tag, count: value.count,
       preference: value.count >= 3 && value.count < works.size ? Math.round(value.sum / value.count * 100) : null,
       examples: value.examples
-    })).sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag)).slice(0, 8)
+    })).sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag)).slice(0, 6)
   };
 }
 

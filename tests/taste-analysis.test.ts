@@ -24,6 +24,7 @@ describe("taste similarity", () => {
   });
   it("requires enough common works and shrinks extremes for weaker evidence", () => {
     expect(compareTaste(entries(3), entries(3))).toMatchObject({ similarity: 100, eligible: false });
+    expect(compareTaste(entries(5), entries(5))).toMatchObject({ commonCount: 5, eligible: true });
     expect(compareTaste(entries(30), entries(30)).adjustedSimilarity).toBeGreaterThan(compareTaste(entries(10), entries(10)).adjustedSimilarity!);
     expect(compareTaste([], entries(10))).toMatchObject({ similarity: null, commonCount: 0 });
   });
@@ -39,6 +40,18 @@ describe("profile and stage comparisons", () => {
   });
   it("does not infer genre preference when the entire pool has the same genre", () => {
     expect(buildTasteProfile([entries(10).map((item) => ({ ...item, tags: ["恋爱"] }))]).tags[0].preference).toBeNull();
+  });
+  it("keeps import metadata out of the public taste profile", () => {
+    const profile = buildTasteProfile([entries(10).map((item) => ({
+      ...item, tags: ["imported", "tiermaker", "url-list", "2026年", "tv", "恋爱", "爱情"]
+    }))]);
+    expect(profile.tags.map((item) => item.tag)).toEqual(["恋爱"]);
+    expect(profile.tags[0].count).toBe(10);
+    expect(profile.favorites[0]).toMatchObject({ title: "作品0" });
+  });
+  it("does not present generated import filenames as favorite works", () => {
+    const profile = buildTasteProfile([[{ ...entries(2)[0], title: "zzzzz 1772928300ningguang" }, entries(2)[1]]]);
+    expect(profile.favorites).toEqual([]);
   });
   it("reranks common titles instead of subtracting raw Elo or full-pool ranks", () => {
     const before = entries(3);

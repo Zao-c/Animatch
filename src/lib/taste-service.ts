@@ -55,7 +55,7 @@ export async function findTasteMatches(userId: string, scopeId: string) {
   const candidateRows = scopeId.startsWith("season:")
     ? await prisma.battleSeasonUserScore.groupBy({ by: ["userId"], where: { ...commonWhere, seasonId: scopeId.slice(7) }, _count: { animeId: true }, orderBy: { _count: { animeId: "desc" } }, take: 100 })
     : await prisma.userPoolScore.groupBy({ by: ["userId"], where: { ...commonWhere, poolId: mine.poolId, run: { isDefault: true, status: "ACTIVE", deletedAt: null } }, _count: { animeId: true }, orderBy: { _count: { animeId: "desc" } }, take: 100 });
-  const ids = candidateRows.filter((row) => row._count.animeId >= 10).map((row) => row.userId);
+  const ids = candidateRows.filter((row) => row._count.animeId >= 5).map((row) => row.userId);
   // One bounded query, rather than loading every candidate's entire history.
   const rows = scopeId.startsWith("season:")
     ? await prisma.battleSeasonUserScore.findMany({ where: { seasonId: scopeId.slice(7), userId: { in: ids }, user: eligibleUser, isHidden: false, compareCount: { gt: 0 } }, include: { anime: true, user: { select: { username: true, name: true } } } })
