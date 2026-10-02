@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { featureRequest } from "@/lib/feature-api";
 import type { getPublicTasteRivalry } from "@/lib/taste-rivalry";
-import type { findTasteMatches } from "@/lib/taste-service";
+import type { findTasteMatches, getTasteProfile } from "@/lib/taste-service";
 
 type Rivalry = Awaited<ReturnType<typeof getPublicTasteRivalry>>;
 type Matches = Awaited<ReturnType<typeof findTasteMatches>>;
+type Profile = Awaited<ReturnType<typeof getTasteProfile>>;
 
 export function TasteRivalryCard({ scope }: { scope: string }) {
   const [rivalry, setRivalry] = useState<Rivalry | null>(null);
@@ -27,8 +28,16 @@ export function TasteRivalryCard({ scope }: { scope: string }) {
       })
       .then((result) => { if (result) setRivalry(result); })
       .catch(() => { if (!controller.signal.aborted) setError(true); });
-    featureRequest<Matches>(`/api/taste/matches?scope=${encodeURIComponent(scope)}`, { signal: controller.signal })
-      .then(setMatches).catch(() => { /* Visitors and nonparticipants still see the public result. */ });
+    void (async () => {
+      try {
+        const { user } = await featureRequest<{ user: { username: string | null } | null }>("/api/auth/me", { signal: controller.signal });
+        if (!user?.username) return;
+        const profile = await featureRequest<Profile>(`/api/users/${encodeURIComponent(user.username)}/taste`, { signal: controller.signal });
+        if (!profile.scopes.some((item) => item.id === scope)) return;
+        const result = await featureRequest<Matches>(`/api/taste/matches?scope=${encodeURIComponent(scope)}`, { signal: controller.signal });
+        if (!controller.signal.aborted) setMatches(result);
+      } catch { /* The public result remains available if a personal request fails. */ }
+    })();
     return () => controller.abort();
   }, [scope, reload]);
 
