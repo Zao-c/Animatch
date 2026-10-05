@@ -1,11 +1,13 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { prisma } from "../src/lib/db";
 import {
   SEASON_DAILY_LIMIT_TIME_ZONE,
   getSeasonDailyVoteWindow,
   normalizeSeasonCreateInput,
   normalizeSeasonUpdateInput,
-  resolveSeasonScheduleUpdate
+  resolveSeasonScheduleUpdate,
+  submitVote
 } from "../src/lib/season-service";
 
 function readSource(path: string): string {
@@ -73,6 +75,25 @@ describe("Season service permissions and limits", () => {
     expect(source).toContain("const activeSeason = await tx.battleSeason.findFirst");
     expect(source).toContain("validateSeasonAccess(activeSeason, new Date())");
     expect(source).toContain("activeSeason.maxVotesPerUser");
+  });
+
+  it("rejects a vote where both sides are the same anime before touching scores", async () => {
+    vi.spyOn(prisma.customPool, "findUnique").mockResolvedValue({
+      id: "pool-1", creatorId: "user-1", visibility: "PUBLIC", status: "DRAFT", deletedAt: null
+    } as any);
+    vi.spyOn(prisma.battleSeason, "findFirst").mockResolvedValue({
+      id: "season-1", poolId: "pool-1", status: "ACTIVE", startsAt: new Date(0), endsAt: null
+    } as any);
+    const findPoolAnime = vi.spyOn(prisma.poolAnime, "findMany").mockResolvedValue([]);
+
+    try {
+      await expect(submitVote("pool-1", "season-1", "user-1", {
+        leftAnimeId: "anime-1", rightAnimeId: "anime-1", winnerAnimeId: "anime-1"
+      })).rejects.toMatchObject({ statusCode: 400, code: "SAME_ANIME" });
+      expect(findPoolAnime).not.toHaveBeenCalled();
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 
   it("uses one Asia/Shanghai day window for daily vote display and write guard", () => {

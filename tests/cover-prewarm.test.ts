@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { isSlowNetwork, prewarmCoverUrls } from "../src/lib/cover-prewarm";
 
 describe("prewarmCoverUrls", () => {
@@ -71,6 +71,32 @@ describe("prewarmCoverUrls", () => {
       signal: controller.signal
     });
     expect(result.cancelled).toBe(true);
+  });
+
+  it("stops a stalled image request on timeout or abort", async () => {
+    const assignedSources: string[] = [];
+    class StalledImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      set src(value: string) { assignedSources.push(value); }
+    }
+    vi.stubGlobal("Image", StalledImage);
+    vi.useFakeTimers();
+    try {
+      const timedOut = prewarmCoverUrls(["https://example.com/slow.jpg"], { timeoutMs: 500 });
+      await vi.advanceTimersByTimeAsync(500);
+      expect(await timedOut).toMatchObject({ skipped: 1, cancelled: false });
+      expect(assignedSources.at(-1)).toMatch(/^data:image\/gif/);
+
+      const controller = new AbortController();
+      const aborted = prewarmCoverUrls(["https://example.com/other.jpg"], { signal: controller.signal });
+      controller.abort();
+      expect(await aborted).toMatchObject({ cancelled: true });
+      expect(assignedSources.at(-1)).toMatch(/^data:image\/gif/);
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
   });
 });
 

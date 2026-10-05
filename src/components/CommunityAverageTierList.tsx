@@ -168,7 +168,10 @@ function CommunityTierEmptyState({
           {isUnavailable ? "社区平均 Tier List 正在准备" : "还没有玩家对决数据"}
         </p>
         <p className="mt-2 text-sm leading-6 text-slate-400">
-          公开番组会在用户完成个人对决后生成社区聚合结果。现在先展示作品池预览，避免测试环境看起来像是空页面。
+          公开番组会在玩家完成个人对决后逐渐形成社区榜单。
+          {previewItems.length > 0
+            ? "先看看下方作品，也可以参与对决，帮助形成榜单。"
+            : "参与对决，帮助这个番组形成榜单。"}
         </p>
       </div>
 

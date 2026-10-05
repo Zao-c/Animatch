@@ -5,11 +5,11 @@ import { getAnimeCoverUrl } from "./anime-cover-url";
 import { getEffectiveAnimeDisplay } from "./anime-display";
 import type { TasteEntry } from "./taste-analysis";
 import { rankingEvidence } from "./ranking-evidence";
-import type { SeasonPersonalRankingItem, SeasonRankingItem } from "./season-service";
+import type { SeasonImageSources, SeasonPersonalRankingItem, SeasonRankingItem } from "./season-service";
 
 export interface ArchivedScore { userId: string; animeId: string; score: number; count: number; bias: number; wins: number; losses: number; uncertainty: number }
 export interface SeasonArchiveData {
-  items: TasteEntry[];
+  items: Array<TasteEntry & Partial<SeasonImageSources>>;
   scores: ArchivedScore[];
 }
 
@@ -23,7 +23,10 @@ export async function readSeasonArchiveData(db: Prisma.TransactionClient, poolId
   return {
     items: entries.map((entry) => {
       const display = getEffectiveAnimeDisplay(entry);
-      return { animeId: entry.animeId, title: display.title, imageUrl: display.coverUrl ?? getAnimeCoverUrl(entry.anime), tags: display.tags, score: 1500 };
+      return { animeId: entry.animeId, title: display.title, imageUrl: display.coverUrl ?? getAnimeCoverUrl(entry.anime),
+        sourceImageUrl: entry.anime.imageUrl, imageLargeUrl: entry.anime.imageLargeUrl,
+        imageMediumUrl: entry.anime.imageMediumUrl, imageSmallUrl: entry.anime.imageSmallUrl,
+        thumbnailUrl: entry.anime.thumbnailUrl, tags: display.tags, score: 1500 };
     }),
     scores: scores.filter((score) => ids.has(score.animeId)).map((score) => ({
       userId: score.userId, animeId: score.animeId, score: score.eloScore, count: score.compareCount, bias: score.biasWinCount,
@@ -36,7 +39,7 @@ export async function readSeasonArchiveData(db: Prisma.TransactionClient, poolId
 export async function getSeasonArchiveData(poolId: string, seasonId: string) {
   return withTransactionRetry(() => prisma.$transaction(async (tx) => {
     const existing = await tx.battleSeasonArchive.findUnique({ where: { seasonId } });
-    if (existing) return { data: existing.payload as unknown as SeasonArchiveData, capturedAt: existing.capturedAt.toISOString() };
+    if (existing) return { data: await restoreLegacyCoverSources(tx, existing.payload as unknown as SeasonArchiveData), capturedAt: existing.capturedAt.toISOString() };
     const season = await tx.battleSeason.findUniqueOrThrow({ where: { id: seasonId } });
     const data = await readSeasonArchiveData(tx, poolId, seasonId);
     if (season.status === "ENDED" || (season.status === "ACTIVE" && season.endsAt !== null && season.endsAt <= new Date())) {
@@ -46,6 +49,21 @@ export async function getSeasonArchiveData(poolId: string, seasonId: string) {
     }
     return { data, capturedAt: null };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 15000 }));
+}
+
+async function restoreLegacyCoverSources(db: Prisma.TransactionClient, data: SeasonArchiveData): Promise<SeasonArchiveData> {
+  const legacyIds = data.items.filter((item) => item.sourceImageUrl === undefined).map((item) => item.animeId);
+  if (legacyIds.length === 0) return data;
+  const animes = await db.anime.findMany({ where: { id: { in: legacyIds } }, select: {
+    id: true, imageUrl: true, imageLargeUrl: true, imageMediumUrl: true, imageSmallUrl: true, thumbnailUrl: true
+  } });
+  const byId = new Map(animes.map((anime) => [anime.id, anime]));
+  return { ...data, items: data.items.map((item) => {
+    const anime = byId.get(item.animeId);
+    if (!anime) return item;
+    return { ...item, sourceImageUrl: anime.imageUrl, imageLargeUrl: anime.imageLargeUrl,
+      imageMediumUrl: anime.imageMediumUrl, imageSmallUrl: anime.imageSmallUrl, thumbnailUrl: anime.thumbnailUrl };
+  }) };
 }
 
 export function archivePersonal(data: SeasonArchiveData, userId: string): TasteEntry[] {
@@ -80,7 +98,10 @@ export function archivedSeasonRanking(data: SeasonArchiveData): SeasonRankingIte
     let sum = 0, weight = 0;
     for (const score of scores) { const w = Math.min(score.count / 5, 1) * (score.bias > 0 ? 1.5 : 1); sum += score.score * w; weight += w; }
     const count = scores.reduce((n, row) => n + row.count, 0);
-    return { animeId: item.animeId, title: item.title, imageUrl: item.imageUrl, score: (4500 + sum) / (3 + weight),
+    return { animeId: item.animeId, title: item.title, imageUrl: item.imageUrl,
+      sourceImageUrl: item.sourceImageUrl ?? null, imageLargeUrl: item.imageLargeUrl ?? null,
+      imageMediumUrl: item.imageMediumUrl ?? null, imageSmallUrl: item.imageSmallUrl ?? null,
+      thumbnailUrl: item.thumbnailUrl ?? null, score: (4500 + sum) / (3 + weight),
       winCount: scores.reduce((n, row) => n + row.wins, 0), lossCount: scores.reduce((n, row) => n + row.losses, 0),
       biasWinCount: scores.reduce((n, row) => n + row.bias, 0), participantCount: scores.length, comparisonCount: count,
       averageElo: scores.length ? scores.reduce((n, row) => n + row.score, 0) / scores.length : null,
@@ -92,7 +113,10 @@ export function archivedPersonalRanking(data: SeasonArchiveData, userId: string)
   const rows = new Map(data.scores.filter((row) => row.userId === userId).map((row) => [row.animeId, row]));
   return data.items.filter((item) => rows.has(item.animeId)).map((item) => {
     const row = rows.get(item.animeId)!;
-    return { animeId: item.animeId, title: item.title, imageUrl: item.imageUrl, score: row.score, uncertainty: row.uncertainty,
+    return { animeId: item.animeId, title: item.title, imageUrl: item.imageUrl,
+      sourceImageUrl: item.sourceImageUrl ?? null, imageLargeUrl: item.imageLargeUrl ?? null,
+      imageMediumUrl: item.imageMediumUrl ?? null, imageSmallUrl: item.imageSmallUrl ?? null,
+      thumbnailUrl: item.thumbnailUrl ?? null, score: row.score, uncertainty: row.uncertainty,
       comparisonCount: row.count, winCount: row.wins, lossCount: row.losses, biasWinCount: row.bias };
   }).sort((a, b) => b.score - a.score || b.comparisonCount - a.comparisonCount || b.winCount - a.winCount || a.title.localeCompare(b.title) || a.animeId.localeCompare(b.animeId));
 }

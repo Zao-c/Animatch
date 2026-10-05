@@ -74,17 +74,17 @@ describe("Tier confidence label uses personal language", () => {
   });
 });
 
-describe("TierAnimeCard uses export intent for secondarySrc", () => {
-  it("uses getAnimeCoverUrl with export intent for secondarySrc", () => {
-    const source = readFileSync("src/components/TierAnimeCard.tsx", "utf8");
-    expect(source).toContain('getAnimeCoverUrl(item, { intent: "export" })');
-    expect(source).toContain("const secondaryUrl = getAnimeCoverUrl");
-    expect(source).toContain("secondarySrc={secondaryUrl}");
-  });
-
-  it("does not use raw imageSmallUrl as first secondary fallback", () => {
-    const source = readFileSync("src/components/TierAnimeCard.tsx", "utf8");
-    expect(source).not.toContain("item.imageSmallUrl ?? item.imageMediumUrl");
+describe("TierAnimeCard original image fallback", () => {
+  it("retains an original image when the chosen cover is cached in COS", () => {
+    const html = renderToStaticMarkup(React.createElement(TierAnimeCard, {
+      item: baseItem({ cachedCoverUrl: "https://bucket.cos.ap-shanghai.myqcloud.com/cover.webp" }) as unknown as TierListItem,
+      editable: false,
+      scoreDistribution: { mean: 1500, std: 100 } as unknown as RankingScoreDistribution,
+      onDragStart: () => {},
+      onDropBefore: () => {}
+    }));
+    expect(html).toContain('data-export-secondary-src="https://example.com/large.jpg"');
+    expect(html).toContain('src="/api/image-proxy?url=https%3A%2F%2Fbucket.cos.ap-shanghai.myqcloud.com%2Fcover.webp"');
   });
 });
 
@@ -97,7 +97,7 @@ describe("Pool detail API returns tierConfig", () => {
 });
 
 describe("MANAMI image urls in TierAnimeCard", () => {
-  it("MANAMI item in TierAnimeCard uses intent:export as secondary, not imageSmallUrl", () => {
+  it("uses the picture first and a distinct thumbnail as fallback", () => {
     const manamiItem = baseItem({
       source: "MANAMI",
       imageMediumUrl: "https://manami.example/picture.jpg",
@@ -124,11 +124,8 @@ describe("MANAMI image urls in TierAnimeCard", () => {
       })
     );
 
-    // MANAMI display intent picks imageMediumUrl (picture) as primary
-    // Export intent also picks imageMediumUrl since imageLargeUrl is null
-    // Both should be the high-quality picture, not the thumbnail
-    expect(html).toContain("data-export-secondary-src=\"https://manami.example/picture.jpg\"");
-    expect(html).not.toContain("data-export-secondary-src=\"https://manami.example/thumbnail.jpg\"");
+    expect(html).toContain("src=\"/api/image-proxy?url=https%3A%2F%2Fmanami.example%2Fpicture.jpg\"");
+    expect(html).toContain("data-export-secondary-src=\"https://manami.example/thumbnail.jpg\"");
   });
 });
 

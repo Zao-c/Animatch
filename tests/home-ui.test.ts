@@ -3,6 +3,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import Home from "../src/app/page";
+import { loadHomeContinueAction } from "../src/components/HomeActions";
 import { AppBadge } from "../src/components/ui/AppBadge";
 import { AppButton } from "../src/components/ui/AppButton";
 import { AppCard } from "../src/components/ui/AppCard";
@@ -82,6 +83,27 @@ describe("HomeActions anonymous state", () => {
     expect(source).toContain('href="/pools?view=public"');
     expect(source).toContain("进入番组大厅");
     expect(source).toContain("体验示例番组");
+  });
+});
+
+describe("home continue action", () => {
+  it("treats dashboard errors as an absent optional recommendation", async () => {
+    await expect(loadHomeContinueAction(async () => {
+      throw new Error("dashboard unavailable");
+    })).resolves.toBeNull();
+  });
+
+  it("returns a valid unfinished run when the dashboard is available", async () => {
+    await expect(loadHomeContinueAction(async () => ({
+      miniMatchPreview: {
+        source: "CONTINUE_RUN",
+        ctaHref: "/pools/p1/runs/r1/match",
+        ctaLabel: "继续对决"
+      }
+    }))).resolves.toEqual({
+      href: "/pools/p1/runs/r1/match",
+      label: "继续对决"
+    });
   });
 });
 

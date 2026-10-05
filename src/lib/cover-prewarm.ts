@@ -17,6 +17,7 @@ interface PrewarmResult {
 const DEFAULT_LIMIT = 12;
 const DEFAULT_CONCURRENCY = 3;
 const DEFAULT_TIMEOUT_MS = 2500;
+const CANCELLED_IMAGE_DATA_URL = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
 
 export function prewarmCoverUrls(
   urls: (string | null | undefined)[],
@@ -120,25 +121,39 @@ async function prewarmSingle(
     const image = new Image();
     let resolved = false;
 
-    const done = (result: "warmed" | "skipped") => {
+    const stopLoading = () => {
+      image.onload = null;
+      image.onerror = null;
+      // Replacing src with an in-memory image aborts the previous network load.
+      image.src = CANCELLED_IMAGE_DATA_URL;
+    };
+
+    const done = (result: "warmed" | "skipped", stopRequest = false) => {
       if (resolved) return;
       resolved = true;
       clearTimeout(timer);
       signal?.removeEventListener("abort", onAbort);
+      if (stopRequest) stopLoading();
       resolve(result);
     };
 
-    const timer = setTimeout(() => done("skipped"), timeoutMs);
+    const timer = setTimeout(() => done("skipped", true), timeoutMs);
 
     const onAbort = () => {
       if (resolved) return;
       resolved = true;
       clearTimeout(timer);
       signal?.removeEventListener("abort", onAbort);
+      stopLoading();
       resolve("cancelled");
     };
 
     signal?.addEventListener("abort", onAbort, { once: true });
+
+    if (signal?.aborted) {
+      onAbort();
+      return;
+    }
 
     image.onload = () => done("warmed");
     image.onerror = () => done("skipped");

@@ -99,7 +99,15 @@ export interface SeasonDetail {
   createdAt: string;
 }
 
-export interface SeasonRankingItem {
+export interface SeasonImageSources {
+  sourceImageUrl: string | null;
+  imageLargeUrl: string | null;
+  imageMediumUrl: string | null;
+  imageSmallUrl: string | null;
+  thumbnailUrl: string | null;
+}
+
+export interface SeasonRankingItem extends SeasonImageSources {
   animeId: string;
   title: string;
   score: number;
@@ -116,7 +124,7 @@ export interface SeasonRankingItem {
   imageUrl: string | null;
 }
 
-export interface SeasonPersonalRankingItem {
+export interface SeasonPersonalRankingItem extends SeasonImageSources {
   animeId: string;
   title: string;
   score: number;
@@ -685,6 +693,11 @@ interface SeasonRankingAggregate {
   animeId: string;
   title: string;
   imageUrl: string | null;
+  sourceImageUrl: string | null;
+  imageLargeUrl: string | null;
+  imageMediumUrl: string | null;
+  imageSmallUrl: string | null;
+  thumbnailUrl: string | null;
   weightedEloSum: number;
   ratings: number[];
   rawEloSum: number;
@@ -710,8 +723,10 @@ async function aggregateSeasonRanking(
           titleCn: true,
           titleJa: true,
           imageUrl: true,
+          imageSmallUrl: true,
           imageMediumUrl: true,
           imageLargeUrl: true,
+          thumbnailUrl: true,
           cachedCoverUrl: true
         }
       }
@@ -726,6 +741,11 @@ async function aggregateSeasonRanking(
       animeId: entry.animeId,
       title: entry.anime.titleCn ?? entry.anime.titleJa ?? entry.anime.title ?? entry.animeId,
       imageUrl: entry.anime.cachedCoverUrl ?? entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl ?? entry.anime.imageUrl,
+      sourceImageUrl: entry.anime.imageUrl,
+      imageLargeUrl: entry.anime.imageLargeUrl,
+      imageMediumUrl: entry.anime.imageMediumUrl,
+      imageSmallUrl: entry.anime.imageSmallUrl,
+      thumbnailUrl: entry.anime.thumbnailUrl,
       weightedEloSum: 0,
       ratings: [],
       rawEloSum: 0,
@@ -807,7 +827,12 @@ async function aggregateSeasonRanking(
         ...rankingEvidence(aggregate.ratings, evidenceParticipants),
         averageElo:
           participantCount === 0 ? null : aggregate.rawEloSum / participantCount,
-        imageUrl: aggregate.imageUrl
+        imageUrl: aggregate.imageUrl,
+        sourceImageUrl: aggregate.sourceImageUrl,
+        imageLargeUrl: aggregate.imageLargeUrl,
+        imageMediumUrl: aggregate.imageMediumUrl,
+        imageSmallUrl: aggregate.imageSmallUrl,
+        thumbnailUrl: aggregate.thumbnailUrl
       };
     })
     .sort(compareSeasonRankingItems);
@@ -828,8 +853,10 @@ async function aggregateCurrentUserSeasonRanking(
           titleCn: true,
           titleJa: true,
           imageUrl: true,
+          imageSmallUrl: true,
           imageMediumUrl: true,
           imageLargeUrl: true,
+          thumbnailUrl: true,
           cachedCoverUrl: true
         }
       }
@@ -870,7 +897,12 @@ async function aggregateCurrentUserSeasonRanking(
         lossCount: score.lossCount,
         biasWinCount: score.biasWinCount,
         comparisonCount: score.compareCount,
-        imageUrl: anime?.cachedCoverUrl ?? anime?.imageMediumUrl ?? anime?.imageLargeUrl ?? anime?.imageUrl ?? null
+        imageUrl: anime?.cachedCoverUrl ?? anime?.imageMediumUrl ?? anime?.imageLargeUrl ?? anime?.imageUrl ?? null,
+        sourceImageUrl: anime?.imageUrl ?? null,
+        imageLargeUrl: anime?.imageLargeUrl ?? null,
+        imageMediumUrl: anime?.imageMediumUrl ?? null,
+        imageSmallUrl: anime?.imageSmallUrl ?? null,
+        thumbnailUrl: anime?.thumbnailUrl ?? null
       };
     })
     .sort(compareSeasonPersonalRankingItems);
@@ -1318,6 +1350,9 @@ export async function submitVote(
 
   validateSeasonAccess(season, new Date());
 
+  if (input.leftAnimeId === input.rightAnimeId) {
+    throw new AppError("同一部作品不能与自己对决", 400, "SAME_ANIME");
+  }
   if (input.winnerAnimeId !== input.leftAnimeId && input.winnerAnimeId !== input.rightAnimeId) {
     throw new AppError("winnerAnimeId must be leftAnimeId or rightAnimeId", 400, "INVALID_VOTE");
   }

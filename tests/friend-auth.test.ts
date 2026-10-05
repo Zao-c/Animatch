@@ -75,7 +75,8 @@ describe("friend auth", () => {
       id: "user-1",
       username: "akira",
       name: "akira",
-      image: null
+      image: null,
+      deletedAt: null
     } as any);
 
     const user = await loginWithFriendCode({
@@ -109,12 +110,28 @@ describe("friend auth", () => {
     });
   });
 
+  it("does not issue a session for a deleted account", async () => {
+    mockedUser.findUnique.mockResolvedValue({
+      id: "user-1", username: "akira", name: "akira", image: null,
+      deletedAt: new Date("2026-01-01T00:00:00.000Z")
+    } as any);
+
+    const response = await FRIEND_LOGIN(friendLoginRequest("192.0.2.12", "akira", "33989"));
+    const payload = await response.json();
+
+    expect(response.status).toBe(410);
+    expect(response.headers.get("set-cookie")).toBeNull();
+    expect(payload.error.message).toBe("账号已注销，无法登录");
+    expect(mockedUser.create).not.toHaveBeenCalled();
+  });
+
   it("sets an httpOnly session cookie on login", async () => {
     mockedUser.findUnique.mockResolvedValue({
       id: "user-1",
       username: "akira",
       name: "akira",
-      image: null
+      image: null,
+      deletedAt: null
     } as any);
 
     const response = await FRIEND_LOGIN(
@@ -158,7 +175,8 @@ describe("friend auth", () => {
       id: "user-1",
       username: "akira",
       name: "akira",
-      image: null
+      image: null,
+      deletedAt: null
     } as any);
 
     const successResponse = await FRIEND_LOGIN(friendLoginRequest("192.0.2.11", "akira", "33989"));

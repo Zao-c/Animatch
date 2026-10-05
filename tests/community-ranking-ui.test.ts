@@ -1,5 +1,8 @@
 import { readFileSync } from "node:fs";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { CommunityAverageTierList } from "../src/components/CommunityAverageTierList";
 
 describe("community ranking UI wiring", () => {
   const detailSource = readFileSync("src/app/pools/[poolId]/page.tsx", "utf8");
@@ -7,6 +10,18 @@ describe("community ranking UI wiring", () => {
     "src/app/pools/[poolId]/runs/[runId]/tier/page.tsx",
     "utf8"
   );
+
+  it("explains the empty community list with user-facing copy", () => {
+    const html = renderToStaticMarkup(React.createElement(CommunityAverageTierList, {
+      ranking: null,
+      isLoading: false,
+      error: null,
+      previewItems: []
+    }));
+
+    expect(html).toContain("参与对决，帮助这个番组形成榜单。");
+    expect(html).not.toContain("测试环境");
+  });
 
   it("shows the community ranking entry only for active public pool detail", () => {
     expect(detailSource).toContain("const canShowCommunityRanking");

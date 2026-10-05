@@ -5,7 +5,7 @@ import { AnimeCover } from "./AnimeCover";
 import { AppBadge } from "./ui/AppBadge";
 import { AppButton } from "./ui/AppButton";
 import { AppCard } from "./ui/AppCard";
-import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { getAnimeCoverUrl, getAnimeSourceCoverCandidates } from "@/lib/anime-cover-url";
 import { getAnimeDisplaySubtitle, getAnimeDisplayTitle, getAnimeImageFitMode } from "@/lib/anime-display";
 import { getAniScore } from "@/lib/ranking-display";
 import type { PublicAnimeWithScore, RankingScoreDistribution } from "@/lib/client-api";
@@ -34,8 +34,7 @@ export function DuelAnimeCard({
   const title = getAnimeDisplayTitle(anime);
   const subtitle = getAnimeDisplaySubtitle(anime);
   const coverUrl = getAnimeCoverUrl(anime, { intent: "hero" });
-  const coverUrlFallback = getAnimeCoverUrl(anime, { intent: "export" });
-  const secondarySrc = coverUrlFallback !== coverUrl ? coverUrlFallback : null;
+  const secondarySrc = getAnimeSourceCoverCandidates(anime).find((url) => url !== coverUrl);
   const coverFit = getAnimeImageFitMode(anime);
   const animeType = anime.display?.animeType ?? anime.animeType;
   const aniScore = getAniScore(anime.eloScore, scoreDistribution);

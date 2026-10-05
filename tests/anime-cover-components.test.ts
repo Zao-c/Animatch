@@ -234,7 +234,7 @@ describe("anime cover rendering", () => {
       })
     );
 
-    expect(html).toContain('src="https://example.com/medium.jpg"');
+    expect(html).toContain('src="/api/image-proxy?url=https%3A%2F%2Fexample.com%2Fmedium.jpg"');
     expect(html).not.toContain('src="https://example.com/thumb.jpg"');
     expect(html).toContain('data-cover-fit="cover"');
   });

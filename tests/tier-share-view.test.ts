@@ -140,6 +140,27 @@ describe("TierShareView", () => {
     expect(html).not.toContain(">TIERMAKER_IMPORT<");
   });
 
+  it("keeps original image variants as fallback for a saved COS cover", () => {
+    const share = shareFixture();
+    share.snapshot.tiers[0].items[0] = {
+      animeId: "anime-1",
+      title: "Cached Cover",
+      coverUrl: "https://bucket.cos.ap-shanghai.myqcloud.com/animatch/covers/dead.webp",
+      imageLargeUrl: "https://lain.bgm.tv/pic/cover/l/original.jpg",
+      imageMediumUrl: "https://lain.bgm.tv/pic/cover/m/original.jpg",
+      source: "BANGUMI",
+      animeType: "TV"
+    };
+
+    const exportHtml = renderToStaticMarkup(React.createElement(TierShareView, { share, exportMode: true }));
+    expect(exportHtml).toContain("data-export-fallback-srcs=");
+    expect(exportHtml).toContain("https://lain.bgm.tv/pic/cover/l/original.jpg");
+    expect(exportHtml).toContain("https://lain.bgm.tv/pic/cover/m/original.jpg");
+
+    const pageHtml = renderToStaticMarkup(React.createElement(TierShareView, { share }));
+    expect(pageHtml).toContain('data-cover-candidate-count="2"');
+  });
+
   it("noisy titles do not affect export image src", () => {
     const share = shareFixture();
     share.snapshot.tiers[0].items[0] = {

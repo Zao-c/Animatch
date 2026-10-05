@@ -317,6 +317,11 @@ export interface CommunityRankingItem {
   animeId: string;
   title: string;
   imageUrl: string | null;
+  sourceImageUrl?: string | null;
+  imageLargeUrl?: string | null;
+  imageMediumUrl?: string | null;
+  imageSmallUrl?: string | null;
+  thumbnailUrl?: string | null;
   averageRating: number | null;
   ratingDeviation?: number | null;
   coverage?: number;
@@ -1198,7 +1203,15 @@ export interface SeasonListItem {
   createdAt: string;
 }
 
-export interface SeasonRankingItem {
+export interface SeasonImageSources {
+  sourceImageUrl: string | null;
+  imageLargeUrl: string | null;
+  imageMediumUrl: string | null;
+  imageSmallUrl: string | null;
+  thumbnailUrl: string | null;
+}
+
+export interface SeasonRankingItem extends SeasonImageSources {
   animeId: string;
   title: string;
   score: number;
@@ -1215,7 +1228,7 @@ export interface SeasonRankingItem {
   imageUrl: string | null;
 }
 
-export interface SeasonPersonalRankingItem {
+export interface SeasonPersonalRankingItem extends SeasonImageSources {
   animeId: string;
   title: string;
   score: number;

@@ -862,9 +862,11 @@ function toPersonalShareItem(item: SeasonPersonalRankingItem): TierShareSnapshot
     animeId: item.animeId,
     title: item.title,
     coverUrl: item.imageUrl,
-    imageUrl: item.imageUrl,
-    imageMediumUrl: item.imageUrl,
-    imageLargeUrl: item.imageUrl,
+    imageUrl: item.sourceImageUrl ?? item.imageUrl,
+    imageLargeUrl: item.imageLargeUrl,
+    imageMediumUrl: item.imageMediumUrl,
+    imageSmallUrl: item.imageSmallUrl,
+    thumbnailUrl: item.thumbnailUrl,
     source: "season-personal",
     elo: item.score
   };
@@ -875,9 +877,11 @@ function toSharedShareItem(item: SeasonRankingItem): TierShareSnapshotItem {
     animeId: item.animeId,
     title: item.title,
     coverUrl: item.imageUrl,
-    imageUrl: item.imageUrl,
-    imageMediumUrl: item.imageUrl,
-    imageLargeUrl: item.imageUrl,
+    imageUrl: item.sourceImageUrl ?? item.imageUrl,
+    imageLargeUrl: item.imageLargeUrl,
+    imageMediumUrl: item.imageMediumUrl,
+    imageSmallUrl: item.imageSmallUrl,
+    thumbnailUrl: item.thumbnailUrl,
     source: "season-shared",
     elo: item.score
   };

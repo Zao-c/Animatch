@@ -10,6 +10,11 @@ export interface CommunityRankingItem {
   animeId: string;
   title: string;
   imageUrl: string | null;
+  sourceImageUrl?: string | null;
+  imageLargeUrl?: string | null;
+  imageMediumUrl?: string | null;
+  imageSmallUrl?: string | null;
+  thumbnailUrl?: string | null;
   averageRating: number | null;
   communityScore: number | null;
   participantCount: number;
@@ -41,6 +46,11 @@ interface AnimeAggregate {
   animeId: string;
   title: string;
   imageUrl: string | null;
+  sourceImageUrl: string | null;
+  imageLargeUrl: string | null;
+  imageMediumUrl: string | null;
+  imageSmallUrl: string | null;
+  thumbnailUrl: string | null;
   ratings: number[];
   ratingSum: number;
   weightedEloSum: number;
@@ -314,6 +324,11 @@ export async function getCommunityRanking(poolId: string): Promise<CommunityRank
       animeId: entry.animeId,
       title: display.title,
       imageUrl: displayCoverUrl,
+      sourceImageUrl: entry.anime.imageUrl,
+      imageLargeUrl: entry.anime.imageLargeUrl,
+      imageMediumUrl: entry.anime.imageMediumUrl,
+      imageSmallUrl: entry.anime.imageSmallUrl,
+      thumbnailUrl: entry.anime.thumbnailUrl,
       ratings: [],
       ratingSum: 0,
       weightedEloSum: 0,
@@ -447,6 +462,11 @@ function toRankingItem(aggregate: AnimeAggregate): CommunityRankingItem {
     animeId: aggregate.animeId,
     title: aggregate.title,
     imageUrl: aggregate.imageUrl,
+    sourceImageUrl: aggregate.sourceImageUrl,
+    imageLargeUrl: aggregate.imageLargeUrl,
+    imageMediumUrl: aggregate.imageMediumUrl,
+    imageSmallUrl: aggregate.imageSmallUrl,
+    thumbnailUrl: aggregate.thumbnailUrl,
     averageRating:
       participantCount === 0 ? null : aggregate.ratingSum / participantCount,
     communityScore:

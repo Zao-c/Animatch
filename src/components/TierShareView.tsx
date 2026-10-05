@@ -7,7 +7,7 @@ import React, { useState } from "react";
 import { AnimeCover } from "./AnimeCover";
 import { AppBadge } from "./ui/AppBadge";
 import { AppButton, appButtonClasses } from "./ui/AppButton";
-import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { getAnimeCoverUrl, getAnimeSourceCoverCandidates } from "@/lib/anime-cover-url";
 import {
   getAnimeDisplayTitle,
   shouldUseContainCover
@@ -248,10 +248,10 @@ function ShareItemCard({
 }) {
   const title = getAnimeDisplayTitle(item);
   const coverFit = shouldUseContainCover(item) ? "contain" : "cover";
-  // A snapshot already resolved its cover (including COS and user overrides).
-  // Legacy source fields must not replace it with an unstable original image.
+  // Keep the snapshot's chosen cover first, then retry original sources if it fails.
   const rawCoverUrl = item.coverUrl?.trim() || getAnimeCoverUrl(item, { intent: "export" });
   const coverUrl = exportMode ? proxyExternalImageUrl(rawCoverUrl) : rawCoverUrl;
+  const sourceCandidates = getAnimeSourceCoverCandidates(item).filter((url) => url !== rawCoverUrl);
 
   return (
     <article className="w-28 rounded-xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_12px_36px_rgba(0,0,0,0.25)] sm:w-32">
@@ -265,14 +265,14 @@ function ShareItemCard({
               loading="eager"
               decoding="async"
               referrerPolicy="no-referrer"
-              data-export-secondary-src={rawCoverUrl ?? undefined}
+              data-export-fallback-srcs={sourceCandidates.length > 0 ? JSON.stringify(sourceCandidates) : undefined}
               className={`relative h-full w-full ${coverFit === "contain" ? "object-contain" : "object-cover"}`}
             />
           ) : null}
         </div>
       ) : <AnimeCover
         src={coverUrl}
-        secondarySrc={exportMode ? rawCoverUrl : undefined}
+        secondarySrc={sourceCandidates[0]}
         title={title}
         size="sm"
         fit={coverFit}

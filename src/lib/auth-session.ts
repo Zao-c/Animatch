@@ -53,11 +53,15 @@ export async function loginWithFriendCode(input: {
     where: {
       username
     },
-    select: friendAuthUserSelect
+    select: { ...friendAuthUserSelect, deletedAt: true }
   });
 
   if (existing !== null) {
-    return existing;
+    if (existing.deletedAt !== null) {
+      throw new AppError("账号已注销，无法登录", 410, "USER_DELETED");
+    }
+    const { deletedAt: _deletedAt, ...user } = existing;
+    return user;
   }
 
   return prisma.user.create({

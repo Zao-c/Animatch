@@ -483,9 +483,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     const controller = new AbortController();
     prewarmCoverUrls(coverUrls, { limit, signal: controller.signal });
 
-    if (slowNet) return;
-
-    const idleId = window.requestIdleCallback
+    const idleId = !slowNet && window.requestIdleCallback
       ? window.requestIdleCallback(() => {
           const remaining = coverUrls.slice(12, 24);
           if (remaining.length > 0) {
@@ -502,6 +500,10 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
   useEffect(() => {
     if (pool === null) return;
+    if (!pool.permissions?.canPlay) {
+      setRuns([]);
+      return;
+    }
     void refreshRuns().catch(() => setRuns([]));
   }, [pool, refreshRuns]);
 
