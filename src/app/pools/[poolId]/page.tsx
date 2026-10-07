@@ -1483,7 +1483,6 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             </section>
             {!isArchived ? <SeasonPlayEntry key={params.poolId} poolId={params.poolId} canPlay={canPlayPool} onBrowse={() => { setWorkspaceMode("seasons"); document.getElementById("pool-navigation")?.scrollIntoView({ block: "start" }); }} /> : null}
             <AppButton
-              className="sm:col-span-2"
               onClick={() =>
                 isArchived && latestRun !== undefined
                   ? router.push(`/pools/${params.poolId}/runs/${latestRun.id}/tier`)
@@ -1492,8 +1491,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
               disabled={isMutating || (isArchived && latestRun === undefined)}
               variant="secondary"
             >
-              查看 Tier List
+              查看对决榜单
             </AppButton>
+            <Link href={`/pools/${params.poolId}/tier-maker`} className={appButtonClasses({ variant: "secondary" })}>直接制作 Tier List</Link>
             <details className="sm:col-span-2 border-t border-anime-border pt-1">
               <summary className="min-h-11 cursor-pointer py-3 text-center text-xs font-semibold text-slate-300">分享与更多操作</summary>
               <div className="grid min-w-0 grid-cols-2 gap-2">

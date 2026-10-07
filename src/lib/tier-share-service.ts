@@ -55,6 +55,7 @@ export interface TierShareSnapshot {
   animeCount: number;
   comparisonCount: number;
   isInitialEstimate?: boolean;
+  rankingMode?: "manual";
 }
 
 export interface PublicTierShare {

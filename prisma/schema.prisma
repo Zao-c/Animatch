@@ -93,6 +93,7 @@ model User {
   allowTasteMatching   Boolean                @default(false)
   tasteProfilePublic   Boolean                @default(false)
   collections          AnimeCollection[]
+  manualTierBoards     ManualTierBoard[]
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
   deletedAt            DateTime?
@@ -199,6 +200,7 @@ model CustomPool {
   tierAdjustments     ManualTierAdjustment[] @relation("PoolTierAdjustments")
   tagPreferences      UserTagPreference[]    @relation("PoolTagPreferences")
   tierShares          TierShare[]            @relation("PoolTierShares")
+  manualTierBoards    ManualTierBoard[]
   battleSeasons       BattleSeason[]
   battleSeasonScores  BattleSeasonUserScore[] @relation("PoolBattleSeasonUserScores")
   collectionSources CollectionSource[]
@@ -228,6 +230,23 @@ model TierShare {
   @@index([poolId])
   @@index([runId])
   @@index([createdAt])
+}
+
+model ManualTierBoard {
+  id             String   @id @default(cuid())
+  ownerId        String
+  poolId         String
+  title          String
+  layout         Json
+  revision       Int      @default(1)
+  shareToken     String?  @unique
+  sharedSnapshot Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  owner          User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  pool           CustomPool @relation(fields: [poolId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, poolId])
 }
 
 model PoolAnime {

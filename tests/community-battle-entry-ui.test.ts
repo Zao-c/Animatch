@@ -68,13 +68,13 @@ describe("community battle entry UI wiring", () => {
     expect(detailSource).toContain("登录后自由对决");
     expect(detailSource).toContain("个人自由对决");
     expect(detailSource).toContain("每个人的对决");
-    expect(detailSource).toContain("以匿名聚合方式贡献到社区榜单");
+    expect(detailSource).toContain("社区榜单会聚合每个人的对决结果");
     expect(detailSource).toContain("不影响创建者的作品墙");
-    expect(detailSource).toContain("不覆盖你的个人 Tier List");
+    expect(detailSource).toContain("不影响创建者的作品墙或你的个人 Tier List");
   });
 
   it("shows the public pool privacy copy for community battle", () => {
-    expect(detailSource).toContain("不公开单次选择或个人身份");
+    expect(detailSource).toContain("口味对照会展示玩家昵称");
   });
 
   it("hides the community battle entry for non-public, archived, and deleted pools", () => {
@@ -109,7 +109,8 @@ describe("community battle entry UI wiring", () => {
   it("keeps previous personal run actions and community ranking entry available", () => {
     expect(detailSource).toContain("开始我的对决");
     expect(detailSource).toContain("开始对决");
-    expect(detailSource).toContain("查看 Tier List");
+    expect(detailSource).toContain("查看对决榜单");
+    expect(detailSource).toContain("直接制作 Tier List");
     expect(detailSource).toContain("查看个人对决共享榜");
     expect(detailSource).toContain("返回我的番组");
   });
@@ -119,14 +120,14 @@ describe("community battle entry UI wiring", () => {
     expect(matchSource).toContain("isCommunityBattleVisiblePool(pool)");
     expect(matchSource).toContain("CommunityBattleMatchHint");
     expect(matchSource).toContain("你正在参与这个公开番组的社区大乱斗");
-    expect(matchSource).toContain("你的选择只会更新你的个人榜单");
-    expect(matchSource).toContain("匿名聚合方式贡献到社区榜单");
+    expect(matchSource).toContain("你的选择会更新个人榜单并匿名汇入社区榜");
+    expect(matchSource).toContain("口味对照还会展示玩家昵称");
   });
 
   it("shows a public community contribution hint on the Tier page while preserving the ranking link", () => {
     expect(tierSource).toContain("canShowCommunityRanking");
     expect(tierSource).toContain("isCommunityBattleVisiblePool(pool)");
-    expect(tierSource).toContain("这是你的个人榜单；它会以匿名聚合方式参与社区榜单。");
+    expect(tierSource).toContain("这是你的个人榜单；它会匿名汇入社区榜");
     expect(tierSource).toContain("查看社区榜单");
     expect(tierSource).toContain("#community-ranking");
   });

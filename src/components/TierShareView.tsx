@@ -125,9 +125,9 @@ export function TierShareCard({
   const creatorLabel = getShareCreatorLabel(share);
   const creatorUsername = getShareCreatorUsername(share);
   const animeCount = share.snapshot.animeCount ?? share.snapshot.tiers.reduce((sum, t) => sum + t.items.length, 0);
-  const comparisonCount = share.snapshot.comparisonCount ?? null;
+  const comparisonCount = share.snapshot.rankingMode === "manual" ? null : share.snapshot.comparisonCount ?? null;
   const exportFooterText =
-    share.snapshot.run.id === "community"
+    share.snapshot.rankingMode === "manual" ? "自由排榜 · 按自己的喜好分档" : share.snapshot.run.id === "community"
       ? "普通对决共享榜 · 匿名聚合社区结果"
       : share.snapshot.run.id.startsWith("season-shared")
         ? "赛季共享 TierList · 匿名聚合结果"
