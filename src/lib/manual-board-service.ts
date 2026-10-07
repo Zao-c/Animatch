@@ -61,12 +61,14 @@ export async function saveManualBoard(ownerId: string, poolId: string, input: un
   return { revision: parsed.revision + 1, shareUrl: data.shareToken ? `/tierlists/share/${data.shareToken}` : current.shareUrl };
 }
 
-export async function revokeManualBoardShare(ownerId: string, poolId: string) {
-  await getManualBoard(ownerId, poolId);
-  await prisma.manualTierBoard.updateMany({ where: { ownerId, poolId }, data: {
+export async function revokeManualBoardShare(ownerId: string, poolId: string, revision: number) {
+  const current = await getManualBoard(ownerId, poolId);
+  if (!Number.isSafeInteger(revision) || revision !== current.revision) throw new AppError("榜单已在其他页面更新，请刷新后再关闭分享。", 409, "BOARD_CONFLICT");
+  const result = await prisma.manualTierBoard.updateMany({ where: { ownerId, poolId, revision }, data: {
     shareToken: null, sharedSnapshot: Prisma.DbNull, revision: { increment: 1 }
   } });
-  return getManualBoard(ownerId, poolId);
+  if (result.count !== 1) throw new AppError("榜单已更新，请刷新后重试。", 409, "BOARD_CONFLICT");
+  return { revision: revision + 1, shareUrl: null };
 }
 
 export async function getSharedManualBoard(token: string): Promise<PublicTierShare | null> {

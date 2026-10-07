@@ -106,8 +106,11 @@ describe("manual board persistence and access", () => {
     await expect(saveManualBoard("owner", "pool", { ...fixture(), revision: 2 })).rejects.toMatchObject({ statusCode: 409 });
   });
   it("revokes only this owner's share and invalidates outstanding edits", async () => {
-    await revokeManualBoardShare("owner", "pool");
-    expect(prisma.manualTierBoard.updateMany).toHaveBeenCalledWith({ where: { ownerId: "owner", poolId: "pool" }, data: {
+    vi.mocked(prisma.manualTierBoard.findUnique).mockResolvedValue({ title: "old", layout: fixture().layout, revision: 2 } as any);
+    await expect(revokeManualBoardShare("owner", "pool", 1)).rejects.toMatchObject({ statusCode: 409 });
+    expect(prisma.manualTierBoard.updateMany).not.toHaveBeenCalled();
+    await revokeManualBoardShare("owner", "pool", 2);
+    expect(prisma.manualTierBoard.updateMany).toHaveBeenCalledWith({ where: { ownerId: "owner", poolId: "pool", revision: 2 }, data: {
       shareToken: null, sharedSnapshot: Prisma.DbNull, revision: { increment: 1 }
     } });
   });

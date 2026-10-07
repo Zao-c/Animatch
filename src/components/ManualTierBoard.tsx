@@ -92,7 +92,7 @@ export function ManualTierBoard({ initial }: { initial: ManualBoardData }) {
     if (!window.confirm("关闭公开分享？旧链接将无法访问，你的草稿会保留。")) return;
     setBusy(true); setError(null);
     try {
-      const response = await fetch(`/api/pools/${board.pool.id}/tier-maker`, { method: "DELETE" });
+      const response = await fetch(`/api/pools/${board.pool.id}/tier-maker`, { method: "DELETE", headers: { "If-Match": String(board.revision) } });
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.error?.message ?? "关闭分享失败。");
       setBoard((current) => ({ ...current, revision: result.data.revision, shareUrl: null }));
