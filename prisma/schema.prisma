@@ -94,6 +94,8 @@ model User {
   tasteProfilePublic   Boolean                @default(false)
   collections          AnimeCollection[]
   manualTierBoards     ManualTierBoard[]
+  awardCeremonies       AwardCeremony[]
+  awardBallots         AwardBallot[]
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
   deletedAt            DateTime?
@@ -110,6 +112,42 @@ model User {
   battleSeasons        BattleSeason[]
   battleVotes          BattleVote[]
   battleSeasonScores   BattleSeasonUserScore[]
+}
+
+// Nomination collection is separate from live voting and winner decisions.
+model AwardCeremony {
+  id          String   @id @default(cuid())
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title       String
+  year        Int
+  description String   @default("")
+  deadline    DateTime
+  status      String   @default("OPEN")
+  revision    Int      @default(0)
+  awards      Json
+  shortlist   Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  ballots     AwardBallot[]
+
+  @@index([ownerId, createdAt])
+}
+
+model AwardBallot {
+  id          String        @id @default(cuid())
+  ceremonyId  String
+  ceremony    AwardCeremony @relation(fields: [ceremonyId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  draft       Json
+  submitted   Json?
+  revision    Int           @default(1)
+  submittedAt DateTime?
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([ceremonyId, userId])
+  @@index([userId])
 }
 
 model Anime {
