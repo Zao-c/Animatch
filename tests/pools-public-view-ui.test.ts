@@ -28,7 +28,7 @@ describe("public pools view UI", () => {
 
   it("shows clear public pools title and community battle copy", () => {
     expect(poolsSource).toContain('title: "公开番组"');
-    expect(poolsSource).toContain("社区大乱斗");
+    expect(poolsSource).toContain("发现公开番组");
     expect(poolsSource).toContain("个人 Tier List");
     expect(poolsSource).toContain("匿名聚合");
     expect(poolsSource).toContain("社区榜单");
@@ -48,9 +48,9 @@ describe("public pools view UI", () => {
   });
 
   it("marks public cards as community battle joinable without extra ranking fetches", () => {
-    expect(poolsSource).toContain("可参与社区大乱斗");
-    expect(poolsSource).toContain("加入大乱斗");
-    expect(poolsSource).toContain("登录后加入大乱斗");
+    expect(poolsSource).toContain("开放参与");
+    expect(poolsSource).toContain("个人自由对决");
+    expect(poolsSource).toContain("登录后对决");
     expect(poolsSource).not.toContain("getCommunityRanking");
   });
 
@@ -148,7 +148,7 @@ describe("public pools community summary", () => {
   });
 
   it("community summary sits near the bottom of the card, not obstructing primary CTA", () => {
-    const mainCtaIndex = poolsSource.indexOf("加入大乱斗");
+    const mainCtaIndex = poolsSource.indexOf("个人自由对决");
     const summaryIndex = poolsSource.indexOf("社区第一");
     expect(mainCtaIndex).toBeGreaterThan(0);
     expect(summaryIndex).toBeGreaterThan(0);
@@ -181,7 +181,7 @@ describe("public pools community summary", () => {
     expect(poolsSource).not.toContain("import { getCommunityRanking }");
   });
 
-  it("pool card still only has one main CTA button", () => {
+  it("pool card retains prominent actions", () => {
     const variantPrimaryCount = (poolsSource.match(/variant="primary"/g) ?? []).length;
     expect(variantPrimaryCount).toBeGreaterThanOrEqual(1);
   });
@@ -193,6 +193,6 @@ describe("public pools community summary", () => {
     expect(poolsSource).toContain("pool.tags.slice(0, 4)");
     expect(poolsSource).toContain("!isPublicView ? <AppBadge tone={toneForStatus(uiStatus)}>");
     expect(poolsSource).toContain('className="mt-3 border-t border-white/10 pt-3"');
-    expect(poolsSource).toContain("查看详情");
+    expect(poolsSource).toContain("番组详情");
   });
 });

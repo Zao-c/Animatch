@@ -410,8 +410,8 @@ function PoolsPageContent() {
       <section className="mt-8">
         <SectionHeader
           eyebrow={isPublicView ? "发现" : "收藏"}
-          title={isPublicView ? "正在开放的大乱斗" : "番组列表"}
-          description={isPublicView ? "所有人都可以浏览公开番组；登录后加入大乱斗会进入你自己的个人对决。" : "默认隐藏已归档番组；切到已归档可以恢复或查看历史。"}
+          title={isPublicView ? "发现公开番组" : "番组列表"}
+          description={isPublicView ? "所有人都可以浏览公开番组；查看作品、社区榜和赛季投票，或直接开始个人自由对决。" : "默认隐藏已归档番组；切到已归档可以恢复或查看历史。"}
         />
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {pools.map((pool) => (
@@ -592,7 +592,7 @@ function PoolCard({
                 {formatPoolVisibility(pool.visibility)}
               </AppBadge>
               {isPublicView && pool.visibility === "PUBLIC" && !isArchived ? (
-                <AppBadge tone="status">可参与社区大乱斗</AppBadge>
+                <AppBadge tone="status">开放参与</AppBadge>
               ) : null}
             </div>
           ) : null}
@@ -649,6 +649,10 @@ function PoolCard({
           ) : null}
 
           <div className="mt-auto pt-4">
+            <div className={`grid gap-2 ${canMatch || canPromptLoginToMatch ? "grid-cols-2" : "grid-cols-1"}`}>
+              <Link href={`/pools/${pool.id}`} className={appButtonClasses({ variant: "primary", size: "md", className: "w-full min-w-0 px-2" })}>
+                番组详情
+              </Link>
             {canMatch || canPromptLoginToMatch ? (
               <AppButton
                 onClick={() =>
@@ -659,24 +663,19 @@ function PoolCard({
                 disabled={isMutating}
                 variant="primary"
                 size="md"
-                className="w-full"
+                className="w-full min-w-0 px-2"
               >
                 {isPublicView && pool.visibility === "PUBLIC"
                   ? canPromptLoginToMatch
-                    ? "登录后加入大乱斗"
-                    : "加入大乱斗"
+                    ? "登录后对决"
+                    : "个人自由对决"
                   : uiStatus === "READY"
                     ? "开始对决"
                     : "继续对决"}
               </AppButton>
-            ) : (
-              <Link
-                href={`/pools/${pool.id}`}
-                className={appButtonClasses({ variant: "primary", size: "sm", className: "w-full" })}
-              >
-                进入作品墙
-              </Link>
-            )}
+            ) : null}
+            </div>
+            <p className="mt-2 text-xs leading-5 text-slate-400">番组详情包含作品墙、社区榜与赛季入口。</p>
           </div>
           <details className="mt-3 rounded-xl border border-white/10 bg-slate-950/24 px-3 py-2">
             <summary className="cursor-pointer select-none text-sm font-semibold text-slate-300">
@@ -696,9 +695,6 @@ function PoolCard({
               </div>
             ) : null}
             <div className="mt-3 flex flex-wrap gap-2">
-              <Link href={`/pools/${pool.id}`} className={appButtonClasses({ variant: "secondary", size: "sm" })}>
-                查看详情
-              </Link>
               {!isPublicView && !isArchived && canAddAnime ? (
                 <Link href={`/pools/${pool.id}#add-anime`} className={appButtonClasses({ variant: "ghost", size: "sm" })}>
                   添加动画
@@ -818,7 +814,7 @@ function getPoolViewCopy(view: PoolView): { title: string; description: string }
   if (view === "PUBLIC") {
     return {
       title: "公开番组",
-      description: "加入公开番组的社区大乱斗，生成你的个人 Tier List，并以匿名聚合方式贡献到社区榜单。"
+      description: "浏览公开番组的作品、社区榜与赛季；个人自由对决会生成你的个人 Tier List，并以匿名聚合方式贡献到社区榜单。"
     };
   }
 
@@ -907,5 +903,3 @@ function communitySummaryTitle(label: "empty" | "low" | "trend" | "stable"): str
       return "社区第一";
   }
 }
-
-
