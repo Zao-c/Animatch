@@ -8,62 +8,20 @@ import { AppBadge } from "@/components/ui/AppBadge";
 import { AppCard } from "@/components/ui/AppCard";
 import { AppButton } from "@/components/ui/AppButton";
 import { PageShell } from "@/components/PageShell";
-import { AnimeCover } from "@/components/AnimeCover";
+import { MatchActions, MatchArena, MatchChoiceCard, MatchHeading, MatchWorkspace } from "@/components/MatchPresentation";
 import { ApiClientError, getSeasonDetail, getSeasonMatchQueue, setSeasonAnimeHidden, submitSeasonVote } from "@/lib/client-api";
 import { getAnimeDisplayTitle, getAnimeImageFitMode } from "@/lib/anime-display";
 import type { SeasonDetail, SeasonMatchQueueItem, SeasonAnimeEntry } from "@/lib/client-api";
 import { isInteractiveShortcutTarget } from "@/lib/match-shortcuts";
 import { getSeasonScheduleState } from "@/lib/season-schedule";
 
-function SeasonDuelCard({
-  anime,
-  disabled,
-  onPick,
-  highlighted
-}: {
-  anime: SeasonAnimeEntry;
-  disabled: boolean;
-  onPick: () => void;
-  highlighted: boolean;
+function SeasonDuelCard({ anime, side, disabled, onPick, highlighted }: {
+  anime: SeasonAnimeEntry; side: "left" | "right"; disabled: boolean; onPick: () => void; highlighted: boolean;
 }) {
   const title = getAnimeDisplayTitle(anime);
   const coverUrl = anime.imageMediumUrl ?? anime.imageUrl;
   const secondarySrc = anime.imageLargeUrl ?? anime.imageSmallUrl ?? anime.thumbnailUrl ?? anime.imageUrl;
-  const coverFit = getAnimeImageFitMode(anime);
-
-  return (
-    <button
-      type="button"
-      aria-label={`投给 ${title}`}
-      onClick={onPick}
-      disabled={disabled}
-      className={`relative flex min-h-0 cursor-pointer flex-col overflow-hidden rounded-xl border-2 text-left transition-all duration-200 hover:border-amber-200/45 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-amber-300/60 focus:ring-offset-2 focus:ring-offset-slate-950 sm:min-h-44 sm:rounded-2xl ${
-        highlighted
-          ? "border-amber-300 shadow-[0_0_40px_rgba(252,211,77,0.15)]"
-          : "border-white/10 hover:border-white/20 active:border-amber-300/50"
-      } ${disabled ? "pointer-events-none opacity-40" : ""}`}
-    >
-      <div className="aspect-[3/4] w-full overflow-hidden bg-slate-900 relative">
-        <AnimeCover
-          src={coverUrl}
-          secondarySrc={secondarySrc}
-          title={title}
-          size="lg"
-          fit={coverFit}
-          animeId={anime.animeId}
-          loading="eager"
-          warm
-          className="h-full w-full rounded-none border-0"
-        />
-      </div>
-      <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-t from-slate-950/18 via-transparent to-transparent sm:rounded-2xl" />
-      <div className="relative mt-auto border-t border-white/5 bg-slate-950/24 p-2 backdrop-blur-[2px] sm:p-4">
-        <h2 className="line-clamp-2 text-sm font-black leading-5 tracking-tight text-white/76 sm:text-lg sm:leading-7">
-          {title}
-        </h2>
-      </div>
-    </button>
-  );
+  return <MatchChoiceCard title={title} src={coverUrl} secondarySrc={secondarySrc} animeId={anime.animeId} fit={getAnimeImageFitMode(anime)} side={side} mode="season" disabled={disabled} onPick={onPick} highlighted={highlighted} details={<p>选择这部作品会消耗 1 张赛季票；跳过和标记没看过不消耗票数。</p>} />;
 }
 
 function filterSeasonQueue(
@@ -133,18 +91,10 @@ function canSubmitSeasonVote(detail: SeasonDetail | null): boolean {
 }
 
 function SeasonMatchSkeleton() {
-  return <div className="mx-auto max-w-4xl animate-pulse px-4 py-8"><div className="h-96 rounded-3xl bg-white/5" /></div>;
+  return <div className="mx-auto max-w-6xl animate-pulse px-4 py-8"><div className="h-96 rounded-3xl bg-white/5" /></div>;
 }
 
 type SeasonFeedback = "LEFT_WIN" | "RIGHT_WIN" | "SKIP" | "LEFT_UNSEEN" | "RIGHT_UNSEEN" | "BOTH_UNSEEN";
-
-function ShortcutKey({ children }: { children: string }) {
-  return (
-    <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded-md border border-white/15 bg-slate-950/80 px-1.5 text-[10px] font-bold text-slate-200">
-      {children}
-    </kbd>
-  );
-}
 
 export default function SeasonMatchPage() {
   const params = useParams<{ poolId: string; seasonId: string }>();
@@ -375,8 +325,7 @@ export default function SeasonMatchPage() {
         handleVote(currentPair.right.animeId);
       } else if (e.key === "ArrowDown") {
         handleRollPair();
-      } else if (e.key === "ArrowUp" && canUseBiasShortcut) {
-        setUseBias((prev) => !prev);
+
       } else if (e.key === "1") {
         handleMarkUnseen("LEFT_UNSEEN");
       } else if (e.key === "2") {
@@ -396,7 +345,7 @@ export default function SeasonMatchPage() {
   }, [currentPair, submitting, handleVote, detail, handleRollPair, handleMarkUnseen]);
 
   if (loading && detail === null) return <PageShell><SeasonMatchSkeleton /></PageShell>;
-  if (error && detail === null) return <PageShell><main className="mx-auto max-w-4xl px-4 py-8"><AppCard className="p-8 text-center"><h1 className="text-xl font-black text-white">加载失败</h1><p className="mt-2 text-sm text-slate-400">{error}</p><div className="mt-5 flex flex-wrap justify-center gap-3"><AppButton type="button" onClick={() => { setLoading(true); void fetchData(skippedPairKeys, unseenAnimeIds); }} variant="secondary">重新加载对决</AppButton><Link href={`/pools/${poolId}/seasons/${seasonId}`} className="inline-flex min-h-11 items-center text-sm text-amber-200 underline">返回赛季详情</Link></div></AppCard></main></PageShell>;
+  if (error && detail === null) return <PageShell><main className="mx-auto max-w-6xl px-4 py-8"><AppCard className="p-8 text-center"><h1 className="text-xl font-black text-white">加载失败</h1><p className="mt-2 text-sm text-slate-400">{error}</p><div className="mt-5 flex flex-wrap justify-center gap-3"><AppButton type="button" onClick={() => { setLoading(true); void fetchData(skippedPairKeys, unseenAnimeIds); }} variant="secondary">重新加载对决</AppButton><Link href={`/pools/${poolId}/seasons/${seasonId}`} className="inline-flex min-h-11 items-center text-sm text-amber-200 underline">返回赛季详情</Link></div></AppCard></main></PageShell>;
   if (!detail) return null;
 
   const cs = detail.currentUserState;
@@ -417,23 +366,8 @@ export default function SeasonMatchPage() {
 
   return (
     <PageShell>
-      <main className="mx-auto max-w-4xl px-4 py-4 sm:py-8">
-        <div className="mb-3 flex flex-wrap items-center gap-2 sm:mb-4 sm:gap-3">
-          <Link href={`/pools/${poolId}/seasons/${seasonId}`} className="inline-flex min-h-11 items-center text-sm text-slate-400 transition hover:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-300/60">← 返回赛季</Link>
-          <AppBadge tone={schedule.phase === "OPEN" ? "success" : schedule.phase === "UPCOMING" || schedule.phase === "DRAFT" ? "warning" : "muted"}>
-            {schedule.phase === "OPEN" ? "开放中" : schedule.phase === "UPCOMING" || schedule.phase === "DRAFT" ? "未开始" : schedule.phase === "CLOSED" ? "投票已截止" : "已结束"}
-          </AppBadge>
-          <AppBadge tone="source">{detail.mode === "BIAS" ? "偏爱模式" : "传统模式"}</AppBadge>
-        </div>
-        <div className="mt-2 flex flex-col gap-2 sm:mt-4 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
-          <div>
-            <h1 className="text-xl font-black text-white sm:text-2xl">{detail.title}</h1>
-            <p className="mt-1 hidden text-xs text-slate-500 sm:block">
-              优先给你没比较过的组合；覆盖后继续用 Elo 接近、低置信度的组合做校准。换一组不会消耗票数。
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {unseenAnimeIds.size > 0 ? (
+      <MatchWorkspace>
+        <MatchHeading mode="season" title={detail.title} backHref={`/pools/${poolId}/seasons/${seasonId}`} description="限量投票，和群友一起选出本季最喜欢的作品。" context={<AppBadge tone={schedule.canVote ? "success" : "muted"}>{schedule.canVote ? "开放中" : schedule.phase === "CLOSED" || schedule.phase === "ENDED" ? "投票已结束" : "等待开放"}</AppBadge>} tools={<><Link href={`/pools/${poolId}/seasons/${seasonId}#personal`} className="inline-flex min-h-11 items-center px-3 text-sm font-semibold text-amber-100">查看赛季榜单</Link>            {unseenAnimeIds.size > 0 ? (
               <button
                 type="button"
                 onClick={handleResetUnseen}
@@ -443,18 +377,7 @@ export default function SeasonMatchPage() {
                 恢复已排除 {unseenAnimeIds.size} 部
               </button>
             ) : null}
-            {currentPair ? (
-              <button
-                type="button"
-                onClick={handleRollPair}
-                disabled={submitting || feedback === "SKIP"}
-                className="min-h-11 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/35 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                换一组
-              </button>
-            ) : null}
-          </div>
-        </div>
+</>} />
 
         {error ? (
           <div className="mt-3 flex flex-col gap-3 rounded-xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
@@ -490,42 +413,6 @@ export default function SeasonMatchPage() {
             ) : null}
           </div>
         ) : null}
-
-        {currentPair && canVote ? (
-          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-slate-500 sm:mt-3 sm:gap-2">
-            <span className="rounded-full border border-white/10 bg-white/[0.025] px-3 py-1">
-              当前第 {currentIndex + 1} / {queue.length} 组
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.025] px-3 py-1">
-              <ShortcutKey>←</ShortcutKey>
-              <ShortcutKey>→</ShortcutKey>
-              投票
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.025] px-3 py-1">
-              <ShortcutKey>↓</ShortcutKey>
-              跳过
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.025] px-3 py-1">
-              <ShortcutKey>1</ShortcutKey>
-              <ShortcutKey>2</ShortcutKey>
-              <ShortcutKey>3</ShortcutKey>
-              没看过
-            </span>
-            <span className="hidden sm:inline">本批投完会自动获取下一批作品，直到你的票数用完。</span>
-          </div>
-        ) : null}
-
-        <div className="mt-2 min-h-[34px] sm:mt-4 sm:min-h-[42px]" aria-live="polite" aria-atomic="true">
-          <MatchRecap count={voteResult?.stepNumber ?? detail?.currentUserState?.votesUsed ?? 0} scopeKey={seasonId} endpoint={`/api/pools/${poolId}/seasons/${seasonId}`} resultHref={`/pools/${poolId}/seasons/${seasonId}#personal`} season />
-          {voteResult ? (
-            <div
-              role="status"
-              className="rounded-xl border border-amber-300/20 bg-amber-300/5 px-3 py-1.5 text-sm text-amber-200 sm:px-4 sm:py-2"
-            >
-              已投票！第 {voteResult.stepNumber} 票 · 剩余 {voteResult.votesRemaining} 票
-            </div>
-          ) : null}
-        </div>
 
         {schedule.phase === "UPCOMING" || schedule.phase === "DRAFT" || schedule.phase === "CLOSED" || isSeasonEnded ? (
           <AppCard className="mt-8 p-6 text-center">
@@ -575,86 +462,17 @@ export default function SeasonMatchPage() {
                     className="h-4 w-4 rounded accent-rose-400"
                   />
                   <span><span className="sm:hidden">私心票加成 · 剩余 {cs.biasVotesRemaining}</span><span className="hidden sm:inline">使用私心票 (共享榜单加成, 剩余 {cs.biasVotesRemaining})</span></span>
-                  <span className="ml-1 hidden text-xs text-slate-500 sm:inline">或按 Shift</span>
+                  <span className="ml-1 hidden text-xs text-slate-500 sm:inline">按 B 切换</span>
                 </label>
               </div>
             ) : null}
 
-            <div className="grid grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)] items-stretch gap-2 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_80px_minmax(0,1fr)]">
-              <SeasonDuelCard
-                key={currentPair.left.animeId + String(currentIndex)}
-                anime={currentPair.left}
-                disabled={submitting}
-                onPick={() => handleVote(currentPair.left.animeId)}
-                highlighted={feedback === "LEFT_WIN"}
-              />
-              <div className="flex items-center justify-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/10 bg-slate-950/80 text-sm font-black text-white/20 shadow-[0_0_60px_rgba(0,0,0,0.5)] sm:h-16 sm:w-16 sm:text-lg">
-                  VS
-                </div>
-              </div>
-              <SeasonDuelCard
-                key={currentPair.right.animeId + String(currentIndex)}
-                anime={currentPair.right}
-                disabled={submitting}
-                onPick={() => handleVote(currentPair.right.animeId)}
-                highlighted={feedback === "RIGHT_WIN"}
-              />
-            </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-5 sm:grid-cols-4">
-              <button
-                type="button"
-                onClick={handleRollPair}
-                disabled={submitting || feedback === "SKIP"}
-                className={`min-h-12 rounded-xl border px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                  feedback === "SKIP"
-                    ? "border-cyan-300/50 bg-cyan-300/10 text-cyan-100"
-                    : "border-white/10 bg-white/[0.035] text-slate-200 hover:border-cyan-300/35"
-                }`}
-              >
-                <span className="inline-flex items-center gap-2"><ShortcutKey>↓</ShortcutKey> 跳过 / 换一组</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleMarkUnseen("LEFT_UNSEEN")}
-                disabled={submitting}
-                className={`min-h-12 rounded-xl border px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                  feedback === "LEFT_UNSEEN"
-                    ? "border-amber-300/50 bg-amber-300/10 text-amber-100"
-                    : "border-white/10 bg-white/[0.035] text-slate-200 hover:border-amber-300/35"
-                }`}
-              >
-                <span className="inline-flex items-center gap-2"><ShortcutKey>1</ShortcutKey> 左边没看过</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleMarkUnseen("RIGHT_UNSEEN")}
-                disabled={submitting}
-                className={`min-h-12 rounded-xl border px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                  feedback === "RIGHT_UNSEEN"
-                    ? "border-amber-300/50 bg-amber-300/10 text-amber-100"
-                    : "border-white/10 bg-white/[0.035] text-slate-200 hover:border-amber-300/35"
-                }`}
-              >
-                <span className="inline-flex items-center gap-2"><ShortcutKey>2</ShortcutKey> 右边没看过</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleMarkUnseen("BOTH_UNSEEN")}
-                disabled={submitting}
-                className={`min-h-12 rounded-xl border px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                  feedback === "BOTH_UNSEEN"
-                    ? "border-amber-300/50 bg-amber-300/10 text-amber-100"
-                    : "border-white/10 bg-white/[0.035] text-slate-200 hover:border-amber-300/35"
-                }`}
-              >
-                <span className="inline-flex items-center gap-2"><ShortcutKey>3</ShortcutKey> 都没看过</span>
-              </button>
-            </div>
-            <p className="mt-3 text-center text-xs leading-5 text-slate-500">
-              跳过只更换当前对局，不计票也不会隐藏作品；标记没看过会从你的赛季候选池隐藏，可在赛季详情恢复。
-            </p>
+            <MatchArena mode="season"
+              left={<SeasonDuelCard key={currentPair.left.animeId + String(currentIndex)} anime={currentPair.left} side="left" disabled={submitting} onPick={() => handleVote(currentPair.left.animeId)} highlighted={feedback === "LEFT_WIN"} />}
+              right={<SeasonDuelCard key={currentPair.right.animeId + String(currentIndex)} anime={currentPair.right} side="right" disabled={submitting} onPick={() => handleVote(currentPair.right.animeId)} highlighted={feedback === "RIGHT_WIN"} />}
+            />
+            <MatchActions disabled={submitting} onSkip={handleRollPair} onUnseen={handleMarkUnseen} hint="跳过只更换当前对局，不计票；没看过的作品从赛季候选池隐藏，可在赛季详情恢复。" />
+            <p className="mt-2 text-center text-xs text-slate-400">本批投完会自动获取下一批作品，直到你的票数用完。</p>
           </div>
         ) : (
           <AppCard className="mt-8 p-6 text-center">
@@ -696,7 +514,19 @@ export default function SeasonMatchPage() {
             ) : null}
           </AppCard>
         )}
-      </main>
+        <div className="mt-2 min-h-[34px] sm:mt-4 sm:min-h-[42px]" aria-live="polite" aria-atomic="true">
+          {voteResult ? (
+            <div
+              role="status"
+              className="rounded-xl border border-amber-300/20 bg-amber-300/5 px-3 py-1.5 text-sm text-amber-200 sm:px-4 sm:py-2"
+            >
+              已投票！第 {voteResult.stepNumber} 票 · 剩余 {voteResult.votesRemaining} 票
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-4"><MatchRecap count={voteResult?.stepNumber ?? detail?.currentUserState?.votesUsed ?? 0} scopeKey={seasonId} endpoint={`/api/pools/${poolId}/seasons/${seasonId}`} resultHref={`/pools/${poolId}/seasons/${seasonId}#personal`} season /></div>
+      </MatchWorkspace>
     </PageShell>
   );
 }

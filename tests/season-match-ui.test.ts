@@ -4,23 +4,25 @@ import { describe, expect, it } from "vitest";
 describe("season match UI", () => {
   const source = readFileSync("src/app/pools/[poolId]/seasons/[seasonId]/match/page.tsx", "utf8");
 
+  const presentation = readFileSync("src/components/MatchPresentation.tsx", "utf8");
+
   it("uses AnimeCover fallback behavior instead of raw next image", () => {
-    expect(source).toContain("<AnimeCover");
+    expect(presentation).toContain("<AnimeCover");
     expect(source).toContain("secondarySrc={secondarySrc}");
     expect(source).toContain("animeId={anime.animeId}");
     expect(source).not.toContain("import Image from \"next/image\"");
   });
 
   it("keeps the title overlay light so covers remain primary", () => {
-    expect(source).toContain("from-slate-950/18");
-    expect(source).toContain("bg-slate-950/24");
-    expect(source).toContain("line-clamp-2");
+    expect(presentation).toContain("作品信息与说明");
+    expect(presentation).toContain("mt-auto");
+    expect(presentation).toContain("line-clamp-2");
   });
 
   it("lets users roll to another pair without submitting a vote", () => {
     expect(source).toContain("const handleRollPair = useCallback");
     expect(source).toContain("const filteredQueue = filterSeasonQueue(queue, nextSkippedPairKeys, unseenAnimeIds)");
-    expect(source).toContain("换一组");
+    expect(presentation).toContain("换一组");
   });
 
   it("tracks skipped pair ids locally to avoid repeating same pairs", () => {
@@ -66,19 +68,19 @@ describe("season match UI", () => {
   });
 
   it("compresses the mobile first screen before the duel cards", () => {
-    expect(source).toContain("hidden text-xs text-slate-500 sm:block");
+    expect(source).toContain("<MatchHeading");
     expect(source).toContain("const progressStatColumns");
     expect(source).toContain("grid-cols-5");
     expect(source).toContain("grid-cols-3");
     expect(source).toContain("hidden sm:inline");
     expect(source).toContain("sm:hidden");
-    expect(source).toContain("mt-3 grid grid-cols-2 gap-2 sm:mt-5 sm:grid-cols-4");
+    expect(source).toContain("<MatchActions");
   });
 
   it("keeps the duel cards side by side on mobile", () => {
-    expect(source).toContain("grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)]");
-    expect(source).toContain("sm:min-h-44");
-    expect(source).toContain("sm:h-16 sm:w-16");
+    expect(presentation).toContain("grid-cols-[minmax(0,1fr)_24px_minmax(0,1fr)]");
+    expect(source).toContain("<MatchArena");
+    expect(presentation).toContain("function MatchChoiceCard");
   });
 
   it("supports keyboard shortcuts like normal duel mode", () => {
@@ -126,9 +128,9 @@ describe("season match UI", () => {
   });
 
   it("shows explicit unseen and reset controls", () => {
-    expect(source).toContain("左边没看过");
-    expect(source).toContain("右边没看过");
-    expect(source).toContain("都没看过");
+    expect(presentation).toContain("左边没看过");
+    expect(presentation).toContain("右边没看过");
+    expect(presentation).toContain("都没看过");
     expect(source).toContain("恢复已排除");
   });
   it("keeps load and submit errors retryable without discarding an existing pair", () => {

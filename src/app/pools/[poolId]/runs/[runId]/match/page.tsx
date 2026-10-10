@@ -4,6 +4,7 @@ import { MatchRecap } from "@/components/MatchRecap";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { MatchActions, MatchArena, MatchHeading, MatchWorkspace } from "@/components/MatchPresentation";
 import { DuelAnimeCard } from "@/components/DuelAnimeCard";
 import { LoadingRoom } from "@/components/LoadingRoom";
 import { PageShell } from "@/components/PageShell";
@@ -317,38 +318,8 @@ export default function MatchPage({
 
   return (
     <PageShell>
-      <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <div className="flex flex-wrap gap-2">
-            <AppBadge tone="source">{canShowCommunityBattle ? "社区大乱斗" : "普通对决"}</AppBadge>
-            <AppBadge tone="status">{poolName}</AppBadge>
-          </div>
-          <h1 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">
-            本轮对决
-          </h1>
-          <p className="mt-1 hidden text-sm leading-6 text-slate-500 sm:block">
-            先选择作品；进度、统计和设置都在下方按需查看。
-          </p>
-          {queueMeta ? (
-            <p className="mt-1.5 min-h-5 text-xs text-slate-500" aria-live="polite">
-              {queueMeta.progress.stageLabel} · 有效 {queueMeta.progress.effectiveComparisons}/
-              {queueMeta.progress.highConfidenceTarget}
-              {isRefilling ? " · 正在准备下一组" : ""}
-              {refillError !== null ? " · 下一组暂时不可用" : ""}
-            </p>
-          ) : null}
-          {refillError !== null ? (
-            <button
-              type="button"
-              onClick={() => void refillQueue()}
-              disabled={isRefilling}
-              className="min-h-9 rounded-lg px-2 text-xs font-semibold text-amber-100 hover:bg-amber-300/10 disabled:opacity-50"
-            >
-              重新加载下一组
-            </button>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+      <MatchWorkspace>
+      <MatchHeading mode="personal" title={poolName} backHref={`/pools/${params.poolId}`} description="选出更喜欢的作品，按自己的节奏完善个人榜单。" context={<span className="text-slate-400">随时继续 · 不限票数</span>} tools={<>
             <Link
               href={`/pools/${params.poolId}/runs/${params.runId}/tier`}
               className={appButtonClasses({ variant: "ghost", size: "sm" })}
@@ -387,72 +358,39 @@ export default function MatchPage({
                 </AppButton>
               </div>
             </div>
-          </details>
-        </div>
-      </div>
+          </details></>}>
+          {queueMeta ? (
+            <p className="mt-1.5 min-h-5 text-xs text-slate-500" aria-live="polite">
+              {queueMeta.progress.stageLabel} · 有效 {queueMeta.progress.effectiveComparisons}/
+              {queueMeta.progress.highConfidenceTarget}
+              {isRefilling ? " · 正在准备下一组" : ""}
+              {refillError !== null ? " · 下一组暂时不可用" : ""}
+            </p>
+          ) : null}
+          {refillError !== null ? (
+            <button
+              type="button"
+              onClick={() => void refillQueue()}
+              disabled={isRefilling}
+              className="min-h-9 rounded-lg px-2 text-xs font-semibold text-amber-100 hover:bg-amber-300/10 disabled:opacity-50"
+            >
+              重新加载下一组
+            </button>
+          ) : null}
+      </MatchHeading>
+
+
+      <MatchArena
+        left={<DuelAnimeCard key={currentPair.left.id} anime={currentPair.left} side="left" disabled={isSubmitting} actionLabel="更喜欢左边" scoreDistribution={queueMeta?.scoreDistribution ?? fallbackScoreDistribution} onPick={() => handleSubmit("LEFT_WIN")} highlighted={feedbackResult === "LEFT_WIN"} />}
+        right={<DuelAnimeCard key={currentPair.right.id} anime={currentPair.right} side="right" disabled={isSubmitting} actionLabel="更喜欢右边" scoreDistribution={queueMeta?.scoreDistribution ?? fallbackScoreDistribution} onPick={() => handleSubmit("RIGHT_WIN")} highlighted={feedbackResult === "RIGHT_WIN"} />}
+      />
+      <MatchActions disabled={isSubmitting} onDraw={() => handleSubmit("DRAW")} onSkip={() => handleSubmit("SKIP")} onUnseen={handleSubmit} hint="跳过不计分；没看过的作品从本轮隐藏，不进入你的 Tier List。" />
 
       <div className="min-h-[34px]" aria-live="polite" aria-atomic="true">
         {notice ? <ErrorAlert message={notice} tone="notice" /> : null}
         {error ? <ErrorAlert message={error} /> : null}
       </div>
-      {canShowCommunityBattle ? <CommunityBattleMatchHint /> : null}
-
-      <div className="grid grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)] items-stretch gap-2 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_80px_minmax(0,1fr)]">
-        <DuelAnimeCard
-          key={currentPair.left.id}
-          anime={currentPair.left}
-          side="left"
-          disabled={isSubmitting}
-          actionLabel="选择左边"
-          scoreDistribution={queueMeta?.scoreDistribution ?? fallbackScoreDistribution}
-          onPick={() => handleSubmit("LEFT_WIN")}
-          highlighted={feedbackResult === "LEFT_WIN"}
-        />
-        <div className="flex items-center justify-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-anime-amber/35 bg-anime-amber/10 text-sm font-black text-amber-100 shadow-anime-amber sm:h-16 sm:w-16 sm:text-xl lg:h-20 lg:w-20 lg:text-2xl">
-            VS
-          </div>
-        </div>
-        <DuelAnimeCard
-          key={currentPair.right.id}
-          anime={currentPair.right}
-          side="right"
-          disabled={isSubmitting}
-          actionLabel="选择右边"
-          scoreDistribution={queueMeta?.scoreDistribution ?? fallbackScoreDistribution}
-          onPick={() => handleSubmit("RIGHT_WIN")}
-          highlighted={feedbackResult === "RIGHT_WIN"}
-        />
-      </div>
-
-       <div className="mt-5 space-y-3 rounded-2xl border border-white/10 bg-slate-950/24 p-3">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-5">
-          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("DRAW")} variant="quiet">
-            <ShortcutKey>↑</ShortcutKey>
-            <span>差不多</span>
-          </AppButton>
-          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("SKIP")} variant="quiet">
-            <ShortcutKey>↓</ShortcutKey>
-            <span>跳过</span>
-          </AppButton>
-          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("LEFT_UNSEEN")} variant="quiet">
-            <ShortcutKey>1</ShortcutKey>
-            <span>左边没看过</span>
-          </AppButton>
-          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("RIGHT_UNSEEN")} variant="quiet">
-            <ShortcutKey>2</ShortcutKey>
-            <span>右边没看过</span>
-          </AppButton>
-          <AppButton disabled={isSubmitting} onClick={() => handleSubmit("BOTH_UNSEEN")} variant="quiet">
-            <ShortcutKey>0</ShortcutKey>
-            <span>两个都没看过</span>
-          </AppButton>
-         </div>
-         <p className="px-1 text-xs leading-5 text-slate-500">
-           跳过不计分，之后仍可能再次出现；标记没看过会从本轮隐藏，不会进入你的 Tier List。
-         </p>
-       </div>
-
+      <div className="mt-3">{canShowCommunityBattle ? <CommunityBattleMatchHint /> : null}</div>
       {queueMeta ? (
         <div className="mt-5">
           <RankingProgressCard progress={queueMeta.progress} compact />
@@ -461,6 +399,7 @@ export default function MatchPage({
           </p>
         </div>
       ) : null}
+      </MatchWorkspace>
     </PageShell>
   );
 }
@@ -468,19 +407,11 @@ export default function MatchPage({
 function CommunityBattleMatchHint() {
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
-        <AppBadge tone="source">社区大乱斗</AppBadge>
+        <AppBadge tone="source">参与社区榜</AppBadge>
         <p className="min-w-0 flex-1 text-xs leading-5 text-slate-400">
-          你正在参与这个公开番组的社区大乱斗。你的选择会更新个人榜单并匿名汇入社区榜；口味对照还会展示玩家昵称和共同作品上的明显分歧。
+          本轮选择会更新个人榜单并汇入社区榜；口味对照会展示玩家昵称和共同作品上的明显分歧。
         </p>
     </div>
-  );
-}
-
-function ShortcutKey({ children }: { children: string }) {
-  return (
-    <kbd className="mr-1 inline-flex min-w-5 items-center justify-center rounded-md border border-anime-cyan/30 bg-slate-950/50 px-1.5 py-0.5 text-[11px] font-black leading-none text-cyan-100">
-      {children}
-    </kbd>
   );
 }
 

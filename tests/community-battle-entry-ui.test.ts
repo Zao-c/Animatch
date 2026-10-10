@@ -119,9 +119,9 @@ describe("community battle entry UI wiring", () => {
     expect(matchSource).toContain("const [canShowCommunityBattle");
     expect(matchSource).toContain("isCommunityBattleVisiblePool(pool)");
     expect(matchSource).toContain("CommunityBattleMatchHint");
-    expect(matchSource).toContain("你正在参与这个公开番组的社区大乱斗");
-    expect(matchSource).toContain("你的选择会更新个人榜单并匿名汇入社区榜");
-    expect(matchSource).toContain("口味对照还会展示玩家昵称");
+    expect(matchSource).toContain("本轮选择会更新个人榜单并汇入社区榜");
+    expect(matchSource).toContain("参与社区榜");
+    expect(matchSource).toContain("口味对照会展示玩家昵称");
   });
 
   it("shows a public community contribution hint on the Tier page while preserving the ranking link", () => {
