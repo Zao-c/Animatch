@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { bangumiRequest, getBangumiSubject, normalizeBangumiSubject } from "../src/lib/bangumi";
-import { fetchBangumiSubjects } from "../src/lib/import/bangumi-import-source";
+import { fetchBangumiSubjects, isIncompleteBangumiBatch } from "../src/lib/import/bangumi-import-source";
 import { validateQuickImportParams } from "../src/lib/import/quick-import-options";
 vi.mock("../src/lib/bangumi", async (original) => ({ ...await original<object>(), bangumiRequest: vi.fn(), getBangumiSubject: vi.fn() }));
 const response = (data: unknown) => ({ ok: true, statusCode: 200, json: async <T>() => data as T, text: async () => JSON.stringify(data) });
 const subject = (id: number, year = 2026, platform = "TV") => ({ id, name: `Anime ${id}`, date: `${year}-04-01`, platform, tags: [{ name: "恋爱" }], rating: { rank: id } });
-beforeEach(() => { vi.clearAllMocks(); vi.mocked(getBangumiSubject).mockRejectedValue(new Error("unavailable")); });
+beforeEach(() => { vi.useRealTimers(); vi.resetAllMocks(); vi.mocked(getBangumiSubject).mockRejectedValue(new Error("unavailable")); });
 describe("batch import filter behavior", () => {
   it("validates bounds and requires visible inputs", () => {
     expect(() => validateQuickImportParams({ source: "BANGUMI", mode: "YEAR" })).toThrow("播出年份");
@@ -45,7 +45,7 @@ describe("batch import filter behavior", () => {
   });
   it("never silently returns partial matches for combined collection tags", async () => {
     vi.mocked(bangumiRequest).mockResolvedValue(response({ data: [{ subject: subject(1) }] }));
-    expect(await fetchBangumiSubjects({ source: "BANGUMI", mode: "USER_COLLECTION", bangumiUserId: "friend", tags: ["恋爱", "科幻"] })).toEqual([]);
+    expect(await fetchBangumiSubjects({ source: "BANGUMI", mode: "USER_COLLECTION", bangumiUserId: "friend", tags: ["恋爱", "科幻"] })).toHaveLength(0);
   });
   it("resolves the platform omitted by real SlimSubject collection entries", async () => {
     vi.mocked(getBangumiSubject).mockResolvedValue(normalizeBangumiSubject(subject(99091)));
@@ -54,5 +54,25 @@ describe("batch import filter behavior", () => {
       : response(subject(99091)));
     const items = await fetchBangumiSubjects({ source: "BANGUMI", mode: "USER_COLLECTION", bangumiUserId: "friend", type: "TV" });
     expect(items.map((s) => s.bgmId)).toEqual([99091]);
+  });
+  it("retries a reset connection without losing the current page", async () => {
+    vi.useFakeTimers();
+    vi.mocked(bangumiRequest).mockRejectedValueOnce(new Error("ECONNRESET")).mockResolvedValueOnce(response({ data: [subject(1)] }));
+    const request = fetchBangumiSubjects({ source: "BANGUMI", mode: "YEAR", year: 2026 });
+    await vi.runAllTimersAsync();
+    expect((await request).map((s) => s.bgmId)).toEqual([1]);
+    expect(bangumiRequest).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+  it("marks a broken later page as incomplete and retains earlier results", async () => {
+    vi.useFakeTimers();
+    vi.mocked(bangumiRequest).mockResolvedValueOnce(response({ data: Array.from({length:20},(_,i)=>subject(i+1)) })).mockRejectedValue(new Error("ECONNRESET"));
+    const request = fetchBangumiSubjects({ source: "BANGUMI", mode: "YEAR", year: 2026, limit: 50 });
+    await vi.runAllTimersAsync();
+    const result = await request;
+    expect(result).toHaveLength(20);
+    expect(isIncompleteBangumiBatch(result)).toBe(true);
+    expect(bangumiRequest).toHaveBeenCalledTimes(4);
+    vi.useRealTimers();
   });
 });

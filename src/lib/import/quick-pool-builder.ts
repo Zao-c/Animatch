@@ -9,6 +9,7 @@ import type { NormalizedBangumiSubject } from "@/lib/bangumi";
 import { MAX_QUICK_IMPORT, validateQuickImportParams } from "./quick-import-options";
 import {
   fetchBangumiSubjects,
+  isIncompleteBangumiBatch,
   shouldUseRemote,
   upsertBangumiSubjects,
   type RemoteFetchResult,
@@ -439,11 +440,13 @@ export async function previewQuickImportWithRemoteFallback(
 
     if (!subjects) {
       subjects = await fetchBangumiSubjects(params);
-      if (subjects.length > 0) {
+      if (subjects.length > 0 && !isIncompleteBangumiBatch(subjects)) {
         setBangumiSubjectCache(params, subjects);
       }
     }
 
+    remoteFetchResult.incomplete = isIncompleteBangumiBatch(subjects);
+    if (remoteFetchResult.incomplete) warnings.push("Bangumi 连接中断或达到查询边界，本次仅返回部分作品，请稍后重新预览。");
     if (subjects.length > 0) {
       remoteFetchResult.fetchedCount = subjects.length;
       remoteFetchResult.succeeded = true;
