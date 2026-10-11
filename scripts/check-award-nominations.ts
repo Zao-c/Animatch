@@ -28,6 +28,9 @@ async function main() {
   const visitorView = await getCeremony(event.id, outsider.id);
   assert.equal(visitorView.organizer, null);
   assert.deepEqual(visitorView.published, []);
+  assert.equal(visitorView.suggestions[0].candidates[0].title, candidate.title);
+  assert.ok(!JSON.stringify(visitorView.suggestions).includes("supporters"));
+  assert.ok(!JSON.stringify(visitorView.suggestions).includes("count"));
   assert.ok(!JSON.stringify(visitorView).includes(candidate.reason));
   await assert.rejects(freezeCeremony(event.id, bob.id, { revision: 0 }), { statusCode: 403 });
   await assert.rejects(saveShortlist(event.id, host.id, { revision: 0, publish: true, shortlist: {} }), { statusCode: 409 });
@@ -53,6 +56,16 @@ async function main() {
   assert.equal(raceView.status, "FROZEN");
   assert.equal(raceView.submittedCount, raced[0].status === "fulfilled" ? 1 : 0);
   await assert.rejects(saveNomination(race.id, bob.id, { action: "submit", revision: 0, entries }), { statusCode: 409 });
+  const linkedEvent = await createCeremony(host.id, { title: "译名与候选提示验证", year: 2026, deadline: new Date(Date.now() + 86400000).toISOString(), awardIds: [AWARD_TEMPLATE[0].id] });
+  const linked = { ...candidate, reference: { kind: "subject", id: 12345 } };
+  await saveNomination(linkedEvent.id, alice.id, { action: "submit", revision: 0, entries: [{ ...entries[0], candidates: [linked] }] });
+  await saveNomination(linkedEvent.id, bob.id, { action: "submit", revision: 0, entries: [{ ...entries[0], candidates: [{ ...linked, title: "另一译名" }] }] });
+  const merged = await getCeremony(linkedEvent.id, host.id);
+  assert.equal(merged.organizer!.summaries[0].candidates.length, 1);
+  assert.equal(merged.organizer!.summaries[0].candidates[0].count, 2);
+  const suggestion = (await getCeremony(linkedEvent.id, outsider.id)).suggestions[0].candidates[0];
+  assert.equal(suggestion.key, "bgm:subject:12345");
+  assert.equal(Object.keys(suggestion).sort().join(","), "key,reference,title,workTitle");
   console.log(JSON.stringify({ ok: true, checks: ["draft privacy", "submission snapshot", "optimistic conflict", "concurrent submit", "ownership", "freeze", "deadline", "shortlist secrecy", "published projection", "no winner inferred"] }));
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => prisma.$disconnect());

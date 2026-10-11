@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AWARD_TEMPLATE, ballotProgress, csvCell, nomineeKey, parseCeremony, parseEntries, parseShortlist, summarizeNominations } from "../src/lib/award-nominations";
+import { AWARD_TEMPLATE, ballotProgress, csvCell, nominationSuggestions, nomineeKey, parseCeremony, parseEntries, parseShortlist, summarizeNominations } from "../src/lib/award-nominations";
 const awards = AWARD_TEMPLATE.slice(0, 2);
 const candidate = { title: "作品 A", workTitle: "", reason: "喜欢", mediaUrl: "https://example.com/watch" };
 const entry = { awardId: awards[0].id, skipped: false, candidates: [candidate] };
@@ -37,5 +37,25 @@ describe("nomination validation and counting", () => {
     expect(csvCell('a,"b"')).toBe('"a,""b"""');
     expect(csvCell(' =HYPERLINK("url")')).toMatch(/^"'/);
     expect(csvCell("普通文字")).toBe('"普通文字"');
+  });
+  it("groups translated titles by the same reference and counts one supporter per ballot", () => {
+    const linked = { ...candidate, reference: { kind: "subject" as const, id: 123 } };
+    const translated = { ...linked, title: "別の訳名", workTitle: "副标题" };
+    expect(nomineeKey(linked)).toBe(nomineeKey(translated));
+    expect(() => parseEntries([{ ...entry, candidates: [linked, translated] }], awards)).toThrow("重复");
+    const summary = summarizeNominations(awards, [{ name: "甲", entries: [{ ...entry, candidates: [linked, translated] }] }, { name: "乙", entries: [{ ...entry, candidates: [translated] }] }]);
+    expect(summary[0].candidates).toHaveLength(1);
+    expect(summary[0].candidates[0].count).toBe(2);
+    const suggestions = nominationSuggestions(summary);
+    expect(suggestions[0].candidates[0]).toEqual({ key: "bgm:subject:123", title: linked.title, workTitle: "", reference: linked.reference });
+    expect(JSON.stringify(suggestions)).not.toContain("supporters");
+    expect(JSON.stringify(suggestions)).not.toContain("count");
+    expect(JSON.stringify(suggestions)).not.toContain("喜欢");
+  });
+  it("does not equate a person and a character with the same ID, or link an episode to an entire show", () => {
+    expect(nomineeKey({ ...candidate, reference: { kind: "person", id: 123 } })).not.toBe(nomineeKey({ ...candidate, reference: { kind: "character", id: 123 } }));
+    expect(() => parseEntries([{ awardId: awards[1].id, skipped: false, candidates: [{ ...candidate, reference: { kind: "subject", id: 123 } }] }], awards)).toThrow();
+    expect(() => parseEntries([{ ...entry, candidates: [{ ...candidate, reference: { kind: "person", id: 123 } }] }], awards)).toThrow();
+    expect(() => parseEntries([{ ...entry, candidates: [{ ...candidate, reference: { kind: "subject", id: -1 } }] }], awards)).toThrow();
   });
 });

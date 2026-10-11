@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { AppError } from "./app-error";
-import { ballotProgress, objectInput, parseCeremony, parseEntries, parseShortlist, revisionInput, summarizeNominations,
+import { ballotProgress, nominationSuggestions, objectInput, parseCeremony, parseEntries, parseShortlist, revisionInput, summarizeNominations,
   type AwardDefinition, type NominationEntry, type Shortlist } from "./award-nominations";
 
 const json = (value: unknown) => value as Prisma.InputJsonValue;
@@ -36,7 +36,7 @@ export async function getCeremony(id: string, userId: string) {
     const mine = await tx.awardBallot.findUnique({ where: { ceremonyId_userId: { ceremonyId: id, userId } } });
     const submittedCount = await tx.awardBallot.count({ where: { ceremonyId: id, submittedAt: { not: null } } });
     const isOwner = event.ownerId === userId;
-    const summaries = isOwner || event.status === "PUBLISHED" ? await submittedSummary(tx, id, awards) : [];
+    const summaries = await submittedSummary(tx, id, awards);
     const shortlist = event.shortlist as Shortlist;
     return {
       id, title: event.title, year: event.year, description: event.description, deadline: event.deadline.toISOString(),
@@ -44,13 +44,19 @@ export async function getCeremony(id: string, userId: string) {
       canEdit: event.status === "OPEN" && event.deadline > new Date(), submittedCount,
       mine: { revision: mine?.revision ?? 0, draft: (mine?.draft ?? []) as NominationEntry[], submitted: (mine?.submitted ?? null) as NominationEntry[] | null,
         submittedAt: mine?.submittedAt?.toISOString() ?? null, savedAt: mine?.updatedAt.toISOString() ?? null },
-      // Only explicitly published candidates reach a participant. No counts, reasons or ballots.
+      suggestions: nominationSuggestions(summaries),
+      // Shared name suggestions are distinct from the organizer's confirmed shortlist.
       published: event.status === "PUBLISHED" ? awards.map((a) => ({ awardId: a.id,
         candidates: (summaries.find((s) => s.awardId === a.id)?.candidates ?? []).filter((c) => shortlist[a.id]?.includes(c.key))
-          .map((c) => ({ title: c.title, workTitle: c.workTitle })) })) : [],
+          .map((c) => ({ title: c.title, workTitle: c.workTitle, ...(c.reference ? { reference: c.reference } : {}) })) })) : [],
       organizer: isOwner ? { summaries, shortlist } : null
     };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+}
+export async function getNominationSuggestions(id: string) {
+  const event = await prisma.awardCeremony.findUnique({ where: { id }, select: { awards: true } });
+  if (!event) throw new AppError("活动不存在", 404);
+  return nominationSuggestions(await submittedSummary(prisma, id, event.awards as AwardDefinition[]));
 }
 export async function saveNomination(id: string, userId: string, value: unknown) {
   const input = objectInput(value), revision = revisionInput(input.revision);

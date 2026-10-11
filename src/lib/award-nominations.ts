@@ -1,12 +1,14 @@
 import { AppError } from "./app-error";
 
 export type AwardDefinition = { id: string; category: string; title: string };
-export type Nominee = { title: string; workTitle: string; reason: string; mediaUrl: string };
+export type NomineeReference = { kind: "subject" | "person" | "character"; id: number };
+export type Nominee = { title: string; workTitle: string; reason: string; mediaUrl: string; reference?: NomineeReference };
+export type SuggestedNominee = Pick<Nominee, "title" | "workTitle" | "reference"> & { key: string };
 export type NominationEntry = { awardId: string; skipped: boolean; candidates: Nominee[] };
 export type Shortlist = Record<string, string[]>;
 export type NominationSummary = {
   awardId: string; participantCount: number; skippedCount: number;
-  candidates: { key: string; title: string; workTitle: string; count: number;
+  candidates: { key: string; title: string; workTitle: string; reference?: NomineeReference; count: number;
     supporters: { name: string; reason: string; mediaUrl: string }[] }[];
 };
 
@@ -51,9 +53,19 @@ export function revisionInput(value: unknown): number {
   if (!Number.isSafeInteger(value) || Number(value) < 0) invalid("缺少有效版本，请刷新后重试");
   return Number(value);
 }
-export function nomineeKey(nominee: Pick<Nominee, "title" | "workTitle">): string {
-  const normalize = (v: string) => v.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
-  return JSON.stringify([normalize(nominee.title), normalize(nominee.workTitle)]);
+export function referenceKindForAward(award: AwardDefinition): NomineeReference["kind"] | null {
+  if (award.category === "演出作画" || award.category === "音乐" || award.title.includes("单集") || award.title.includes("CP")) return null;
+  if (award.category === "角色") return "character";
+  if (award.category === "制作" && !award.title.includes("配乐")) return "person";
+  return "subject";
+}
+export function referenceUrl(reference: NomineeReference): string {
+  return `https://bgm.tv/${reference.kind}/${reference.id}`;
+}
+export function normalizeNomineeText(value: string): string { return value.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase(); }
+export function nomineeKey(nominee: Pick<Nominee, "title" | "workTitle" | "reference">): string {
+  if (nominee.reference) return `bgm:${nominee.reference.kind}:${nominee.reference.id}`;
+  return JSON.stringify([normalizeNomineeText(nominee.title), normalizeNomineeText(nominee.workTitle)]);
 }
 export function parseEntries(value: unknown, awards: AwardDefinition[]): NominationEntry[] {
   if (!Array.isArray(value) || value.length > awards.length) invalid("提名表格式不正确");
@@ -67,8 +79,14 @@ export function parseEntries(value: unknown, awards: AwardDefinition[]): Nominat
     const keys = new Set<string>();
     const candidates = entry.candidates.map((rawCandidate) => {
       const candidate = objectInput(rawCandidate);
-      const nominee = { title: text(candidate.title, 150, "候选名称", true), workTitle: text(candidate.workTitle, 150, "所属作品"),
+      const nominee: Nominee = { title: text(candidate.title, 150, "候选名称", true), workTitle: text(candidate.workTitle, 150, "所属作品"),
         reason: text(candidate.reason, 1000, "提名理由"), mediaUrl: text(candidate.mediaUrl, 1000, "素材链接") };
+      if (candidate.reference !== undefined) {
+        const ref = objectInput(candidate.reference);
+        const kind = referenceKindForAward(awards.find((a) => a.id === entry.awardId)!);
+        if (!kind || ref.kind !== kind || !Number.isSafeInteger(ref.id) || Number(ref.id) <= 0 || Number(ref.id) > 2_147_483_647) invalid("候选资料类型与奖项不符；单集、CP、歌曲和片段请填写独立名称");
+        nominee.reference = { kind, id: Number(ref.id) };
+      }
       if (nominee.mediaUrl) {
         let url: URL;
         try { url = new URL(nominee.mediaUrl); } catch { invalid("素材链接需要完整的 http 或 https 地址"); }
@@ -101,7 +119,7 @@ export function summarizeNominations(awards: AwardDefinition[], ballots: { name:
         const key = nomineeKey(candidate);
         if (seen.has(key)) continue;
         seen.add(key);
-        const current = map.get(key) ?? { key, title: candidate.title, workTitle: candidate.workTitle, count: 0, supporters: [] };
+        const current = map.get(key) ?? { key, title: candidate.title, workTitle: candidate.workTitle, ...(candidate.reference ? { reference: candidate.reference } : {}), count: 0, supporters: [] };
         current.count++;
         current.supporters.push({ name: ballot.name, reason: candidate.reason, mediaUrl: candidate.mediaUrl });
         map.set(key, current);
@@ -109,6 +127,11 @@ export function summarizeNominations(awards: AwardDefinition[], ballots: { name:
     }
     return { awardId: award.id, participantCount, skippedCount, candidates: [...map.values()].sort((a, b) => b.count - a.count || a.key.localeCompare(b.key)) };
   });
+}
+export function nominationSuggestions(summaries: NominationSummary[]) {
+  // Names are intentionally shared. Alphabetical order does not reveal nomination popularity.
+  return summaries.map((s) => ({ awardId: s.awardId, candidates: s.candidates.map((c): SuggestedNominee => ({ key: c.key, title: c.title, workTitle: c.workTitle, ...(c.reference ? { reference: c.reference } : {}) }))
+    .sort((a, b) => a.title.localeCompare(b.title, "zh-CN") || a.key.localeCompare(b.key)) }));
 }
 export function parseShortlist(value: unknown, summaries: NominationSummary[]): Shortlist {
   const input = objectInput(value);

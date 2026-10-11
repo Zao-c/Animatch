@@ -8,6 +8,8 @@ import { ballotProgress, CEREMONY_STATUS, csvCell, type NominationEntry, type No
 import type { getCeremony } from "@/lib/award-service";
 import { featureRequest } from "@/lib/feature-api";
 import { copyTextWithFallback } from "@/lib/browser-copy";
+import { AwardCandidatePicker, AwardReferencePreview } from "@/components/AwardCandidatePicker";
+import { nomineeKey, referenceUrl } from "@/lib/award-nominations";
 
 type Detail = Awaited<ReturnType<typeof getCeremony>>;
 const field = "mt-1 min-h-11 w-full min-w-0 rounded-xl border border-white/15 bg-slate-950 px-3 py-2 text-base text-white";
@@ -60,7 +62,7 @@ export default function CeremonyPage({ params }: { params: { id: string } }) {
   async function save(action: "save" | "submit") {
     if (!data) return;
     // A completely empty added row is a placeholder; partially filled rows must pass server validation.
-    const cleaned = entries.map((entry) => ({ ...entry, candidates: entry.candidates.filter((c) => Object.values(c).some((v) => v.trim())) }));
+    const cleaned = entries.map((entry) => ({ ...entry, candidates: entry.candidates.filter((c) => [c.title, c.workTitle, c.reason, c.mediaUrl].some((v) => v.trim())) }));
     const progress = ballotProgress(cleaned, data.awards);
     if (action === "submit" && !window.confirm(`确认提交这份提名？${progress.nominated} 项已提名、${progress.skipped} 项跳过、${progress.remaining} 项未填。截止前可重新提交修改。`)) return;
     setBusy(true); setError(""); setNotice("");
@@ -92,9 +94,9 @@ export default function CeremonyPage({ params }: { params: { id: string } }) {
   }
   function exportSummary() {
     if (!data?.organizer) return;
-    const rows: (string | number)[][] = [["奖项", "候选", "所属作品", "提名人数（不是决选票）", "提名者", "理由", "素材链接", "入围草案"]];
+    const rows: (string | number)[][] = [["奖项", "候选", "所属作品", "Bangumi 资料", "提名人数（不是决选票）", "提名者", "理由", "素材链接", "入围草案"]];
     for (const summary of data.organizer.summaries) for (const candidate of summary.candidates) for (const supporter of candidate.supporters) {
-      rows.push([data.awards.find((a) => a.id === summary.awardId)?.title ?? "", candidate.title, candidate.workTitle, candidate.count, supporter.name, supporter.reason, supporter.mediaUrl, shortlist[summary.awardId]?.includes(candidate.key) ? "是" : "否"]);
+      rows.push([data.awards.find((a) => a.id === summary.awardId)?.title ?? "", candidate.title, candidate.workTitle, candidate.reference ? referenceUrl(candidate.reference) : "", candidate.count, supporter.name, supporter.reason, supporter.mediaUrl, shortlist[summary.awardId]?.includes(candidate.key) ? "是" : "否"]);
     }
     download(`年度提名汇总-${data.year}.csv`, "\uFEFF" + rows.map((row) => row.map(csvCell).join(",")).join("\r\n"), "text/csv;charset=utf-8");
   }
@@ -115,7 +117,7 @@ export default function CeremonyPage({ params }: { params: { id: string } }) {
       <h1 className="text-xl font-black sm:text-3xl">{data.title}</h1>
       <p className="mt-2 text-sm leading-6 text-slate-400">{data.ownerName} 发起 · 提名截止 {new Date(data.deadline).toLocaleString("zh-CN")}</p>
       <div className="mt-4 flex flex-wrap items-center gap-2"><span className="mr-auto text-sm text-amber-100">{data.submittedCount} 人已交表 · {data.awards.length} 个奖项</span><AppButton variant="ghost" onClick={share}>邀请群友</AppButton><AppButton variant="quiet" onClick={refresh} disabled={busy}>刷新记录</AppButton></div>
-      <details className="mt-3 text-sm text-slate-400"><summary className="cursor-pointer py-2">活动规则与资格</summary><p className="whitespace-pre-wrap leading-7">{data.description}</p><p className="mt-2 leading-6">每项最多提名 3 位；提名不分先后，不作为最终获奖票。草稿仅自己可见，正式提交后组织者可查看提名、理由和素材。其他群友只看到正式公布的入围名单。</p></details>
+      <details className="mt-3 text-sm text-slate-400"><summary className="cursor-pointer py-2">活动规则与资格</summary><p className="whitespace-pre-wrap leading-7">{data.description}</p><p className="mt-2 leading-6">每项最多提名 3 位；提名不分先后，不作为最终获奖票。草稿仅自己可见。正式提交后，候选名称会出现在群友的填写提示中；组织者可查看理由与素材，其他群友看不到提名者和人数。正式入围由组织者另行确认。</p></details>
     </header>
     <nav aria-label="年度活动栏目" className="mb-4 flex flex-wrap gap-2 rounded-2xl border border-white/10 p-2">{([
       ["mine", "我的提名"], ["published", "入围名单"], ...(data.isOwner ? [["organizer", "组织者收表"]] : [])
@@ -135,6 +137,13 @@ export default function CeremonyPage({ params }: { params: { id: string } }) {
       <section className={panel}>
         <div className="mb-4 border-b border-white/10 pb-4"><p className="text-xs text-amber-200">{award.category}</p><h2 className="mt-1 text-xl font-bold">{award.title}</h2></div>
         {tab === "mine" && <>
+          <AwardCandidatePicker key={award.id} ceremonyId={data.id} award={award} initial={data.suggestions?.find((s) => s.awardId === award.id)?.candidates ?? []} selected={entry.candidates} disabled={!canEdit || busy || (entry.candidates.length >= 3 && !entry.candidates.some((c) => ![c.title, c.workTitle, c.reason, c.mediaUrl].some((v) => v.trim())))} onChoose={(candidate) => {
+            if (entry.candidates.some((c) => nomineeKey(c) === nomineeKey(candidate))) return;
+            const emptyIndex = entry.candidates.findIndex((c) => ![c.title, c.workTitle, c.reason, c.mediaUrl].some((v) => v.trim()));
+            const next = emptyIndex >= 0 ? entry.candidates.map((c, index) => index === emptyIndex ? candidate : c) : [...entry.candidates, candidate];
+            if (next.length > 3) return;
+            updateEntry({ ...entry, skipped: false, candidates: next }); setNotice(`已添加「${candidate.title}」。填写你的理由后，记得保存或提交。`);
+          }} />
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><p className="text-sm text-slate-400">写下作品、角色、歌曲或人员的名字。</p><label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" disabled={!canEdit || busy} checked={entry.skipped} onChange={(e) => {
             if (e.target.checked && entry.candidates.some((c) => c.title) && !window.confirm("跳过会清除本奖项在草稿中的候选，继续吗？")) return;
             updateEntry({ ...entry, skipped: e.target.checked, candidates: [] });
@@ -153,10 +162,10 @@ export default function CeremonyPage({ params }: { params: { id: string } }) {
               {data.mine.submitted && <AppButton variant="quiet" onClick={() => download(`我的年度提名-${data.year}.json`, JSON.stringify({ event: data.title, submittedAt: data.mine.submittedAt, awards: data.awards, entries: data.mine.submitted }, null, 2), "application/json")}>下载已提交记录</AppButton>}</div>
           </div>
         </>}
-        {tab === "published" && (data.status !== "PUBLISHED" ? <div className="py-10 text-center"><h3 className="text-lg font-semibold">把悬念留到公布时</h3><p className="mt-3 text-sm text-slate-400">组织者确认后，这里会显示入围名单。征集中的提名不会提前公开。</p></div> : <><p className="mb-4 text-sm text-slate-400">本页是正式入围名单，最终获奖待现场投票或讨论决定。</p><div className="grid gap-3 sm:grid-cols-2">{published.map((candidate, index) => <div key={index} className="rounded-xl border border-amber-200/20 bg-amber-200/5 p-5"><p className="text-xs text-amber-200">正式入围</p><h3 className="mt-2 break-words text-lg font-bold">{candidate.title}</h3>{candidate.workTitle && <p className="mt-1 break-words text-sm text-slate-400">{candidate.workTitle}</p>}</div>)}</div>{!published.length && <p className="py-8 text-center text-slate-400">本项暂未设入围</p>}</>)}
+        {tab === "published" && (data.status !== "PUBLISHED" ? <div className="py-10 text-center"><h3 className="text-lg font-semibold">正式入围尚未公布</h3><p className="mt-3 text-sm text-slate-400">填写页的群友候选用于互相提醒，正式入围名单由组织者确认后在这里公布。</p></div> : <><p className="mb-4 text-sm text-slate-400">本页是正式入围名单，最终获奖待现场投票或讨论决定。</p><div className="grid gap-3 sm:grid-cols-2">{published.map((candidate, index) => <div key={index} className="rounded-xl border border-amber-200/20 bg-amber-200/5 p-5"><p className="text-xs text-amber-200">正式入围</p><h3 className="mt-2 break-words text-lg font-bold">{candidate.title}</h3>{candidate.workTitle && <p className="mt-1 break-words text-sm text-slate-400">{candidate.workTitle}</p>}{candidate.reference && <AwardReferencePreview reference={candidate.reference} />}</div>)}</div>{!published.length && <p className="py-8 text-center text-slate-400">本项暂未设入围</p>}</>)}
         {tab === "organizer" && data.organizer && <>
           <p className="text-sm leading-6 text-slate-300">本项 {summary?.participantCount ?? 0} 人提名，{summary?.skippedCount ?? 0} 人跳过。数字代表提名人数，不是最终决选票数。</p>
-          <p className="mt-2 text-xs leading-6 text-slate-400">同名且所属作品一致的候选自动去重。简称与别名暂分开显示，请核对后选入围；每项最多 12 位，公布前可保存草案。</p>
+          <p className="mt-2 text-xs leading-6 text-slate-400">关联同一 Bangumi 条目的候选按编号去重；纯手填候选按名称与所属作品核对，别名不会盲目合并。每项最多 12 位，公布前可保存草案。</p>
           <div className="my-4 flex flex-wrap gap-2"><AppButton variant="ghost" disabled={busy} onClick={exportSummary}>导出提名与素材 CSV</AppButton>{data.status === "OPEN" && <AppButton variant="secondary" disabled={busy} onClick={() => organize("freeze")}>结束征集，整理入围</AppButton>}</div>
           <div className="space-y-3">{summary?.candidates.slice((candidatePage - 1) * 6, candidatePage * 6).map((candidate) => <div key={candidate.key} className="rounded-xl border border-white/10 p-4">
             <label className="flex min-h-11 items-center gap-3"><input type="checkbox" className="h-4 w-4 shrink-0 accent-amber-300" disabled={busy || data.status !== "FROZEN"} checked={shortlist[award.id]?.includes(candidate.key) ?? false} onChange={(e) => {
@@ -164,6 +173,7 @@ export default function CeremonyPage({ params }: { params: { id: string } }) {
               if (e.target.checked && current.length >= 12) { setError("每项最多入围 12 位候选"); return; }
               setShortlist((old) => ({ ...old, [award.id]: e.target.checked ? [...current, candidate.key] : current.filter((key) => key !== candidate.key) })); setShortlistDirty(true);
             }} /><span className="min-w-0 flex-1 break-words"><strong>{candidate.title}</strong>{candidate.workTitle && <span className="mt-1 block text-xs text-slate-400">{candidate.workTitle}</span>}</span><span className="shrink-0 text-sm text-amber-200">{candidate.count} 人提名</span></label>
+            {candidate.reference && <AwardReferencePreview reference={candidate.reference} />}
             <details className="mt-2 text-sm"><summary className="cursor-pointer py-2 text-slate-400">提名理由与播放素材</summary>{candidate.supporters.map((s, i) => <div key={i} className="mt-2 rounded-lg bg-white/5 p-3"><p className="text-xs text-slate-400">{s.name}</p><p className="mt-1 whitespace-pre-wrap break-words">{s.reason || "未填写理由"}</p>{s.mediaUrl && <a className="mt-2 inline-flex min-h-11 items-center text-amber-200 underline" target="_blank" rel="noopener noreferrer" href={s.mediaUrl}>打开素材链接 ↗</a>}</div>)}</details>
           </div>)}</div>
           {(summary?.candidates.length ?? 0) > 6 && <nav aria-label="候选翻页" className="mt-4 flex items-center justify-between gap-2"><AppButton variant="ghost" disabled={candidatePage === 1} onClick={() => setCandidatePage((p) => p - 1)}>上一页</AppButton><span className="text-xs text-slate-400">{candidatePage} / {Math.ceil((summary?.candidates.length ?? 0) / 6)}</span><AppButton variant="ghost" disabled={candidatePage * 6 >= (summary?.candidates.length ?? 0)} onClick={() => setCandidatePage((p) => p + 1)}>下一页</AppButton></nav>}
@@ -179,7 +189,8 @@ export default function CeremonyPage({ params }: { params: { id: string } }) {
 function NomineeFields({ candidate, index, update, remove }: { candidate: Nominee; index: number; update: (value: Nominee) => void; remove: () => void }) {
   return <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 sm:p-4">
     <div className="mb-2 flex items-center justify-between"><h3 className="text-sm font-semibold text-amber-100">候选 {index + 1}</h3><AppButton variant="quiet" onClick={remove} aria-label={`移除候选 ${index + 1}`}>移除</AppButton></div>
-    <div className="grid gap-3 sm:grid-cols-2"><label className="block text-sm">候选名称<input maxLength={150} className={field} placeholder="作品、角色、OP、单集或人员" value={candidate.title} onChange={(e) => update({ ...candidate, title: e.target.value })} /></label><label className="block text-sm">所属作品（选填）<input maxLength={150} className={field} placeholder="角色、歌曲或单集来自哪部动画" value={candidate.workTitle} onChange={(e) => update({ ...candidate, workTitle: e.target.value })} /></label></div>
+    <div className="grid gap-3 sm:grid-cols-2"><label className="block text-sm">候选名称<input maxLength={150} readOnly={!!candidate.reference} className={field} placeholder="作品、角色、OP、单集或人员" value={candidate.title} onChange={(e) => update({ ...candidate, title: e.target.value })} /></label><label className="block text-sm">所属作品（选填）<input maxLength={150} className={field} placeholder="角色、歌曲或单集来自哪部动画" value={candidate.workTitle} onChange={(e) => update({ ...candidate, workTitle: e.target.value })} /></label></div>
+    {candidate.reference && <div className="mt-2"><p className="text-xs text-amber-100">已关联 Bangumi 条目，同一编号会归为同一候选。</p><AwardReferencePreview key={`${candidate.reference.kind}:${candidate.reference.id}`} reference={candidate.reference} /><AppButton variant="quiet" onClick={() => { const { reference: _reference, ...manual } = candidate; update(manual); }}>解除关联，改为手填</AppButton></div>}
     <details className="mt-3 text-sm"><summary className="cursor-pointer py-2 text-slate-400">加一句理由或播放素材（选填）</summary><label className="mt-2 block">提名理由<textarea rows={2} maxLength={1000} className={field} value={candidate.reason} onChange={(e) => update({ ...candidate, reason: e.target.value })} /></label><label className="mt-3 block">OP / ED / MV / 片段链接<input type="url" maxLength={1000} className={field} placeholder="https://…" value={candidate.mediaUrl} onChange={(e) => update({ ...candidate, mediaUrl: e.target.value })} /></label><p className="mt-2 text-xs leading-5 text-slate-400">链接交给主持人准备素材；需要的播放时间点或剧透提醒可写在理由中。</p></details>
   </div>;
 }

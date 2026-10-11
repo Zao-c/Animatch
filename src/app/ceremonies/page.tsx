@@ -47,7 +47,7 @@ export default function CeremoniesPage() {
           <label className="block text-sm">提名截止时间<input required type="datetime-local" className={field} value={deadline} onChange={(e) => setDeadline(e.target.value)} /></label></div>
         <p className="text-xs text-slate-400">截止时间使用你当前设备的时区。</p>
         <label className="block text-sm">作品资格与活动说明<textarea rows={4} maxLength={1500} className={field} value={description} onChange={(e) => setDescription(e.target.value)} /></label>
-        <p className="text-sm leading-6 text-slate-400">活动通过链接邀请，不进入全站公开列表。持链接的已登录群友可以提交；正式提名和素材会交给组织者，其他群友只能看到公布后的入围名单。</p>
+        <p className="text-sm leading-6 text-slate-400">活动通过链接邀请，不进入全站公开列表。持链接的已登录群友可以提交；已提交候选的名称会共享给群友作填写提示，提名者、理由、素材和人数仅组织者可见。</p>
       </fieldset>
       <section className="min-w-0 rounded-2xl border border-white/10 bg-slate-950/30 p-5">
         <h2 className="font-bold">本届奖项 <span className="ml-2 text-sm font-normal text-amber-200">已选 {selected.length} 项</span></h2>
