@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("import preview integrity UI", () => {
-  const quickImportSource = readFileSync("src/components/QuickImportPanel.tsx", "utf8");
+  const quickImportSource = readFileSync("src/components/QuickImportPanel.tsx", "utf8").replace(/\r\n/g, "\n");
   const poolDetailSource = readFileSync("src/app/pools/[poolId]/page.tsx", "utf8");
 
   it("requires a current quick-import preview before creating a pool", () => {

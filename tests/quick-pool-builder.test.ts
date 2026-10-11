@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 function readSource(path: string): string {
-  return readFileSync(path, "utf8");
+  return readFileSync(path, "utf8").replace(/\r\n/g, "\n");
 }
 
 describe("Quick import service", () => {
@@ -20,8 +20,8 @@ describe("Quick import service", () => {
     expect(source).toContain("export async function addQuickImportToPool");
   });
 
-  it("clamps limit to MAX_LIMIT=100", () => {
-    expect(source).toContain("MAX_LIMIT = 100");
+  it("clamps limit to the shared import limit", () => {
+    expect(source).toContain("MAX_LIMIT = MAX_QUICK_IMPORT");
   });
 
   it("clampLimit enforces max 100", () => {
@@ -112,17 +112,17 @@ describe("Quick import service", () => {
     expect(source).toContain("getNextPoolAnimePosition");
     expect(source).toContain("withPoolAnimePositionTransaction");
     expect(source).toContain("nextPosition");
-    expect(source).toContain("position: nextPosition++");
+    expect(source).toContain("position: nextPosition + index");
   });
 
   it("skips already existing anime in pool", () => {
-    expect(source).toContain("existingIds.has(animeId)");
-    expect(source).toContain("skippedCount++");
+    expect(source).toContain("existingIds.has(id)");
+    expect(source).toContain("skippedCount: animeIds.length - remainingIds.length");
   });
 
   it("triggers cover prewarm on import", () => {
     expect(source).toContain("enqueuePoolAnimeCoversCache");
-    expect(source).toContain("animesToCache");
+    expect(source).toContain("result.animes");
     expect(source).toContain("getAnimeCoverUrl");
   });
 
@@ -135,8 +135,8 @@ describe("Quick import service", () => {
   it("has QUICK_IMPORT_PRESETS with 6 entries", () => {
     const presetsSource = readSource("src/lib/import/quick-import-presets.ts");
     expect(presetsSource).toContain("QUICK_IMPORT_PRESETS");
-    expect(presetsSource).toContain("2026 TV 新番 Top 50");
-    expect(presetsSource).toContain("2025 TV 新番 Top 50");
+    expect(presetsSource).toContain("2026 年新番");
+    expect(presetsSource).toContain("2025 年新番");
     expect(presetsSource).toContain("恋爱校园 Top 30");
     expect(presetsSource).toContain("异世界 Top 30");
     expect(presetsSource).toContain("热血战斗 Top 50");
@@ -222,7 +222,7 @@ describe("QuickImportPanel UI", () => {
   });
 
   it("has type selector (ALL/TV/MOVIE/OVA)", () => {
-    expect(source).toContain("type === t.key");
+    expect(source).toContain("value={type}");
   });
 
   it("has limit buttons 20/30/50/100", () => {
@@ -240,7 +240,7 @@ describe("QuickImportPanel UI", () => {
     expect(source).toContain("setSource(p.source)");
     expect(source).toContain("setMode(p.mode)");
     expect(source).toContain("setYear");
-    expect(source).toContain("setSelectedTags(p.tags)");
+    expect(source).toContain("setSelectedTags(p.tags ?? [])");
   });
 
   it("supports custom Bangumi tag input in quick import", () => {

@@ -7,7 +7,7 @@ import {
 } from "../src/lib/import/bangumi-import-source";
 
 function readSource(path: string): string {
-  return readFileSync(path, "utf8");
+  return readFileSync(path, "utf8").replace(/\r\n/g, "\n");
 }
 
 describe("Bangumi import source service", () => {
@@ -83,7 +83,7 @@ describe("Bangumi import source service", () => {
   it("filters remote Bangumi subjects by selected tags after fetch", () => {
     expect(source).toContain("subjectMatchesSelectedTag");
     expect(source).toContain("matchTagAliases");
-    expect(source).toContain("strictMatches.length > 0");
+    expect(source).toContain("const usableMatches = strictMatches");
   });
 
   it("expands app tag keys into Bangumi tag query variants", () => {
@@ -132,12 +132,12 @@ describe("Bangumi import source service", () => {
   });
 
   it("TAG remote fetch does not stop after the first selected tag fills the pool", () => {
-    expect(source).toContain("const tagsToQuery = tags.slice(0, 3)");
+    expect(source).toContain("const tagsToQuery = tags.slice(0, 5)");
     expect(source).toContain("tagsToQuery.length === 1 && allSubjectsMap.size >= fetchTarget");
   });
 
-  it("TAG filtering falls back to partial tag relevance when Bangumi tags are incomplete", () => {
-    expect(source).toContain("strictMatches.length > 0");
+  it("TAG filtering keeps only candidates matching every selected tag", () => {
+    expect(source).toContain("const usableMatches = strictMatches");
     expect(source).toContain("tagMatchScores");
     expect(source).toContain("compareTagRelevance");
   });
@@ -265,8 +265,8 @@ describe("QuickImportPanel Bangumi UI", () => {
   });
 
   it("shows accurate Bangumi remote mode hints", () => {
-    expect(source).toContain("Bangumi 源会按标签、榜单或用户收藏实时拉取");
-    expect(source).toContain("混合模式本地不足时从 Bangumi 补全");
+    expect(source).toContain("从 Bangumi 实时拉取");
+    expect(source).toContain("本地不足时从 Bangumi 补全");
   });
 
   it("defaults quick import to Bangumi and forces it for user collections", () => {
@@ -275,11 +275,11 @@ describe("QuickImportPanel Bangumi UI", () => {
   });
 
   it("shows MANAMI local-only hint", () => {
-    expect(source).toContain("Manami 仅限本地库");
+    expect(source).toContain("Manami（本地）");
   });
 
   it("has Bangumi user ID input for USER_COLLECTION mode", () => {
-    expect(source).toContain("Bangumi 用户 ID");
+    expect(source).toContain("Bangumi 用户名 / 主页链接");
     expect(source).toContain('placeholder="用户名或 https://bgm.tv/user/xxx"');
   });
 

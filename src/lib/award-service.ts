@@ -85,6 +85,17 @@ export async function freezeCeremony(id: string, userId: string, value: unknown)
     return tx.awardCeremony.update({ where: { id }, data: { status: "FROZEN", revision: { increment: 1 } }, select: { revision: true } });
   });
 }
+export async function deleteCeremony(id: string, userId: string, value: unknown) {
+  const input = objectInput(value), revision = revisionInput(input.revision);
+  return prisma.$transaction(async (tx) => {
+    const event = await lockedEvent(tx, id);
+    if (event.ownerId !== userId) throw new AppError("只有组织者可以删除活动", 403);
+    if (event.revision !== revision) throw conflict();
+    if (input.title !== event.title) throw new AppError("请输入完整活动名称以确认删除", 400);
+    await tx.awardCeremony.delete({ where: { id } });
+    return { deleted: true };
+  });
+}
 export async function saveShortlist(id: string, userId: string, value: unknown) {
   const input = objectInput(value), revision = revisionInput(input.revision);
   if (typeof input.publish !== "boolean") throw new AppError("请选择保存名单或公布入围", 400);

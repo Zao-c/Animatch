@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { AnimeCover } from "@/components/AnimeCover";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton } from "@/components/ui/AppButton";
@@ -23,7 +23,7 @@ import type { QuickImportParams } from "@/lib/import/quick-pool-builder";
 const SOURCES: { key: string; label: string }[] = [
   { key: "MIXED", label: "混合" },
   { key: "BANGUMI", label: "Bangumi" },
-  { key: "MANAMI", label: "Manami" },
+  { key: "MANAMI", label: "Manami（本地）" },
 ];
 
 const MODES: { key: string; label: string }[] = [
@@ -47,7 +47,7 @@ const SORTS: { key: string; label: string }[] = [
   { key: "title", label: "标题" },
 ];
 
-const LIMITS = [20, 30, 50, 100];
+const LIMITS = [30, 50, 100, 300, 500];
 
 const COMMON_TAGS = [
   { key: "romance", label: "恋爱" },
@@ -127,7 +127,7 @@ export function QuickImportPanel({
   const router = useRouter();
   const [source, setSource] = useState<string>("BANGUMI");
   const [mode, setMode] = useState<string>("YEAR");
-  const [year, setYear] = useState<string>("2026");
+  const [year, setYear] = useState<string>(String(new Date().getFullYear()));
   const [type, setType] = useState<string>("ALL");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [limit, setLimit] = useState<number>(50);
@@ -135,6 +135,8 @@ export function QuickImportPanel({
   const [poolName, setPoolName] = useState("");
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState<"PRIVATE" | "PUBLIC">("PRIVATE");
+  const requestVersion = useRef(0);
+  const [resultPage, setResultPage] = useState(1);
   const [preview, setPreview] = useState<QuickImportPreviewResult | null>(null);
   const [previewParams, setPreviewParams] = useState<QuickImportParams | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -150,6 +152,8 @@ export function QuickImportPanel({
   const effectiveUseRemote = remoteRequired || useRemote;
 
   function clearPreviewSelection() {
+    requestVersion.current++;
+    setResultPage(1);
     setPreview(null);
     setPreviewParams(null);
     setSelectedIds(new Set());
@@ -183,14 +187,16 @@ export function QuickImportPanel({
     setError(null);
     clearPreviewSelection();
     setIsLoading(true);
+    const version = requestVersion.current;
     try {
       const params = buildParams();
       const result = await previewQuickImport({ params, poolId, useRemote: effectiveUseRemote });
+      if (version !== requestVersion.current) return;
       setPreview(result);
       setPreviewParams(params);
       setSelectedIds(new Set(result.candidates.filter((c) => !c.alreadyInPool).map((c) => c.animeId)));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "预览失败");
+      if (version === requestVersion.current) setError(reason instanceof Error ? reason.message : "预览失败");
     } finally {
       setIsLoading(false);
     }
@@ -277,9 +283,9 @@ export function QuickImportPanel({
     const p = preset.params;
     setSource(p.source);
     setMode(p.mode);
-    if (p.year) setYear(String(p.year));
-    if (p.type) setType(p.type);
-    if (p.tags) setSelectedTags(p.tags);
+    setYear(p.year ? String(p.year) : "");
+    setType(p.type ?? "ALL");
+    setSelectedTags(p.tags ?? []);
     setCustomTagInput("");
     if (p.limit) setLimit(p.limit);
     if (p.sort) setSort(p.sort);
@@ -292,7 +298,7 @@ export function QuickImportPanel({
   return (
     <div className="space-y-5">
       <AppCard className="p-5">
-        <SectionHeader eyebrow="Quick import" title={poolId ? "批量添加作品" : "快速生成番组"} />
+        <SectionHeader eyebrow="Bangumi" title={poolId ? "从 Bangumi 批量添加" : "筛选动画"} />
 
         <div className="mt-4 flex flex-wrap gap-2">
           {QUICK_IMPORT_PRESETS.map((preset) => (
@@ -307,33 +313,10 @@ export function QuickImportPanel({
           ))}
         </div>
 
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <label className="block">
-            <span className="text-xs font-semibold text-slate-400">来源</span>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {SOURCES.map((s) => (
-                <button
-                  key={s.key}
-                  type="button"
-                  onClick={() => {
-                    clearPreviewSelection();
-                    setSource(s.key);
-                  }}
-                  disabled={mode === "USER_COLLECTION" && s.key === "MANAMI"}
-                  aria-pressed={source === s.key}
-                  className={`min-h-11 rounded-full border px-4 py-1 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-anime-cyan/40 ${
-                    source === s.key
-                      ? "border-anime-cyan/50 bg-anime-cyan/12 text-cyan-100"
-                      : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                  }`}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </label>
+        <div className="mt-4">
 
-          <label className="block">
+
+          <div className="block">
             <span className="text-xs font-semibold text-slate-400">模式</span>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {MODES.map((m) => (
@@ -343,6 +326,8 @@ export function QuickImportPanel({
                   onClick={() => {
                     clearPreviewSelection();
                     setMode(m.key);
+                    setYear(m.key === "YEAR" ? String(new Date().getFullYear()) : "");
+                    setSelectedTags([]); setCustomTagInput("");
                     if (m.key === "USER_COLLECTION") setSource("BANGUMI");
                   }}
                   aria-pressed={mode === m.key}
@@ -356,13 +341,13 @@ export function QuickImportPanel({
                 </button>
               ))}
             </div>
-          </label>
+          </div>
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          {mode === "YEAR" || mode === "TOP" ? (
+          {(
             <label className="block">
-              <span className="text-xs font-semibold text-slate-400">年份</span>
+              <span className="text-xs font-semibold text-slate-400">{mode === "YEAR" ? "播出年份" : "播出年份（可选）"}</span>
               <input
                 value={year}
                 onChange={(e) => {
@@ -370,37 +355,21 @@ export function QuickImportPanel({
                   setYear(e.target.value);
                 }}
                 className="anime-field mt-1.5"
-                placeholder="2026"
+                type="number" min={1900} max={2100}
+                placeholder="不限年份"
               />
             </label>
-          ) : null}
+          )}
 
           <label className="block">
             <span className="text-xs font-semibold text-slate-400">类型</span>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {TYPES.map((t) => (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => {
-                    clearPreviewSelection();
-                    setType(t.key);
-                  }}
-                  aria-pressed={type === t.key}
-                  className={`min-h-11 rounded-full border px-3 py-1 text-[11px] font-semibold transition focus:outline-none focus:ring-2 focus:ring-amber-300/40 ${
-                    type === t.key
-                      ? "border-amber-400/50 bg-amber-400/12 text-amber-100"
-                      : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
+            <select className="anime-field mt-1.5" value={type} onChange={(e) => { clearPreviewSelection(); setType(e.target.value); }}>
+              {TYPES.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+            </select>
           </label>
 
-          <label className="block">
-            <span className="text-xs font-semibold text-slate-400">数量</span>
+          <div className="block">
+            <span className="text-xs font-semibold text-slate-400">最多查询</span>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {LIMITS.map((l) => (
                 <button
@@ -421,12 +390,12 @@ export function QuickImportPanel({
                 </button>
               ))}
             </div>
-          </label>
+          </div>
         </div>
 
-        {mode === "TAG" || mode === "USER_COLLECTION" ? (
-          <div className="mt-3">
-            <span className="text-xs font-semibold text-slate-400">标签</span>
+        {(
+          <details key={mode} open={mode === "TAG" ? true : undefined} className="mt-3 rounded-xl border border-white/10 p-3">
+            <summary className="cursor-pointer text-sm text-slate-300">题材标签{selectedTags.length || customTagInput ? " · 已设置" : "（可选）"}</summary>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {COMMON_TAGS.map((tag) => {
                 const active = selectedTags.includes(tag.key);
@@ -458,35 +427,21 @@ export function QuickImportPanel({
                 className="anime-field mt-1.5"
                 placeholder="例如：百合、恋爱、校园，用逗号分隔"
               />
-              <span className="mt-1 block text-[10px] text-slate-600">
-                会直接访问 Bangumi 标签结果；固定标签和自定义标签会一起参与筛选。
-              </span>
             </label>
-          </div>
-        ) : null}
+          </details>
+        )}
 
-        <div className="mt-3">
-          <span className="text-xs font-semibold text-slate-400">排序</span>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {SORTS.map((s) => (
-              <button
-                key={s.key}
-                type="button"
-                onClick={() => {
-                  clearPreviewSelection();
-                  setSort(s.key);
-                }}
-                aria-pressed={sort === s.key}
-                className={`min-h-11 rounded-full border px-3 py-1 text-[11px] font-semibold transition focus:outline-none focus:ring-2 focus:ring-amber-300/40 ${
-                  sort === s.key
-                    ? "border-amber-400/50 bg-amber-400/12 text-amber-100"
-                    : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
+        <details className="mt-3 rounded-xl border border-white/10 p-3"><summary className="cursor-pointer text-sm text-slate-300">更多筛选 · 来源与排序</summary><div className="mt-3 grid gap-3 sm:grid-cols-2">          <label className="block">
+            <span className="text-xs font-semibold text-slate-400">来源</span>
+            <select className="anime-field mt-1.5" value={source} onChange={(e) => { clearPreviewSelection(); setSource(e.target.value); }}>
+              {SOURCES.map((item) => <option key={item.key} value={item.key} disabled={mode === "USER_COLLECTION" && item.key === "MANAMI"}>{item.label}</option>)}
+            </select>
+          </label>        <div className="mt-3">
+          <label className="text-xs font-semibold text-slate-400">排序
+          <select className="anime-field mt-1.5" value={sort} onChange={(e) => { clearPreviewSelection(); setSort(e.target.value); }}>
+              {SORTS.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+            </select>
+          </label>
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -505,19 +460,13 @@ export function QuickImportPanel({
               {remoteRequired ? "从 Bangumi 实时拉取" : "本地不足时从 Bangumi 补全"}
             </span>
           </label>
-          <span className="text-[10px] text-slate-600">
-            {source === "MANAMI"
-              ? "Manami 仅限本地库"
-              : source === "BANGUMI"
-                ? "Bangumi 源会按标签、榜单或用户收藏实时拉取"
-                : "混合模式本地不足时从 Bangumi 补全"}
-          </span>
         </div>
 
+</div></details>
         {mode === "USER_COLLECTION" ? (
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <label className="block">
-              <span className="text-xs font-semibold text-slate-400">Bangumi 用户 ID</span>
+              <span className="text-xs font-semibold text-slate-400">Bangumi 用户名 / 主页链接</span>
               <input
                 value={bangumiUserId}
                 onChange={(e) => {
@@ -528,7 +477,7 @@ export function QuickImportPanel({
                 placeholder="用户名或 https://bgm.tv/user/xxx"
               />
             </label>
-            <label className="block">
+            <div className="block">
               <span className="text-xs font-semibold text-slate-400">收藏类型</span>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {[
@@ -556,7 +505,7 @@ export function QuickImportPanel({
                   </button>
                 ))}
               </div>
-            </label>
+            </div>
           </div>
         ) : null}
 
@@ -600,7 +549,7 @@ export function QuickImportPanel({
           </AppButton>
           {!poolId ? (
             <AppButton type="button" onClick={handleCreatePool} disabled={!canCreate || isCreating} variant="secondary">
-              {isCreating ? "创建中..." : "创建番组"}
+              {isCreating ? "创建中..." : `创建番组（${selectedIds.size} 部）`}
             </AppButton>
           ) : (
             <AppButton type="button" onClick={handleAddToPool} disabled={!canAdd || isCreating} variant="secondary">
@@ -608,6 +557,7 @@ export function QuickImportPanel({
             </AppButton>
           )}
         </div>
+        <p className="mt-2 text-xs leading-5 text-slate-400">先预览再勾选；每次最多 500 部。收藏仅支持公开条目，筛选结果不保证覆盖全部作品。</p>
       </AppCard>
 
       {error ? <ErrorAlert message={error} /> : null}
@@ -637,13 +587,13 @@ export function QuickImportPanel({
                 <span className="text-xs text-amber-300">{preview.warnings[0]}</span>
               ) : null}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2"><AppButton variant="quiet" onClick={() => setSelectedIds(new Set())}>清空选择</AppButton>
               <button
                 type="button"
                 onClick={selectAll}
                 className="min-h-11 rounded-lg px-3 text-xs font-semibold text-slate-400 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-anime-cyan/40"
               >
-                全选
+                全选结果
               </button>
               {poolId ? (
                 <button
@@ -660,8 +610,8 @@ export function QuickImportPanel({
           {preview.candidates.length === 0 ? (
             <p className="text-sm text-slate-400">本地库没有命中，Bangumi 也没有拉到结果。可以换关键词、年份或类型试试。</p>
           ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {preview.candidates.map((candidate) => {
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {preview.candidates.slice((resultPage - 1) * 20, resultPage * 20).map((candidate) => {
                 const selected = selectedIds.has(candidate.animeId);
                 const covUrl = makeCandidateCoverUrl(candidate);
                 const candidateAnime = makeAnimeForCover(candidate);
@@ -732,6 +682,7 @@ export function QuickImportPanel({
               })}
             </div>
           )}
+          {preview.candidates.length > 20 && <nav aria-label="导入预览分页" className="mt-4 flex items-center justify-between gap-2"><AppButton variant="ghost" disabled={resultPage === 1} onClick={() => setResultPage((p) => p - 1)}>上一页</AppButton><span className="text-sm">{resultPage} / {Math.ceil(preview.candidates.length / 20)} · 已选 {selectedIds.size} 部</span><AppButton variant="ghost" disabled={resultPage * 20 >= preview.candidates.length} onClick={() => setResultPage((p) => p + 1)}>下一页</AppButton></nav>}
         </AppCard>
       ) : null}
     </div>

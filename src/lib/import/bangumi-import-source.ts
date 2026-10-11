@@ -15,6 +15,7 @@ import {
   normalizeTagKey
 } from "@/lib/anime-tag-dictionary";
 import type { QuickImportParams } from "./quick-pool-builder";
+import { MAX_QUICK_IMPORT } from "./quick-import-options";
 
 export interface RemoteFetchResult {
   attempted: boolean;
@@ -39,15 +40,15 @@ export function shouldUseRemote(params: QuickImportParams): boolean {
 
 function clampLimit(limit: number | undefined): number {
   if (limit === undefined || limit === null) return 50;
-  return Math.max(1, Math.min(limit, 100));
+  return Math.max(1, Math.min(limit, MAX_QUICK_IMPORT));
 }
 
 function remoteFetchTarget(params: QuickImportParams, limit: number): number {
   if (params.mode === "TAG" && params.tags && params.tags.length > 1) {
-    return Math.min(100, Math.max(limit, limit * (params.tags.length + 1)));
+    return Math.min(1000, Math.max(limit, limit * (params.tags.length + 1)));
   }
   if (params.type && params.type !== "ALL") {
-    return Math.min(100, Math.max(limit, limit * 3));
+    return Math.min(1000, Math.max(limit, limit * 3));
   }
   return limit;
 }
@@ -66,7 +67,7 @@ export async function fetchBangumiSubjects(
   if (params.mode === "USER_COLLECTION") {
     return fetchUserCollections(params);
   }
-  if (params.mode === "TAG" && params.tags && params.tags.length >= 1) {
+  if (params.tags && params.tags.length >= 1) {
     return fetchByTags(params);
   }
   if (params.mode === "TOP") {
@@ -83,14 +84,14 @@ async function fetchTopSubjects(
   const allSubjects: NormalizedBangumiSubject[] = [];
   let offset = 0;
   const fetchTarget = remoteFetchTarget(params, limit);
-  const maxPages = Math.ceil(Math.min(fetchTarget, 100) / 30);
+  const maxPages = Math.ceil(fetchTarget / 30);
 
   for (let page = 0; page < maxPages; page++) {
     const pageLimit = Math.min(30, fetchTarget - allSubjects.length);
     if (pageLimit <= 0) break;
 
     try {
-      const url = `${BANGUMI_BASE_URL}/subjects?type=2&sort=rank&limit=${pageLimit}&offset=${offset}`;
+      const url = `${BANGUMI_BASE_URL}/subjects?type=2&sort=rank&limit=${pageLimit}&offset=${offset}${params.year ? `&year=${params.year}` : ""}`;
       const response = await bangumiRequest(url, {
         method: "GET",
         headers: buildHeaders()
@@ -109,6 +110,7 @@ async function fetchTopSubjects(
       }
 
       if (rawItems.length < pageLimit) break;
+      if (filterAndSortCandidates(allSubjects, params).length >= limit) break;
       offset += pageLimit;
     } catch {
       break;
@@ -125,7 +127,7 @@ async function fetchBySearch(
   const allSubjects: NormalizedBangumiSubject[] = [];
   let offset = 0;
   const fetchTarget = remoteFetchTarget(params, limit);
-  const maxPages = Math.ceil(Math.min(fetchTarget, 100) / 30);
+  const maxPages = Math.ceil(fetchTarget / 30);
 
   for (let page = 0; page < maxPages; page++) {
     const pageLimit = Math.min(30, fetchTarget - allSubjects.length);
@@ -153,6 +155,7 @@ async function fetchBySearch(
       }
 
       if (rawItems.length < pageLimit) break;
+      if (filterAndSortCandidates(allSubjects, params).length >= limit) break;
       offset += pageLimit;
     } catch {
       break;
@@ -168,7 +171,7 @@ function buildSearchBody(
 ): Record<string, unknown> {
   const filter: Record<string, unknown> = { type: [2] };
 
-  if (params.year && mode === "YEAR") {
+  if (params.year) {
     filter.air_date = [`>=${params.year}-01-01`, `<=${params.year}-12-31`];
   }
 
@@ -176,7 +179,7 @@ function buildSearchBody(
     filter.tag = params.tags;
   }
 
-  const body: Record<string, unknown> = { filter };
+  const body: Record<string, unknown> = { keyword: "", filter };
 
   if (mode === "TOP") {
     body.sort = "rank";
@@ -185,7 +188,7 @@ function buildSearchBody(
   } else if (params.sort === "score") {
     body.sort = "score";
   } else if (params.sort === "year") {
-    body.sort = "date";
+    body.sort = "rank";
   } else {
     body.sort = "rank";
   }
@@ -200,14 +203,14 @@ async function fetchByTags(
   const limit = clampLimit(params.limit);
   const fetchTarget = remoteFetchTarget(params, limit);
   const allSubjectsMap = new Map<number, NormalizedBangumiSubject>();
-  const tagsToQuery = tags.slice(0, 3);
+  const tagsToQuery = tags.slice(0, 5);
 
   for (const tag of tagsToQuery) {
     for (const queryTag of getBangumiTagQueryVariants(tag).slice(0, 4)) {
       if (tagsToQuery.length === 1 && allSubjectsMap.size >= fetchTarget) break;
 
       try {
-        const url = `${BANGUMI_BASE_URL}/search/subjects?limit=30`;
+        const url = `${BANGUMI_BASE_URL}/search/subjects?limit=100`;
         const body = buildSearchBody({ ...params, tags: [queryTag], mode: "TAG" }, "TAG");
         const response = await bangumiRequest(url, {
           method: "POST",
@@ -268,7 +271,7 @@ function filterAndSortCandidates(
   let filtered = subjects;
   const tagMatchScores = new Map<number, number>();
 
-  if (params.year && params.mode !== "YEAR") {
+  if (params.year) {
     filtered = filtered.filter((s) => {
       if (!s.airDate) return false;
       return s.airDate.getUTCFullYear() === params.year;
@@ -290,9 +293,7 @@ function filterAndSortCandidates(
       };
     });
     const strictMatches = scored.filter((item) => item.matchesAll);
-    const usableMatches = strictMatches.length > 0
-      ? strictMatches
-      : scored.filter((item) => item.matchCount > 0);
+    const usableMatches = strictMatches;
 
     filtered = usableMatches.map((item) => {
       tagMatchScores.set(item.subject.bgmId, item.matchCount);
@@ -315,6 +316,8 @@ function filterAndSortCandidates(
       const yb = b.airDate?.getTime() ?? 0;
       return yb - ya;
     });
+  } else if (params.sort === "title") {
+    filtered.sort((a, b) => (a.titleCn ?? a.title).localeCompare(b.titleCn ?? b.title, "zh-CN"));
   } else if (tagMatchScores.size > 0) {
     filtered.sort(compareTagRelevance);
   }
@@ -371,13 +374,13 @@ async function fetchUserCollections(
   if (!username) return [];
 
   const limit = clampLimit(params.limit);
-  const fetchTarget = remoteFetchTarget(params, limit);
+  const fetchTarget = params.year || params.tags?.length ? 1000 : remoteFetchTarget(params, limit);
   const validTypes = ["wish", "collect", "doing", "on_hold", "dropped"];
   const type = toBangumiCollectionType(validTypes.includes(collectionType) ? collectionType : "collect");
 
   const subjects: NormalizedBangumiSubject[] = [];
   let offset = 0;
-  const maxPages = Math.ceil(Math.min(fetchTarget, 100) / 30);
+  const maxPages = Math.ceil(fetchTarget / 30);
 
   for (let page = 0; page < maxPages; page++) {
     const pageLimit = Math.min(30, fetchTarget - subjects.length);
@@ -409,6 +412,7 @@ async function fetchUserCollections(
       }
 
       if (rawItems.length < pageLimit) break;
+      if (filterAndSortCandidates(subjects, params).length >= limit) break;
       offset += pageLimit;
     } catch {
       break;
@@ -491,6 +495,7 @@ export async function upsertBangumiSubjects(
       addIfMissingEnum(updateData, existingRecord, "imageMediumUrl", subject.imageMediumUrl);
       addIfMissingEnum(updateData, existingRecord, "imageLargeUrl", subject.imageLargeUrl);
       addIfMissing(updateData, existingRecord, "airDate", subject.airDate);
+      addIfMissing(updateData, existingRecord, "year", subject.airDate?.getUTCFullYear());
       addIfMissing(updateData, existingRecord, "bangumiRank", subject.bangumiRank);
       addIfMissing(updateData, existingRecord, "bangumiScore", subject.bangumiScore);
       addIfMissing(updateData, existingRecord, "bangumiVotes", subject.bangumiVotes);

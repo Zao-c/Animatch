@@ -10,17 +10,11 @@ import { ErrorAlert } from "@/components/ui/ErrorAlert";
 import { createPool } from "@/lib/client-api";
 import { QuickImportPanel } from "@/components/QuickImportPanel";
 
-const NAME_CHIPS = ["四月新番", "2024 年度动画", "恋爱番对决", "JUMP 系作品", "我的补番清单"];
-
-const FLOW_STEPS = [
-  "创建番组",
-  "添加 4-8 部动画",
-  "开始对决",
-  "生成 Tier List"
-];
+const NAME_CHIPS = ["四月新番", `${new Date().getFullYear()} 年度动画`, "恋爱番对决", "JUMP 系作品", "我的补番清单"];
 
 export default function NewPoolPage() {
   const router = useRouter();
+  const [method, setMethod] = useState<"manual" | "bangumi">("bangumi");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState<"PRIVATE" | "UNLISTED" | "PUBLIC">("PRIVATE");
@@ -54,12 +48,18 @@ export default function NewPoolPage() {
 
   return (
     <PageShell>
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <section className="mx-auto max-w-6xl space-y-5">
+        <header><h1 className="text-3xl font-black">创建番组</h1><p className="mt-2 text-sm text-slate-400">从 Bangumi 批量选番，或创建空番组后自行添加。</p></header>
+        <nav aria-label="创建方式" className="flex gap-2 rounded-2xl border border-white/10 p-2">
+          <AppButton variant={method === "bangumi" ? "secondary" : "quiet"} aria-pressed={method === "bangumi"} onClick={() => setMethod("bangumi")}>Bangumi 批量导入</AppButton>
+          <AppButton variant={method === "manual" ? "secondary" : "quiet"} aria-pressed={method === "manual"} onClick={() => setMethod("manual")}>手动创建</AppButton>
+        </nav>
+        <div hidden={method !== "manual"}>
         <AppCard variant="focus" className="p-5 sm:p-7">
-          <AppBadge tone="source">Onboarding</AppBadge>
-          <h1 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-4xl">
-            创建你的动画池
-          </h1>
+          <AppBadge tone="source">手动创建</AppBadge>
+          <h2 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-4xl">
+            先起一个名字
+          </h2>
           <p className="mt-3 text-sm leading-6 text-slate-400">
             先给这场对决起个名字，下一步再添加动画。
           </p>
@@ -127,29 +127,8 @@ export default function NewPoolPage() {
           </form>
         </AppCard>
 
-        <QuickImportPanel />
-
-        <aside className="rounded-3xl border border-white/10 bg-slate-950/24 p-5 sm:p-6">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-black text-white">下一步会发生什么</h2>
-            <AppBadge tone="tier">Flow</AppBadge>
-          </div>
-          <div className="mt-5 space-y-3">
-            {FLOW_STEPS.map((step, index) => (
-              <div key={step} className="flex gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-anime-purple/25 bg-anime-purple/10 text-xs font-black text-purple-100">
-                  {index + 1}
-                </span>
-                <div className="min-w-0 py-1.5">
-                  <p className="text-sm font-semibold text-white">{step}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="mt-6 text-xs leading-5 text-slate-400">
-            添加动画后开始对决，生成你的个人 Tier List。
-          </p>
-        </aside>
+        </div>
+        <div hidden={method !== "bangumi"}><QuickImportPanel /></div>
       </section>
     </PageShell>
   );

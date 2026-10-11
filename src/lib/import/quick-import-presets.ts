@@ -2,12 +2,12 @@ import type { QuickImportParams } from "./quick-pool-builder";
 
 export const QUICK_IMPORT_PRESETS: { label: string; params: QuickImportParams }[] = [
   {
-    label: "2026 TV 新番 Top 50",
-    params: { source: "MIXED", mode: "YEAR", year: 2026, type: "TV", limit: 50, sort: "rank" },
+    label: "2026 年新番",
+    params: { source: "BANGUMI", mode: "YEAR", year: 2026, type: "TV", limit: 500, sort: "rank" },
   },
   {
-    label: "2025 TV 新番 Top 50",
-    params: { source: "MIXED", mode: "YEAR", year: 2025, type: "TV", limit: 50, sort: "rank" },
+    label: "2025 年新番",
+    params: { source: "BANGUMI", mode: "YEAR", year: 2025, type: "TV", limit: 500, sort: "rank" },
   },
   {
     label: "恋爱校园 Top 30",

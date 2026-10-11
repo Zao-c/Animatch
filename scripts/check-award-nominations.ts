@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { prisma } from "../src/lib/db";
 import { AWARD_TEMPLATE, nomineeKey } from "../src/lib/award-nominations";
-import { createCeremony, freezeCeremony, getCeremony, listCeremonies, saveNomination, saveShortlist } from "../src/lib/award-service";
+import { createCeremony, deleteCeremony, freezeCeremony, getCeremony, listCeremonies, saveNomination, saveShortlist } from "../src/lib/award-service";
 
 async function main() {
   assert.match(new URL(process.env.DATABASE_URL ?? "").pathname, /^\/animatch_award_check_[a-z0-9_]+$/, "Requires disposable test database");
@@ -66,6 +66,17 @@ async function main() {
   const suggestion = (await getCeremony(linkedEvent.id, outsider.id)).suggestions[0].candidates[0];
   assert.equal(suggestion.key, "bgm:subject:12345");
   assert.equal(Object.keys(suggestion).sort().join(","), "key,reference,title,workTitle");
-  console.log(JSON.stringify({ ok: true, checks: ["draft privacy", "submission snapshot", "optimistic conflict", "concurrent submit", "ownership", "freeze", "deadline", "shortlist secrecy", "published projection", "no winner inferred"] }));
+  await assert.rejects(deleteCeremony(event.id, bob.id, { revision: 3, title: published.title }), { statusCode: 403 });
+  await assert.rejects(deleteCeremony(event.id, host.id, { revision: 2, title: published.title }), { statusCode: 409 });
+  await assert.rejects(deleteCeremony(event.id, host.id, { revision: 3, title: "wrong title" }), { statusCode: 400 });
+  await deleteCeremony(event.id, host.id, { revision: 3, title: published.title });
+  await assert.rejects(getCeremony(event.id, host.id), { statusCode: 404 });
+  assert.equal(await prisma.awardBallot.count({ where: { ceremonyId: event.id } }), 0);
+  assert.ok(await prisma.awardCeremony.findUnique({ where: { id: linkedEvent.id } }), "other ceremonies stay intact");
+  const deletionRace = await createCeremony(host.id, { title: "删除并发验证", year: 2026, deadline: new Date(Date.now() + 86400000).toISOString(), awardIds: [AWARD_TEMPLATE[0].id] });
+  const deleting = await Promise.allSettled([saveNomination(deletionRace.id, alice.id, { action: "submit", revision: 0, entries }), deleteCeremony(deletionRace.id, host.id, { revision: 0, title: "删除并发验证" })]);
+  assert.equal(deleting[1].status, "fulfilled");
+  assert.equal(await prisma.awardBallot.count({ where: { ceremonyId: deletionRace.id } }), 0);
+  console.log(JSON.stringify({ ok: true, checks: ["draft privacy", "submission snapshot", "optimistic conflict", "concurrent submit", "ownership", "freeze", "deadline", "shortlist secrecy", "published projection", "no winner inferred", "owner-only deletion", "confirmation and revision", "cascade and concurrent deletion"] }));
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => prisma.$disconnect());

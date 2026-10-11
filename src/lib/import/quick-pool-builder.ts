@@ -6,6 +6,7 @@ import { enqueuePoolAnimeCoversCache } from "@/lib/server/pool-cover-cache";
 import { GLOBAL_SEARCH_EXCLUDED_SOURCES } from "@/lib/anime-service";
 import type { Anime } from "@prisma/client";
 import type { NormalizedBangumiSubject } from "@/lib/bangumi";
+import { MAX_QUICK_IMPORT, validateQuickImportParams } from "./quick-import-options";
 import {
   fetchBangumiSubjects,
   shouldUseRemote,
@@ -75,7 +76,7 @@ export interface QuickImportAddResult {
   addedItems: { animeId: string; title: string }[];
 }
 
-const MAX_LIMIT = 100;
+const MAX_LIMIT = MAX_QUICK_IMPORT;
 
 type QuickImportCreateParams = QuickImportParams & {
   poolName: string;
@@ -138,6 +139,9 @@ export async function previewQuickImport(
     deletedAt: null,
   };
   const andConditions: Prisma.AnimeWhereInput[] = [];
+  if (params.year) where.year = params.year;
+  if (params.type && params.type !== "ALL") where.animeType = params.type.toUpperCase();
+  if (params.mode !== "TAG" && params.tags?.length) andConditions.push(...params.tags.map((tag) => ({ tags: { has: tag } })));
 
   if (params.mode === "YEAR") {
     if (!params.year) {
@@ -309,53 +313,20 @@ async function addAnimeToPoolBatch(
   poolId: string,
   animeIds: string[]
 ): Promise<{ addedCount: number; skippedCount: number; failedCount: number }> {
-  let addedCount = 0;
-  let skippedCount = 0;
-  let failedCount = 0;
-
-  const animesToCache: Anime[] = [];
-
-  await withPoolAnimePositionTransaction(async (tx) => {
-    const existingEntries = await tx.poolAnime.findMany({
-      where: { poolId, animeId: { in: animeIds } },
-      select: { animeId: true },
-    });
-    const existingIds = new Set(existingEntries.map((e) => e.animeId));
-    let nextPosition = await getNextPoolAnimePosition(tx, poolId);
-
-    for (const animeId of animeIds) {
-      if (existingIds.has(animeId)) {
-        skippedCount++;
-        continue;
-      }
-
-      try {
-        const anime = await tx.anime.findUnique({ where: { id: animeId } });
-        if (!anime) {
-          failedCount++;
-          continue;
-        }
-
-        await tx.poolAnime.create({
-          data: {
-            poolId,
-            animeId,
-            position: nextPosition++,
-          },
-        });
-
-        animesToCache.push(anime);
-
-        addedCount++;
-      } catch {
-        failedCount++;
-      }
-    }
+  const uniqueIds = [...new Set(animeIds)];
+  const result = await withPoolAnimePositionTransaction(async (tx) => {
+    const existingEntries = await tx.poolAnime.findMany({ where: { poolId, animeId: { in: uniqueIds } }, select: { animeId: true } });
+    const existingIds = new Set(existingEntries.map((entry) => entry.animeId));
+    const remainingIds = uniqueIds.filter((id) => !existingIds.has(id));
+    const available = await tx.anime.findMany({ where: { id: { in: remainingIds }, deletedAt: null } });
+    const byId = new Map(available.map((anime) => [anime.id, anime]));
+    const animes = remainingIds.flatMap((id) => { const anime = byId.get(id); return anime ? [anime] : []; });
+    const nextPosition = await getNextPoolAnimePosition(tx, poolId);
+    if (animes.length) await tx.poolAnime.createMany({ data: animes.map((anime, index) => ({ poolId, animeId: anime.id, position: nextPosition + index })) });
+    return { animes, addedCount: animes.length, skippedCount: animeIds.length - remainingIds.length, failedCount: remainingIds.length - animes.length };
   });
-
-  enqueuePoolAnimeCoversCache(animesToCache, { proxyLimit: 60, proxyConcurrency: 5 });
-
-  return { addedCount, skippedCount, failedCount };
+  enqueuePoolAnimeCoversCache(result.animes, { proxyLimit: 60, proxyConcurrency: 5 });
+  return { addedCount: result.addedCount, skippedCount: result.skippedCount, failedCount: result.failedCount };
 }
 
 async function getAddedTitles(
@@ -422,6 +393,7 @@ export async function previewQuickImportWithRemoteFallback(
   poolAnimeIds?: Set<string>,
   useRemote = true
 ): Promise<QuickImportPreviewResult> {
+  validateQuickImportParams(params);
   const warnings: string[] = [];
   const limit = clampLimit(params.limit);
 
@@ -485,6 +457,7 @@ export async function previewQuickImportWithRemoteFallback(
       }
 
       const refreshedResult = await previewBangumiSubjects(params, subjects, poolAnimeIds);
+      if (subjects.length >= limit) warnings.push(`已达到本次 ${limit} 部的查询上限，可增加数量或缩小筛选范围。`);
       return {
         ...refreshedResult,
         warnings: [...warnings, ...refreshedResult.warnings],
