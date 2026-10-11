@@ -85,10 +85,10 @@ async function fetchTopSubjects(
   const allSubjects: NormalizedBangumiSubject[] = [];
   let offset = 0;
   const fetchTarget = remoteFetchTarget(params, limit);
-  const maxPages = Math.ceil(fetchTarget / 30);
+  const maxPages = Math.ceil(fetchTarget / 20);
 
   for (let page = 0; page < maxPages; page++) {
-    const pageLimit = Math.min(30, fetchTarget - allSubjects.length);
+    const pageLimit = Math.min(20, fetchTarget - allSubjects.length);
     if (pageLimit <= 0) break;
 
     try {
@@ -129,10 +129,10 @@ async function fetchBySearch(
   const allSubjects: NormalizedBangumiSubject[] = [];
   let offset = 0;
   const fetchTarget = remoteFetchTarget(params, limit);
-  const maxPages = Math.ceil(fetchTarget / 30);
+  const maxPages = Math.ceil(fetchTarget / 20);
 
   for (let page = 0; page < maxPages; page++) {
-    const pageLimit = Math.min(30, fetchTarget - allSubjects.length);
+    const pageLimit = Math.min(20, fetchTarget - allSubjects.length);
     if (pageLimit <= 0) break;
 
     const body = buildSearchBody(params, params.mode);
@@ -209,39 +209,33 @@ async function fetchByTags(
   const allSubjectsMap = new Map<number, NormalizedBangumiSubject>();
   const tagsToQuery = tags.slice(0, 5);
 
+  let requests = 0;
   for (const tag of tagsToQuery) {
     for (const queryTag of getBangumiTagQueryVariants(tag).slice(0, 4)) {
       if (tagsToQuery.length === 1 && allSubjectsMap.size >= fetchTarget) break;
-
-      try {
-        const url = `${BANGUMI_BASE_URL}/search/subjects?limit=100`;
-        const body = buildSearchBody({ ...params, tags: [queryTag], mode: "TAG" }, "TAG");
-        const response = await bangumiRequest(url, {
-          method: "POST",
-          headers: buildHeaders({ "Content-Type": "application/json" }),
-          body: JSON.stringify(body)
-        });
-
-        if (!response.ok) continue;
-
-        const payload = await response.json<{ data?: unknown[] }>();
-        const rawItems = Array.isArray(payload.data) ? payload.data : [];
-        for (const item of rawItems) {
-          try {
-            const subj = withQueryMatchedTags(
-              normalizeBangumiSubject(item),
-              tag,
-              queryTag
-            );
-            if (!allSubjectsMap.has(subj.bgmId)) {
-              allSubjectsMap.set(subj.bgmId, subj);
-            }
-          } catch {
-            continue;
+      for (let offset = 0; offset < fetchTarget && requests < 50; offset += 20) {
+        requests++;
+        try {
+          const url = `${BANGUMI_BASE_URL}/search/subjects?limit=20&offset=${offset}`;
+          const body = buildSearchBody({ ...params, tags: [queryTag], mode: "TAG" }, "TAG");
+          const response = await bangumiRequest(url, { method: "POST", headers: buildHeaders({ "Content-Type": "application/json" }), body: JSON.stringify(body) });
+          if (!response.ok) break;
+          const payload = await response.json<{ data?: unknown[] }>();
+          const rawItems = Array.isArray(payload.data) ? payload.data : [];
+          for (const item of rawItems) {
+            try {
+              const subj = withQueryMatchedTags(normalizeBangumiSubject(item), tag, queryTag);
+              if (!allSubjectsMap.has(subj.bgmId)) allSubjectsMap.set(subj.bgmId, subj);
+              else {
+                const existing = allSubjectsMap.get(subj.bgmId)!;
+                allSubjectsMap.set(subj.bgmId, { ...existing, tags: [...new Set([...existing.tags, ...subj.tags])] });
+              }
+            } catch { continue; }
           }
-        }
-      } catch {
-        continue;
+          const filtered = filterAndSortCandidates(Array.from(allSubjectsMap.values()), params);
+          if (filtered.length >= limit) return filtered;
+          if (rawItems.length < 20) break;
+        } catch { break; }
       }
     }
   }
@@ -384,10 +378,10 @@ async function fetchUserCollections(
 
   const subjects: NormalizedBangumiSubject[] = [];
   let offset = 0;
-  const maxPages = Math.ceil(fetchTarget / 30);
+  const maxPages = Math.ceil(fetchTarget / 20);
 
   for (let page = 0; page < maxPages; page++) {
-    const pageLimit = Math.min(30, fetchTarget - subjects.length);
+    const pageLimit = Math.min(20, fetchTarget - subjects.length);
     if (pageLimit <= 0) break;
 
     try {

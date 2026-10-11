@@ -15,7 +15,7 @@ describe("batch import filter behavior", () => {
   });
   it("fetches beyond 100 entries for an annual batch and sends a valid empty keyword", async () => {
     vi.mocked(bangumiRequest).mockImplementation(async (url) => {
-      const u = new URL(String(url)), offset = Number(u.searchParams.get("offset")), limit = Number(u.searchParams.get("limit"));
+      const u = new URL(String(url)), offset = Number(u.searchParams.get("offset")), limit = Math.min(20, Number(u.searchParams.get("limit")));
       return response({ data: Array.from({ length: Math.min(limit, Math.max(0, 125 - offset)) }, (_, i) => subject(offset + i + 1)) });
     });
     const result = await fetchBangumiSubjects({ source: "BANGUMI", mode: "YEAR", year: 2026, limit: 500 });
