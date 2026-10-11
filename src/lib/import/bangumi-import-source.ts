@@ -6,6 +6,7 @@ import {
   BANGUMI_BASE_URL,
   bangumiRequest,
   buildHeaders,
+  getBangumiSubject,
   normalizeBangumiSubject,
   type NormalizedBangumiSubject,
 } from "@/lib/bangumi";
@@ -91,7 +92,8 @@ async function fetchTopSubjects(
     if (pageLimit <= 0) break;
 
     try {
-      const url = `${BANGUMI_BASE_URL}/subjects?type=2&sort=rank&limit=${pageLimit}&offset=${offset}${params.year ? `&year=${params.year}` : ""}`;
+      const category = ({ TV: 1, OVA: 2, MOVIE: 3, WEB: 5 } as Record<string, number>)[params.type ?? ""];
+      const url = `${BANGUMI_BASE_URL}/subjects?type=2&sort=rank&limit=${pageLimit}&offset=${offset}${params.year ? `&year=${params.year}` : ""}${category ? `&cat=${category}` : ""}`;
       const response = await bangumiRequest(url, {
         method: "GET",
         headers: buildHeaders()
@@ -174,6 +176,8 @@ function buildSearchBody(
   if (params.year) {
     filter.air_date = [`>=${params.year}-01-01`, `<=${params.year}-12-31`];
   }
+  const platformTag = ({ TV: "TV", MOVIE: "剧场版", OVA: "OVA", WEB: "WEB" } as Record<string, string>)[params.type ?? ""];
+  if (platformTag) filter.meta_tags = [platformTag];
 
   if (mode === "TAG" && params.tags && params.tags.length === 1) {
     filter.tag = params.tags;
@@ -400,15 +404,22 @@ async function fetchUserCollections(
       }>();
       const rawItems = Array.isArray(payload.data) ? payload.data : [];
 
-      for (const item of rawItems) {
-        const subject = isRecord(item) ? item.subject : null;
-        if (subject) {
+      for (let i = 0; i < rawItems.length; i += 4) {
+        const batch = await Promise.all(rawItems.slice(i, i + 4).map(async (item) => {
+          const raw = isRecord(item) && isRecord(item.subject) ? item.subject : null;
+          if (!raw) return null;
           try {
-            subjects.push(normalizeBangumiSubject(subject));
-          } catch {
-            continue;
-          }
-        }
+            let subject = normalizeBangumiSubject({ ...raw, summary: raw.summary ?? raw.short_summary, rating: raw.rating ?? { score: raw.score, rank: raw.rank } });
+            // The collection API returns SlimSubject, which omits the platform.
+            // Fetch full metadata only when needed to verify an active filter.
+            if ((!params.year || subject.airDate?.getUTCFullYear() === params.year) &&
+                ((params.type && params.type !== "ALL" && !subject.animeType) || params.tags?.some((tag) => !subjectMatchesSelectedTag(subject, tag)))) {
+              subject = await collectionSubjectDetail(subject.bgmId);
+            }
+            return subject;
+          } catch { return null; }
+        }));
+        subjects.push(...batch.filter((s): s is NormalizedBangumiSubject => s !== null));
       }
 
       if (rawItems.length < pageLimit) break;
@@ -420,6 +431,16 @@ async function fetchUserCollections(
   }
 
   return filterAndSortCandidates(subjects, params);
+}
+
+const collectionDetails = new Map<number, { expires: number; value: NormalizedBangumiSubject }>();
+async function collectionSubjectDetail(id: number): Promise<NormalizedBangumiSubject> {
+  const cached = collectionDetails.get(id);
+  if (cached && cached.expires > Date.now()) return cached.value;
+  const value = await getBangumiSubject(id);
+  collectionDetails.set(id, { expires: Date.now() + 600_000, value });
+  if (collectionDetails.size > 1000) collectionDetails.delete(collectionDetails.keys().next().value!);
+  return value;
 }
 
 export function normalizeBangumiCollectionUserId(input: string | null | undefined): string | null {

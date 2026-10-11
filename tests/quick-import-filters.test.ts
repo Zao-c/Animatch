@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { bangumiRequest } from "../src/lib/bangumi";
+import { bangumiRequest, getBangumiSubject, normalizeBangumiSubject } from "../src/lib/bangumi";
 import { fetchBangumiSubjects } from "../src/lib/import/bangumi-import-source";
 import { validateQuickImportParams } from "../src/lib/import/quick-import-options";
-vi.mock("../src/lib/bangumi", async (original) => ({ ...await original<object>(), bangumiRequest: vi.fn() }));
+vi.mock("../src/lib/bangumi", async (original) => ({ ...await original<object>(), bangumiRequest: vi.fn(), getBangumiSubject: vi.fn() }));
 const response = (data: unknown) => ({ ok: true, statusCode: 200, json: async <T>() => data as T, text: async () => JSON.stringify(data) });
 const subject = (id: number, year = 2026, platform = "TV") => ({ id, name: `Anime ${id}`, date: `${year}-04-01`, platform, tags: [{ name: "恋爱" }], rating: { rank: id } });
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => { vi.clearAllMocks(); vi.mocked(getBangumiSubject).mockRejectedValue(new Error("unavailable")); });
 describe("batch import filter behavior", () => {
   it("validates bounds and requires visible inputs", () => {
     expect(() => validateQuickImportParams({ source: "BANGUMI", mode: "YEAR" })).toThrow("播出年份");
@@ -33,7 +33,7 @@ describe("batch import filter behavior", () => {
     const items = await fetchBangumiSubjects({ source: "BANGUMI", mode: "YEAR", year: 2026, tags: ["恋爱"], type: "TV" });
     expect(items.map((s) => s.bgmId)).toEqual([1]);
     const body = JSON.parse(String(vi.mocked(bangumiRequest).mock.calls[0][1]?.body));
-    expect(body.filter).toMatchObject({ tag: ["恋爱"], air_date: [">=2026-01-01", "<=2026-12-31"] });
+    expect(body.filter).toMatchObject({ tag: ["恋爱"], meta_tags: ["TV"], air_date: [">=2026-01-01", "<=2026-12-31"] });
   });
   it("continues through old collection entries to find the requested year", async () => {
     vi.mocked(bangumiRequest).mockImplementation(async (url) => {
@@ -46,5 +46,13 @@ describe("batch import filter behavior", () => {
   it("never silently returns partial matches for combined collection tags", async () => {
     vi.mocked(bangumiRequest).mockResolvedValue(response({ data: [{ subject: subject(1) }] }));
     expect(await fetchBangumiSubjects({ source: "BANGUMI", mode: "USER_COLLECTION", bangumiUserId: "friend", tags: ["恋爱", "科幻"] })).toEqual([]);
+  });
+  it("resolves the platform omitted by real SlimSubject collection entries", async () => {
+    vi.mocked(getBangumiSubject).mockResolvedValue(normalizeBangumiSubject(subject(99091)));
+    vi.mocked(bangumiRequest).mockImplementation(async (url) => String(url).includes("/users/")
+      ? response({ data: [{ subject: { id: 99091, name: "Collected", date: "2026-04-01", score: 8, tags: [] } }] })
+      : response(subject(99091)));
+    const items = await fetchBangumiSubjects({ source: "BANGUMI", mode: "USER_COLLECTION", bangumiUserId: "friend", type: "TV" });
+    expect(items.map((s) => s.bgmId)).toEqual([99091]);
   });
 });

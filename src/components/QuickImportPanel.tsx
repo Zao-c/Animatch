@@ -327,6 +327,7 @@ export function QuickImportPanel({
                     clearPreviewSelection();
                     setMode(m.key);
                     setYear(m.key === "YEAR" ? String(new Date().getFullYear()) : "");
+                    setType("ALL");
                     setSelectedTags([]); setCustomTagInput("");
                     if (m.key === "USER_COLLECTION") setSource("BANGUMI");
                   }}
