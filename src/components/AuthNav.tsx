@@ -55,6 +55,7 @@ export function AuthNav() {
       >
         {user.name ?? user.username}
       </Link>
+      <Link href="/account/security" className="inline-flex min-h-11 items-center text-xs text-slate-300">账号安全</Link>
       <button
         type="button"
         onClick={handleLogout}

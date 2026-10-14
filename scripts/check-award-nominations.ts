@@ -42,7 +42,7 @@ async function main() {
   assert.deepEqual((await getCeremony(event.id, bob.id)).published, [], "shortlist drafts are private");
   await saveShortlist(event.id, host.id, { revision: 2, publish: true, shortlist: { [AWARD_TEMPLATE[0].id]: [nomineeKey(candidate)] } });
   const published = await getCeremony(event.id, outsider.id);
-  assert.deepEqual(published.published[0].candidates, [{ title: candidate.title, workTitle: "" }]);
+  assert.deepEqual(published.published[0].candidates, [{ key: nomineeKey(candidate), title: candidate.title, workTitle: "" }]);
   assert.ok(!JSON.stringify(published).includes(candidate.reason));
   await assert.rejects(saveShortlist(event.id, host.id, { revision: 3, publish: true, shortlist: {} }), { statusCode: 409 });
   const expired = await createCeremony(host.id, { title: "截止验证", year: 2026, deadline: new Date(Date.now() + 86400000).toISOString(), awardIds: [AWARD_TEMPLATE[0].id] });

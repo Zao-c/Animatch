@@ -11,6 +11,7 @@ import {
   signSession,
   verifySession
 } from "../src/lib/auth-session";
+import { hashPassword } from "../src/lib/password";
 import { prisma } from "../src/lib/db";
 import { resetFriendLoginRateLimitForTests } from "../src/lib/friend-login-rate-limit";
 
@@ -28,7 +29,8 @@ const mockedUser = vi.mocked(prisma.user);
 
 describe("friend auth", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    mockedUser.findUnique.mockResolvedValue(null);
     vi.unstubAllEnvs();
     process.env.FRIEND_INVITE_CODE = "33989";
     process.env.AUTH_SECRET = "test-secret";
@@ -53,7 +55,8 @@ describe("friend auth", () => {
 
     const user = await loginWithFriendCode({
       username: "Akira",
-      inviteCode: "33989"
+      inviteCode: "33989",
+      password: "personal-password"
     });
 
     expect(user).toMatchObject({
@@ -64,30 +67,26 @@ describe("friend auth", () => {
       expect.objectContaining({
         data: {
           username: "akira",
-          name: "akira"
+          name: "akira",
+          authVersion: 1,
+          passwordHash: expect.stringMatching(/^scrypt:/)
         }
       })
     );
   });
 
-  it("reuses an existing username", async () => {
-    mockedUser.findUnique.mockResolvedValue({
-      id: "user-1",
-      username: "akira",
-      name: "akira",
-      image: null,
-      deletedAt: null
-    } as any);
-
-    const user = await loginWithFriendCode({
-      username: "akira",
-      inviteCode: "33989"
-    });
-
-    expect(user.id).toBe("user-1");
+  it("does not let a shared invite code claim an existing legacy username", async () => {
+    mockedUser.findUnique.mockResolvedValue({ id: "user-1", username: "akira", deletedAt: null, passwordHash: null } as any);
+    await expect(loginWithFriendCode({ username: "akira", inviteCode: "33989", password: "personal-password" })).rejects.toMatchObject({ statusCode: 403 });
     expect(mockedUser.create).not.toHaveBeenCalled();
   });
-
+  it("requires an existing account's personal password, not the shared invite", async () => {
+    const account = { id: "user-1", username: "akira", deletedAt: null, authVersion: 2, passwordHash: await hashPassword("personal-password") };
+    mockedUser.findUnique.mockResolvedValue(account as any);
+    mockedUser.findFirst.mockResolvedValue(account as any);
+    await expect(loginWithFriendCode({ username: "akira", inviteCode: "33989", password: "wrong" })).rejects.toMatchObject({ statusCode: 401 });
+    expect((await loginWithFriendCode({ username: "akira", inviteCode: "", password: "personal-password" })).id).toBe("user-1");
+  });
   it("rejects an invalid invite code", async () => {
     await expect(
       loginWithFriendCode({
@@ -103,7 +102,8 @@ describe("friend auth", () => {
     await expect(
       loginWithFriendCode({
         username: "a",
-        inviteCode: "33989"
+        inviteCode: "33989",
+      password: "personal-password"
       })
     ).rejects.toMatchObject({
       statusCode: 400
@@ -126,20 +126,15 @@ describe("friend auth", () => {
   });
 
   it("sets an httpOnly session cookie on login", async () => {
-    mockedUser.findUnique.mockResolvedValue({
-      id: "user-1",
-      username: "akira",
-      name: "akira",
-      image: null,
-      deletedAt: null
-    } as any);
-
+    mockedUser.findUnique.mockResolvedValue(null);
+    mockedUser.create.mockResolvedValue({ id: "user-1", username: "akira", authVersion: 1 } as any);
     const response = await FRIEND_LOGIN(
       new Request("http://test.local/api/auth/friend-login", {
         method: "POST",
         body: JSON.stringify({
           username: "akira",
-          inviteCode: "33989"
+          inviteCode: "33989",
+      password: "personal-password"
         })
       })
     );
@@ -171,13 +166,8 @@ describe("friend auth", () => {
       expect(response.status).toBe(401);
     }
 
-    mockedUser.findUnique.mockResolvedValue({
-      id: "user-1",
-      username: "akira",
-      name: "akira",
-      image: null,
-      deletedAt: null
-    } as any);
+    mockedUser.findUnique.mockResolvedValue(null);
+    mockedUser.create.mockResolvedValue({ id: "user-1", username: "akira", authVersion: 1 } as any);
 
     const successResponse = await FRIEND_LOGIN(friendLoginRequest("192.0.2.11", "akira", "33989"));
     expect(successResponse.status).toBe(200);
@@ -283,7 +273,8 @@ function friendLoginRequest(ip: string, username: string, inviteCode: string) {
     },
     body: JSON.stringify({
       username,
-      inviteCode
+      inviteCode,
+      password: "personal-password"
     })
   });
 }

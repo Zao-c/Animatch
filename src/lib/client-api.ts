@@ -695,7 +695,7 @@ export function getMe() {
   return fetchJson<{ user: AuthUser | null }>("/api/auth/me");
 }
 
-export function friendLogin(data: { username: string; inviteCode: string }) {
+export function friendLogin(data: { username: string; inviteCode: string; password: string; recoveryCode?: string }) {
   return fetchJson<{ user: AuthUser }>("/api/auth/friend-login", {
     method: "POST",
     body: data

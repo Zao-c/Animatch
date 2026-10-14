@@ -89,6 +89,10 @@ model User {
   name                 String?
   image                String?
   username             String?                @unique
+  passwordHash         String?
+  recoveryHash         String?
+  recoveryExpiresAt    DateTime?
+  authVersion          Int                    @default(0)
   profileVisibility    Visibility             @default(PUBLIC)
   allowTasteMatching   Boolean                @default(false)
   tasteProfilePublic   Boolean                @default(false)
@@ -96,6 +100,8 @@ model User {
   manualTierBoards     ManualTierBoard[]
   awardCeremonies       AwardCeremony[]
   awardBallots         AwardBallot[]
+  awardMembers         AwardMember[]
+  awardFinalVotes      AwardFinalVote[]
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
   deletedAt            DateTime?
@@ -127,6 +133,16 @@ model AwardCeremony {
   revision    Int      @default(0)
   awards      Json
   shortlist   Json     @default("{}")
+  publishedSnapshot Json?
+  nominationMode String @default("ASSISTED")
+  accessMode String @default("LINK")
+  eligibility Json @default("{}")
+  merges Json @default("[]")
+  rounds AwardRound[]
+  decisions AwardDecision[]
+  members AwardMember[]
+  stage AwardStage?
+  events AwardEventLog[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   ballots     AwardBallot[]
@@ -148,6 +164,78 @@ model AwardBallot {
 
   @@unique([ceremonyId, userId])
   @@index([userId])
+}
+
+model AwardMember {
+  ceremonyId String
+  userId String
+  status String @default("PENDING")
+  ceremony AwardCeremony @relation(fields: [ceremonyId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@id([ceremonyId, userId])
+  @@index([userId])
+}
+
+model AwardStage {
+  ceremonyId String @id
+  ceremony AwardCeremony @relation(fields: [ceremonyId], references: [id], onDelete: Cascade)
+  awardId String?
+  scene String @default("WAITING")
+  updatedAt DateTime @updatedAt
+}
+
+model AwardRound {
+  id String @id @default(cuid())
+  ceremonyId String
+  ceremony AwardCeremony @relation(fields: [ceremonyId], references: [id], onDelete: Cascade)
+  awardId String
+  number Int
+  status String @default("OPEN")
+  candidates Json
+  tally Json?
+  openedAt DateTime @default(now())
+  closedAt DateTime?
+  votes AwardFinalVote[]
+  @@unique([ceremonyId, awardId, number])
+  @@index([ceremonyId, status])
+}
+
+model AwardFinalVote {
+  roundId String
+  userId String
+  round AwardRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  candidateKey String?
+  revision Int @default(1)
+  updatedAt DateTime @updatedAt
+  @@id([roundId, userId])
+  @@index([userId])
+}
+
+model AwardDecision {
+  id String @id @default(cuid())
+  ceremonyId String
+  ceremony AwardCeremony @relation(fields: [ceremonyId], references: [id], onDelete: Cascade)
+  awardId String
+  method String
+  winners Json
+  roundId String?
+  reason String @default("")
+  confirmedAt DateTime @default(now())
+  revealedAt DateTime?
+  @@unique([ceremonyId, awardId])
+}
+
+model AwardEventLog {
+  id String @id @default(cuid())
+  ceremonyId String
+  ceremony AwardCeremony @relation(fields: [ceremonyId], references: [id], onDelete: Cascade)
+  actorId String
+  action String
+  detail Json
+  createdAt DateTime @default(now())
+  @@index([ceremonyId, createdAt])
 }
 
 model Anime {

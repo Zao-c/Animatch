@@ -7,8 +7,8 @@ import { featureRequest } from "@/lib/feature-api";
 import type { ReferenceCard, ReferenceDetail } from "@/lib/award-reference-types";
 
 const field = "min-h-11 w-full min-w-0 rounded-xl border border-white/15 bg-slate-950 px-3 py-2 text-base text-white";
-export function AwardCandidatePicker({ ceremonyId, award, initial, selected, disabled, onChoose }: {
-  ceremonyId: string; award: AwardDefinition; initial: SuggestedNominee[]; selected: Nominee[]; disabled: boolean; onChoose: (candidate: Nominee) => void;
+export function AwardCandidatePicker({ ceremonyId, award, initial, selected, disabled, assisted = true, onChoose }: {
+  assisted?: boolean; ceremonyId: string; award: AwardDefinition; initial: SuggestedNominee[]; selected: Nominee[]; disabled: boolean; onChoose: (candidate: Nominee) => void;
 }) {
   const [suggestions, setSuggestions] = useState(initial), [refreshing, setRefreshing] = useState(false), [suggestionError, setSuggestionError] = useState("");
   const [open, setOpen] = useState(false), [query, setQuery] = useState(""), [searchError, setSearchError] = useState(""), [loading, setLoading] = useState(false);
@@ -45,8 +45,8 @@ export function AwardCandidatePicker({ ceremonyId, award, initial, selected, dis
   }
   const shown = (credits ?? results).filter((c) => !credits || normalizeNomineeText(`${c.title} ${c.subtitle} ${c.role}`).includes(normalizeNomineeText(creditQuery)));
   return <section aria-label="候选提示与资料" className="mb-3 rounded-xl border border-white/10 bg-white/[0.02] p-3">
-    <div className="flex flex-wrap items-center gap-2"><label className="w-full min-w-0 sm:w-auto sm:flex-1"><span className="sr-only">选择群友已提名的候选</span><select className={field} value="" disabled={disabled || !suggestions.length} onChange={(e) => { const candidate = suggestions.find((s) => s.key === e.target.value); if (candidate) choose(candidate); }}><option value="">{suggestions.length ? `群友已提名（${suggestions.length}）` : "暂无群友候选"}</option>{suggestions.map((candidate) => <option key={candidate.key} value={candidate.key} disabled={selectedKeys.has(candidate.key)}>{candidate.title}{candidate.workTitle ? ` · ${candidate.workTitle}` : ""}{selectedKeys.has(candidate.key) ? "（已添加）" : ""}</option>)}</select></label>
-      <AppButton variant="quiet" disabled={refreshing} onClick={refresh}>{refreshing ? "更新中…" : "更新候选"}</AppButton>
+    <div className="flex flex-wrap items-center gap-2">{assisted && <><label className="w-full min-w-0 sm:w-auto sm:flex-1"><span className="sr-only">选择群友已提名的候选</span><select className={field} value="" disabled={disabled || !suggestions.length} onChange={(e) => { const candidate = suggestions.find((s) => s.key === e.target.value); if (candidate) choose(candidate); }}><option value="">{suggestions.length ? `群友已提名（${suggestions.length}）` : "暂无群友候选"}</option>{suggestions.map((candidate) => <option key={candidate.key} value={candidate.key} disabled={selectedKeys.has(candidate.key)}>{candidate.title}{candidate.workTitle ? ` · ${candidate.workTitle}` : ""}{selectedKeys.has(candidate.key) ? "（已添加）" : ""}</option>)}</select></label>
+      <AppButton variant="quiet" disabled={refreshing} onClick={refresh}>{refreshing ? "更新中…" : "更新候选"}</AppButton></>}
       <AppButton variant="ghost" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "收起查询" : "查 Bangumi"}</AppButton></div>
     {suggestionError && <p role="alert" className="mt-2 text-sm text-rose-200">{suggestionError}</p>}
     {open && <div className="mt-4 border-t border-white/10 pt-4">

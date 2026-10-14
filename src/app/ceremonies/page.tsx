@@ -15,6 +15,8 @@ export default function CeremoniesPage() {
   const [error, setError] = useState(""), [creating, setCreating] = useState(false), [busy, setBusy] = useState(false);
   const [title, setTitle] = useState(`${year} AniMatch 年度动画大赏`), [awardYear, setAwardYear] = useState(year);
   const [description, setDescription] = useState("评选本年度看过的动画。每项最多提名 3 位候选；不了解的奖项可以跳过。最终获奖将在直播当晚投票或讨论决定。");
+  const [nominationMode, setNominationMode] = useState("ASSISTED"), [accessMode, setAccessMode] = useState("APPROVAL");
+  const [yearBasis, setYearBasis] = useState("WATCHED"), [allowSequels, setAllowSequels] = useState(true), [allowMovies, setAllowMovies] = useState(true);
   const [deadline, setDeadline] = useState("");
   const [selected, setSelected] = useState(AWARD_TEMPLATE.map((a) => a.id));
   const [category, setCategory] = useState(AWARD_TEMPLATE[0].category);
@@ -27,7 +29,7 @@ export default function CeremoniesPage() {
   async function create(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setError("");
     try {
-      const result = await featureRequest<{ id: string }>("/api/ceremonies", { method: "POST", body: JSON.stringify({ title, year: awardYear, description, deadline: new Date(deadline).toISOString(), awardIds: selected }) });
+      const result = await featureRequest<{ id: string }>("/api/ceremonies", { method: "POST", body: JSON.stringify({ title, year: awardYear, description, deadline: new Date(deadline).toISOString(), awardIds: selected, nominationMode, accessMode, eligibility: { yearBasis, allowSequels, allowMovies } }) });
       window.location.assign(`/ceremonies/${result.id}`);
     } catch (e) { setError(e instanceof Error ? e.message : "创建失败"); setBusy(false); }
   }
@@ -47,7 +49,9 @@ export default function CeremoniesPage() {
           <label className="block text-sm">提名截止时间<input required type="datetime-local" className={field} value={deadline} onChange={(e) => setDeadline(e.target.value)} /></label></div>
         <p className="text-xs text-slate-400">截止时间使用你当前设备的时区。</p>
         <label className="block text-sm">作品资格与活动说明<textarea rows={4} maxLength={1500} className={field} value={description} onChange={(e) => setDescription(e.target.value)} /></label>
-        <p className="text-sm leading-6 text-slate-400">活动通过链接邀请，不进入全站公开列表。持链接的已登录群友可以提交；已提交候选的名称会共享给群友作填写提示，提名者、理由、素材和人数仅组织者可见。</p>
+        <label className="block text-sm">参与范围<select className={field} value={accessMode} onChange={(e) => setAccessMode(e.target.value)}><option value="APPROVAL">组织者审核加入（熟人群推荐）</option><option value="LINK">持链接的登录用户均可参与</option></select></label>
+        <label className="block text-sm">提名方式<select className={field} value={nominationMode} onChange={(e) => setNominationMode(e.target.value)}><option value="ASSISTED">群友互助 · 可以复用别人提名的候选</option><option value="INDEPENDENT">独立提名 · 不展示他人的候选</option></select></label>
+        <details><summary className="cursor-pointer py-3 text-sm">参评资格</summary><label className="block text-sm">年度范围<select className={field} value={yearBasis} onChange={(e) => setYearBasis(e.target.value)}><option value="WATCHED">本年看过</option><option value="AIRED">本年播出</option><option value="UNLIMITED">不限年份</option></select></label><label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={allowSequels} onChange={(e) => setAllowSequels(e.target.checked)} />允许续作</label><label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={allowMovies} onChange={(e) => setAllowMovies(e.target.checked)} />允许电影</label><p className="text-xs text-slate-400">公布入围前由组织者核对，例外请在活动说明中写明。</p></details>
       </fieldset>
       <section className="min-w-0 rounded-2xl border border-white/10 bg-slate-950/30 p-5">
         <h2 className="font-bold">本届奖项 <span className="ml-2 text-sm font-normal text-amber-200">已选 {selected.length} 项</span></h2>

@@ -23,7 +23,7 @@ const groups = [
 ];
 export const AWARD_TEMPLATE: AwardDefinition[] = groups.flatMap(([category, ...titles], group) =>
   titles.map((title, index) => ({ id: `award-${group}-${index}`, category, title: `年度${title}` })));
-export const CEREMONY_STATUS: Record<string, string> = { OPEN: "征集提名", FROZEN: "整理入围", PUBLISHED: "入围已公布" };
+export const CEREMONY_STATUS: Record<string, string> = { OPEN: "征集提名", FROZEN: "整理入围", PUBLISHED: "入围已公布", LIVE: "正在颁奖", COMPLETED: "年度回顾" };
 
 function invalid(message: string): never { throw new AppError(message, 400, "AWARD_INVALID"); }
 export function objectInput(value: unknown): Record<string, unknown> {
@@ -47,7 +47,14 @@ export function parseCeremony(value: unknown, now = new Date()) {
   if (!Array.isArray(input.awardIds) || !input.awardIds.length || input.awardIds.length > AWARD_TEMPLATE.length) invalid("至少选择一个奖项");
   const ids = new Set(input.awardIds);
   if (ids.size !== input.awardIds.length || [...ids].some((id) => !AWARD_TEMPLATE.some((a) => a.id === id))) invalid("奖项选择无效");
-  return { title, description, year: Number(input.year), deadline, awards: AWARD_TEMPLATE.filter((a) => ids.has(a.id)) };
+  const nominationMode = input.nominationMode ?? "ASSISTED", accessMode = input.accessMode ?? "LINK";
+  if (!["ASSISTED", "INDEPENDENT"].includes(String(nominationMode)) || !["LINK", "APPROVAL"].includes(String(accessMode))) invalid("活动参与规则无效");
+  const eligibility = input.eligibility === undefined ? {} : objectInput(input.eligibility);
+  const yearBasis = eligibility.yearBasis ?? "WATCHED";
+  if (!["WATCHED", "AIRED", "UNLIMITED"].includes(String(yearBasis))) invalid("请选择年度资格范围");
+  return { title, description, year: Number(input.year), deadline, awards: AWARD_TEMPLATE.filter((a) => ids.has(a.id)),
+    nominationMode: String(nominationMode), accessMode: String(accessMode),
+    eligibility: { yearBasis: String(yearBasis), allowSequels: eligibility.allowSequels !== false, allowMovies: eligibility.allowMovies !== false } };
 }
 export function revisionInput(value: unknown): number {
   if (!Number.isSafeInteger(value) || Number(value) < 0) invalid("缺少有效版本，请刷新后重试");
@@ -67,7 +74,7 @@ export function nomineeKey(nominee: Pick<Nominee, "title" | "workTitle" | "refer
   if (nominee.reference) return `bgm:${nominee.reference.kind}:${nominee.reference.id}`;
   return JSON.stringify([normalizeNomineeText(nominee.title), normalizeNomineeText(nominee.workTitle)]);
 }
-export function parseEntries(value: unknown, awards: AwardDefinition[]): NominationEntry[] {
+export function parseEntries(value: unknown, awards: AwardDefinition[], draft = false): NominationEntry[] {
   if (!Array.isArray(value) || value.length > awards.length) invalid("提名表格式不正确");
   const seen = new Set<string>();
   return value.map((raw) => {
@@ -79,7 +86,7 @@ export function parseEntries(value: unknown, awards: AwardDefinition[]): Nominat
     const keys = new Set<string>();
     const candidates = entry.candidates.map((rawCandidate) => {
       const candidate = objectInput(rawCandidate);
-      const nominee: Nominee = { title: text(candidate.title, 150, "候选名称", true), workTitle: text(candidate.workTitle, 150, "所属作品"),
+      const nominee: Nominee = { title: text(candidate.title, 150, "候选名称", !draft), workTitle: text(candidate.workTitle, 150, "所属作品"),
         reason: text(candidate.reason, 1000, "提名理由"), mediaUrl: text(candidate.mediaUrl, 1000, "素材链接") };
       if (candidate.reference !== undefined) {
         const ref = objectInput(candidate.reference);
@@ -87,13 +94,13 @@ export function parseEntries(value: unknown, awards: AwardDefinition[]): Nominat
         if (!kind || ref.kind !== kind || !Number.isSafeInteger(ref.id) || Number(ref.id) <= 0 || Number(ref.id) > 2_147_483_647) invalid("候选资料类型与奖项不符；单集、CP、歌曲和片段请填写独立名称");
         nominee.reference = { kind, id: Number(ref.id) };
       }
-      if (nominee.mediaUrl) {
+      if (nominee.mediaUrl && !draft) {
         let url: URL;
         try { url = new URL(nominee.mediaUrl); } catch { invalid("素材链接需要完整的 http 或 https 地址"); }
         if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) invalid("素材链接需要不含账号密码的 http 或 https 地址");
       }
       const key = nomineeKey(nominee);
-      if (keys.has(key)) invalid("同一个奖项不能重复提名同一候选");
+      if (keys.has(key) && !draft) invalid("同一个奖项不能重复提名同一候选");
       keys.add(key);
       return nominee;
     });

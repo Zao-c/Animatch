@@ -4,6 +4,6 @@ import { awardHeaders } from "@/lib/award-http";
 import { getNominationSuggestions } from "@/lib/award-service";
 export const dynamic = "force-dynamic";
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
-  try { await requireCurrentUser(); return ok(await getNominationSuggestions(params.id), { headers: awardHeaders }); }
+  try { const user = await requireCurrentUser(); return ok(await getNominationSuggestions(params.id, user.id), { headers: awardHeaders }); }
   catch (e) { return fromError(e); }
 }

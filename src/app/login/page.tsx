@@ -31,6 +31,8 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [recoveryCode, setRecoveryCode] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +46,7 @@ function LoginContent() {
     try {
       await friendLogin({
         username,
-        inviteCode
+        inviteCode, password, recoveryCode
       });
       router.replace(next);
       router.refresh();
@@ -61,17 +63,17 @@ function LoginContent() {
         <div className="min-w-0">
           <AppBadge tone="status">Friend Pass</AppBadge>
           <h1 className="mt-5 text-4xl font-black leading-tight text-white sm:text-5xl">
-            输入好友暗号，开始你的个人榜单
+            用自己的账号，记录这一年的喜欢
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
-            AniMatch 不需要复杂注册。输入一个用户名和好友暗号，就会进入你自己的动画池、对决记录和 Tier List。
+            已有账号使用个人密码登录。新朋友准备好群邀请码，即可创建账号。
           </p>
         </div>
 
         <AppCard variant="focus" className="p-5 sm:p-6">
           <h2 className="text-xl font-black text-white">登录 AniMatch</h2>
           <p className="mt-2 text-sm leading-6 text-slate-400">
-            如果用户名不存在，系统会自动创建一个新账号。
+            旧账号请先在已登录设备设置密码；已退出可向管理员索取一次性恢复码。
           </p>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
@@ -88,14 +90,15 @@ function LoginContent() {
               />
             </label>
 
+            <label className="block"><span className="text-sm font-semibold text-slate-200">个人密码</span><input type="password" required minLength={8} maxLength={128} autoComplete="current-password" className="anime-field mt-2" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+            <details className="text-sm text-slate-300"><summary className="cursor-pointer py-3">注册新账号 / 恢复旧账号</summary>
             <label className="block">
-              <span className="text-sm font-semibold text-slate-200">邀请暗号</span>
+              <span className="text-sm font-semibold text-slate-200">群邀请码（仅注册时需要）</span>
               <input
                 value={inviteCode}
                 onChange={(event) => setInviteCode(event.target.value)}
                 className="anime-field mt-2"
-                required
-                inputMode="numeric"
+                inputMode="text"
                 placeholder="输入好友暗号"
               />
               <span className="mt-2 block text-xs leading-5 text-slate-400">
@@ -103,6 +106,7 @@ function LoginContent() {
               </span>
             </label>
 
+            <label className="mt-4 block">一次性恢复码<input autoComplete="off" className="anime-field mt-2" value={recoveryCode} onChange={(e) => setRecoveryCode(e.target.value)} /><span className="mt-2 block text-xs text-slate-400">恢复时，上面的个人密码会设置为新密码。</span></label></details>
             {error ? <ErrorAlert message={error} /> : null}
 
             <AppButton type="submit" variant="primary" size="lg" className="w-full" disabled={isSubmitting}>

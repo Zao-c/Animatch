@@ -4,6 +4,8 @@ import type { NextResponse } from "next/server";
 import { AppError } from "@/lib/app-error";
 import { prisma } from "@/lib/db";
 
+import { hashPassword, passwordInput, recoveryDigest, verifyPassword } from "./password";
+
 const COOKIE_NAME = "animatch_friend_session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 const USERNAME_PATTERN = /^[\p{Script=Han}A-Za-z0-9_-]{2,24}$/u;
@@ -13,12 +15,14 @@ export interface FriendAuthUser {
   username: string | null;
   name: string | null;
   image: string | null;
+  authVersion?: number;
 }
 
 interface FriendSessionPayload {
   userId: string;
   username: string;
   exp: number;
+  version?: number;
 }
 
 export function normalizeFriendUsername(value: unknown): string {
@@ -39,38 +43,40 @@ export function normalizeFriendUsername(value: unknown): string {
 }
 
 export async function loginWithFriendCode(input: {
-  username: unknown;
-  inviteCode: unknown;
+  username: unknown; inviteCode: unknown; password?: unknown; recoveryCode?: unknown;
 }): Promise<FriendAuthUser> {
   const username = normalizeFriendUsername(input.username);
-  const inviteCode = typeof input.inviteCode === "string" ? input.inviteCode.trim() : "";
-
-  if (inviteCode !== getFriendInviteCode()) {
-    throw new AppError("Invite code is invalid", 401, "INVITE_CODE_INVALID");
-  }
-
-  const existing = await prisma.user.findUnique({
-    where: {
-      username
-    },
-    select: { ...friendAuthUserSelect, deletedAt: true }
-  });
-
-  if (existing !== null) {
-    if (existing.deletedAt !== null) {
-      throw new AppError("账号已注销，无法登录", 410, "USER_DELETED");
+  const existing = await prisma.user.findUnique({ where: { username } });
+  if (existing) {
+    if (existing.deletedAt) throw new AppError("账号已注销，无法登录", 410);
+    if (typeof input.recoveryCode === "string" && input.recoveryCode && existing.recoveryHash && existing.recoveryExpiresAt && existing.recoveryExpiresAt > new Date()
+      && safeEqual(recoveryDigest(input.recoveryCode), existing.recoveryHash)) {
+      const passwordHash = await hashPassword(passwordInput(input.password));
+      const changed = await prisma.user.updateMany({ where: { id: existing.id, recoveryHash: existing.recoveryHash, recoveryExpiresAt: { gt: new Date() }, authVersion: existing.authVersion },
+        data: { passwordHash, recoveryHash: null, recoveryExpiresAt: null, authVersion: { increment: 1 } } });
+      if (changed.count !== 1) throw new AppError("恢复码已使用，请重新获取", 409);
+      return prisma.user.findUniqueOrThrow({ where: { id: existing.id }, select: friendAuthUserSelect });
     }
-    const { deletedAt: _deletedAt, ...user } = existing;
+    if (!existing.passwordHash) throw new AppError("旧账号尚未设置个人密码。请在仍登录的设备打开“账号安全”设置，或向管理员索取一次性恢复码。群邀请码不能登录他人账号。", 403, "LEGACY_PASSWORD_REQUIRED");
+    if (!await verifyPassword(input.password, existing.passwordHash)) throw new AppError("用户名或个人密码不正确", 401);
+    const user = await prisma.user.findFirst({ where: { id: existing.id, authVersion: existing.authVersion, deletedAt: null }, select: friendAuthUserSelect });
+    if (!user) throw new AppError("密码刚刚发生变化，请重新登录", 409);
     return user;
   }
+  const inviteCode = typeof input.inviteCode === "string" ? input.inviteCode.trim() : "";
+  if (!safeEqual(inviteCode, getFriendInviteCode())) throw new AppError("注册需要有效的群邀请码", 401);
+  const passwordHash = await hashPassword(passwordInput(input.password));
+  return prisma.user.create({ data: { username, name: username, passwordHash, authVersion: 1 }, select: friendAuthUserSelect });
+}
 
-  return prisma.user.create({
-    data: {
-      username,
-      name: username
-    },
-    select: friendAuthUserSelect
-  });
+export async function changeAccountPassword(userId: string, input: { currentPassword?: unknown; password?: unknown }) {
+  const existing = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  if (existing.passwordHash && !await verifyPassword(input.currentPassword, existing.passwordHash)) throw new AppError("当前密码不正确", 403);
+  const passwordHash = await hashPassword(passwordInput(input.password));
+  const changed = await prisma.user.updateMany({ where: { id: userId, authVersion: existing.authVersion },
+    data: { passwordHash, recoveryHash: null, recoveryExpiresAt: null, authVersion: { increment: 1 } } });
+  if (changed.count !== 1) throw new AppError("密码已在其他页面更新，请重新登录", 409);
+  return prisma.user.findUniqueOrThrow({ where: { id: userId }, select: friendAuthUserSelect });
 }
 
 export async function getCurrentUser(): Promise<FriendAuthUser | null> {
@@ -84,6 +90,7 @@ export async function getCurrentUser(): Promise<FriendAuthUser | null> {
   return prisma.user.findFirst({
     where: {
       id: session.userId,
+      authVersion: session.version ?? 0,
       deletedAt: null
     },
     select: friendAuthUserSelect
@@ -105,6 +112,7 @@ export function setAuthCookie(response: NextResponse, user: FriendAuthUser) {
     name: COOKIE_NAME,
     value: signSession({
       userId: user.id,
+      version: user.authVersion ?? 0,
       username: user.username ?? user.id,
       exp: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS
     }),
@@ -179,6 +187,7 @@ export function verifySession(value: string | undefined): FriendSessionPayload |
     if (
       typeof payload.userId !== "string" ||
       typeof payload.username !== "string" ||
+      (payload.version !== undefined && (!Number.isSafeInteger(payload.version) || payload.version < 0)) ||
       typeof payload.exp !== "number" ||
       payload.exp <= Math.floor(Date.now() / 1000)
     ) {
@@ -244,5 +253,6 @@ const friendAuthUserSelect = {
   id: true,
   username: true,
   name: true,
-  image: true
+  image: true,
+  authVersion: true
 } as const;

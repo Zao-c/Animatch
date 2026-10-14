@@ -1,0 +1,101 @@
+/** Real PostgreSQL integration checks. Never run against the application database. */
+import assert from "node:assert/strict";
+import { prisma } from "../src/lib/db";
+import { createCeremony, saveNomination, freezeCeremony, saveShortlist, getCeremony, getNominationSuggestions, mergeNominees, ceremonyMembership } from "../src/lib/award-service";
+import { getAwardLive, controlAwardLive, voteAwardLive } from "../src/lib/award-live-service";
+import { AWARD_TEMPLATE, nomineeKey } from "../src/lib/award-nominations";
+import { hashPassword, recoveryDigest } from "../src/lib/password";
+import { changeAccountPassword, loginWithFriendCode } from "../src/lib/auth-session";
+
+async function main() {
+  assert.match(new URL(process.env.DATABASE_URL ?? "").pathname, /^\/animatch_award_check_[a-z0-9_]+$/, "Dedicated test database only");
+  const hash = await hashPassword("test-private-password");
+  const [host, alice, bob, charlie, outsider, legacy] = await Promise.all(["host", "alice", "bob", "charlie", "outsider", "legacy"].map((name) => prisma.user.create({ data: { username: `live_${name}`, name, passwordHash: name === "legacy" ? null : hash, authVersion: name === "legacy" ? 0 : 1 } })));
+  const awards = AWARD_TEMPLATE.slice(0, 3), awardId = awards[0].id;
+  const event = await createCeremony(host.id, { title: "Live check", year: 2026, deadline: new Date(Date.now() + 86400000).toISOString(), awardIds: awards.map((a) => a.id), accessMode: "APPROVAL", nominationMode: "INDEPENDENT" });
+  await assert.rejects(getCeremony(event.id, outsider.id), { statusCode: 403 });
+  await assert.rejects(getNominationSuggestions(event.id, outsider.id), { statusCode: 403 });
+  for (const user of [alice, bob, charlie]) {
+    assert.equal((await ceremonyMembership(event.id, user.id, { action: "join" })).status, "PENDING");
+    await ceremonyMembership(event.id, host.id, { action: "review", userId: user.id, status: "APPROVED" });
+  }
+  await assert.rejects(ceremonyMembership(event.id, alice.id, { action: "review", userId: outsider.id, status: "APPROVED" }), { statusCode: 403 });
+  const a = { title: "Show A", workTitle: "", reason: "private-supporter-note", mediaUrl: "https://example.com/clip" };
+  const alias = { ...a, title: "Show A!" }, b = { ...a, title: "Show B" };
+  await saveNomination(event.id, alice.id, { action: "submit", revision: 0, entries: [{ awardId, skipped: false, candidates: [a, alias, b] }] });
+  await saveNomination(event.id, bob.id, { action: "submit", revision: 0, entries: [{ awardId, skipped: false, candidates: [alias] }] });
+  assert.deepEqual(await getNominationSuggestions(event.id, alice.id), []);
+  assert.deepEqual((await getCeremony(event.id, alice.id)).suggestions, []);
+  let revision = 0;
+  await freezeCeremony(event.id, host.id, { revision: revision++ });
+  await mergeNominees(event.id, host.id, { revision: revision++, awardId, from: nomineeKey(alias), to: nomineeKey(a) });
+  const summary = (await getCeremony(event.id, host.id)).organizer!.summaries[0];
+  assert.equal(summary.candidates.find((c) => c.key === nomineeKey(a))!.count, 2, "merge never doubles one person's support");
+  await saveShortlist(event.id, host.id, { revision: revision++, publish: true, shortlist: { [awardId]: [nomineeKey(b), nomineeKey(a)] } });
+  const frozenSnapshot = (await getCeremony(event.id, alice.id)).published;
+  assert.equal(frozenSnapshot[0].candidates[0].title, "Show B", "preserve confirmed order");
+  await prisma.awardBallot.deleteMany({ where: { ceremonyId: event.id } });
+  assert.deepEqual((await getCeremony(event.id, alice.id)).published, frozenSnapshot, "published names survive original ballot removal");
+  await assert.rejects(getAwardLive(event.id, alice.id, true), { statusCode: 403 });
+  const action = async (name: string, extra: object = {}) => {
+    const result = await controlAwardLive(event.id, host.id, { revision, awardId, action: name, ...extra }); revision = result.revision;
+  };
+  await action("show");
+  const simultaneous = await Promise.allSettled([controlAwardLive(event.id, host.id, { revision, awardId, action: "open" }), controlAwardLive(event.id, host.id, { revision, awardId, action: "open" })]);
+  assert.equal(simultaneous.filter((r) => r.status === "fulfilled").length, 1, "only one live round opens");
+  revision++;
+  let round = (await getAwardLive(event.id, alice.id)).rounds[0];
+  await assert.rejects(voteAwardLive(event.id, outsider.id, { roundId: round.id, revision: 0, candidateKey: nomineeKey(a) }), { statusCode: 403 });
+  await assert.rejects(voteAwardLive(event.id, alice.id, { roundId: round.id, revision: 0, candidateKey: "injected" }), { statusCode: 400 });
+  const votes = await Promise.allSettled([voteAwardLive(event.id, alice.id, { roundId: round.id, revision: 0, candidateKey: nomineeKey(a) }), voteAwardLive(event.id, alice.id, { roundId: round.id, revision: 0, candidateKey: nomineeKey(b) })]);
+  assert.equal(votes.filter((r) => r.status === "fulfilled").length, 1);
+  await voteAwardLive(event.id, alice.id, { roundId: round.id, revision: 1, candidateKey: nomineeKey(a) });
+  await voteAwardLive(event.id, bob.id, { roundId: round.id, revision: 0, candidateKey: nomineeKey(b) });
+  await voteAwardLive(event.id, charlie.id, { roundId: round.id, revision: 0, candidateKey: null });
+  await action("close", { roundId: round.id });
+  assert.equal((await getAwardLive(event.id, host.id, true)).rounds[0].tally!.leaders.length, 2);
+  assert.equal((await getAwardLive(event.id, host.id, false)).rounds[0].tally, null, "owner audience view also hides unrevealed totals");
+  await assert.rejects(voteAwardLive(event.id, alice.id, { roundId: round.id, revision: 2, candidateKey: nomineeKey(b) }), { statusCode: 409 });
+  await action("runoff");
+  round = (await getAwardLive(event.id, alice.id)).rounds[1];
+  await voteAwardLive(event.id, alice.id, { roundId: round.id, revision: 0, candidateKey: nomineeKey(b) });
+  await voteAwardLive(event.id, bob.id, { roundId: round.id, revision: 0, candidateKey: nomineeKey(b) });
+  const racing = await Promise.allSettled([voteAwardLive(event.id, charlie.id, { roundId: round.id, revision: 0, candidateKey: nomineeKey(a) }), controlAwardLive(event.id, host.id, { revision, awardId, action: "close", roundId: round.id })]);
+  assert.equal(racing[1].status, "fulfilled"); revision++;
+  const second = (await getAwardLive(event.id, host.id, true)).rounds[1];
+  assert.equal(second.tally!.voters, racing[0].status === "fulfilled" ? 3 : 2, "last vote and closing serialize");
+  await action("decide", { method: "VOTE", roundId: round.id });
+  const before = await getAwardLive(event.id, alice.id);
+  assert.deepEqual(before.decisions, []); assert.ok(before.rounds.every((r) => r.tally === null)); assert.deepEqual(before.materials, []); assert.deepEqual(before.history, []);
+  await action("reveal");
+  const after = await getAwardLive(event.id, alice.id);
+  assert.equal(after.decisions[0].winners[0].title, "Show B"); assert.equal(after.rounds.length, 2); assert.ok(after.rounds.every((r) => r.tally));
+  await assert.rejects(controlAwardLive(event.id, host.id, { revision, awardId, action: "reveal" }), { statusCode: 409 });
+  await assert.rejects(controlAwardLive(event.id, host.id, { revision, action: "finish" }), { statusCode: 409 });
+  for (const other of awards.slice(1)) {
+    await action("decide", { awardId: other.id, method: "WITHHELD", winnerKeys: [], reason: "本年未征集到足够候选" });
+    await action("reveal", { awardId: other.id });
+  }
+  await action("finish");
+  assert.equal((await getAwardLive(event.id, alice.id)).status, "COMPLETED");
+  assert.equal(await prisma.awardFinalVote.count({ where: { roundId: after.rounds[0].id } }), 3);
+  const discussion = await createCeremony(host.id, { title: "Discussion", year: 2026, deadline: new Date(Date.now() + 86400000).toISOString(), awardIds: [awardId] });
+  await saveNomination(discussion.id, alice.id, { action: "submit", revision: 0, entries: [{ awardId, skipped: false, candidates: [a] }] });
+  await freezeCeremony(discussion.id, host.id, { revision: 0 });
+  await saveShortlist(discussion.id, host.id, { revision: 1, publish: true, shortlist: { [awardId]: [nomineeKey(a)] } });
+  await controlAwardLive(discussion.id, host.id, { revision: 2, awardId, action: "decide", method: "DISCUSSION", winnerKeys: [nomineeKey(a)], reason: "全员讨论决定" });
+  assert.ok(!JSON.stringify(await getAwardLive(discussion.id, alice.id)).includes("全员讨论决定"));
+  await controlAwardLive(discussion.id, host.id, { revision: 3, awardId, action: "reveal" });
+  const discussionView = await getAwardLive(discussion.id, alice.id);
+  assert.equal(discussionView.decisions[0].method, "DISCUSSION"); assert.equal(discussionView.rounds.length, 0, "no invented votes for discussion");
+  await assert.rejects(loginWithFriendCode({ username: legacy.username!, inviteCode: process.env.FRIEND_INVITE_CODE, password: "claim-existing" }), { statusCode: 403 });
+  await changeAccountPassword(legacy.id, { password: "new-personal-password" });
+  await assert.rejects(loginWithFriendCode({ username: legacy.username!, inviteCode: process.env.FRIEND_INVITE_CODE, password: "incorrect" }), { statusCode: 401 });
+  assert.equal((await loginWithFriendCode({ username: legacy.username!, inviteCode: "", password: "new-personal-password" })).authVersion, 1);
+  await prisma.user.update({ where: { id: legacy.id }, data: { recoveryHash: recoveryDigest("one-time-test-code"), recoveryExpiresAt: new Date(Date.now() + 3600_000) } });
+  const recoveries = await Promise.allSettled([0, 1].map(() => loginWithFriendCode({ username: legacy.username!, inviteCode: "", password: "recovered-password", recoveryCode: "one-time-test-code" })));
+  assert.equal(recoveries.filter((r) => r.status === "fulfilled").length, 1, "recovery token consumed atomically");
+  assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: legacy.id } })).authVersion, 2);
+  console.log(JSON.stringify({ ok: true, checks: ["membership", "independent nominations", "deduplicated merge", "immutable shortlist", "host authorization", "concurrent opening", "unique votes", "vote revision", "closing race", "runoff history", "audience secrecy", "reveal", "completion", "discussion without fake votes", "legacy account takeover blocked", "password migration", "single-use recovery"] }));
+}
+main().catch((e) => { console.error(e); process.exitCode = 1; }).finally(() => prisma.$disconnect());
