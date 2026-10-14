@@ -13,7 +13,7 @@ const publishedPhases = ["PUBLISHED", "LIVE", "COMPLETED"];
 export async function getAwardLive(id: string, userId: string, host = false) {
   await ensurePublishedSnapshot(id);
   return prisma.$transaction(async (tx) => {
-    const event = await tx.awardCeremony.findUnique({ where: { id }, include: { stage: true, rounds: { orderBy: { openedAt: "asc" } }, decisions: true } });
+    const event = await tx.awardCeremony.findUnique({ where: { id }, include: { stage: true, rounds: { orderBy: [{ awardId: "asc" }, { number: "asc" }] }, decisions: true } });
     if (!event) return fail("活动不存在", 404);
     await requireAwardAccess(tx, event, userId);
     const isOwner = event.ownerId === userId;

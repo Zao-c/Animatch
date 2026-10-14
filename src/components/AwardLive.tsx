@@ -18,7 +18,9 @@ const methodLabels: Record<string, string> = { VOTE: "现场投票", DISCUSSION:
 export function AwardLive({ id, mode }: { id: string; mode: Mode }) {
   const root = `/ceremonies/${encodeURIComponent(id)}`, api = `/api/ceremonies/${encodeURIComponent(id)}`;
   const host = mode === "host", screen = mode === "screen";
-  const [data, setData] = useState<Live | null>(null), [error, setError] = useState(""), [notice, setNotice] = useState("");
+  const [data, setData] = useState<Live | null>(null), [actionError, setError] = useState(""), [notice, setNotice] = useState("");
+  const [connectionError, setConnectionError] = useState("");
+  const error = actionError || connectionError;
   const [selected, setSelected] = useState(""), [busy, setBusy] = useState(false), [method, setMethod] = useState("DISCUSSION"), [reason, setReason] = useState("");
   const [winnerKeys, setWinnerKeys] = useState<string[]>([]), [category, setCategory] = useState("全部"), [preview, setPreview] = useState(false);
   const requestVersion = useRef(0);
@@ -27,8 +29,8 @@ export function AwardLive({ id, mode }: { id: string; mode: Mode }) {
     try {
       const next = await featureRequest<Live>(`${api}/${host ? "host" : "live"}`);
       if (version !== requestVersion.current) return;
-      setData(next); setError(""); setSelected((old) => old || next.stage.awardId || next.awards[0]?.id || "");
-    } catch (e) { if (version === requestVersion.current) setError(e instanceof Error ? e.message : "连接中断，保留上次画面"); }
+      setData(next); setConnectionError(""); setSelected((old) => old || next.stage.awardId || next.awards[0]?.id || "");
+    } catch (e) { if (version === requestVersion.current) setConnectionError(e instanceof Error ? e.message : "连接中断，保留上次画面"); }
   }, [api, host]);
   useEffect(() => {
     let stopped = false, timer: ReturnType<typeof setTimeout>;
