@@ -1,4 +1,9 @@
 -- AlterTable
+ALTER TABLE "AwardCeremony" DROP CONSTRAINT IF EXISTS "AwardCeremony_status_check";
+ALTER TABLE "AwardCeremony" ADD CONSTRAINT "AwardCeremony_status_check"
+  CHECK ("status" IN ('OPEN', 'FROZEN', 'PUBLISHED', 'LIVE', 'COMPLETED'));
+
+-- AlterTable
 ALTER TABLE "User" ADD COLUMN     "authVersion" INTEGER NOT NULL DEFAULT 0,
 ADD COLUMN     "passwordHash" TEXT,
 ADD COLUMN     "recoveryExpiresAt" TIMESTAMP(3),
@@ -92,6 +97,10 @@ CREATE INDEX "AwardRound_ceremonyId_status_idx" ON "AwardRound"("ceremonyId", "s
 
 -- CreateIndex
 CREATE UNIQUE INDEX "AwardRound_ceremonyId_awardId_number_key" ON "AwardRound"("ceremonyId", "awardId", "number");
+CREATE UNIQUE INDEX "AwardRound_one_open_per_ceremony" ON "AwardRound"("ceremonyId") WHERE "status" = 'OPEN';
+ALTER TABLE "AwardRound" ADD CONSTRAINT "AwardRound_status_check" CHECK ("status" IN ('OPEN', 'CLOSED'));
+ALTER TABLE "AwardDecision" ADD CONSTRAINT "AwardDecision_method_check" CHECK ("method" IN ('VOTE', 'DISCUSSION', 'WITHHELD'));
+ALTER TABLE "AwardMember" ADD CONSTRAINT "AwardMember_status_check" CHECK ("status" IN ('PENDING', 'APPROVED', 'REJECTED'));
 
 -- CreateIndex
 CREATE INDEX "AwardFinalVote_userId_idx" ON "AwardFinalVote"("userId");

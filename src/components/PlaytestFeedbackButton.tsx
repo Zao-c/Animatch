@@ -156,6 +156,8 @@ export function PlaytestFeedbackButton() {
     setOpen(true);
   }, [resetForm]);
 
+  if (/^\/ceremonies\/[^/]+\/screen\/?$/.test(pathname)) return null;
+
   return (
     <>
       <button

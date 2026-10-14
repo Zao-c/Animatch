@@ -64,6 +64,7 @@ export default function CeremonyPage({ params }: { params: { id: string } }) {
   }, [entries, dirty, busy, autoSaving, autoPaused, data?.canEdit, deleted]);
 
   async function refresh() {
+    if (saving.current) { setNotice("正在保存，请稍后刷新。"); return; }
     if ((dirty || shortlistDirty) && !window.confirm("重新载入会放弃页面上未保存的修改，继续吗？")) return;
     setBusy(true); setError("");
     try { await load(true); setNotice("已刷新到最新记录"); } catch (e) { setError(e instanceof Error ? e.message : "加载失败"); } finally { setBusy(false); }
