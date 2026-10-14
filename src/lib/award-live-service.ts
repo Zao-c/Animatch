@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { AppError } from "./app-error";
 import { ensurePublishedSnapshot, lockedEvent } from "./award-service";
-import { requireAwardAccess, requireAwardPassword } from "./award-access";
+import { requireAwardAccess, requireAwardActiveUser } from "./award-access";
 import { objectInput, revisionInput, type AwardDefinition, type SuggestedNominee } from "./award-nominations";
 import { tallyVotes, type PublishedAward, type Tally } from "./award-live-types";
 
@@ -44,7 +44,7 @@ export async function controlAwardLive(id: string, userId: string, value: unknow
   return prisma.$transaction(async (tx) => {
     const event = await lockedEvent(tx, id);
     if (event.ownerId !== userId) return fail("只有组织者可以控制颁奖", 403);
-    await requireAwardPassword(tx, userId);
+    await requireAwardActiveUser(tx, userId);
     if (!publishedPhases.includes(event.status)) return fail("请先确认并公布入围名单");
     if (event.revision !== revision) return fail("主持状态已更新，请刷新后再操作");
     const awards = event.awards as AwardDefinition[], published = event.publishedSnapshot as PublishedAward[];
@@ -121,7 +121,7 @@ export async function voteAwardLive(id: string, userId: string, value: unknown) 
   return prisma.$transaction(async (tx) => {
     const event = await lockedEvent(tx, id);
     await requireAwardAccess(tx, event, userId);
-    await requireAwardPassword(tx, userId);
+    await requireAwardActiveUser(tx, userId);
     if (event.status !== "LIVE") return fail("当前不在现场投票阶段");
     if (typeof input.roundId !== "string") return fail("缺少投票轮次", 400);
     const round = await tx.awardRound.findFirst({ where: { id: input.roundId, ceremonyId: id, status: "OPEN" } });

@@ -35,7 +35,7 @@ export function AuthNav() {
   }
 
   if (user === null) {
-    const next = pathname === "/" ? "" : `?next=${encodeURIComponent(pathname)}`;
+    const next = pathname === "/" || pathname === "/login" ? "" : `?next=${encodeURIComponent(pathname)}`;
 
     return (
       <Link
@@ -55,7 +55,7 @@ export function AuthNav() {
       >
         {user.name ?? user.username}
       </Link>
-      <Link href="/account/security" className="inline-flex min-h-11 items-center text-xs text-slate-300">账号安全</Link>
+      <Link href={pathname === "/account/security" ? "/account/security" : `/account/security?next=${encodeURIComponent(pathname)}`} className="inline-flex min-h-11 items-center text-xs text-slate-300">账号设置</Link>
       <button
         type="button"
         onClick={handleLogout}

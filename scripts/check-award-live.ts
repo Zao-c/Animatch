@@ -88,14 +88,16 @@ async function main() {
   await controlAwardLive(discussion.id, host.id, { revision: 3, awardId, action: "reveal" });
   const discussionView = await getAwardLive(discussion.id, alice.id);
   assert.equal(discussionView.decisions[0].method, "DISCUSSION"); assert.equal(discussionView.rounds.length, 0, "no invented votes for discussion");
-  await assert.rejects(loginWithFriendCode({ username: legacy.username!, inviteCode: process.env.FRIEND_INVITE_CODE, password: "claim-existing" }), { statusCode: 403 });
+  await assert.rejects(loginWithFriendCode({ username: legacy.username!, inviteCode: process.env.FRIEND_INVITE_CODE, password: "claim-existing" }), { statusCode: 401 });
+  assert.equal((await loginWithFriendCode({ username: legacy.username!, inviteCode: "", password: "3398933989" })).id, legacy.id);
   await changeAccountPassword(legacy.id, { password: "new-personal-password" });
   await assert.rejects(loginWithFriendCode({ username: legacy.username!, inviteCode: process.env.FRIEND_INVITE_CODE, password: "incorrect" }), { statusCode: 401 });
   assert.equal((await loginWithFriendCode({ username: legacy.username!, inviteCode: "", password: "new-personal-password" })).authVersion, 1);
+  assert.equal((await loginWithFriendCode({ username: legacy.username!, inviteCode: "", password: "3398933989" })).authVersion, 1);
   await prisma.user.update({ where: { id: legacy.id }, data: { recoveryHash: recoveryDigest("one-time-test-code"), recoveryExpiresAt: new Date(Date.now() + 3600_000) } });
   const recoveries = await Promise.allSettled([0, 1].map(() => loginWithFriendCode({ username: legacy.username!, inviteCode: "", password: "recovered-password", recoveryCode: "one-time-test-code" })));
   assert.equal(recoveries.filter((r) => r.status === "fulfilled").length, 1, "recovery token consumed atomically");
   assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: legacy.id } })).authVersion, 2);
-  console.log(JSON.stringify({ ok: true, checks: ["membership", "independent nominations", "deduplicated merge", "immutable shortlist", "host authorization", "concurrent opening", "unique votes", "vote revision", "closing race", "runoff history", "audience secrecy", "reveal", "completion", "discussion without fake votes", "legacy account takeover blocked", "password migration", "single-use recovery"] }));
+  console.log(JSON.stringify({ ok: true, checks: ["membership", "independent nominations", "deduplicated merge", "immutable shortlist", "host authorization", "concurrent opening", "unique votes", "vote revision", "closing race", "runoff history", "audience secrecy", "reveal", "completion", "discussion without fake votes", "shared-password login before and after personal password", "password migration", "single-use recovery"] }));
 }
 main().catch((e) => { console.error(e); process.exitCode = 1; }).finally(() => prisma.$disconnect());

@@ -5,6 +5,7 @@ import { POST as FRIEND_LOGIN } from "../src/app/api/auth/friend-login/route";
 import { POST as LOGOUT } from "../src/app/api/auth/logout/route";
 import {
   clearAuthCookie,
+  changeAccountPassword,
   getAuthCookieSecure,
   loginWithFriendCode,
   setAuthCookie,
@@ -12,6 +13,8 @@ import {
   verifySession
 } from "../src/lib/auth-session";
 import { hashPassword } from "../src/lib/password";
+import { FRIEND_SHARED_PASSWORD } from "../src/lib/friend-login-policy";
+import { requireAwardActiveUser } from "../src/lib/award-access";
 import { prisma } from "../src/lib/db";
 import { resetFriendLoginRateLimitForTests } from "../src/lib/friend-login-rate-limit";
 
@@ -20,6 +23,8 @@ vi.mock("../src/lib/db", () => ({
     user: {
       findUnique: vi.fn(),
       findFirst: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
+      updateMany: vi.fn(),
       create: vi.fn()
     }
   }
@@ -77,7 +82,7 @@ describe("friend auth", () => {
 
   it("does not let a shared invite code claim an existing legacy username", async () => {
     mockedUser.findUnique.mockResolvedValue({ id: "user-1", username: "akira", deletedAt: null, passwordHash: null } as any);
-    await expect(loginWithFriendCode({ username: "akira", inviteCode: "33989", password: "personal-password" })).rejects.toMatchObject({ statusCode: 403 });
+    await expect(loginWithFriendCode({ username: "akira", inviteCode: "33989", password: "personal-password" })).rejects.toMatchObject({ statusCode: 401 });
     expect(mockedUser.create).not.toHaveBeenCalled();
   });
   it("requires an existing account's personal password, not the shared invite", async () => {
@@ -86,6 +91,41 @@ describe("friend auth", () => {
     mockedUser.findFirst.mockResolvedValue(account as any);
     await expect(loginWithFriendCode({ username: "akira", inviteCode: "33989", password: "wrong" })).rejects.toMatchObject({ statusCode: 401 });
     expect((await loginWithFriendCode({ username: "akira", inviteCode: "", password: "personal-password" })).id).toBe("user-1");
+  });
+  it.each([null, "personal-password"])("allows shared login without replacing existing password %s", async (password) => {
+    const account = { id: "user-1", username: "akira", authVersion: 2, deletedAt: null, passwordHash: password ? await hashPassword(password) : null };
+    mockedUser.findUnique.mockResolvedValue(account as any);
+    mockedUser.findFirst.mockResolvedValue(account as any);
+    expect((await loginWithFriendCode({ username: "akira", inviteCode: "", password: FRIEND_SHARED_PASSWORD })).id).toBe("user-1");
+    expect(mockedUser.updateMany).not.toHaveBeenCalled();
+    expect(mockedUser.create).not.toHaveBeenCalled();
+  });
+  it("allows a new visitor to register using the shared password without an invite", async () => {
+    mockedUser.create.mockResolvedValue({ id: "new-user" } as any);
+    await loginWithFriendCode({ username: "newfriend", inviteCode: "", password: FRIEND_SHARED_PASSWORD });
+    expect(mockedUser.create).toHaveBeenCalledWith(expect.objectContaining({ data: { username: "newfriend", name: "newfriend", authVersion: 1, passwordHash: null } }));
+  });
+  it("accepts the shared password to change a forgotten personal password", async () => {
+    mockedUser.findUniqueOrThrow.mockResolvedValue({ id: "user-1", authVersion: 2, passwordHash: await hashPassword("old-personal-password") } as any);
+    mockedUser.updateMany.mockResolvedValue({ count: 1 });
+    await changeAccountPassword("user-1", { currentPassword: FRIEND_SHARED_PASSWORD, password: "new-personal-password" });
+    expect(mockedUser.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "user-1", authVersion: 2 }, data: expect.objectContaining({ authVersion: { increment: 1 }, passwordHash: expect.stringMatching(/^scrypt:/) }) }));
+  });
+  it("rejects wrong current passwords when changing a configured password", async () => {
+    mockedUser.findUniqueOrThrow.mockResolvedValue({ id: "user-1", authVersion: 2, passwordHash: await hashPassword("old-personal-password") } as any);
+    await expect(changeAccountPassword("user-1", { currentPassword: "wrong", password: "new-personal-password" })).rejects.toMatchObject({ statusCode: 403 });
+    expect(mockedUser.updateMany).not.toHaveBeenCalled();
+  });
+  it("does not allow the shared password to restore a deleted account", async () => {
+    mockedUser.findUnique.mockResolvedValue({ id: "user-1", deletedAt: new Date() } as any);
+    await expect(loginWithFriendCode({ username: "akira", inviteCode: "", password: FRIEND_SHARED_PASSWORD })).rejects.toMatchObject({ statusCode: 410 });
+    expect(mockedUser.findFirst).not.toHaveBeenCalled();
+  });
+  it("lets active accounts without a personal password participate in live awards", async () => {
+    mockedUser.findUnique.mockResolvedValue({ id: "user-1", deletedAt: null, passwordHash: null } as any);
+    await expect(requireAwardActiveUser(prisma as any, "user-1")).resolves.toBeUndefined();
+    mockedUser.findUnique.mockResolvedValue({ deletedAt: new Date() } as any);
+    await expect(requireAwardActiveUser(prisma as any, "user-1")).rejects.toMatchObject({ statusCode: 401 });
   });
   it("rejects an invalid invite code", async () => {
     await expect(
