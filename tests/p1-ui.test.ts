@@ -28,18 +28,21 @@ describe("P1 pool detail UI", () => {
 
 describe("P1 match arena UI", () => {
   const source = readFileSync("src/app/pools/[poolId]/runs/[runId]/match/page.tsx", "utf8");
+  const presentationSource = readFileSync("src/components/MatchPresentation.tsx", "utf8");
 
   it("renders a VS arena with two duel cards", () => {
-    expect(source).toContain("VS");
+    expect(presentationSource).toContain("VS");
     expect(source.match(/<DuelAnimeCard/g)?.length).toBe(2);
     expect(source).toContain("getComparisonResultForShortcut");
-    expect(source).toContain("ShortcutKey");
+    expect(presentationSource).toContain("<kbd");
   });
 
   it("keeps the match cards side by side on mobile", () => {
-    expect(source).toContain("grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)]");
-    expect(source).toContain("sm:gap-4");
-    expect(source).toContain("sm:h-16 sm:w-16");
+    expect(presentationSource).toContain(
+      "grid-cols-[minmax(0,1fr)_24px_minmax(0,1fr)]"
+    );
+    expect(presentationSource).toContain("sm:grid-cols-[minmax(0,1fr)_48px_minmax(0,1fr)]");
+    expect(presentationSource).toContain("sm:gap-4");
   });
 
   it("maps keyboard shortcuts and ignores editable targets", () => {

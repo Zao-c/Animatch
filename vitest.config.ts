@@ -6,6 +6,12 @@ export default defineConfig({
     environment: "node",
     include: ["tests/**/*.test.ts"]
   },
+  // tsconfig uses "jsx": "preserve" for Next's automatic runtime, so components
+  // may omit `import React`. Match that here instead of esbuild's classic default.
+  esbuild: {
+    jsx: "automatic",
+    jsxImportSource: "react"
+  },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url))

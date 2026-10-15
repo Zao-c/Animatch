@@ -102,11 +102,11 @@ describe("pool management UI", () => {
   });
 
   it("turns pool creation into an onboarding flow", () => {
-    expect(newPoolSource).toContain("创建你的动画池");
+    expect(newPoolSource).toContain("创建番组");
     expect(newPoolSource).toContain("创建并添加动画");
     expect(newPoolSource).toContain("#add-anime");
     expect(newPoolSource).toContain("四月新番");
-    expect(newPoolSource).toContain("添加动画后开始对决");
+    expect(newPoolSource).toContain("下一步再添加动画");
   });
 
   it("shows archived pools as read-only on detail while keeping restore available", () => {

@@ -177,9 +177,8 @@ describe("anime cover rendering", () => {
       })
     );
 
-    expect(html).toContain("flex h-full flex-col");
-    expect(html).toContain("min-h-[3.25rem]");
-    expect(html).toContain("mt-auto w-full");
+    expect(html).toContain("flex min-w-0 flex-col");
+    expect(html).toContain("mt-auto flex min-h-11 w-full");
     expect(html).toContain("未命名作品");
     expect(html).not.toContain("17750273769085f154");
   });
@@ -485,7 +484,7 @@ describe("match cover stability", () => {
     );
   });
 
-  it("DuelAnimeCard includes side badge LEFT/RIGHT", () => {
+  it("DuelAnimeCard exposes the left side in its action label", () => {
     const html = renderToStaticMarkup(
       React.createElement(DuelAnimeCard, {
         anime: baseAnime(),
@@ -497,10 +496,10 @@ describe("match cover stability", () => {
       })
     );
 
-    expect(html).toContain("LEFT");
+    expect(html).toContain("选择左边：");
   });
 
-  it("DuelAnimeCard right side shows RIGHT badge", () => {
+  it("DuelAnimeCard exposes the right side in its action label", () => {
     const html = renderToStaticMarkup(
       React.createElement(DuelAnimeCard, {
         anime: baseAnime(),
@@ -512,7 +511,7 @@ describe("match cover stability", () => {
       })
     );
 
-    expect(html).toContain("RIGHT");
+    expect(html).toContain("选择右边：");
   });
 });
 

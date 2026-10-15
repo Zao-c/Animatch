@@ -6,6 +6,7 @@ describe("onboarding guide copy", () => {
   const detailSource = readFileSync("src/app/pools/[poolId]/page.tsx", "utf8");
   const matchSource = readFileSync("src/app/pools/[poolId]/runs/[runId]/match/page.tsx", "utf8");
   const tierSource = readFileSync("src/app/pools/[poolId]/runs/[runId]/tier/page.tsx", "utf8");
+  const presentationSource = readFileSync("src/components/MatchPresentation.tsx", "utf8");
 
   it("shows the home onboarding guide", () => {
     expect(homeSource).toContain("三步生成榜单");
@@ -32,14 +33,14 @@ describe("onboarding guide copy", () => {
   });
 
   it("explains match undo, skip, unseen, and reset actions", () => {
-    expect(matchSource).toContain("ShortcutKey");
-    expect(matchSource).toContain("选择左边");
-    expect(matchSource).toContain("选择右边");
+    expect(presentationSource).toContain("<kbd");
+    expect(presentationSource).toContain("左边");
+    expect(presentationSource).toContain("右边");
     expect(matchSource).toContain("对决设置");
     expect(matchSource).toContain("getComparisonResultForShortcut");
     expect(matchSource).toContain("撤回上次选择");
     expect(matchSource).toContain("重开本轮");
-    expect(matchSource).toContain("左边没看过");
+    expect(presentationSource).toContain("左边没看过");
   });
 
   it("explains tier sharing, export, and manual display behavior", () => {
@@ -49,7 +50,7 @@ describe("onboarding guide copy", () => {
     expect(tierSource).toContain("继续对决");
     expect(tierSource).toContain("查看社区榜单");
     expect(tierSource).toContain("社区大乱斗");
-    expect(tierSource).toContain("匿名聚合方式参与社区榜单");
+    expect(tierSource).toContain("匿名汇入社区榜");
     expect(tierSource).toContain("手动调整只影响榜单展示和当前手动排序");
     expect(tierSource).toContain("不会改写对决历史");
   });
