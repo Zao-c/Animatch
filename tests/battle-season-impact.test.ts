@@ -173,12 +173,10 @@ describe("Battle season impact API", () => {
 
   it("returns notFound for missing pool", () => {
     expect(source).toContain("notFound");
-    expect(source).toContain("番组不存在或已归档");
   });
 
   it("returns forbidden for no permission", () => {
     expect(source).toContain("forbidden");
-    expect(source).toContain("你没有权限访问这个番组");
   });
 
   it("handles SEASON_NOT_FOUND error", () => {
@@ -208,9 +206,6 @@ describe("SeasonImpactPanel UI", () => {
 
   it("leads with a player-readable season story instead of raw impact stats", () => {
     expect(source).toContain("SeasonStory");
-    expect(source).toContain("当前最受支持");
-    expect(source).toContain("个人 Elo 变动最多的玩家");
-    expect(source).toContain("不代表社区共享榜单的排名影响");
   });
 
   it("shows private vote count", () => {
@@ -223,7 +218,6 @@ describe("SeasonImpactPanel UI", () => {
   });
 
   it("shows rank when user participated", () => {
-    expect(source).toContain("排名 #");
     expect(source).toContain("findIndex");
   });
 

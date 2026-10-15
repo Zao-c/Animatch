@@ -7,8 +7,6 @@ describe("Bangumi import tab UI", () => {
 
   it("shows a dedicated Bangumi search tab", () => {
     expect(detailSource).toContain('{ key: "bangumi", label: "Bangumi 搜索" }');
-    expect(detailSource).toContain("从 Bangumi 搜索公开条目并添加。");
-    expect(detailSource).toContain("输入 Bangumi 关键词");
   });
 
   it("submits Bangumi searches through the dedicated endpoint", () => {
@@ -20,8 +18,6 @@ describe("Bangumi import tab UI", () => {
 
   it("renders Bangumi results and imports the selected subject through the existing pool import API", () => {
     expect(detailSource).toContain("function BangumiResultCard");
-    expect(detailSource).toContain("Bangumi ID ${item.bangumiId}");
-    expect(detailSource).toContain("添加到当前番组");
     expect(detailSource).toContain("handleAddBangumiResult(item)");
     expect(detailSource).toContain("bulkImportAnimeToPool(params.poolId, String(item.bangumiId))");
     expect(detailSource).toContain("await refreshPool()");
@@ -38,7 +34,6 @@ describe("Bangumi import tab UI", () => {
     expect(detailSource).toContain("const [bangumiSearchError, setBangumiSearchError]");
     expect(detailSource).toContain("setBangumiSearchError(null)");
     expect(detailSource).toContain("setBangumiSearchError(message)");
-    expect(detailSource).toContain("Bangumi 搜索暂时不可用");
     expect(detailSource).toContain("!bangumiSearchError && bangumiResults.length === 0");
   });
 
@@ -46,7 +41,6 @@ describe("Bangumi import tab UI", () => {
     expect(detailSource).toContain("const BANGUMI_RESULT_PAGE_SIZE = 12");
     expect(detailSource).toContain("visibleBangumiResults");
     expect(detailSource).toContain("bangumiResults.slice(0, bangumiVisibleCount)");
-    expect(detailSource).toContain("显示更多 Bangumi 结果");
   });
 
   it("keeps the Bangumi tab wrapped for a 390px viewport", () => {

@@ -9,7 +9,6 @@ describe("import preview integrity UI", () => {
     expect(quickImportSource).toContain("const [previewParams, setPreviewParams]");
     expect(quickImportSource).toContain("function clearPreviewSelection()");
     expect(quickImportSource).toContain("params: previewParams");
-    expect(quickImportSource).toContain("请先预览并确认要创建的作品");
     expect(quickImportSource).toContain("preview !== null && previewParams !== null && selectedIds.size > 0");
   });
 

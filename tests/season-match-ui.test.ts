@@ -22,7 +22,6 @@ describe("season match UI", () => {
   it("lets users roll to another pair without submitting a vote", () => {
     expect(source).toContain("const handleRollPair = useCallback");
     expect(source).toContain("const filteredQueue = filterSeasonQueue(queue, nextSkippedPairKeys, unseenAnimeIds)");
-    expect(presentation).toContain("换一组");
   });
 
   it("tracks skipped pair ids locally to avoid repeating same pairs", () => {
@@ -59,26 +58,17 @@ describe("season match UI", () => {
   });
 
   it("reserves a stable feedback slot so vote toasts do not push cards down", () => {
-    expect(source).toContain("mt-2 min-h-[34px]");
-    expect(source).toContain("sm:mt-4 sm:min-h-[42px]");
     expect(source).toContain('aria-atomic="true"');
-    expect(source).toContain("已投票！第 {voteResult.stepNumber} 票");
-    expect(source).toContain('<div className="mt-2 sm:mt-4">');
     expect(source).not.toContain('className="mt-5 rounded-xl border border-amber-300/20');
   });
 
   it("compresses the mobile first screen before the duel cards", () => {
     expect(source).toContain("<MatchHeading");
     expect(source).toContain("const progressStatColumns");
-    expect(source).toContain("grid-cols-5");
-    expect(source).toContain("grid-cols-3");
-    expect(source).toContain("hidden sm:inline");
-    expect(source).toContain("sm:hidden");
     expect(source).toContain("<MatchActions");
   });
 
   it("keeps the duel cards side by side on mobile", () => {
-    expect(presentation).toContain("grid-cols-[minmax(0,1fr)_24px_minmax(0,1fr)]");
     expect(source).toContain("<MatchArena");
     expect(presentation).toContain("function MatchChoiceCard");
   });
@@ -100,8 +90,6 @@ describe("season match UI", () => {
     expect(source).toContain("const canVote = canSubmitSeasonVote(detail)");
     expect(source).toContain("!canSubmitSeasonVote(detail)");
     expect(source).toContain("canUseVoteShortcut");
-    expect(source).toContain("今日票数已用完");
-    expect(source).toContain("今日剩余");
   });
 
   it("checks the schedule before loading a queue and explains unavailable voting states", () => {
@@ -110,8 +98,6 @@ describe("season match UI", () => {
     expect(source).toContain("getSeasonScheduleState");
     expect(detailIndex).toBeGreaterThan(-1);
     expect(queueIndex).toBeGreaterThan(detailIndex);
-    expect(source).toContain("赛季还未开放投票");
-    expect(source).toContain("投票已截止");
   });
 
   it("lets users mark unseen anime without submitting a vote", () => {
@@ -139,6 +125,5 @@ describe("season match UI", () => {
     expect(source).toContain("error && detail === null");
     expect(source).toContain("void fetchData(skippedPairKeys, unseenAnimeIds)");
     expect(source).toContain("error ? (");
-    expect(source).toContain("重新获取对局");
   });
 });

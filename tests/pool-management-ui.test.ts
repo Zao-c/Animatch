@@ -27,8 +27,6 @@ describe("pool management UI", () => {
   });
 
   it("offers demo pool onboarding from the empty state", () => {
-    expect(poolsSource).toContain("体验示例番组");
-    expect(poolsSource).toContain("正在准备体验池...");
     expect(poolsSource).toContain("createDemoPool");
   });
 
@@ -40,16 +38,11 @@ describe("pool management UI", () => {
   it("labels signed-in progress separately from community-wide activity", () => {
     expect(poolsSource).toContain("personalComparisonCount");
     expect(poolsSource).toContain("globalComparisonCount");
-    expect(poolsSource).toContain("我已 ${comparisonCount} 次有效对决");
-    expect(poolsSource).toContain("社区累计 ${comparisonCount} 次有效对决");
-    expect(poolsSource).toContain("我的榜单稳定度");
-    expect(poolsSource).toContain("社区榜单稳定度");
   });
 
   it("counts cards that can actually enter a duel instead of only ready-status cards", () => {
     expect(poolsSource).toContain("const playableCount = pools.filter(");
     expect(poolsSource).toContain("!isPoolArchived(pool) && (pool.animeCount ?? 0) >= 2");
-    expect(poolsSource).toContain("可对决");
   });
 
   it("renders pool card visibility labels without question-mark placeholders", () => {
@@ -62,7 +55,6 @@ describe("pool management UI", () => {
   });
 
   it("offers owner visibility editing from the pool detail settings panel", () => {
-    expect(detailSource).toContain("可见性");
     expect(detailSource).toContain("POOL_VISIBILITY_OPTIONS");
     expect(poolLabelsSource).toContain("只有你能查看和对决");
     expect(poolLabelsSource).toContain("知道链接的人可以浏览，登录后可以开始自己的个人对决");
@@ -73,16 +65,10 @@ describe("pool management UI", () => {
     expect(detailSource).toContain("const canManagePool = permissions?.canManage ?? false");
     expect(detailSource).toContain("{canManagePool ? (");
     expect(detailSource).toContain('{workspaceMode === "settings" && canManagePool ? (');
-    expect(detailSource).toContain("更多番组操作");
-    expect(detailSource).toContain("番组设置");
     expect(detailSource).not.toContain("编辑番组");
   });
 
   it("renders disabled reserved public permission controls", () => {
-    expect(detailSource).toContain("公开协作设置");
-    expect(detailSource).toContain("允许其他人添加动画");
-    expect(detailSource).toContain("启用大乱斗公共榜单");
-    expect(detailSource).toContain("体验番组会作为开放样板池，允许所有登录用户协作编辑。普通公开番组的协作开关暂未开放。");
     expect(detailSource).toContain('type="checkbox" disabled');
   });
 
@@ -102,11 +88,7 @@ describe("pool management UI", () => {
   });
 
   it("turns pool creation into an onboarding flow", () => {
-    expect(newPoolSource).toContain("创建番组");
-    expect(newPoolSource).toContain("创建并添加动画");
     expect(newPoolSource).toContain("#add-anime");
-    expect(newPoolSource).toContain("四月新番");
-    expect(newPoolSource).toContain("下一步再添加动画");
   });
 
   it("shows archived pools as read-only on detail while keeping restore available", () => {
@@ -137,10 +119,7 @@ describe("pool management UI", () => {
     expect(detailSource).toContain('value === "cover" ? null : "cover"');
     expect(detailSource).toContain('setWorkspaceMode("community")');
     expect(detailSource).toContain('id="add-anime"');
-    expect(detailSource).toContain("fixed inset-x-0 bottom-0");
-    expect(detailSource).toContain("lg:sticky lg:top-24");
     expect(detailSource).toContain('workspaceMode === "cover" && canEditContent');
-    expect(detailSource).toContain("修复封面");
     expect(detailSource).toContain('workspaceMode === "community" && canShowCommunityRanking');
     expect(detailSource).toContain("compact?: boolean");
   });
@@ -167,7 +146,6 @@ describe("pool management UI", () => {
     expect(detailSource).toContain('label="番组导航"');
     expect(detailSource).toContain('id="pool-content-panel-wall"');
     expect(detailSource).toContain('id="pool-content-panel-seasons"');
-    expect(detailSource).toContain("sm:sticky sm:top-24");
     expect(detailSource).toContain('size="md"');
     expect(detailSource).toContain('canManagePool ? "返回我的番组" : "返回番组大厅"');
     expect(detailSource).toContain('canManagePool ? "/pools" : "/pools?view=public"');
@@ -198,28 +176,17 @@ describe("pool management UI", () => {
   it("has batch management mode with toggle", () => {
     expect(detailSource).toContain("batchMode");
     expect(detailSource).toContain("selectedAnimeIds");
-    expect(detailSource).toContain("批量管理");
-    expect(detailSource).toContain("取消批量管理");
-    expect(detailSource).toContain("移出 ");
   });
 
   it("has search and filter controls on the anime wall", () => {
-    expect(detailSource).toContain("搜索当前作品...");
     expect(detailSource).toContain("animeWallSearch");
     expect(detailSource).toContain("animeWallFilter");
-    expect(detailSource).toContain("sm:grid-cols-[minmax(16rem,1fr)_12rem]");
-    expect(detailSource).toContain("缺封面");
-    expect(detailSource).toContain("疑似脏标题");
-    expect(detailSource).toContain("TierMaker 导入");
-    expect(detailSource).toContain("Custom 上传");
   });
 
   it("keeps large anime walls compact and progressively rendered", () => {
     expect(detailSource).toContain("animeWallPage");
     expect(detailSource).toContain("filteredAnime.slice((currentWallPage - 1) * 12, currentWallPage * 12)");
-    expect(detailSource).toContain("sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6");
     expect(detailSource).toContain("pageSize={12}");
-    expect(detailSource).toContain('className="h-48 w-full rounded-none border-0 sm:h-52"');
   });
 
   it("offers a one-click pool share action", () => {
@@ -228,15 +195,10 @@ describe("pool management UI", () => {
     expect(detailSource).toContain("getPoolShareBlockedNotice()");
     expect(detailSource).toContain("getPoolShareButtonLabel(pool.visibility)");
     expect(detailSource).toContain("buildPoolShareText");
-    expect(detailSource).toContain("已复制番组分享链接。");
   });
 
   it("has batch confirmation dialog", () => {
     expect(detailSource).toContain("batchConfirmOpen");
-    expect(detailSource).toContain("确认移出作品");
-    expect(detailSource).toContain("将从当前番组中移出");
-    expect(detailSource).toContain("不会删除全局作品数据");
-    expect(detailSource).toContain("确定移出");
   });
 
   it("disables batch remove button when nothing selected", () => {

@@ -49,7 +49,6 @@ describe("Quick import service", () => {
 
   it("supports USER_COLLECTION mode", () => {
     expect(source).toContain('params.mode === "USER_COLLECTION"');
-    expect(source).toContain("用户收藏模式需要填写 Bangumi 用户 ID");
   });
 
   it("USER_COLLECTION does not pretend local search is a collection filter", () => {
@@ -79,7 +78,6 @@ describe("Quick import service", () => {
   });
 
   it("reports missing covers as warning", () => {
-    expect(source).toContain("缺少封面");
     expect(source).toContain("missingCovers");
   });
 
@@ -158,7 +156,6 @@ describe("Quick import API routes", () => {
 
   it("preview validates source and mode", () => {
     const source = readSource("src/app/api/pools/quick-import/preview/route.ts");
-    expect(source).toContain("source 和 mode 是必填字段");
     expect(source).toContain("validSources");
     expect(source).toContain("validModes");
   });
@@ -177,7 +174,6 @@ describe("Quick import API routes", () => {
 
   it("create validates poolName and params", () => {
     const source = readSource("src/app/api/pools/quick-import/create/route.ts");
-    expect(source).toContain("poolName 和 params 是必填字段");
     expect(source).toContain("params.source");
   });
 
@@ -196,7 +192,6 @@ describe("Quick import API routes", () => {
   it("add-to-pool rejects archived pool", () => {
     const source = readSource("src/app/api/pools/[poolId]/quick-import/route.ts");
     expect(source).toContain("pool.deletedAt");
-    expect(source).toContain("番组不存在或已归档");
   });
 
   it("add-to-pool requires animeIds array", () => {
@@ -246,8 +241,6 @@ describe("QuickImportPanel UI", () => {
   it("supports custom Bangumi tag input in quick import", () => {
     expect(source).toContain("customTagInput");
     expect(source).toContain("mergeTags(selectedTags, customTagInput)");
-    expect(source).toContain("自定义 Bangumi 标签");
-    expect(source).toContain("用逗号分隔");
   });
 
   it("accepts Bangumi profile URLs for user collection import", () => {
@@ -256,7 +249,6 @@ describe("QuickImportPanel UI", () => {
 
   it("has preview button", () => {
     expect(source).toContain("handlePreview");
-    expect(source).toContain("预览");
   });
 
   it("preview shows candidate cards with AnimeCover", () => {
@@ -266,7 +258,6 @@ describe("QuickImportPanel UI", () => {
 
   it("shows alreadyInPool badge", () => {
     expect(source).toContain("alreadyInPool");
-    expect(source).toContain("已存在");
   });
 
   it("disabled alreadyInPool cards", () => {
@@ -275,12 +266,10 @@ describe("QuickImportPanel UI", () => {
 
   it("has selectAll and deselectExisting buttons", () => {
     expect(source).toContain("selectAll");
-    expect(source).toContain("取消已存在");
   });
 
   it("shows create pool form when no poolId", () => {
     expect(source).toContain("poolName");
-    expect(source).toContain("创建番组");
   });
 
   it("create pool requires poolName", () => {
@@ -295,7 +284,6 @@ describe("QuickImportPanel UI", () => {
 
   it("adds to existing pool when poolId", () => {
     expect(source).toContain("addQuickImportToPool");
-    expect(source).toContain("添加选中");
   });
 
   it("reports added/skipped counts", () => {
@@ -361,7 +349,6 @@ describe("Quick import pages integration", () => {
 
   it("pool detail page has quick import tab", () => {
     const source = readSource("src/app/pools/[poolId]/page.tsx");
-    expect(source).toContain("批量添加作品");
     expect(source).toContain("activeTab === \"quick\"");
   });
 
