@@ -62,6 +62,7 @@ import {
 import {
   addAnimeToPool,
   archivePool,
+  batchUpdatePoolAnime,
   bulkImportAnimeToPool,
   clearPoolAnimeDisplayOverrides,
   createManualAnime,
@@ -189,6 +190,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
   const [batchMode, setBatchMode] = useState(false);
   const [selectedAnimeIds, setSelectedAnimeIds] = useState<Set<string>>(new Set());
+  const [batchTitle, setBatchTitle] = useState("");
+  const [batchType, setBatchType] = useState("");
+  const [batchNote, setBatchNote] = useState("");
   const [animeWallSearch, setAnimeWallSearch] = useState("");
   const [animeWallFilter, setAnimeWallFilter] = useState<
     "all" | "missingCover" | "suspiciousTitle" | "tiermaker" | "custom"
@@ -1231,9 +1235,55 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     });
   }
 
+  async function handleBatchEdit() {
+    if (archived() || selectedAnimeIds.size === 0) return;
+
+    const title = batchTitle.trim();
+    const note = batchNote.trim();
+    const patch: {
+      displayTitleOverride?: string;
+      animeTypeOverride?: string;
+      overrideNote?: string;
+    } = {};
+
+    if (title) {
+      patch.displayTitleOverride = title;
+    }
+    if (batchType) {
+      patch.animeTypeOverride = batchType;
+    }
+    if (note) {
+      patch.overrideNote = note;
+    }
+
+    if (Object.keys(patch).length === 0) {
+      setError("请至少填写标题、类型或备注中的一项。");
+      return;
+    }
+
+    clearMessage();
+    setIsMutating(true);
+
+    try {
+      const result = await batchUpdatePoolAnime(params.poolId, Array.from(selectedAnimeIds), patch);
+      setNotice(`已更新 ${result.updated} 个作品`);
+      setBatchTitle("");
+      setBatchType("");
+      setBatchNote("");
+      await refreshPool();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "批量更新失败");
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
   function exitBatchMode() {
     setBatchMode(false);
     setSelectedAnimeIds(new Set());
+    setBatchTitle("");
+    setBatchType("");
+    setBatchNote("");
     setBatchConfirmOpen(false);
   }
 
@@ -1898,6 +1948,55 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                   </div>
                 ) : null}
               </div>
+
+              {batchMode ? (
+                <div className="mt-3 rounded-xl border border-white/10 bg-slate-950/60 p-4">
+                  <p className="text-sm font-semibold text-white">批量编辑</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    留空的字段不会被修改，只对已选中的 {selectedAnimeIds.size} 个作品生效。
+                  </p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <input
+                      value={batchTitle}
+                      onChange={(event) => setBatchTitle(event.target.value)}
+                      placeholder="标题（留空不修改）"
+                      className="anime-field"
+                      maxLength={120}
+                      disabled={isMutating}
+                    />
+                    <select
+                      value={batchType}
+                      onChange={(event) => setBatchType(event.target.value)}
+                      className="anime-field"
+                      disabled={isMutating}
+                    >
+                      {ANIME_TYPE_OPTIONS.map((type) => (
+                        <option key={type || "none"} value={type}>
+                          {type || "类型（不修改）"}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      value={batchNote}
+                      onChange={(event) => setBatchNote(event.target.value)}
+                      placeholder="备注（留空不修改）"
+                      className="anime-field"
+                      maxLength={500}
+                      disabled={isMutating}
+                    />
+                  </div>
+                  <div className="mt-3">
+                    <AppButton
+                      onClick={handleBatchEdit}
+                      disabled={selectedAnimeIds.size === 0 || isMutating}
+                      variant="primary"
+                      size="sm"
+                    >
+                      {isMutating ? "应用中..." : `应用到选中的 ${selectedAnimeIds.size} 个作品`}
+                    </AppButton>
+                  </div>
+                </div>
+              ) : null}
 
               {batchConfirmOpen ? (
                 <div className="mt-3 rounded-xl border border-red-400/30 bg-red-400/10 p-4">
@@ -3202,7 +3301,31 @@ function PoolAnimeCard({
   const coverFit = shouldUseContainCover(displayAnime) ? "contain" : "cover";
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-slate-950/36 transition duration-anime hover:-translate-y-0.5 hover:border-anime-cyan/25 hover:shadow-anime-panel focus-within:border-anime-cyan/35">
+    <div
+      className={
+        "group relative overflow-hidden rounded-2xl border bg-slate-950/36 transition duration-anime " +
+        (batchMode
+          ? "cursor-pointer " +
+            (isBatchSelected
+              ? "border-cyan-400/70 ring-2 ring-cyan-400/40"
+              : "border-white/10 hover:border-cyan-300/40")
+          : "border-white/10 hover:-translate-y-0.5 hover:border-anime-cyan/25 hover:shadow-anime-panel focus-within:border-anime-cyan/35")
+      }
+      onClick={batchMode ? () => onToggleBatchSelect?.() : undefined}
+      onKeyDown={
+        batchMode
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onToggleBatchSelect?.();
+              }
+            }
+          : undefined
+      }
+      role={batchMode ? "button" : undefined}
+      tabIndex={batchMode ? 0 : undefined}
+      aria-pressed={batchMode ? isBatchSelected : undefined}
+    >
       <AnimeCover
         src={coverUrl}
         secondarySrc={entry.anime.imageSmallUrl ?? entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl}
