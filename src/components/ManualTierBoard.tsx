@@ -23,6 +23,7 @@ export function ManualTierBoard({ initial }: { initial: ManualBoardData }) {
   const [page, setPage] = useState(0);
   const [history, setHistory] = useState<ManualBoardData["layout"][]>([]);
   const [exportShare, setExportShare] = useState<PublicTierShare | null>(null);
+  const [showItemTitles, setShowItemTitles] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
   const dragId = useRef<string | null>(null);
   const byId = useMemo(() => new Map(board.items.map((item) => [item.animeId, item])), [board.items]);
@@ -135,6 +136,16 @@ export function ManualTierBoard({ initial }: { initial: ManualBoardData }) {
       <label className="w-full min-w-0 text-xs text-slate-400 sm:w-auto sm:min-w-[200px] sm:flex-1">榜单标题<input className="anime-field mt-1 block w-full" maxLength={100} value={board.title} disabled={busy} onChange={(event) => { setBoard({ ...board, title: event.target.value }); setDirty(true); }} /></label>
       <AppButton variant="primary" onClick={() => save()} disabled={busy || !board.title.trim()}>{busy ? "处理中…" : "保存草稿"}</AppButton>
       <AppButton variant="secondary" onClick={exportPng} disabled={busy || ranked.size === 0}>导出图片</AppButton>
+      <label className="flex min-h-11 items-center gap-2 text-xs text-slate-300">
+        <input
+          type="checkbox"
+          className="h-4 w-4 shrink-0 accent-cyan-400"
+          checked={showItemTitles}
+          disabled={busy}
+          onChange={(event) => setShowItemTitles(event.target.checked)}
+        />
+        显示作品名称
+      </label>
       <AppButton variant="secondary" onClick={() => { if (window.confirm("生成公开链接后，任何拿到链接的人都能查看当前已分档的作品。继续分享？")) void save(true); }} disabled={busy || ranked.size === 0 || !board.title.trim()}>{board.shareUrl ? "更新分享" : "分享榜单"}</AppButton>
       <span className={`text-xs ${dirty ? "text-amber-200" : "text-slate-400"}`}>{dirty ? "有未保存修改" : board.revision ? "草稿已保存" : "新榜单"}</span>
     </div>
@@ -188,6 +199,6 @@ export function ManualTierBoard({ initial }: { initial: ManualBoardData }) {
         </details>
       </aside>
     </div>
-    {exportShare && <div aria-hidden="true" ref={exportRef} style={{ position: "fixed", left: -20000, top: 0, width: 1280, pointerEvents: "none" }}><TierShareCard share={exportShare} exportMode /></div>}
+    {exportShare && <div aria-hidden="true" ref={exportRef} style={{ position: "fixed", left: -20000, top: 0, width: 1280, pointerEvents: "none" }}><TierShareCard share={exportShare} exportMode showItemTitles={showItemTitles} /></div>}
   </div>;
 }

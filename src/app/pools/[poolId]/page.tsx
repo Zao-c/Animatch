@@ -2830,6 +2830,7 @@ function CommunitySection({
   const resolvedTierRows = tierRows ?? DEFAULT_TIER_CONFIG.rows;
   const communityExportCardRef = useRef<HTMLDivElement | null>(null);
   const [isCommunityTierExporting, setIsCommunityTierExporting] = useState(false);
+  const [communityShowTitles, setCommunityShowTitles] = useState(false);
   const [communityTierExportError, setCommunityTierExportError] = useState<string | null>(null);
   const [communityTierExportedAt, setCommunityTierExportedAt] = useState<Date | null>(null);
   const communityTierShare = useMemo<PublicTierShare | null>(() => {
@@ -2957,16 +2958,28 @@ function CommunitySection({
               </button>
             </div>
             {view === "tierlist" && communityTierShare !== null ? (
-              <AppButton
-                type="button"
-                onClick={handleExportCommunityTier}
-                disabled={isCommunityTierExporting}
-                variant="secondary"
-                size="sm"
-                className="w-full sm:w-auto"
-              >
-                {isCommunityTierExporting ? "导出中..." : "导出共享 Tier 图"}
-              </AppButton>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                <AppButton
+                  type="button"
+                  onClick={handleExportCommunityTier}
+                  disabled={isCommunityTierExporting}
+                  variant="secondary"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                >
+                  {isCommunityTierExporting ? "导出中..." : "导出共享 Tier 图"}
+                </AppButton>
+                <label className="flex min-h-11 items-center gap-2 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 shrink-0 accent-cyan-400"
+                    checked={communityShowTitles}
+                    disabled={isCommunityTierExporting}
+                    onChange={(event) => setCommunityShowTitles(event.target.checked)}
+                  />
+                  显示作品名称
+                </label>
+              </div>
             ) : null}
           </div>
 
@@ -3038,7 +3051,7 @@ function CommunitySection({
           {communityTierShare !== null ? (
             <div className="tiermaker-export-host" aria-hidden="true">
               <div ref={communityExportCardRef}>
-                <TierShareCard share={communityTierShare} exportMode />
+                <TierShareCard share={communityTierShare} exportMode showItemTitles={communityShowTitles} />
               </div>
             </div>
           ) : null}

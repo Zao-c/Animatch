@@ -173,6 +173,7 @@ export default function TierPage({
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportProgress, setExportProgress] = useState<string | null>(null);
+  const [exportShowTitles, setExportShowTitles] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -663,8 +664,18 @@ export default function TierPage({
         />
       ) : null}
 
-      <div className="mb-4 flex gap-2 xl:hidden">
+      <div className="mb-4 flex flex-wrap items-center gap-2 xl:hidden">
         <AppButton onClick={handleExportImage} disabled={isExporting || tierList === null} variant="primary">{isExporting ? "生成中..." : "导出图片"}</AppButton>
+        <label className="flex min-h-11 items-center gap-2 text-sm text-slate-300">
+          <input
+            type="checkbox"
+            className="h-4 w-4 shrink-0 accent-cyan-400"
+            checked={exportShowTitles}
+            disabled={isExporting}
+            onChange={(event) => setExportShowTitles(event.target.checked)}
+          />
+          显示作品名称
+        </label>
         <a href="#tier-tools" className={appButtonClasses({ variant: "secondary" })}>设置与分享 ↓</a>
       </div>
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -823,6 +834,16 @@ export default function TierPage({
           >
             {isExporting ? "生成中..." : "导出图片"}
           </AppButton>
+          <label className="flex min-h-11 items-center gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              className="h-4 w-4 shrink-0 accent-cyan-400"
+              checked={exportShowTitles}
+              disabled={isExporting}
+              onChange={(event) => setExportShowTitles(event.target.checked)}
+            />
+            显示作品名称
+          </label>
           <AppButton
             onClick={() => {
               setShareError(null);
@@ -1091,7 +1112,7 @@ export default function TierPage({
         <div className="tiermaker-export-host" aria-hidden="true">
           <div ref={exportCardRef}>
             {shareSnapshot !== null ? (
-              <TierShareCard share={shareSnapshot} exportMode />
+              <TierShareCard share={shareSnapshot} exportMode showItemTitles={exportShowTitles} />
             ) : null}
           </div>
         </div>

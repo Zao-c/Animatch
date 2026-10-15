@@ -22,7 +22,8 @@ describe("snapshot cover priority", () => {
   it("preserves resolved COS and custom covers even when old large originals exist", () => {
     expect(render(cos)).toContain(`data-export-src="${cos}"`);
     expect(render("/uploads/anime-covers/custom.png")).toContain('data-export-src="/uploads/anime-covers/custom.png"');
-    expect(render(cos)).not.toContain("old-large.jpg");
+    // Old originals may remain as retry fallbacks, but must never be the primary cover.
+    expect(render(cos)).not.toContain(`data-export-src="https://lain.bgm.tv/old-large.jpg"`);
   });
   it("keeps legacy snapshots without resolved covers exportable", () => {
     expect(render()).toContain("old-large.jpg");
