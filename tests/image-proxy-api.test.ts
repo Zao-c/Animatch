@@ -97,7 +97,7 @@ describe("image proxy API SSRF protection", () => {
   });
 
   it("rejects configured app hostnames to avoid proxying itself", async () => {
-    process.env.ANIMATCH_IMAGE_PROXY_BLOCKED_HOSTS = "animatch.example.test,182.61.136.105";
+    process.env.ANIMATCH_IMAGE_PROXY_BLOCKED_HOSTS = "animatch.example.test,animatch.internal.test";
     const response = await GET(
       new Request("http://localhost:3000/api/image-proxy?url=https://animatch.example.test/api/health")
     );

@@ -1,151 +1,111 @@
+<div align="center">
+
+<img src="./public/brand/animatch-logo-icon.png" alt="AniMatch" width="96" />
+
 # AniMatch
 
-AniMatch 是一个面向动画作品的两两对决与 Tier List 工具。用户可以创建番组、导入作品、通过连续对决生成自己的排序，并选择参加公开番组的社区大乱斗赛季。
+**两部动画，你更喜欢哪一部？**
+用一次次「左右选择」排出属于你的动画 Tier List，围观社区大乱斗，也能和朋友一起办一届「年度大赏」。
 
-普通对决和赛季对决都只维护用户自己的结果；公开番组的社区榜单会匿名聚合多位用户的个人结果，不会改写任何人的个人 Tier List。
+![Next.js](https://img.shields.io/badge/Next.js-14-000?logo=nextdotjs&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white) ![Prisma](https://img.shields.io/badge/Prisma-6-2d3748?logo=prisma&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169e1?logo=postgresql&logoColor=white)
 
-## 当前能力
+</div>
 
-- 创建私有、未列出或公开番组，支持作品墙、番组分享和管理设置。
-- 本地库搜索、Bangumi 搜索/导入、TierMaker 导入、手动添加、图片上传和批量添加作品。
-- 普通两两对决：左/右胜、差不多、跳过、没看过、撤回、重开和移动端操作。
-- 个人 Elo、置信度、动态配对、Tier List、手动最终排序与 SMART/RANGE/FOCUS 校准。
-- 大乱斗赛季：每位用户独立赛季 Elo，完成新组合后继续提供校准对局；私心票只在社区聚合阶段产生加成。
-- 社区榜单与社区 Tier List：根据匿名聚合 Elo 生成，样本不足作品单独展示，不混入正式分档。
-- 公开 Tier List 快照分享和本地图片导出。
-- 远程封面保护、失败降级、磁盘缓存，以及可选的腾讯 COS/CDN 按需封面缓存。
+## 这是什么
 
-## 技术栈
+AniMatch 是一个动画**两两对决（Duel）**工具。
 
-- Next.js 14 App Router
-- TypeScript、React 18、Tailwind CSS
-- Prisma 6、PostgreSQL
-- NextAuth / Friend Auth
-- Vitest
-- Docker Compose
+直接给几十部动画手动排 Tier List 很难——你很难说清第 7 名和第 11 名谁更好。AniMatch 换个思路：每次只给你两部作品，回答一个简单问题「更喜欢哪一部」。回答积累起来，模糊的喜好会变成可排序的数据，最后自动生成你的 Tier List。
 
-## 本地启动
+同一套偏好还能参与公开番组的**社区大乱斗**：每个人按自己的节奏独立排序，系统把大家的结果**匿名聚合**成社区榜单——但不会改写任何人的个人榜单。
 
-前提：Node.js、Corepack/pnpm、Docker Desktop。
+## 截图
+
+| 首页 | 对决 | Tier List | 社区榜单 |
+| --- | --- | --- | --- |
+| ![首页](./docs/images/home.png) | ![对决](./docs/images/duel.png) | ![Tier List](./docs/images/tier-list.png) | ![社区榜单](./docs/images/community.png) |
+
+## 怎么玩
+
+| 步骤 | 做什么 |
+| --- | --- |
+| **01 · 添加动画** | 从公开番组挑一个开始，或创建自己的作品池。支持 Bangumi 搜索导入、TierMaker 导入、快速导入、手动添加、图片上传和批量添加。 |
+| **02 · 开始对决** | 每次只出现两部作品，只需回答「更喜欢哪一部」。左胜 / 右胜 / 差不多 / 跳过 / 没看过，支持撤回、重开与移动端操作。 |
+| **03 · 生成榜单** | 对决积累够多后得到个人 Tier List，可以手动微调最终排序、导出成图片，或生成公开分享链接。 |
+
+> 不想注册？首页的「体验示例番组」用一份内置作品池就能直接玩一轮对决。
+
+## 主要功能
+
+- **普通对决** —— 个人专属的排序过程。每个分数严格属于「你 + 该番组 + 该轮次 + 该作品」，不会串到别人那里。
+- **大乱斗赛季** —— 公开番组的社区玩法。每位参与者拥有独立的赛季 Elo 与比较记录；私心票只在社区聚合阶段产生加成。
+- **社区榜单 / 社区 Tier List** —— 由匿名聚合结果生成，样本不足的作品单独展示，不混进正式分档。
+- **Tier List 导出与分享** —— 可导出为图片（支持可选条目标题），或生成公开分享快照链接。
+- **作品管理** —— Bangumi 搜索导入、TierMaker 导入、批量添加、批量编辑标题 / 类型 / 备注、封面修复。
+- **年度大赏** —— 面向社区的活动模式：提名 → 入围 → 现场投票 → 揭晓，并支持年度回顾导出。
+- **个人主页** —— 每个用户都有 `/u/用户名` 公开页，展示参与过的番组与榜单。
+
+## 计分规则
+
+- 有效结果是左胜 / 右胜 / 平局，会在事务中更新 Elo 和对局流水。
+- **跳过不改 Elo**；**没看过**只更新个人状态并从候选中隐藏，不进入个人 Tier List。
+- 配对优先考虑未充分比较、Elo 接近、排序边界附近和低置信度的作品，同时避免近期重复组合。
+- **手动 Tier 只影响最终展示**，不会篡改 Elo 或对决历史。
+- 社区榜单按个人结果聚合，并保留样本门槛，避免单人少量投票直接成为正式排名。
+
+完整原理见 [当前普通对决引擎](docs/ranking-engine-current.md) 与 [对决流水说明](docs/comparison-ledger.md)。
+
+## 本地运行
+
+需要 Node.js 20+、Corepack/pnpm 和 Docker。
 
 ```bash
 corepack enable
 corepack pnpm install
-cp .env.example .env
-docker compose up -d
+docker compose up -d              # 启动本地 PostgreSQL
+cp .env.example .env.local        # 本地配置
 corepack pnpm prisma generate
 corepack pnpm prisma migrate dev
 corepack pnpm dev
 ```
 
-Windows PowerShell 复制环境文件：
-
-```powershell
-Copy-Item .env.example .env
-```
-
 打开 <http://127.0.0.1:3000>。
 
-常用本地命令：
+常用命令：
 
 ```bash
-corepack pnpm test
-corepack pnpm exec tsc --noEmit
-corepack pnpm build
-corepack pnpm db:studio
+corepack pnpm test                # 单元测试
+corepack pnpm lint                # ESLint
+corepack pnpm exec tsc --noEmit   # 类型检查
+corepack pnpm build               # 生产构建
+corepack pnpm db:studio           # Prisma Studio
 ```
 
-## 环境变量
+> 本仓库的 `.env` 是指向 `.env.production` 的软链，本地开发请用 `.env.local`，不要覆盖它。
 
-从 `.env.example` 或 `.env.production.example` 开始，不要提交真实 `.env` 文件。
+## 技术栈与结构
 
-必填或上线前必须确认的变量：
+- **框架**：Next.js 14（App Router）、React 18、TypeScript
+- **样式**：Tailwind CSS
+- **数据**：Prisma 6 + PostgreSQL，NextAuth / Friend Auth 登录
+- **测试**：Vitest
+- **部署**：Docker Compose
 
-```dotenv
-DATABASE_URL=postgresql://...
-FRIEND_INVITE_CODE=your-invite-code
-AUTH_SECRET=replace-with-a-long-random-secret
-AUTH_COOKIE_SECURE=false
-SITE_ADMIN_USER_IDS=
-SITE_ADMIN_CODE=
+```
+src/app         页面路由与 API 路由（src/app/api）
+src/components   UI 组件（对决、Tier List、社区榜单、大赏等）
+src/lib          领域逻辑（Elo、配对、计分边界、导入、封面、鉴权等）
+prisma/          数据模型与迁移
+scripts/         运维与数据脚本
+docs/            设计、部署与运维文档
 ```
 
-生成生产环境 `AUTH_SECRET`：
+API 使用统一响应外层：`{ "ok": true, "data": {} }` / `{ "ok": false, "error": { "message": "..." } }`。
+请通过网页界面或 `src/lib/client-api.ts` 访问，不要从浏览器直接请求 Bangumi，也不要把 Elo / 胜负结果作为客户端写入参数。
 
-```bash
-openssl rand -base64 32
-```
+## 部署
 
-HTTP 的 IP 直连部署可暂时使用 `AUTH_COOKIE_SECURE=false`；接入 HTTPS 后必须设为 `true` 并重新构建应用。
-
-## 生产部署
-
-完整说明见 [docs/deploy-server.md](docs/deploy-server.md)。生产环境只使用 `prisma migrate deploy`，不要执行 `prisma migrate dev`。
-
-典型更新流程：
-
-```bash
-git pull --ff-only
-docker compose --env-file .env.production -f docker-compose.prod.yml build app
-docker compose --env-file .env.production -f docker-compose.prod.yml up -d --no-build app
-curl -fsS http://127.0.0.1:3000/api/health
-```
-
-当前服务器维护约定：仓库位于 `/opt/Animatch/animatch`，通过 `ssh root@182.61.136.105` 登录。日常更新只重建 `app` 服务，不重启 PostgreSQL 或代理服务。
-
-上线前建议至少执行：
-
-```bash
-corepack pnpm test
-corepack pnpm exec tsc --noEmit
-corepack pnpm build
-```
-
-部署后检查 `/api/health`，并使用无缓存浏览器验证登录、普通对决、赛季对决、Tier List 和封面加载。
-
-## 腾讯 COS / CDN 封面缓存（可选）
-
-AniMatch 只缓存已经进入番组的去重作品封面，不会把整个动画库上传到 COS。
-
-```dotenv
-COS_SECRET_ID=
-COS_SECRET_KEY=
-COS_BUCKET=example-1234567890
-COS_REGION=ap-shanghai
-COS_PUBLIC_BASE_URL=https://example-1234567890.cos.ap-shanghai.myqcloud.com
-NEXT_PUBLIC_COS_PUBLIC_BASE_URL=https://img.example.com
-NEXT_PUBLIC_DIRECT_IMAGE_HOSTS=img.example.com,example-1234567890.cos.ap-shanghai.myqcloud.com
-COS_COVER_PREFIX=animatch/covers
-COS_OBJECT_ACL=public-read
-```
-
-- COS 密钥只能保留在服务器环境变量中，绝不能暴露到浏览器或提交到仓库。
-- 浏览器可直接访问的 COS/CDN 域名放入 `NEXT_PUBLIC_DIRECT_IMAGE_HOSTS`；其他远程封面仍会走受限的 `/api/image-proxy`。
-- 修改 `NEXT_PUBLIC_*` 图片域名变量后需要重新构建应用。
-- 已在番组中的旧封面可在服务器执行：
-
-```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml exec app pnpm covers:cache-cos
-```
-
-反复执行直到输出中的 `usedPendingAnimeCount` 和 `usedStaleAnimeCount` 都为 `0`。详细 CORS、回填和故障排查见 [部署文档](docs/deploy-server.md#optional-tencent-cos-cover-cache)。
-
-## 计分与数据边界
-
-### 普通对决
-
-- 每个分数严格属于 `userId + poolId + runId + animeId`，不会污染其他用户或其他轮次。
-- 有效结果为左胜、右胜、平局；它们在数据库事务中更新 Elo 和对局流水。
-- 跳过不改 Elo；没看过会更新个人状态，并从后续候选中隐藏，不会进入个人 Tier List。
-- 配对优先考虑未充分比较、Elo 接近、排序边界附近和低置信度作品，同时避免近期重复组合。
-- 手动 Tier 只影响最终展示，不会篡改 Elo 或对决历史。
-
-### 大乱斗赛季
-
-- 每个参与者在该赛季中拥有独立的作品 Elo、比较次数和隐藏状态。
-- 覆盖新组合后，系统会继续发放高价值重复对局，让更多票数用于稳定个人偏好，而不是提前耗尽候选。
-- 私心票不会放大个人 Elo；它只在最终社区聚合时提升该用户对对应作品的贡献权重。
-- 共享榜单按个人赛季 Elo 聚合，并保留样本门槛，避免单人少量投票直接成为正式社区排名。
+生产部署、备份与恢复见 [部署文档](docs/deploy-server.md)。生产环境只使用 `prisma migrate deploy`，不要执行 `prisma migrate dev`。
 
 ## 文档
 
@@ -156,40 +116,6 @@ docker compose --env-file .env.production -f docker-compose.prod.yml exec app pn
 - [对决流水说明](docs/comparison-ledger.md)
 - [UI 优化路线](docs/animematch-ui-optimization-roadmap.md)
 
-## API 与健康检查
+## 许可
 
-健康检查：
-
-```bash
-curl -fsS http://127.0.0.1:3000/api/health
-```
-
-API 使用统一响应外层：
-
-```json
-{ "ok": true, "data": {} }
-```
-
-```json
-{ "ok": false, "error": { "message": "error message" } }
-```
-
-路由实现位于 `src/app/api`。优先使用网页界面或已有客户端 API，不要从浏览器直接请求 Bangumi，也不要把 Elo、胜负后分数或其他排名结果作为客户端写入参数。
-
-## 备份与安全
-
-内测前先执行：
-
-```bash
-./scripts/backup-postgres.sh
-```
-
-备份会写入 `backups/`，该目录已被 git 忽略。恢复演练应在测试环境完成。
-
-不要在生产环境执行：
-
-```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml down -v
-```
-
-`-v` 会删除 PostgreSQL 数据卷。
+本项目基于 [MIT License](LICENSE) 开源。
