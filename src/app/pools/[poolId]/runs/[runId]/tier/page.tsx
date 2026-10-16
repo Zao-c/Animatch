@@ -372,7 +372,10 @@ export default function TierPage({
   }
 
   async function handleSaveTierConfig(config: PoolTierConfig) {
-    if (poolUpdatedAt === null) return;
+    if (poolUpdatedAt === null) {
+      setError("番组信息尚未加载完成，请稍后重试。");
+      return;
+    }
     setTierConfigSaving(true);
     setError(null);
 

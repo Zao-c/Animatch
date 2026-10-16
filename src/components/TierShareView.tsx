@@ -216,14 +216,18 @@ export function TierShareCard({
   );
 }
 
-export function TierShareMissingView() {
+export function TierShareMissingView({ unavailable = false }: { unavailable?: boolean }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#101310] px-4 text-white">
       <div className="max-w-lg rounded-3xl border border-white/10 bg-slate-950/72 p-8 text-center shadow-[0_28px_100px_rgba(0,0,0,0.35)]">
         <AppBadge tone="tier">AniMatch</AppBadge>
-        <h1 className="mt-5 text-3xl font-black">这个分享榜单不存在或已被删除。</h1>
+        <h1 className="mt-5 text-3xl font-black">
+          {unavailable ? "这个分享榜单暂时无法加载。" : "这个分享榜单不存在或已被删除。"}
+        </h1>
         <p className="mt-3 text-sm leading-6 text-slate-400">
-          请检查链接是否完整，或返回首页重新打开 AniMatch。
+          {unavailable
+            ? "可能是网络或服务临时异常，请稍后刷新页面重试。"
+            : "请检查链接是否完整，或返回首页重新打开 AniMatch。"}
         </p>
         <Link href="/" className={`${appButtonClasses({ variant: "primary" })} mt-6`}>
           返回 AniMatch 首页

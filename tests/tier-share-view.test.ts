@@ -79,6 +79,16 @@ describe("TierShareView", () => {
     expect(html).toContain("返回 AniMatch 首页");
   });
 
+  it("renders a distinct unavailable message when loading failed", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(TierShareMissingView, { unavailable: true })
+    );
+
+    expect(html).toContain("这个分享榜单暂时无法加载。");
+    expect(html).not.toContain("这个分享榜单不存在或已被删除。");
+    expect(html).toContain("返回 AniMatch 首页");
+  });
+
   it("renders share creation errors without hiding tier content", () => {
     const html = renderToStaticMarkup(
       React.createElement(

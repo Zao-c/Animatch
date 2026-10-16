@@ -83,7 +83,7 @@ export default function UserProfilePage() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true); setError(null); setProfile(null);
+    setLoading(true); setError(null); setProfile(null); setContentPage(1);
 
     fetch(`/api/users/${encodeURIComponent(username)}/public-profile`)
       .then((res) => {

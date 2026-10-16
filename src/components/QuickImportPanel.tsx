@@ -49,6 +49,8 @@ const SORTS: { key: string; label: string }[] = [
 
 const LIMITS = [30, 50, 100, 300, 500];
 
+export const MAX_TAGS = 5;
+
 const COMMON_TAGS = [
   { key: "romance", label: "恋爱" },
   { key: "school", label: "校园" },
@@ -74,7 +76,7 @@ function parseCustomTags(input: string): string[] {
     .filter(Boolean);
 }
 
-function mergeTags(tags: string[], customInput: string): string[] {
+export function mergeTags(tags: string[], customInput: string, max = MAX_TAGS): string[] {
   const seen = new Set<string>();
   const merged: string[] = [];
 
@@ -83,6 +85,7 @@ function mergeTags(tags: string[], customInput: string): string[] {
     if (seen.has(key)) continue;
     seen.add(key);
     merged.push(tag);
+    if (merged.length >= max) break;
   }
 
   return merged;
@@ -162,9 +165,11 @@ export function QuickImportPanel({
 
   function toggleTag(tag: string) {
     clearPreviewSelection();
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
+    setSelectedTags((prev) => {
+      if (prev.includes(tag)) return prev.filter((t) => t !== tag);
+      if (prev.length >= MAX_TAGS) return prev;
+      return [...prev, tag];
+    });
   }
 
   const buildParams = useCallback((): QuickImportParams => {
@@ -417,6 +422,7 @@ export function QuickImportPanel({
                 );
               })}
             </div>
+            <p className="mt-2 text-[11px] text-slate-500">最多选择 {MAX_TAGS} 个标签（含自定义标签）。</p>
             <label className="mt-3 block">
               <span className="text-xs font-semibold text-slate-400">自定义 Bangumi 标签</span>
               <input

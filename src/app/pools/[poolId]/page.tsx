@@ -18,6 +18,7 @@ import { StatusHint } from "@/components/StatusHint";
 import { TierShareCard } from "@/components/TierShareView";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
+import { isSuspiciousPoolAnimeTitle, matchesPoolAnimeSearch } from "@/lib/pool-anime-search";
 import { isSlowNetwork, prewarmCoverUrls } from "@/lib/cover-prewarm";
 import { formatAnimeSource } from "@/lib/anime-source";
 import { copyTextWithFallback } from "@/lib/browser-copy";
@@ -298,14 +299,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     let items = pool.anime;
 
     if (animeWallSearch.length > 0) {
-      const lower = animeWallSearch.toLowerCase();
-      items = items.filter((entry) => {
-        const t = entry.anime.titleCn ?? entry.anime.title;
-        return (
-          t.toLowerCase().includes(lower) ||
-          entry.anime.aliases.some((a) => a.toLowerCase().includes(lower))
-        );
-      });
+      items = items.filter((entry) => matchesPoolAnimeSearch(entry, animeWallSearch));
     }
 
     switch (animeWallFilter) {
@@ -320,17 +314,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         break;
       }
       case "suspiciousTitle": {
-        const source = items;
-        items = [];
-        for (const entry of source) {
-          const title = entry.anime.titleCn ?? entry.anime.title;
-          if (!/^未命名/.test(title) &&
-              !/^untitled$/i.test(title) &&
-              !/^unknown$/i.test(title) &&
-              !/^image[_\s-]?\d+$/i.test(title) &&
-              !/^\d{15,}$/.test(title)) continue;
-          items.push(entry);
-        }
+        items = items.filter((entry) => isSuspiciousPoolAnimeTitle(entry));
         break;
       }
       case "tiermaker":
@@ -3338,6 +3322,7 @@ function PoolAnimeCard({
       role={batchMode ? "button" : undefined}
       tabIndex={batchMode ? 0 : undefined}
       aria-pressed={batchMode ? isBatchSelected : undefined}
+      aria-label={batchMode ? `${isBatchSelected ? "取消选择" : "选择"} ${title}` : undefined}
     >
       <AnimeCover
         src={coverUrl}
@@ -3348,28 +3333,21 @@ function PoolAnimeCard({
         className="h-48 w-full rounded-none border-0 sm:h-52"
       />
       {batchMode ? (
-        <label
-          aria-label={`${isBatchSelected ? "取消选择" : "选择"} ${title}`}
+        <span
+          aria-hidden="true"
           className={
-            "absolute right-2 top-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg border-2 transition focus-within:ring-2 focus-within:ring-cyan-300/60 " +
+            "pointer-events-none absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-lg border-2 transition " +
             (isBatchSelected
               ? "border-cyan-400 bg-cyan-400/30"
               : "border-white/40 bg-slate-950/60")
           }
-          onClick={(e) => e.stopPropagation()}
         >
-          <input
-            type="checkbox"
-            checked={isBatchSelected}
-            onChange={() => onToggleBatchSelect?.()}
-            className="sr-only"
-          />
           {isBatchSelected ? (
             <svg className="h-4 w-4 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
               <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
             </svg>
           ) : null}
-        </label>
+        </span>
       ) : null}
       <div className={`p-3 ${canManage && !batchMode ? "pb-24 sm:pb-14" : ""}`}>
         <div className="flex min-h-11 items-start gap-2">

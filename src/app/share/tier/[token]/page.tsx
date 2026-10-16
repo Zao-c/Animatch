@@ -1,5 +1,6 @@
 import { TierShareMissingView, TierShareView } from "@/components/TierShareView";
 import { getPublicTierShare } from "@/lib/tier-share-service";
+import { AppError } from "@/lib/app-error";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,10 @@ export default async function ShareTierPage({
   try {
     const share = await getPublicTierShare(params.token);
     return <TierShareView share={share} exportMode={exportMode} />;
-  } catch {
-    return <TierShareMissingView />;
+  } catch (error) {
+    if (error instanceof AppError && error.code === "TIER_SHARE_NOT_FOUND") {
+      return <TierShareMissingView />;
+    }
+    return <TierShareMissingView unavailable />;
   }
 }

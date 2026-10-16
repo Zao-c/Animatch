@@ -7,7 +7,7 @@ import { AppCard } from "@/components/ui/AppCard";
 import { AppButton } from "@/components/ui/AppButton";
 import { createSeason, getSeasons } from "@/lib/client-api";
 import type { SeasonListItem } from "@/lib/client-api";
-import { getSeasonScheduleState } from "@/lib/season-schedule";
+import { getSeasonListDisplayState } from "@/lib/season-schedule";
 import { dateTimeLocalToIso } from "@/lib/date-time-local";
 
 export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdit?: boolean }) {
@@ -245,16 +245,8 @@ function SeasonListCard({ poolId, season }: { poolId: string; season: SeasonList
         {season.mode === "BIAS" ? <span>加成票 {season.biasVotesPerUser} 张</span> : null}
       </div>
       <div className="mt-4 inline-flex min-h-9 items-center rounded-full border border-amber-300/25 bg-amber-300/10 px-3 text-xs font-semibold text-amber-100 transition group-hover:border-amber-200/50 group-hover:bg-amber-300/15">
-        {state.canVote ? "进入对决" : "查看赛季结果"}
+        {state.ctaLabel}
       </div>
     </Link>
   );
-}
-
-function getSeasonListDisplayState(season: SeasonListItem) {
-  const schedule = getSeasonScheduleState(season);
-  if (schedule.phase === "ENDED") return { label: "已结束", description: "结果已定格，可查看个人和共享榜单。", tone: "muted" as const, canVote: false };
-  if (schedule.phase === "DRAFT" || schedule.phase === "UPCOMING") return { label: "未开始", description: "赛季尚未开放投票。", tone: "warning" as const, canVote: false };
-  if (schedule.phase === "CLOSED") return { label: "投票已截止", description: "投票已停止，可查看当前赛季结果。", tone: "muted" as const, canVote: false };
-  return { label: "开放中", description: season.endsAt ? `可以投票，截止到 ${new Date(season.endsAt).toLocaleDateString("zh-CN")}。` : "现在可以开始对决。", tone: "success" as const, canVote: schedule.canVote };
 }

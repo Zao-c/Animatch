@@ -21,7 +21,7 @@ import { copyTextWithFallback } from "@/lib/browser-copy";
 import { exportShareCardAsPng } from "@/lib/share-export";
 import { formatTierExportTimestamp, sanitizeFilenameSegment } from "@/lib/tier-export";
 import { DEFAULT_TIER_CONFIG, type TierRowConfig } from "@/lib/tier-config";
-import { getSeasonScheduleState } from "@/lib/season-schedule";
+import { getSeasonMatchEntry, getSeasonScheduleState } from "@/lib/season-schedule";
 import { dateTimeLocalToIso, toDateTimeLocalInputValue } from "@/lib/date-time-local";
 
 interface SeasonTierBucket {
@@ -263,6 +263,7 @@ export default function SeasonDetailPage() {
   if (!detail) return null;
 
   const seasonState = getSeasonDisplayState(detail);
+  const matchEntry = getSeasonMatchEntry(poolId, seasonId, detail.currentUserState !== null);
   const seasonModeLabel = detail.mode === "BIAS" ? "加成票模式" : "标准对决";
 
   return (
@@ -309,8 +310,8 @@ export default function SeasonDetailPage() {
 
           <div className="mt-5 flex flex-wrap gap-3">
             {seasonState.canVote ? (
-              <Link href={`/pools/${poolId}/seasons/${seasonId}/match`} className={appButtonClasses({ variant: "primary" })}>
-                开始对决
+              <Link href={matchEntry.href} className={appButtonClasses({ variant: "primary" })}>
+                {matchEntry.label}
               </Link>
             ) : null}
             {detail.currentUserCanManage && detail.status === "DRAFT" ? (

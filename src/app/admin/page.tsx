@@ -140,6 +140,7 @@ export default function AdminPage() {
       ? document.activeElement
       : null;
     setConfirmPhrase("");
+    setPoolError("");
     setConfirmTarget({ pool, action });
   };
 
@@ -250,7 +251,7 @@ export default function AdminPage() {
     try {
       await updateAdminPool(editTarget.id, {
         name: editName,
-        description: editDescription || undefined,
+        description: editDescription,
         visibility: editVisibility
       });
       await loadPools();
@@ -766,6 +767,9 @@ export default function AdminPage() {
                   className="mt-1 block w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white transition focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
                 />
               </label>
+              {poolError ? (
+                <p className="mt-3 text-sm text-red-400">{poolError}</p>
+              ) : null}
               <div className="mt-4 flex gap-3">
                 <AppButton
                   type="button"

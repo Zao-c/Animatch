@@ -876,7 +876,8 @@ export function batchRemoveAnimeFromPool(poolId: string, poolAnimeIds: string[])
     `/api/pools/${poolId}/anime/batch-remove`,
     {
       method: "POST",
-      body: JSON.stringify({ poolAnimeIds })
+      // fetchJsonOnce serializes the body once, so pass the plain object here.
+      body: { poolAnimeIds }
     }
   );
 }
@@ -894,7 +895,8 @@ export function batchUpdatePoolAnime(
     `/api/pools/${poolId}/anime/batch-update`,
     {
       method: "POST",
-      body: JSON.stringify({ poolAnimeIds, ...data })
+      // fetchJsonOnce serializes the body once, so pass the plain object here.
+      body: { poolAnimeIds, ...data }
     }
   );
 }

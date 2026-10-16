@@ -22,6 +22,7 @@ import {
   type PoolSummary
 } from "@/lib/client-api";
 import { formatDateTimeStable } from "@/lib/date-format";
+import { copyTextWithFallback } from "@/lib/browser-copy";
 import {
   formatOfficialDemo,
   formatPoolVisibility,
@@ -224,11 +225,11 @@ function PoolsPageContent() {
   }
 
   async function handleCopyPoolId(poolId: string) {
-    try {
-      await navigator.clipboard?.writeText(poolId);
+    const result = await copyTextWithFallback(poolId);
+    if (result === "copied") {
       setNotice("番组 ID 已复制");
-    } catch {
-      setError("复制失败，请手动复制番组 ID");
+    } else {
+      setError(`自动复制失败，请手动复制番组 ID：${poolId}`);
     }
   }
 

@@ -4,11 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getMe, logout, type AuthUser } from "@/lib/client-api";
+import { sanitizeNextPath } from "@/lib/safe-redirect";
 
 export function AuthNav() {
   const pathname = usePathname();
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [nextPath, setNextPath] = useState("");
 
+  // Re-sync on navigation so a client-side login (router.replace + refresh)
+  // updates the nav immediately, without forcing a full page reload.
   useEffect(() => {
     let cancelled = false;
 
@@ -27,7 +31,20 @@ export function AuthNav() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [pathname]);
+
+  // Preserve the full current URL (path + query + hash) as the post-login target.
+  useEffect(() => {
+    if (pathname === "/" || pathname === "/login") {
+      setNextPath("");
+      return;
+    }
+
+    const full = sanitizeNextPath(
+      `${window.location.pathname}${window.location.search}${window.location.hash}`
+    );
+    setNextPath(full === "/" ? "" : `?next=${encodeURIComponent(full)}`);
+  }, [pathname]);
 
   async function handleLogout() {
     await logout().catch(() => null);
@@ -35,11 +52,9 @@ export function AuthNav() {
   }
 
   if (user === null) {
-    const next = pathname === "/" || pathname === "/login" ? "" : `?next=${encodeURIComponent(pathname)}`;
-
     return (
       <Link
-        href={`/login${next}`}
+        href={`/login${nextPath}`}
         className="inline-flex min-h-11 items-center rounded-full border border-anime-border bg-white/[0.04] px-4 py-2 transition duration-anime hover:border-anime-purple/40 hover:text-white"
       >
         登录
