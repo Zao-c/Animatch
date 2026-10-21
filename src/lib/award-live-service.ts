@@ -58,7 +58,8 @@ export async function controlAwardLive(id: string, userId: string, value: unknow
     let scene: string | undefined, current: string | null = awardId || null;
     if (action === "show" || action === "wait") {
       if (active && (action === "wait" || active.awardId !== awardId)) return fail("请先结束当前投票，再切换奖项");
-      scene = action === "wait" ? "WAITING" : decision?.revealedAt ? "REVEALED" : active ? "VOTING" : "NOMINEES";
+      scene = action === "wait" ? "WAITING" : decision?.revealedAt ? "REVEALED" : decision ? "READY" : active ? "VOTING" : "NOMINEES";
+      if (action === "wait") current = null;
     } else if (action === "open" || action === "runoff") {
       if (active) return fail("已有正在进行的投票，请先关票");
       if (decision) return fail("本项已确认结果，不能重新开票");

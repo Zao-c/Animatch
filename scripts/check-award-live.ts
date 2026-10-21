@@ -65,11 +65,15 @@ async function main() {
   const second = (await getAwardLive(event.id, host.id, true)).rounds[1];
   assert.equal(second.tally!.voters, racing[0].status === "fulfilled" ? 3 : 2, "last vote and closing serialize");
   await action("decide", { method: "VOTE", roundId: round.id });
+  await action("show");
+  assert.equal((await getAwardLive(event.id, alice.id)).stage.scene, "READY", "show preserves a confirmed result awaiting reveal");
   const before = await getAwardLive(event.id, alice.id);
   assert.deepEqual(before.decisions, []); assert.ok(before.rounds.every((r) => r.tally === null)); assert.deepEqual(before.materials, []); assert.deepEqual(before.history, []);
   await action("reveal");
   const after = await getAwardLive(event.id, alice.id);
   assert.equal(after.decisions[0].winners[0].title, "Show B"); assert.equal(after.rounds.length, 2); assert.ok(after.rounds.every((r) => r.tally));
+  await action("wait");
+  assert.deepEqual((await getAwardLive(event.id, alice.id)).stage, { scene: "WAITING", awardId: null }, "waiting detaches the previously revealed award");
   await assert.rejects(controlAwardLive(event.id, host.id, { revision, awardId, action: "reveal" }), { statusCode: 409 });
   await assert.rejects(controlAwardLive(event.id, host.id, { revision, action: "finish" }), { statusCode: 409 });
   for (const other of awards.slice(1)) {
