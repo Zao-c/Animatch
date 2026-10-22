@@ -1,8 +1,9 @@
-import { ok, serverError } from "@/lib/api-response";
+import { badRequest, ok, serverError } from "@/lib/api-response";
 import { GLOBAL_SEARCH_EXCLUDED_SOURCES, toPublicAnime } from "@/lib/anime-service";
 import { expandTagQuery, matchTagAliases, normalizeTagKey } from "@/lib/anime-tag-dictionary";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { validateDiscoveryYears } from "@/lib/anime-discovery";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -17,6 +18,8 @@ export async function GET(request: Request) {
   const offset = parseOffset(url.searchParams.get("offset"));
 
   try {
+    const invalidYears = validateDiscoveryYears({ yearFrom: url.searchParams.get("yearFrom") ?? "", yearTo: url.searchParams.get("yearTo") ?? "" });
+    if (invalidYears) return badRequest(invalidYears);
     const where: Prisma.AnimeWhereInput = {
       source: {
         notIn: GLOBAL_SEARCH_EXCLUDED_SOURCES
@@ -57,9 +60,9 @@ export async function GET(request: Request) {
     }
 
     if (yearFrom !== null || yearTo !== null) {
-      where.year = {};
-      if (yearFrom !== null) where.year.gte = yearFrom;
-      if (yearTo !== null) where.year.lte = yearTo;
+      const year = { ...(yearFrom !== null ? { gte: yearFrom } : {}), ...(yearTo !== null ? { lte: yearTo } : {}) };
+      const airDate = { ...(yearFrom !== null ? { gte: new Date(`${yearFrom}-01-01T00:00:00.000Z`) } : {}), ...(yearTo !== null ? { lt: new Date(`${yearTo + 1}-01-01T00:00:00.000Z`) } : {}) };
+      andConditions.push({ OR: [{ year }, { year: null, airDate }] });
     }
 
     if (type) {
@@ -70,10 +73,11 @@ export async function GET(request: Request) {
       where.AND = andConditions;
     }
 
-    const orderBy: Prisma.AnimeOrderByWithRelationInput =
-      sort === "year" ? { year: "desc" }
-      : sort === "score" ? { bangumiScore: "desc" }
-      : { title: "asc" };
+    const orderBy: Prisma.AnimeOrderByWithRelationInput[] =
+      sort === "year" ? [{ year: { sort: "desc", nulls: "last" } }, { airDate: { sort: "desc", nulls: "last" } }, { id: "asc" }]
+      : sort === "score" ? [{ bangumiScore: { sort: "desc", nulls: "last" } }, { bangumiVotes: { sort: "desc", nulls: "last" } }, { id: "asc" }]
+      : sort === "rank" ? [{ bangumiRank: { sort: "asc", nulls: "last" } }, { id: "asc" }]
+      : [{ title: "asc" }, { id: "asc" }];
 
     const [items, total] = await Promise.all([
       prisma.anime.findMany({

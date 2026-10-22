@@ -34,6 +34,12 @@ export interface BangumiSearchItem {
   title: string;
   titleCn: string | null;
   imageUrl: string | null;
+  imageSmallUrl?: string | null;
+  imageMediumUrl?: string | null;
+  imageLargeUrl?: string | null;
+  bangumiScore?: number | null;
+  bangumiRank?: number | null;
+  animeType?: string | null;
   sourceUrl: string;
   summary: string | null;
   tags: string[];
@@ -492,6 +498,8 @@ type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
 interface FetchJsonOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
+  signal?: AbortSignal;
+  attempts?: number;
 }
 
 export class ApiClientError extends Error {
@@ -509,11 +517,12 @@ export async function fetchJson<T>(
   options: FetchJsonOptions = {}
 ): Promise<T> {
   const method = options.method ?? "GET";
-  const maxAttempts = method === "GET" ? 3 : 1;
+  const maxAttempts = method === "GET" ? Math.max(1, Math.min(3, options.attempts ?? 3)) : 1;
   let lastError: unknown = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
+      options.signal?.throwIfAborted();
       return await fetchJsonOnce<T>(path, options, method);
     } catch (error) {
       lastError = error;
@@ -541,7 +550,8 @@ async function fetchJsonOnce<T>(
             "Content-Type": "application/json"
           },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
-    credentials: "same-origin"
+    credentials: "same-origin",
+    signal: options.signal
   });
   const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null;
 
@@ -593,7 +603,7 @@ export function discoverAnime(params: {
   sort?: string;
   limit?: number;
   offset?: number;
-}) {
+}, signal?: AbortSignal) {
   const searchParams = new URLSearchParams();
   if (params.q) searchParams.set("q", params.q);
   if (params.tag) searchParams.set("tag", params.tag);
@@ -608,17 +618,22 @@ export function discoverAnime(params: {
   if (params.limit) searchParams.set("limit", String(params.limit));
   if (params.offset) searchParams.set("offset", String(params.offset));
 
-  return fetchJson<{ items: PublicAnime[]; total: number }>(`/api/anime/discover?${searchParams.toString()}`);
+  return fetchJson<{ items: PublicAnime[]; total: number }>(`/api/anime/discover?${searchParams.toString()}`, { signal });
 }
 
-export function searchBangumiAnime(q: string, limit = 20) {
+export function searchBangumiAnime(q: string, limit = 20, options: { offset?: number; yearFrom?: number; yearTo?: number; type?: string; tags?: string[]; sort?: string; signal?: AbortSignal } = {}) {
   const params = new URLSearchParams({
     q,
     limit: String(limit)
   });
 
-  return fetchJson<{ items: BangumiSearchItem[] }>(
-    `/api/anime/bangumi/search?${params.toString()}`
+  if (!q.trim()) params.set("browse", "1");
+  for (const [key, value] of Object.entries(options)) {
+    if (key === "signal" || value === undefined || value === "") continue;
+    params.set(key, Array.isArray(value) ? value.join(",") : String(value));
+  }
+  return fetchJson<{ items: BangumiSearchItem[]; hasMore?: boolean }>(
+    `/api/anime/bangumi/search?${params.toString()}`, { signal: options.signal, attempts: 1 }
   );
 }
 

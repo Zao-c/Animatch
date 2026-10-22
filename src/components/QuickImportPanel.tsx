@@ -8,7 +8,7 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { getAnimeCoverUrl, getAnimeSourceCoverCandidates } from "@/lib/anime-cover-url";
 import { getAnimeDisplayTitle, getAnimeImageFitMode } from "@/lib/anime-display";
 import {
   addQuickImportToPool,
@@ -100,10 +100,10 @@ function makeCandidateCoverUrl(candidate: QuickImportCandidate): string | null {
     imageSmallUrl: candidate.thumbnailUrl,
     thumbnailUrl: candidate.thumbnailUrl,
     source: candidate.source,
-    coverUrl: null,
+    coverUrl: candidate.coverUrl,
     coverUrlOverride: null,
   } as Parameters<typeof getAnimeCoverUrl>[0];
-  return getAnimeCoverUrl(fakeAnime, { intent: "display" });
+  return candidate.coverUrl ?? getAnimeCoverUrl(fakeAnime, { intent: "display" });
 }
 
 function makeAnimeForCover(candidate: QuickImportCandidate) {
@@ -115,7 +115,7 @@ function makeAnimeForCover(candidate: QuickImportCandidate) {
     imageSmallUrl: candidate.thumbnailUrl,
     thumbnailUrl: candidate.thumbnailUrl,
     source: candidate.source,
-    coverUrl: null,
+    coverUrl: candidate.coverUrl,
     coverUrlOverride: null,
   } as Parameters<typeof getAnimeCoverUrl>[0];
 }
@@ -156,6 +156,7 @@ export function QuickImportPanel({
 
   function clearPreviewSelection() {
     requestVersion.current++;
+    setIsLoading(false);
     setResultPage(1);
     setPreview(null);
     setPreviewParams(null);
@@ -203,7 +204,7 @@ export function QuickImportPanel({
     } catch (reason) {
       if (version === requestVersion.current) setError(reason instanceof Error ? reason.message : "预览失败");
     } finally {
-      setIsLoading(false);
+      if (version === requestVersion.current) setIsLoading(false);
     }
   }
 
@@ -650,6 +651,7 @@ export function QuickImportPanel({
                       <AnimeCover
                         animeId={candidate.animeId}
                         src={covUrl}
+                        fallbackSrcs={getAnimeSourceCoverCandidates(makeAnimeForCover(candidate))}
                         title={candidate.titleCn ?? candidate.title}
                         size="lg"
                         fit={coverFit}

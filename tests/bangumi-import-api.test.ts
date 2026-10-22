@@ -248,6 +248,23 @@ describe("Bangumi search API", () => {
     expect(mockedBangumi.searchBangumiAnime).not.toHaveBeenCalled();
   });
 
+  it("browses with an empty keyword, year and pagination filters", async () => {
+    const response = await SEARCH_BANGUMI(new Request("http://test.local/api/anime/bangumi/search?browse=1&yearFrom=2026&yearTo=2026&offset=12&tags=romance&type=TV&sort=score&limit=12"));
+    expect(response.status).toBe(200);
+    expect(mockedBangumi.searchBangumiAnime).toHaveBeenCalledWith("", { limit: 12, offset: 12, yearFrom: 2026, yearTo: 2026, tags: ["恋爱"], type: "TV", sort: "score" });
+  });
+  it("resolves official subject URLs without searching the URL text", async () => {
+    mockedBangumi.getBangumiSubject.mockResolvedValueOnce(subject());
+    const response = await SEARCH_BANGUMI(new Request("http://test.local/api/anime/bangumi/search?q=https://bgm.tv/subject/876"));
+    expect(response.status).toBe(200);
+    expect(mockedBangumi.getBangumiSubject).toHaveBeenCalledWith(876);
+    expect(mockedBangumi.searchBangumiAnime).not.toHaveBeenCalled();
+    expect((await response.json()).data.hasMore).toBe(false);
+  });
+  it("rejects non-animation subject references", async () => {
+    mockedBangumi.getBangumiSubject.mockResolvedValueOnce({ ...subject(), rawJson: { type: 1 } });
+    expect((await SEARCH_BANGUMI(new Request("http://test.local/api/anime/bangumi/search?q=876"))).status).toBe(400);
+  });
   it("returns normalized Bangumi search results", async () => {
     const response = await SEARCH_BANGUMI(
       new Request("http://test.local/api/anime/bangumi/search?q=frieren")

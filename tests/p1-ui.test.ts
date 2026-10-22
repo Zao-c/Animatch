@@ -19,10 +19,11 @@ describe("P1 pool detail UI", () => {
     expect(source).toContain("你的对决和榜单只属于你，不会影响创建者");
   });
 
-  it("keeps additional import methods folded behind a secondary control", () => {
-    expect(source).toContain("更多导入方式");
-    expect(source).toContain("showMoreImportMethods");
-    expect(source).toContain('setActiveTab("search")');
+  it("keeps import methods directly discoverable in one named group", () => {
+    expect(source.includes('aria-label="添加作品方式"')).toBe(true);
+    expect(source.includes("AnimeDiscoveryPanel")).toBe(true);
+    expect(source.includes("批量筛选")).toBe(true);
+    expect(source.includes("showMoreImportMethods")).toBe(false);
   });
 });
 

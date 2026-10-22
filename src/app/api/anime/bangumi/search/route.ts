@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { badRequest, fromError, ok } from "@/lib/api-response";
 import { isAppError } from "@/lib/app-error";
 import { requireCurrentUser } from "@/lib/auth-session";
-import { searchBangumiAnime, toBangumiSearchItem } from "@/lib/bangumi";
+import { getBangumiSubject, searchBangumiAnime, toBangumiSearchItem } from "@/lib/bangumi";
+import { parseBangumiReference, validateDiscoveryYears } from "@/lib/anime-discovery";
+import { labelAnimeTag } from "@/lib/anime-tag-dictionary";
 import {
   BANGUMI_SEARCH_CIRCUIT_MS,
   beginBangumiSearch,
@@ -19,11 +21,20 @@ export async function GET(request: Request) {
   const query = url.searchParams.get("q")?.trim() ?? "";
   const limit = parseLimit(url.searchParams.get("limit"));
 
-  if (!query) {
+  const reference = parseBangumiReference(query);
+  const yearFrom = url.searchParams.get("yearFrom") ?? "";
+  const yearTo = url.searchParams.get("yearTo") ?? "";
+  const invalidYears = validateDiscoveryYears({ yearFrom, yearTo });
+  if (invalidYears) return badRequest(invalidYears);
+  const offset = Number(url.searchParams.get("offset") ?? 0);
+  if (!Number.isSafeInteger(offset) || offset < 0 || offset > 10000) return badRequest("Invalid offset");
+  const tags = (url.searchParams.get("tags") ?? "").split(",").map((tag) => tag.trim()).filter(Boolean);
+  if (query.length > 200 || tags.length > 5 || tags.some((tag) => tag.length > 50)) return badRequest("Too many search terms");
+  if (!query && url.searchParams.get("browse") !== "1") {
     return badRequest("q is required");
   }
 
-  if (query.length < 2) {
+  if (query && query.length < 2 && reference === null) {
     return badRequest("q must be at least 2 characters");
   }
 
@@ -35,11 +46,25 @@ export async function GET(request: Request) {
 
   try {
     await requireCurrentUser();
-    const subjects = await searchBangumiAnime(query, { limit });
+    const options: Parameters<typeof searchBangumiAnime>[1] = { limit };
+    if (offset) options.offset = offset;
+    if (yearFrom) options.yearFrom = Number(yearFrom);
+    if (yearTo) options.yearTo = Number(yearTo);
+    if (tags.length) options.tags = tags.map(labelAnimeTag);
+    if (url.searchParams.get("type")) options.type = url.searchParams.get("type")!;
+    if (url.searchParams.get("sort")) options.sort = url.searchParams.get("sort")!;
+    const subjects = reference === null
+      ? await searchBangumiAnime(query, options)
+      : offset === 0 ? [await getBangumiSubject(reference)] : [];
+    if (subjects.some((subject) => {
+      const raw = subject.rawJson;
+      return raw && typeof raw === "object" && !Array.isArray(raw) && raw.type !== undefined && raw.type !== 2;
+    })) return badRequest("这个链接不是动画条目，请选择 Bangumi 动画。" );
     recordBangumiSearchSuccess();
 
     return ok({
-      items: subjects.map(toBangumiSearchItem)
+      items: subjects.map(toBangumiSearchItem),
+      hasMore: reference === null && subjects.length === limit
     });
   } catch (error) {
     if (isAppError(error)) {

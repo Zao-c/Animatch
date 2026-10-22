@@ -56,7 +56,7 @@ describe("onboarding guide copy", () => {
   });
 
   it("explains add-anime search flow concisely", () => {
-    expect(detailSource).toContain("搜索动画名称");
+    expect(readFileSync("src/components/AnimeDiscoveryPanel.tsx", "utf8").includes("输入名称或选择筛选条件")).toBe(true);
   });
 
   it("warns about TierMaker import cover expiration and cover repair", () => {
