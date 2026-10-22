@@ -39,15 +39,15 @@ export function MatchArena({ left, right, mode = "personal" }: { left: ReactNode
   </div>;
 }
 
-export function MatchChoiceCard({ title, src, secondarySrc, animeId, fit, side, actionLabel, mode = "personal", disabled, highlighted, onPick, details, className = "" }: {
-  title: string; src?: string | null; secondarySrc?: string | null; animeId: string;
+export function MatchChoiceCard({ title, src, secondarySrc, fallbackSrcs, animeId, fit, side, actionLabel, mode = "personal", disabled, highlighted, onPick, details, className = "" }: {
+  title: string; src?: string | null; secondarySrc?: string | null; fallbackSrcs?: readonly string[]; animeId: string;
   fit?: "cover" | "contain"; side: "left" | "right"; mode?: MatchMode;
   disabled: boolean; highlighted?: boolean; onPick: () => void; details?: ReactNode; className?: string; actionLabel?: string;
 }) {
   const label = actionLabel ?? (side === "left" ? "更喜欢左边" : "更喜欢右边");
   return <article className={`flex min-w-0 flex-col rounded-2xl border bg-slate-950/35 p-2 transition-colors sm:p-3 ${highlighted ? "border-amber-200 ring-2 ring-amber-200/30" : "border-white/10"} ${disabled ? "opacity-60" : ""} ${className}`}>
     <div className="relative h-[clamp(10rem,28dvh,18rem)] w-full overflow-hidden rounded-xl bg-slate-950 sm:h-[clamp(15rem,34dvh,22rem)]">
-      <AnimeCover src={src} secondarySrc={secondarySrc} animeId={animeId} title={title} size="lg" fit={fit} loading="eager" warm className="!h-full !max-h-none !aspect-auto rounded-none border-0" />
+      <AnimeCover src={src} secondarySrc={secondarySrc} fallbackSrcs={fallbackSrcs} animeId={animeId} title={title} size="lg" fit={fit} loading="eager" warm className="!h-full !max-h-none !aspect-auto rounded-none border-0" />
       <button type="button" disabled={disabled} onClick={onPick} aria-label={`选择${side === "left" ? "左边" : "右边"}：${title}`} className="absolute inset-0 z-10 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-cyan-200 disabled:cursor-wait" />
     </div>
     <h2 title={title} className="my-3 line-clamp-2 min-h-10 text-sm font-bold leading-5 text-slate-100 sm:min-h-12 sm:text-base sm:leading-6">{title}</h2>

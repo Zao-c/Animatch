@@ -273,6 +273,7 @@ function ShareItemCard({
       ) : <AnimeCover
         src={coverUrl}
         secondarySrc={sourceCandidates[0]}
+        fallbackSrcs={sourceCandidates}
         title={title}
         size="sm"
         fit={coverFit}

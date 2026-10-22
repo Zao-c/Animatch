@@ -9,7 +9,7 @@ import { formatAnimeSource } from "@/lib/anime-source";
 import { formatPoolManagementStatus } from "@/lib/pool-labels";
 import { getPoolPermissions } from "@/lib/pool-permissions";
 import { buildRankingProgress } from "@/lib/ranking-progress";
-import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { getAnimeCoverUrl, getAnimeSourceCoverCandidates } from "@/lib/anime-cover-url";
 
 const VISIBILITIES = new Set<string>(Object.values(Visibility));
 const LIST_STATUSES = new Set([
@@ -342,7 +342,7 @@ function deriveCoverImages(
   return entries
     .map((entry) => {
       const displayUrl = getAnimeCoverUrl(entry.anime, { intent: "display" });
-      const fallbackUrl = getAnimeCoverUrl(entry.anime, { intent: "export" });
+      const fallbackUrl = getAnimeSourceCoverCandidates(entry.anime).find((url) => url !== displayUrl) ?? null;
       if (displayUrl === null) return null;
       return {
         src: displayUrl,

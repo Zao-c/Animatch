@@ -90,7 +90,7 @@ describe("anime cover rendering", () => {
     expect(html).not.toContain("<img");
     expect(html).toContain("Fallback Title");
     expect(html).toContain("封面加载失败");
-    expect(html).toContain("刷新页面或稍后再试");
+    expect(html).toContain("稍后自动重试 · 点击重试");
   });
 
   it("AnimeCover renders every image with no-referrer and supports contain mode", () => {
@@ -157,7 +157,7 @@ describe("anime cover rendering", () => {
     );
 
     expect(html).toContain("src=\"/api/image-proxy?url=https%3A%2F%2Fexample.com%2Fmedium.jpg\"");
-    expect(html).not.toContain("thumb.jpg");
+    expect(html).not.toContain('data-cover-primary-src="/api/image-proxy?url=https%3A%2F%2Fexample.com%2Fthumb.jpg"');
     expect(html).toContain('data-cover-fit="cover"');
     expect(html).toContain('referrerPolicy="no-referrer"');
   });
@@ -334,7 +334,7 @@ describe("match cover stability", () => {
 
     expect(html).not.toContain("<img");
     expect(html).toContain("封面加载失败");
-    expect(html).toContain("刷新页面或稍后再试");
+    expect(html).toContain("稍后自动重试 · 点击重试");
     expect(html).toContain("冰菓");
   });
 
@@ -350,7 +350,7 @@ describe("match cover stability", () => {
 
     expect(html).not.toContain("<img");
     expect(html).toContain("封面加载失败");
-    expect(html).toContain("刷新页面或稍后再试");
+    expect(html).toContain("稍后自动重试 · 点击重试");
     expect(html).toContain("葬送的芙莉莲");
     expect(html).toContain("aspect-[2/3]");
   });
@@ -428,7 +428,7 @@ describe("match cover stability", () => {
 
     expect(html).not.toContain("<img");
     expect(html).toContain("封面加载失败");
-    expect(html).toContain("刷新页面或稍后再试");
+    expect(html).toContain("稍后自动重试 · 点击重试");
     expect(html).toContain("无封面作品");
   });
 
@@ -582,7 +582,7 @@ describe("match cover resilience", () => {
     expect(html).toContain('data-cover-state="empty"');
     expect(html).toContain('data-cover-url-present="false"');
     expect(html).toContain("封面加载失败");
-    expect(html).toContain("刷新页面或稍后再试");
+    expect(html).toContain("稍后自动重试 · 点击重试");
   });
 
   it("AnimeCover shows a compact visible error badge for small covers", () => {
@@ -596,7 +596,7 @@ describe("match cover resilience", () => {
     );
 
     expect(html).toContain('data-cover-state="empty"');
-    expect(html).toContain("封面加载失败，刷新页面或稍后再试。");
+    expect(html).toContain("封面加载失败，会自动重试，也可点击封面重试。");
     expect(html).toContain("right-1 top-1");
     expect(html).toContain(">!</span>");
   });
@@ -737,7 +737,7 @@ describe("match cover resilience", () => {
     expect(html).toContain('data-cover-state="empty"');
     expect(html).toContain('data-cover-url-present="false"');
     expect(html).toContain("封面加载失败");
-    expect(html).toContain("刷新页面或稍后再试");
+    expect(html).toContain("稍后自动重试 · 点击重试");
     expect(html).toContain("无封面作品");
   });
 });

@@ -66,6 +66,7 @@ export function TierAnimeCard({
       <AnimeCover
         src={coverUrl}
         secondarySrc={secondaryUrl}
+        fallbackSrcs={getAnimeSourceCoverCandidates(item)}
         title={title}
         size="md"
         fit={coverFit}

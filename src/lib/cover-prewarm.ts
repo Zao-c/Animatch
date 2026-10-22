@@ -1,4 +1,6 @@
-import { proxyExternalImageUrl } from "./image-proxy";
+import { proxyExternalImageUrl, getCoverDeliveryCandidates } from "./image-proxy";
+
+import { loadCoverImage } from "./cover-loader";
 
 interface PrewarmOptions {
   limit?: number;
@@ -17,7 +19,6 @@ interface PrewarmResult {
 const DEFAULT_LIMIT = 12;
 const DEFAULT_CONCURRENCY = 3;
 const DEFAULT_TIMEOUT_MS = 2500;
-const CANCELLED_IMAGE_DATA_URL = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
 
 export function prewarmCoverUrls(
   urls: (string | null | undefined)[],
@@ -112,53 +113,16 @@ async function prewarmSingle(
   timeoutMs: number,
   signal?: AbortSignal
 ): Promise<"warmed" | "skipped" | "cancelled"> {
-  return new Promise((resolve) => {
-    if (signal?.aborted) {
-      resolve("cancelled");
-      return;
-    }
-
-    const image = new Image();
-    let resolved = false;
-
-    const stopLoading = () => {
-      image.onload = null;
-      image.onerror = null;
-      // Replacing src with an in-memory image aborts the previous network load.
-      image.src = CANCELLED_IMAGE_DATA_URL;
-    };
-
-    const done = (result: "warmed" | "skipped", stopRequest = false) => {
-      if (resolved) return;
-      resolved = true;
-      clearTimeout(timer);
-      signal?.removeEventListener("abort", onAbort);
-      if (stopRequest) stopLoading();
-      resolve(result);
-    };
-
-    const timer = setTimeout(() => done("skipped", true), timeoutMs);
-
-    const onAbort = () => {
-      if (resolved) return;
-      resolved = true;
-      clearTimeout(timer);
-      signal?.removeEventListener("abort", onAbort);
-      stopLoading();
-      resolve("cancelled");
-    };
-
-    signal?.addEventListener("abort", onAbort, { once: true });
-
-    if (signal?.aborted) {
-      onAbort();
-      return;
-    }
-
-    image.onload = () => done("warmed");
-    image.onerror = () => done("skipped");
-    image.src = url;
-  });
+  if (signal?.aborted) return "cancelled";
+  const controller = new AbortController(), abort = () => controller.abort();
+  signal?.addEventListener("abort", abort, { once: true });
+  const timer = setTimeout(abort, timeoutMs);
+  try {
+    const original = url.startsWith("/api/image-proxy") ? extractRawUrl(url) : null;
+    await loadCoverImage(getCoverDeliveryCandidates(url, original), { signal: controller.signal, priority: 2 });
+    return "warmed";
+  } catch { return signal?.aborted ? "cancelled" : "skipped"; }
+  finally { clearTimeout(timer); controller.abort(); signal?.removeEventListener("abort", abort); }
 }
 
 function extractRawUrl(proxyUrl: string): string | null {

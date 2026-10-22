@@ -10,6 +10,7 @@ import { AppButton } from "@/components/ui/AppButton";
 import { PageShell } from "@/components/PageShell";
 import { MatchActions, MatchArena, MatchChoiceCard, MatchHeading, MatchWorkspace } from "@/components/MatchPresentation";
 import { ApiClientError, getSeasonDetail, getSeasonMatchQueue, setSeasonAnimeHidden, submitSeasonVote } from "@/lib/client-api";
+import { getAnimeCoverUrl, getAnimeSourceCoverCandidates } from "@/lib/anime-cover-url";
 import { getAnimeDisplayTitle, getAnimeImageFitMode } from "@/lib/anime-display";
 import type { SeasonDetail, SeasonMatchQueueItem, SeasonAnimeEntry } from "@/lib/client-api";
 import { isInteractiveShortcutTarget } from "@/lib/match-shortcuts";
@@ -19,9 +20,9 @@ function SeasonDuelCard({ anime, side, disabled, onPick, highlighted }: {
   anime: SeasonAnimeEntry; side: "left" | "right"; disabled: boolean; onPick: () => void; highlighted: boolean;
 }) {
   const title = getAnimeDisplayTitle(anime);
-  const coverUrl = anime.imageMediumUrl ?? anime.imageUrl;
+  const coverUrl = getAnimeCoverUrl(anime, { intent: "hero" });
   const secondarySrc = anime.imageLargeUrl ?? anime.imageSmallUrl ?? anime.thumbnailUrl ?? anime.imageUrl;
-  return <MatchChoiceCard title={title} src={coverUrl} secondarySrc={secondarySrc} animeId={anime.animeId} fit={getAnimeImageFitMode(anime)} side={side} mode="season" disabled={disabled} onPick={onPick} highlighted={highlighted} details={<p>选择这部作品会消耗 1 张赛季票；跳过和标记没看过不消耗票数。</p>} />;
+  return <MatchChoiceCard title={title} src={coverUrl} secondarySrc={secondarySrc} fallbackSrcs={getAnimeSourceCoverCandidates(anime)} animeId={anime.animeId} fit={getAnimeImageFitMode(anime)} side={side} mode="season" disabled={disabled} onPick={onPick} highlighted={highlighted} details={<p>选择这部作品会消耗 1 张赛季票；跳过和标记没看过不消耗票数。</p>} />;
 }
 
 function filterSeasonQueue(

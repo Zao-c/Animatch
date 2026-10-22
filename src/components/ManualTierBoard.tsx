@@ -121,7 +121,7 @@ export function ManualTierBoard({ initial }: { initial: ManualBoardData }) {
       onDrop={(event) => drop(event, row, row ? item.animeId : undefined)}
       onClick={() => setSelected(selected === item.animeId ? null : item.animeId)}
       className={`w-[72px] shrink-0 overflow-hidden rounded-lg border text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 sm:w-20 ${selected === item.animeId ? "border-cyan-300 ring-2 ring-cyan-300" : "border-white/10 hover:border-white/40"}`}>
-      <AnimeCover src={item.coverUrl} secondarySrc={getAnimeSourceCoverCandidates(item).find((url) => url !== item.coverUrl)} title={item.title} size="sm" className="aspect-[2/3] h-auto w-full rounded-none border-0" />
+      <AnimeCover src={item.coverUrl} secondarySrc={getAnimeSourceCoverCandidates(item).find((url) => url !== item.coverUrl)} fallbackSrcs={getAnimeSourceCoverCandidates(item)} title={item.title} size="sm" className="aspect-[2/3] h-auto w-full rounded-none border-0" />
       <span className="line-clamp-2 h-9 px-1 py-1 text-[11px] leading-[14px] text-slate-200" title={item.title}>{item.title}</span>
     </button>;
   }

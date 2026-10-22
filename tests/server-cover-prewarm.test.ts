@@ -35,7 +35,7 @@ describe("cover cache prewarm helper", () => {
   });
 
   it("converts URLs through proxyExternalImageUrl and filters non-proxy paths", () => {
-    expect(source).toContain("proxyExternalImageUrl(raw)");
+    expect(source).toContain("getSameOriginImageUrl(raw)");
     expect(source).toContain("p.startsWith(\"/\")");
   });
 
@@ -88,7 +88,7 @@ describe("getProxiedCoverCandidates in image-proxy.ts", () => {
   });
 
   it("returns proxy primary first, then proxy secondary without direct raw remote fallbacks", () => {
-    const slice = source.slice(source.indexOf("const values = ["));
+    const slice = source.slice(source.indexOf("const values = ["), source.indexOf("export function getSameOriginImageUrl"));
     const proxyPrimaryIdx = slice.indexOf("proxyExternalImageUrl(primary)");
     const proxySecondaryIdx = slice.indexOf("proxyExternalImageUrl(secondary)");
 

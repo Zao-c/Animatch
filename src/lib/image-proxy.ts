@@ -105,3 +105,32 @@ export function getProxiedCoverCandidates(
     return [url];
   });
 }
+
+/** A readable same-origin copy, including when COS is normally loaded directly. */
+export function getSameOriginImageUrl(value: string | null | undefined): string | null {
+  const url = value?.trim();
+  if (!url) return null;
+  if (url.startsWith("/") || url.startsWith("data:image/")) return url;
+  if (!isRemoteImageUrl(url)) return null;
+  return `${PROXY_PATH}?url=${encodeURIComponent(url)}`;
+}
+
+/** Keep direct COS delivery fast, but retain an independent server-cache path. */
+export function getCoverDeliveryCandidates(
+  primary: string | null | undefined,
+  secondary?: string | null,
+  fallbacks: readonly string[] = []
+): string[] {
+  const result: string[] = [];
+  const add = (url: string | null) => { if (url && !result.includes(url)) result.push(url); };
+  const sources = [...new Set([primary, secondary, ...fallbacks].filter((v): v is string => !!v?.trim()).map((v) => v.trim()))].slice(0, 3);
+  for (const value of sources) {
+    add(proxyExternalImageUrl(value));
+    add(getSameOriginImageUrl(value));
+  }
+  // Bangumi can be reachable from the viewer even when server egress is slow.
+  for (const value of sources) {
+    if (value && /^https:\/\/lain\.(?:bgm|bangumi)\.tv\//i.test(value)) add(value);
+  }
+  return result.slice(0, 8);
+}

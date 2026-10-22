@@ -16,7 +16,7 @@ import { CollectionPager } from "@/components/ui/CollectionPager";
 import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
 import { TierShareCard } from "@/components/TierShareView";
-import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { getAnimeCoverUrl, getAnimeSourceCoverCandidates } from "@/lib/anime-cover-url";
 import { getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
 import { isSuspiciousPoolAnimeTitle, matchesPoolAnimeSearch } from "@/lib/pool-anime-search";
 import { isSlowNetwork, prewarmCoverUrls } from "@/lib/cover-prewarm";
@@ -3327,6 +3327,7 @@ function PoolAnimeCard({
       <AnimeCover
         src={coverUrl}
         secondarySrc={entry.anime.imageSmallUrl ?? entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl}
+        fallbackSrcs={getAnimeSourceCoverCandidates(entry.anime)}
         title={title}
         size="md"
         fit={coverFit}
@@ -3582,6 +3583,7 @@ function PoolAnimeDisplayPanel({
         <AnimeCover
           src={coverUrl}
           secondarySrc={entry.anime.imageSmallUrl ?? entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl}
+        fallbackSrcs={getAnimeSourceCoverCandidates(entry.anime)}
           title={title}
           size="sm"
           fit={coverFit}

@@ -1,6 +1,8 @@
 import type { MatchPair } from "./client-api";
-import { getAnimeCoverUrl, type AnimeCoverUrlFields } from "./anime-cover-url";
-import { getProxiedCoverCandidates } from "./image-proxy";
+import { getAnimeCoverUrl, getAnimeSourceCoverCandidates, type AnimeCoverUrlFields } from "./anime-cover-url";
+import { getCoverDeliveryCandidates } from "./image-proxy";
+
+import { loadCoverImage } from "./cover-loader";
 
 const DEFAULT_PRELOAD_TIMEOUT_MS = 4000;
 const inFlightPreloads = new Map<string, Promise<boolean>>();
@@ -86,18 +88,16 @@ export async function preloadPairs(
 }
 
 async function preloadAnimeImage(anime: AnimeCoverUrlFields): Promise<boolean> {
-  for (const src of bestImageCandidates(anime)) {
-    const loaded = await preloadImage(src);
-    if (loaded) {
-      return true;
-    }
-  }
-
-  return false;
+  const controller = new AbortController();
+  try {
+    await loadCoverImage(bestImageCandidates(anime), { signal: controller.signal, priority: 2 });
+    return true;
+  } catch { return false; }
+  finally { controller.abort(); }
 }
 
 function bestImageCandidates(anime: AnimeCoverUrlFields): string[] {
   const heroUrl = getAnimeCoverUrl(anime, { intent: "hero" });
-  const exportUrl = getAnimeCoverUrl(anime, { intent: "export" });
-  return getProxiedCoverCandidates(heroUrl, exportUrl);
+  const originalSources = getAnimeSourceCoverCandidates(anime);
+  return getCoverDeliveryCandidates(heroUrl, originalSources.find((url) => url !== heroUrl), originalSources);
 }
