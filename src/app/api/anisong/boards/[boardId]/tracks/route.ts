@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { requireCurrentUser } from "@/lib/auth-session";
 import { ok, fromError } from "@/lib/api-response";
 import { AppError } from "@/lib/app-error";
-import { ownedSongBoard, addSongTrack } from "@/lib/anisong/service";
+import { ownedSongBoard, addSongTrack, boardView } from "@/lib/anisong/service";
 import { boundedBody, saveAudio, discardAudio } from "@/lib/anisong/audio-storage";
 import { trackInput, revisionInput, audioUrlInput, coverUrlInput } from "@/lib/anisong/validation";
 import { MAX_AUDIO_BYTES, MAX_SONG_COVER_BYTES, MAX_TRACKS, type SongSource, type SongDocument } from "@/lib/anisong/types";
@@ -17,9 +17,13 @@ export async function POST(request: Request, { params }: { params: { boardId: st
     const board = await ownedSongBoard(user.id, params.boardId);
     const body = await boundedBody(request, MAX_AUDIO_BYTES + MAX_SONG_COVER_BYTES + 64 * 1024);
     const form = await new Response(body, { headers: { "Content-Type": request.headers.get("content-type") ?? "" } }).formData().catch(() => { throw new AppError("请使用有效的音频表单", 400); });
+    const importKey = form.get("importKey");
+    if (importKey !== null && (typeof importKey !== "string" || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(importKey))) throw new AppError("导入编号无效", 400);
+    const document = board.document as unknown as SongDocument;
+    // A batch item keeps its immutable import key when retrying a lost response.
+    if (importKey && !form.get("trackId") && document.tracks.some(t => t.importKey === importKey)) return ok(boardView(board));
     const revision = revisionInput(form.get("revision"));
     if (revision !== board.revision) throw new AppError("曲单已更新，请重新载入后添加", 409);
-    const document = board.document as unknown as SongDocument;
     const trackId = form.get("trackId");
     const previous = trackId ? document.tracks.find(t => t.id === trackId) : undefined;
     if (trackId && !previous) throw new AppError("歌曲不存在", 404);
@@ -34,14 +38,14 @@ export async function POST(request: Request, { params }: { params: { boardId: st
     }
     const file = form.get("file");
     const url = audioUrlInput(form.get("audioUrl"));
-    let source: SongSource = previous?.source ?? { kind: "none" };
+    let source: SongSource = form.get("removeAudio") === "true" ? { kind: "none" } : previous?.source ?? { kind: "none" };
     if (file instanceof File && file.size > 0) {
       if (url && !(previous?.source.kind === "url" && previous.source.url === url)) throw new AppError("音频文件与直链请选择一种", 400);
       source = await saveAudio(file);
       uploadKey = source.key;
     } else if (url) source = { kind: "url", url };
     else if (form.has("audioUrl") && previous?.source.kind === "url") source = { kind: "none" };
-    const result = await addSongTrack(board, revision, { ...track, id, source, coverUrl });
+    const result = await addSongTrack(board, revision, { ...track, id, source, coverUrl, ...(previous?.importKey || importKey ? { importKey: previous?.importKey ?? String(importKey) } : {}) });
     uploadKey = null;
     uploadedCover = null;
     return ok(result, { status: 201 });

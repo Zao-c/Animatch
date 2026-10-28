@@ -3,11 +3,23 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AppButton } from "@/components/ui/AppButton";
 import { KIND_LABELS, SONG_KINDS, MAX_AUDIO_BYTES, MAX_SONG_COVER_BYTES, type SongTrack } from "@/lib/anisong/types";
 import { SongCover } from "./SongCover";
+import { SongClipEditor } from "./SongClipEditor";
 
-export function SongForm({ track, busy, onSave, onCancel }: {
-  track?: SongTrack; busy: boolean; onSave: (data: FormData) => Promise<boolean>; onCancel: () => void;
+export function SongForm({ track, boardId, busy, onSave, onCancel }: {
+  track?: SongTrack; boardId: string; busy: boolean; onSave: (data: FormData) => Promise<boolean>; onCancel: () => void;
 }) {
   const [error, setError] = useState("");
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [audioPreview, setAudioPreview] = useState("");
+  const [audioUrl, setAudioUrl] = useState(track?.source.kind === "url" ? track.source.url : "");
+  const [removeAudio, setRemoveAudio] = useState(false);
+  const audioInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!audioFile) { setAudioPreview(""); return; }
+    const url = URL.createObjectURL(audioFile); setAudioPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [audioFile]);
+  const previewSource = audioPreview || (audioUrl.startsWith("https://") ? audioUrl : "") || (!removeAudio && track?.source.kind === "upload" ? `/api/anisong/boards/${boardId}/audio/${track.id}` : "");
   const [coverUrl, setCoverUrl] = useState(track?.coverUrl ?? "");
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
@@ -51,15 +63,15 @@ export function SongForm({ track, busy, onSave, onCancel }: {
       </div>
       <label className="block text-sm">风格标签<input name="tags" defaultValue={track?.tags.join(", ") ?? ""} maxLength={160} placeholder="摇滚, 治愈, 电音（逗号分隔）" className="anime-field mt-1.5" /></label>
       <div className="space-y-4 rounded-xl border border-white/10 p-4">
-        <label className="block text-sm">上传音频<input name="file" type="file" accept=".mp3,.m4a,.wav,.ogg,.flac,audio/*" className="mt-2 block w-full min-w-0 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-white" /></label>
-        <p className="text-xs text-slate-400">MP3 / M4A / WAV / OGG / FLAC，每首最多20 MB。{track?.source.kind === "upload" ? "已保存音频，不选文件则保留。" : ""}</p>
-        <label className="block text-sm">或填写 HTTPS 音频直链<input name="audioUrl" type="url" defaultValue={track?.source.kind === "url" ? track.source.url : ""} placeholder="https://…/song.mp3" maxLength={2048} className="anime-field mt-1.5" /></label>
+        <label className="block text-sm">上传音频<input ref={audioInput} name="file" type="file" accept=".mp3,.m4a,.wav,.ogg,.flac,audio/*" onChange={e => { const file = e.target.files?.[0] ?? null; if (file && (!file.size || file.size > MAX_AUDIO_BYTES)) { setError("音频不能为空，且不能超过20 MB"); e.target.value = ""; setAudioFile(null); return; } setError(""); setAudioFile(file); if (file) setAudioUrl(""); }} className="mt-2 block w-full min-w-0 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-white" /></label>
+        <p className="text-xs text-slate-400">MP3 / M4A / WAV / OGG / FLAC，每首最多20 MB。{!removeAudio && track?.source.kind === "upload" ? "已保存音频，不选文件则保留。" : ""}</p>
+        <label className="block text-sm">或填写 HTTPS 音频直链<input name="audioUrl" type="url" value={audioUrl} onChange={e => { setAudioUrl(e.target.value); if (e.target.value) { setAudioFile(null); if (audioInput.current) audioInput.current.value = ""; } }} placeholder="https://…/song.mp3" maxLength={2048} className="anime-field mt-1.5" /></label>
+        <input type="hidden" name="removeAudio" value={String(removeAudio)} />
+        {(audioFile || audioUrl || (!removeAudio && track?.source.kind === "upload")) && <AppButton type="button" size="sm" variant="quiet" onClick={() => { setAudioFile(null); setAudioUrl(""); setRemoveAudio(true); if (audioInput.current) audioInput.current.value = ""; }}>移除音频</AppButton>}
+        {removeAudio && !audioFile && !audioUrl && <p className="text-xs text-amber-200">保存后将移除音频，歌曲信息和对决记录会保留。</p>}
         <p className="text-xs text-slate-500">请使用你有权使用的音频。平台歌曲页面链接不能直接播放；也可以暂不添加音频。</p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="text-sm">试听起点（秒）<input name="clipStart" type="number" min={0} max={3600} step={0.1} defaultValue={track?.clipStart ?? 0} className="anime-field mt-1.5" /></label>
-        <label className="text-sm">试听长度（秒）<input name="clipLength" type="number" min={5} max={90} step={1} defaultValue={track?.clipLength ?? 30} className="anime-field mt-1.5" /></label>
-      </div>
+      <SongClipEditor src={previewSource} initialStart={track?.clipStart} initialLength={track?.clipLength} />
       {error && <p role="alert" className="text-sm text-amber-200">{error}</p>}
       <div className="flex gap-3"><AppButton type="submit">{busy ? "正在保存…" : track ? "保存歌曲" : "添加到曲单"}</AppButton><AppButton type="button" variant="ghost" onClick={onCancel}>收起</AppButton></div>
     </fieldset>

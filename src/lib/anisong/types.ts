@@ -11,6 +11,7 @@ export type SongSource =
   | { kind: "none" };
 export type SongTrack = {
   id: string;
+  importKey?: string;
   title: string;
   artist: string;
   anime: string;
