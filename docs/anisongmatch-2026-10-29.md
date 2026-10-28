@@ -1,6 +1,6 @@
 # AnisongMatch 第一版
 
-入口：`/anisong`，导航栏「音乐对决」。实现分支：`feature/anisongmatch`。
+入口：`/anisong`，导航栏「音乐对决」。实现分支：`feature/anisongmatch`。封面与交互迭代见[优化方案与验证](anisongmatch-cover-ui-plan.md)。
 
 ## 可用流程
 
@@ -9,7 +9,7 @@
 3. 设定试听起点和长度（默认30秒，可选5–90秒）。选择筛选结果参赛，或全曲单参赛。
 4. 左右选择、平局、跳过、未听过；支持键盘1/2/3/4和撤回。未听过的歌曲可在曲单中恢复。
 5. 自动生成完整 S/A/B/C/D Tier List；待比较单独展示。可手动指定档位，或恢复自动分档。
-6. 导出 PNG / 榜单 JSON，或者生成公开分享快照。分享不含音频、音频地址和账号信息；更新快照需主动点击，关闭分享后旧链接失效。
+6. 导出 PNG / 榜单 JSON，或者生成公开分享快照。分享包含歌曲封面，不含音频、音频地址和账号信息；更新快照需主动点击，关闭分享后旧链接失效。
 7. 编辑或移除歌曲；删除曲单会同时删除私有音频与分享链接。
 
 音频先在浏览器中试听，播放器互斥，换题或离开视图会停止。直链不经服务器代理。上传音频在私有目录中，通过检查曲单所有者的 GET / HEAD 路由播放；支持 HTTP Range，方便移动端加载和拖动。
@@ -52,7 +52,7 @@
 - 已有生产库：按现有部署流程备份后执行 `prisma migrate deploy`，不能使用 `db push`。
 - 新增 Docker 卷 `anisong_audio:/app/data/anisong-audio`。该目录不得放入 `public` 或配置为静态资源目录；必须和数据库一起备份、恢复。
 - 本地默认目录为 `data/anisong-audio`；可通过 `ANISONG_AUDIO_DIR` 覆盖，已加入 `.gitignore`。
-- 反向代理需允许至少21 MB的 multipart 请求（例如 Nginx `client_max_body_size 21m`）；应用仍按单文件20 MB限制。
+- 反向代理需允许至少26 MB的 multipart 请求（例如 Nginx `client_max_body_size 26m`），容纳20 MB音频和5 MB封面以及表单开销；应用分别限制文件大小。
 - 若回退版本，保留音频卷和新增数据表；旧动画功能不依赖音乐表。不得用 `docker compose down -v` 删除数据卷。
 
 ## 验证

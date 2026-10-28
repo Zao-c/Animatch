@@ -4,6 +4,19 @@ import { emptySongDocument, type SongDocument, type SongTrack } from "@/lib/anis
 const track = (id: string): SongTrack => ({ id, title: id, artist: "artist", anime: "anime", kind: "OP", year: 2026, quarter: 4, tags: [], clipStart: 0, clipLength: 30, source: { kind: "url", url: "https://example.com/private.mp3" } });
 const fixture = (): SongDocument => ({ ...emptySongDocument(), tracks: [track("a"), track("b"), track("c")] });
 describe("AnisongMatch ledger", () => {
+  it("keeps the pair and left/right positions stable across reloads and metadata edits", () => {
+    const doc = fixture();
+    const original = nextSongPair(doc)!;
+    const reloaded = nextSongPair(JSON.parse(JSON.stringify(doc)))!;
+    expect([reloaded.left.id, reloaded.right.id]).toEqual([original.left.id, original.right.id]);
+    doc.tracks[0].coverUrl = "https://example.com/cover.jpg";
+    const edited = nextSongPair(doc)!;
+    expect([edited.left.id, edited.right.id]).toEqual([original.left.id, original.right.id]);
+    doc.events.push({ id: "next", leftId: original.left.id, rightId: original.right.id, result: "LEFT_WIN" });
+    doc.events.pop();
+    const undone = nextSongPair(doc)!;
+    expect([undone.left.id, undone.right.id]).toEqual([original.left.id, original.right.id]);
+  });
   it("keeps uncompared songs pending, then ranks the winner above the loser", () => {
     const doc = fixture();
     expect(rankSongs(doc).pending).toHaveLength(3);

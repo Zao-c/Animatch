@@ -34,6 +34,14 @@ export function audioUrlInput(value: unknown): string {
     url.hostname.endsWith(".local") || url.hostname.includes(":")) throw new AppError("请使用公开的 HTTPS 音频直链", 400);
   return url.href;
 }
+export function coverUrlInput(value: unknown, previous?: string | null): string | null {
+  const raw = textInput(value, "封面地址", 2048);
+  if (!raw) return null;
+  // Existing uploads can be retained, but cannot be borrowed from another board.
+  if (raw === previous && raw.startsWith("/uploads/anime-covers/song-")) return raw;
+  try { return audioUrlInput(raw); }
+  catch { throw new AppError("请填写公开的 HTTPS 图片地址，或直接上传封面", 400); }
+}
 export function trackInput(value: unknown): Omit<SongTrack, "id" | "source"> {
   const input = objectInput(value);
   const kind = input.kind ?? "OP";

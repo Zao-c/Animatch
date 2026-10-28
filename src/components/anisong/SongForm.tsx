@@ -1,18 +1,29 @@
 "use client";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AppButton } from "@/components/ui/AppButton";
-import { KIND_LABELS, SONG_KINDS, MAX_AUDIO_BYTES, type SongTrack } from "@/lib/anisong/types";
+import { KIND_LABELS, SONG_KINDS, MAX_AUDIO_BYTES, MAX_SONG_COVER_BYTES, type SongTrack } from "@/lib/anisong/types";
+import { SongCover } from "./SongCover";
 
 export function SongForm({ track, busy, onSave, onCancel }: {
   track?: SongTrack; busy: boolean; onSave: (data: FormData) => Promise<boolean>; onCancel: () => void;
 }) {
   const [error, setError] = useState("");
+  const [coverUrl, setCoverUrl] = useState(track?.coverUrl ?? "");
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState("");
+  const coverInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!coverFile) { setPreview(""); return; }
+    const url = URL.createObjectURL(coverFile); setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [coverFile]);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     const data = new FormData(form);
     const file = data.get("file");
     if (file instanceof File && file.size > MAX_AUDIO_BYTES) { setError("单个音频不能超过20 MB"); return; }
+    if (coverFile && coverFile.size > MAX_SONG_COVER_BYTES) { setError("封面图片不能超过5 MB"); return; }
     setError("");
     if (track) data.set("trackId", track.id);
     if (await onSave(data)) form.reset();
@@ -21,6 +32,15 @@ export function SongForm({ track, busy, onSave, onCancel }: {
   return <form onSubmit={submit} className="rounded-2xl border border-anime-cyan/20 bg-slate-950/50 p-5 sm:p-6">
     <fieldset disabled={busy} className="space-y-5">
       <legend className="mb-4 text-lg font-semibold">{track ? "编辑歌曲" : "添加歌曲"}</legend>
+      <div className="flex flex-col gap-4 rounded-xl border border-white/10 p-4 sm:flex-row">
+        <SongCover src={preview || coverUrl} title={track?.title || "歌曲"} className="w-28 sm:w-36" eager />
+        <div className="min-w-0 flex-1 space-y-3">
+          <label className="block text-sm">上传歌曲封面<input ref={coverInput} name="cover" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={e => setCoverFile(e.target.files?.[0] ?? null)} className="mt-2 block w-full min-w-0 text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-white" /></label>
+          <input type="hidden" name="coverUrl" value={coverUrl} />
+          <label className="block text-sm">或填写封面图片地址<input value={coverUrl.startsWith("/uploads/") ? "" : coverUrl} onChange={e => setCoverUrl(e.target.value)} maxLength={2048} placeholder={coverUrl.startsWith("/uploads/") ? "已保存上传的封面，也可换成图片地址" : "https://…/cover.jpg"} className="anime-field mt-1.5" /></label>
+          <div className="flex flex-wrap items-center gap-3"><p className="text-xs leading-5 text-slate-400">专辑封面或动画海报均可，最大5 MB。</p>{(coverUrl || coverFile) && <AppButton type="button" size="sm" variant="quiet" onClick={() => { setCoverUrl(""); setCoverFile(null); if (coverInput.current) coverInput.current.value = ""; }}>移除封面</AppButton>}</div>
+        </div>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {field("title", "歌名 *", track?.title ?? "", "歌曲名称", true)}
         {field("artist", "歌手", track?.artist ?? "", "演唱者 / 乐队")}

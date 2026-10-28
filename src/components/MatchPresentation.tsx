@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AnimeCover } from "./AnimeCover";
 import { AppButton } from "./ui/AppButton";
 
-type MatchMode = "personal" | "season";
+type MatchMode = "personal" | "season" | "music";
 
 export function MatchWorkspace({ children }: { children: ReactNode }) {
   return <div className="mx-auto w-full max-w-[90rem]">{children}</div>;
@@ -18,13 +18,13 @@ export function MatchHeading({ mode, title, context, backHref, description, tool
   return <header className="mb-2 border-b border-white/10 pb-2">
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
       <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
-        <span className={`rounded-full border px-2.5 py-1 font-bold ${mode === "season" ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-cyan-300/30 bg-cyan-300/10 text-cyan-100"}`}>{mode === "season" ? "赛季投票" : "个人自由对决"}</span>
+        <span className={`rounded-full border px-2.5 py-1 font-bold ${mode === "season" ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-cyan-300/30 bg-cyan-300/10 text-cyan-100"}`}>{mode === "season" ? "赛季投票" : mode === "music" ? "音乐对决" : "个人自由对决"}</span>
         <h1 className="max-w-full truncate text-base font-bold text-white sm:max-w-md sm:text-lg" title={title}>{title}</h1>
         {context}
       </div>
       <div className="flex flex-wrap items-center gap-2">
       {tools}
-      <Link className="inline-flex min-h-11 items-center px-2 text-sm text-slate-300 hover:text-white" href={backHref}>{mode === "season" ? "返回赛季" : "返回番组"} →</Link>
+      <Link className="inline-flex min-h-11 items-center px-2 text-sm text-slate-300 hover:text-white" href={backHref}>{mode === "season" ? "返回赛季" : mode === "music" ? "返回曲单" : "返回番组"} →</Link>
       <details className="relative"><summary className="flex min-h-11 cursor-pointer items-center text-xs text-slate-400">玩法说明</summary><p className="absolute right-0 z-30 w-64 rounded-xl border border-white/10 bg-slate-950 p-3 text-sm leading-6 shadow-xl">{description}</p></details>
       </div>
     </div>

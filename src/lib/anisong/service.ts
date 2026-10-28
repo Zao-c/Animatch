@@ -7,6 +7,8 @@ import { rankSongs, songSnapshot } from "./engine";
 import { emptySongDocument, MAX_EVENTS, MAX_TRACKS, type SongBoardView, type SongDocument, type SongTrack, type SongDecision } from "./types";
 import { objectInput, revisionInput, textInput } from "./validation";
 import { discardAudio } from "./audio-storage";
+import { cleanSongCovers, songCoverReferences } from "./cover-storage";
+import type { SongSnapshot } from "./types";
 
 export async function ownedSongBoard(userId: string, id: string) {
   const board = await prisma.songBoard.findFirst({ where: { id, ownerId: userId } });
@@ -34,6 +36,7 @@ export async function deleteSongBoard(userId: string, id: string, value: unknown
   if (removed.count !== 1) throw new AppError("曲单已更新，请重新载入后删除", 409);
   const document = board.document as unknown as SongDocument;
   await Promise.all(document.tracks.map(t => t.source.kind === "upload" ? discardAudio(t.source.key) : Promise.resolve()));
+  await cleanSongCovers(songCoverReferences(document, board.snapshot as unknown as SongSnapshot | null), new Set());
   return { deleted: true };
 }
 export async function saveSongBoard(board: StoredBoard, expectedRevision: number, document: SongDocument,
@@ -42,6 +45,11 @@ export async function saveSongBoard(board: StoredBoard, expectedRevision: number
   const changed = await prisma.songBoard.updateMany({ where: { id: board.id, ownerId: board.ownerId, revision: expectedRevision },
     data: { document: document as unknown as Prisma.InputJsonValue, revision: { increment: 1 }, ...extra } });
   if (changed.count !== 1) throw new AppError("曲单已在其他页面更新，请重新载入后再操作", 409);
+  const nextSnapshot = extra.snapshot === Prisma.DbNull ? null : extra.snapshot ?? board.snapshot;
+  await cleanSongCovers(
+    songCoverReferences(board.document as unknown as SongDocument, board.snapshot as unknown as SongSnapshot | null),
+    songCoverReferences(document, nextSnapshot as unknown as SongSnapshot | null)
+  );
   // Return exactly this write, not a newer concurrent mutation.
   return boardView({ ...board, ...extra, snapshot: board.snapshot, document: document as unknown as Prisma.JsonValue,
     revision: expectedRevision + 1, updatedAt: new Date() });

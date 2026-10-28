@@ -64,7 +64,14 @@ export function rankSongs(document: SongDocument) {
     tiers, progress };
 }
 
-export function nextSongPair(document: SongDocument, random: () => number = Math.random) {
+function pairingRandom(document: SongDocument) {
+  const seed = JSON.stringify([document.tracks.map(t => t.id), document.candidateIds, document.events.map(e => e.id)]);
+  let state = 2166136261;
+  for (let i = 0; i < seed.length; i++) state = Math.imul(state ^ seed.charCodeAt(i), 16777619);
+  return () => { state += 0x6d2b79f5; let t = Math.imul(state ^ (state >>> 15), state | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+
+export function nextSongPair(document: SongDocument, random: () => number = pairingRandom(document)) {
   const ranking = rankSongs(document);
   const compared = new Set(document.events.filter(e => ["LEFT_WIN", "RIGHT_WIN", "DRAW"].includes(e.result))
     .map(e => makePairKey(e.leftId, e.rightId)));
@@ -83,6 +90,6 @@ export function songSnapshot(title: string, document: SongDocument): SongSnapsho
     { id: "hidden", label: "未听过", color: "#475569", scores: ranking.hidden }];
   return { version: 1, title, capturedAt: new Date().toISOString(), comparisons: ranking.progress.effectiveComparisons,
     rows: rows.map(row => ({ id: row.id, label: row.label, color: row.color, songs: row.scores.map(s => ({
-      id: s.track.id, title: s.track.title, artist: s.track.artist, anime: s.track.anime, kind: s.track.kind, manual: s.manualLocked
+      id: s.track.id, title: s.track.title, artist: s.track.artist, anime: s.track.anime, kind: s.track.kind, manual: s.manualLocked, coverUrl: s.track.coverUrl ?? null
     })) })) };
 }
