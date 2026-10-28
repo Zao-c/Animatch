@@ -134,7 +134,7 @@ export function buildTierShareSnapshot(params: {
       items: (params.tierList.tiers[row.id] ?? []).map(toSnapshotItem)
     })),
     tierRows,
-    animeCount: params.tierList.comparedAnime,
+    animeCount: tierRows.reduce((count, row) => count + (params.tierList.tiers[row.id]?.length ?? 0), 0),
     comparisonCount: params.tierList.effectiveComparisons
   };
 }
@@ -145,6 +145,7 @@ export async function createTierShare(params: {
   runId: string;
   tierLabels?: unknown;
   description?: unknown;
+  expectedVersion: string;
 }): Promise<{ token: string; url: string; share: PublicTierShare }> {
   if (!params.poolId.trim() || !params.runId.trim()) {
     throw new AppError("poolId and runId are required", 400, "INVALID_SHARE_INPUT");
@@ -206,6 +207,9 @@ export async function createTierShare(params: {
   });
   const tierLabels = sanitizeTierShareLabels(params.tierLabels);
   const description = sanitizeTierShareDescription(params.description);
+  if (params.expectedVersion !== tierList.shareVersion) {
+    throw new AppError("榜单已在其他页面更新。请重新载入并确认排序后再分享。", 409, "TIER_SHARE_CHANGED");
+  }
   if (tierList.totalComparisons === 0 || tierList.effectiveComparisons === 0) {
     throw new AppError(
       "Complete at least one comparison before creating a public Tier share",

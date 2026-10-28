@@ -8,12 +8,12 @@ describe("onboarding guide copy", () => {
   const tierSource = readFileSync("src/app/pools/[poolId]/runs/[runId]/tier/page.tsx", "utf8");
   const presentationSource = readFileSync("src/components/MatchPresentation.tsx", "utf8");
 
-  it("shows the home onboarding guide", () => {
-    expect(homeSource).toContain("三步生成榜单");
-    expect(homeSource).toContain("从公开番组体验一次大乱斗");
-    expect(homeSource).toContain("添加动画");
-    expect(homeSource).toContain("开始对决");
-    expect(homeSource).toContain("生成榜单");
+  it("keeps home actions visible without an onboarding guide", () => {
+    expect(homeSource).toContain("动画对决");
+    expect(homeSource).toContain("<HomeActions />");
+    expect(homeSource).toContain("<HomeMiniMatchDemo />");
+    expect(homeSource).not.toContain("三步生成榜单");
+    expect(homeSource).not.toContain("从公开番组体验一次大乱斗");
   });
 
   it("shows public pool anonymous onboarding copy", () => {
@@ -65,7 +65,7 @@ describe("onboarding guide copy", () => {
   });
 
   it("keeps onboarding surfaces wrapped for narrow mobile widths", () => {
-    expect(homeSource).toContain("sm:grid-cols-3");
+    expect(homeSource).toContain("minmax(0,1fr)");
     expect(detailSource).toContain("flex flex-wrap");
     expect(matchSource).toContain("flex flex-wrap");
     expect(tierSource).toContain("grid grid-cols-2 gap-3 sm:flex sm:flex-wrap");

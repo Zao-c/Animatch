@@ -76,7 +76,7 @@ describe("Bangumi import source service", () => {
   });
 
   it("filters remote Bangumi subjects by normalized anime type", () => {
-    expect(source).toContain("s.animeType === expectedType");
+    expect(source).toContain("expectedTypes.includes(s.animeType)");
     expect(source).toContain("remoteFetchTarget");
   });
 
@@ -300,7 +300,7 @@ describe("QuickImportPanel Bangumi UI", () => {
   });
 
   it("has improved empty state message", () => {
-    expect(source).toContain("本地库没有命中，Bangumi 也没有拉到结果");
+    expect(source).toContain("试试选择全年、全部类型");
   });
 
   it("does not expose sensitive fields", () => {

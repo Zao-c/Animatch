@@ -3,6 +3,7 @@ import * as http from "node:http";
 import * as https from "node:https";
 import * as tls from "node:tls";
 import type { Socket } from "node:net";
+import { animeMonthRange, bangumiFormatTag } from "./anime-filter-options";
 
 export const BANGUMI_BASE_URL = (process.env.BANGUMI_PROXY_URL || "").trim() || "https://api.bgm.tv/v0";
 const DEFAULT_USER_AGENT = "AniMatch/0.1 (https://github.com/Zao-c/Animatch)";
@@ -560,7 +561,7 @@ interface BangumiSearchResponse {
 
 export async function searchBangumiAnime(
   keyword: string,
-  options: { limit?: number; offset?: number; yearFrom?: number; yearTo?: number; type?: string; tags?: string[]; sort?: string } = {}
+  options: { limit?: number; offset?: number; yearFrom?: number; yearTo?: number; month?: number; type?: string; tags?: string[]; sort?: string } = {}
 ): Promise<NormalizedBangumiSubject[]> {
   const trimmedKeyword = keyword.trim();
 
@@ -573,8 +574,12 @@ export async function searchBangumiAnime(
   if (options.yearFrom) dates.push(`>=${options.yearFrom}-01-01`);
   if (options.yearTo) dates.push(`<${options.yearTo + 1}-01-01`);
   if (dates.length) filter.air_date = dates;
+  if (options.month && options.yearFrom) {
+    const { start, end } = animeMonthRange(options.yearFrom, options.month);
+    filter.air_date = [`>=${start.toISOString().slice(0, 10)}`, `<${end.toISOString().slice(0, 10)}`];
+  }
   if (options.tags?.length) filter.tag = options.tags;
-  const platform = ({ TV: "TV", MOVIE: "剧场版", OVA: "OVA", ONA: "WEB", SPECIAL: "SP" } as Record<string, string>)[options.type ?? ""];
+  const platform = bangumiFormatTag(options.type);
   if (platform) filter.meta_tags = [platform];
   const url = `${BANGUMI_BASE_URL}/search/subjects?limit=${limit}&offset=${offset}`;
   const response = await bangumiRequest(url, {

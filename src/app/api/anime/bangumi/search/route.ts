@@ -24,7 +24,8 @@ export async function GET(request: Request) {
   const reference = parseBangumiReference(query);
   const yearFrom = url.searchParams.get("yearFrom") ?? "";
   const yearTo = url.searchParams.get("yearTo") ?? "";
-  const invalidYears = validateDiscoveryYears({ yearFrom, yearTo });
+  const month = url.searchParams.get("month") ?? "";
+  const invalidYears = validateDiscoveryYears({ yearFrom, yearTo, month });
   if (invalidYears) return badRequest(invalidYears);
   const offset = Number(url.searchParams.get("offset") ?? 0);
   if (!Number.isSafeInteger(offset) || offset < 0 || offset > 10000) return badRequest("Invalid offset");
@@ -50,6 +51,7 @@ export async function GET(request: Request) {
     if (offset) options.offset = offset;
     if (yearFrom) options.yearFrom = Number(yearFrom);
     if (yearTo) options.yearTo = Number(yearTo);
+    if (month) options.month = Number(month);
     if (tags.length) options.tags = tags.map(labelAnimeTag);
     if (url.searchParams.get("type")) options.type = url.searchParams.get("type")!;
     if (url.searchParams.get("sort")) options.sort = url.searchParams.get("sort")!;

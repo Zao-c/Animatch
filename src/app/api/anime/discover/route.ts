@@ -4,6 +4,8 @@ import { expandTagQuery, matchTagAliases, normalizeTagKey } from "@/lib/anime-ta
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { validateDiscoveryYears } from "@/lib/anime-discovery";
+import { animeFormatAliases, animeMonthRange } from "@/lib/anime-filter-options";
+import { animeYearFilter } from "@/lib/anime-date-filter";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -18,9 +20,11 @@ export async function GET(request: Request) {
   const offset = parseOffset(url.searchParams.get("offset"));
 
   try {
-    const invalidYears = validateDiscoveryYears({ yearFrom: url.searchParams.get("yearFrom") ?? "", yearTo: url.searchParams.get("yearTo") ?? "" });
+    const month = url.searchParams.get("month") ?? "";
+    const invalidYears = validateDiscoveryYears({ yearFrom: url.searchParams.get("yearFrom") ?? "", yearTo: url.searchParams.get("yearTo") ?? "", month });
     if (invalidYears) return badRequest(invalidYears);
     const where: Prisma.AnimeWhereInput = {
+      deletedAt: null,
       source: {
         notIn: GLOBAL_SEARCH_EXCLUDED_SOURCES
       }
@@ -59,14 +63,15 @@ export async function GET(request: Request) {
       where.studios = { has: studio.toLowerCase() };
     }
 
-    if (yearFrom !== null || yearTo !== null) {
-      const year = { ...(yearFrom !== null ? { gte: yearFrom } : {}), ...(yearTo !== null ? { lte: yearTo } : {}) };
-      const airDate = { ...(yearFrom !== null ? { gte: new Date(`${yearFrom}-01-01T00:00:00.000Z`) } : {}), ...(yearTo !== null ? { lt: new Date(`${yearTo + 1}-01-01T00:00:00.000Z`) } : {}) };
-      andConditions.push({ OR: [{ year }, { year: null, airDate }] });
-    }
+    const dateFilter = animeYearFilter(yearFrom, yearTo);
+    if (dateFilter) andConditions.push(dateFilter);
 
     if (type) {
-      where.animeType = type.toUpperCase();
+      where.animeType = { in: animeFormatAliases(type.toUpperCase()) };
+    }
+    if (month && yearFrom) {
+      const { start, end } = animeMonthRange(yearFrom, Number(month));
+      where.airDate = { gte: start, lt: end };
     }
 
     if (andConditions.length > 0) {

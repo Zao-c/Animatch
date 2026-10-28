@@ -251,16 +251,16 @@ async function createScoresForPoolAnime(
   return scores;
 }
 
-export async function assertRunAccess(params: RunAccessParams): Promise<PersonalRun> {
+export async function assertRunAccess(params: RunAccessParams, db: Prisma.TransactionClient | typeof prisma = prisma): Promise<PersonalRun> {
   validateRunAccessParams(params);
 
   const [pool, run] = await Promise.all([
-    prisma.customPool.findUnique({
+    db.customPool.findUnique({
       where: {
         id: params.poolId
       }
     }),
-    prisma.personalRun.findUnique({
+    db.personalRun.findUnique({
       where: {
         id: params.runId
       }

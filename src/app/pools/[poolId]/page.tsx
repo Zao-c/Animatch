@@ -288,6 +288,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const closeInspector = useCallback(() => {
     setWorkspaceMode(null);
     setEditingDisplayAnimeId(null);
+    if (window.location.hash === "#add-anime") {
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
+    }
   }, []);
 
   useEffect(() => {
@@ -385,6 +388,19 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       document.removeEventListener("keydown", handleInspectorKeyDown);
       document.body.style.overflow = previousOverflow;
       inspectorPreviousFocusRef.current?.focus();
+    };
+  }, [closeInspector, isInspectorOpen, isMobileInspector]);
+
+  useEffect(() => {
+    if (!isInspectorOpen || isMobileInspector) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); closeInspector(); }
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
     };
   }, [closeInspector, isInspectorOpen, isMobileInspector]);
 
@@ -1140,7 +1156,6 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const canPromptLoginToBattle =
     canShowCommunityBattle && !canPlayPool && (permissions?.canRead ?? false);
   const loginToPoolPath = `/login?next=${encodeURIComponent(`/pools/${params.poolId}`)}`;
-  const poolGuidance = getPoolGuidance(pool.anime.length, isArchived);
   const sourceSummary = formatPoolSourceSummary(pool.anime.map((entry) => entry.anime.source));
   const selectedDisplayEntry =
     editingDisplayAnimeId === null
@@ -1185,9 +1200,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
             {pool.name}
           </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-            {pool.description}
-          </p>
+          {pool.description ? <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">{pool.description}</p> : null}
           {pool.creator ? (
             <p className="mt-3 text-xs text-slate-500">
               由{" "}
@@ -1209,12 +1222,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           {pool.isOfficialDemo && canPlayPool ? (
             <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-medium text-emerald-300">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400"></span>
-              这是开放体验池，登录后可以添加或调整作品，方便一起测试 AniMatch。
+              开放编辑
             </div>
           ) : null}
-          <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-cyan-100">
-            下一步：{poolGuidance.title}
-          </p>
           {pool.tags.length > 0 ? (
             <div className="mt-4 flex flex-wrap gap-2">
               {pool.tags.map((tag) => (
@@ -1229,7 +1239,6 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           <div className="grid min-w-0 grid-cols-1 items-stretch gap-3 sm:grid-cols-2">
             <section aria-label="个人自由对决" className={`flex min-w-0 flex-col rounded-xl border border-anime-cyan/35 bg-anime-cyan/[0.06] p-3 ${isArchived ? "sm:col-span-2" : ""}`}>
               <h2 className="mb-2 flex min-h-9 items-center text-sm font-bold text-cyan-100">个人自由对决</h2>
-              <p className="mb-2 min-h-11 text-sm leading-5 text-slate-300">按自己的节奏比较作品，排出专属榜单。</p>
             {canShowCommunityBattle ? (
               <>
                 <AppButton
@@ -1261,7 +1270,6 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                     : "开始我的对决"}
               </AppButton>
             )}
-              <p className="mt-2 text-xs text-slate-400">自由比较 · 随时继续 · 生成个人 Tier List</p>
             </section>
             {!isArchived ? <SeasonPlayEntry key={params.poolId} poolId={params.poolId} canPlay={canPlayPool} onBrowse={() => { setWorkspaceMode("seasons"); document.getElementById("pool-navigation")?.scrollIntoView({ block: "start" }); }} /> : null}
             <AppButton
@@ -1300,6 +1308,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
               <AppButton
                 type="button"
                 onClick={() => {
+                  if (workspaceMode === "add") { closeInspector(); return; }
                   setEditingDisplayAnimeId(null);
                   setWorkspaceMode("add");
                   window.history.replaceState(null, "", "#add-anime");
@@ -1307,7 +1316,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 variant="quiet"
                 size="sm"
               >
-                添加动画
+                {workspaceMode === "add" ? "收起添加" : "添加动画"}
               </AppButton>
             ) : null}
             {canEditContent ? (
@@ -1602,7 +1611,6 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           <SectionHeader
             eyebrow="Anime pool"
             title="作品墙"
-            description="找一部想看的动画，或开始对决排出你的喜好。"
           />
 
           {pool.anime.length === 0 ? (
@@ -1800,17 +1808,18 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           aria-modal={isMobileInspector ? true : undefined}
           aria-labelledby={isMobileInspector ? "pool-workspace-title" : undefined}
           tabIndex={isMobileInspector ? -1 : undefined}
-          className="fixed inset-x-0 bottom-0 z-40 max-h-[85dvh] overflow-y-auto rounded-t-3xl border border-cyan-300/20 bg-slate-950 p-4 shadow-2xl shadow-cyan-950/30 lg:sticky lg:top-24 lg:z-auto lg:max-h-[calc(100dvh-7rem)] lg:rounded-2xl lg:bg-transparent lg:p-0 lg:shadow-none"
+          className="fixed inset-x-0 bottom-0 z-40 max-h-[85dvh] overflow-y-auto rounded-t-3xl border border-cyan-300/20 bg-slate-950 p-4 shadow-2xl shadow-cyan-950/30 lg:sticky lg:top-32 lg:z-auto lg:max-h-[calc(100dvh-9rem)] lg:rounded-2xl lg:bg-transparent lg:p-0 lg:shadow-none xl:top-24 xl:max-h-[calc(100dvh-7rem)]"
         >
-        <div className="mb-3 flex items-center justify-between gap-3 lg:hidden">
-          <p id="pool-workspace-title" className="text-sm font-semibold text-white">番组工作台</p>
+        <div className="sticky top-0 z-20 mb-3 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 py-1">
+          <p id="pool-workspace-title" className="text-sm font-semibold text-white">{workspaceMode === "add" ? "添加作品" : "番组工作台"}</p>
           <button
             type="button"
             onClick={closeInspector}
+            aria-label={workspaceMode === "add" ? "关闭添加作品" : "关闭番组工作台"}
             data-inspector-initial-focus
             className="min-h-11 rounded-full border border-white/10 px-4 text-sm font-semibold text-slate-300"
           >
-            关闭
+            {workspaceMode === "add" ? "完成 / 关闭" : "关闭"}
           </button>
         </div>
         {workspaceMode === "edit" && selectedDisplayEntry !== null && canEditContent ? (
@@ -1831,12 +1840,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
         {workspaceMode === "add" && canAddAnimeToPool && editingDisplayAnimeId === null ? (
         <AppCard id="add-anime" className="p-5">
-          <SectionHeader title="添加作品" />
           {isArchived ? (
             <p className="mt-4 text-sm text-slate-400">归档番组不能继续添加动画。</p>
           ) : (
             <>
-              <div className="mt-4 grid grid-cols-3 gap-2 border-b border-anime-border pb-3" role="group" aria-label="添加作品方式">
+              <div className="grid grid-cols-3 gap-2 border-b border-anime-border pb-3" role="group" aria-label="添加作品方式">
                 {TABS.map((tab) => <button key={tab.key} type="button" aria-pressed={activeTab === tab.key} onClick={() => setActiveTab(tab.key)} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-semibold transition ${activeTab === tab.key ? "border-cyan-300/40 bg-cyan-300/10 text-cyan-100" : "border-white/10 text-slate-400 hover:text-white"}`}>{tab.label}</button>)}
               </div>
               {activeTab === "search" ? <AnimeDiscoveryPanel poolId={params.poolId} joinedAnimeIds={joinedAnimeIds} joinedBangumiIds={joinedBangumiIds} onAdded={refreshPool} /> : null}
@@ -2202,17 +2210,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         </details>
       ) : null}
 
-      <p className="mt-10 text-center text-xs text-slate-600">
-        Anime metadata powered by{" "}
-        <a
-          href="https://github.com/manami-project/anime-offline-database"
-          target="_blank"
-          className="underline hover:text-slate-400"
-        >
-          anime-offline-database
-        </a>
-        . License: ODbL-1.0 + DbCL-1.0.
-      </p>
+      <footer className="mt-10 text-center text-xs text-slate-500">
+        <Link href="/data-sources" className="inline-flex min-h-11 items-center px-3 hover:text-slate-300">数据来源与许可</Link>
+      </footer>
     </PageShell>
   );
 }
@@ -2332,7 +2332,6 @@ function CommunitySection({
           <SectionHeader
             eyebrow="Community"
             title="个人对决共享榜"
-            description="来自普通对决模式的匿名聚合结果；赛季大乱斗会在赛季详情页生成独立榜单。"
           />
           <AppBadge tone="source" className="w-fit">
             实时聚合
@@ -2622,51 +2621,6 @@ function formatPoolSourceSummary(sources: string[]) {
   }
 
   return `Mixed: ${labels.join(" / ")}`;
-}
-
-function getPoolGuidance(animeCount: number, isArchived: boolean) {
-  if (isArchived) {
-    return {
-      label: "只读",
-      title: "该番组已归档",
-      description: "该番组已归档，只能查看历史结果。如需继续对决，请新建或复制番组。",
-      tone: "warning" as const
-    };
-  }
-
-  if (animeCount === 0) {
-    return {
-      label: "下一步",
-      title: "先添加几部动画",
-      description: "建议至少添加 4 部，这样系统才能生成更稳定的对决和 Tier List。",
-      tone: "guide" as const
-    };
-  }
-
-  if (animeCount === 1) {
-    return {
-      label: "还差一步",
-      title: "还需要至少 1 部动画才能开始对决",
-      description: "建议添加 4-8 部进行第一次体验，动画越多，排序越有参考价值。",
-      tone: "warning" as const
-    };
-  }
-
-  if (animeCount < 4) {
-    return {
-      label: "可开始",
-      title: "已经可以开始对决，但 pair 很少",
-      description: "添加更多动画可以让 Tier List 更准确；现在也可以先体验一次完整流程。",
-      tone: "success" as const
-    };
-  }
-
-  return {
-    label: "准备好了",
-    title: "可以开始对决",
-    description: "完成更多比较后，Tier List 会更稳定；标题或封面不理想时，可在作品卡片里编辑显示。",
-    tone: "success" as const
-  };
 }
 
 function validateCustomUploadFile(file: File) {

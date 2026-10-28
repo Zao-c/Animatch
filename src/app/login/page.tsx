@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
 import { PageShell } from "@/components/PageShell";
-import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
@@ -33,6 +32,7 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,6 +41,7 @@ function LoginContent() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSubmitting) return;
     setError(null);
     setIsSubmitting(true);
 
@@ -53,36 +54,30 @@ function LoginContent() {
       router.refresh();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "登录失败，请检查用户名和暗号");
-    } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
     <PageShell>
-      <section className="mx-auto grid max-w-5xl gap-6 py-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
-        <div className="min-w-0">
-          <AppBadge tone="status">Friend Pass</AppBadge>
-          <h1 className="mt-5 text-4xl font-black leading-tight text-white sm:text-5xl">
-            用自己的账号，记录这一年的喜欢
-          </h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
-            用原来的用户名继续记录。第一次来，选一个未使用的用户名，用群共用密码即可创建账号。
-          </p>
-        </div>
-
+      <section className="mx-auto max-w-md py-6">
         <AppCard variant="focus" className="p-5 sm:p-6">
-          <h2 className="text-xl font-black text-white">登录 AniMatch</h2>
+          <h1 className="text-xl font-black text-white">登录 AniMatch</h1>
           <div className="mt-3 rounded-xl border border-cyan-300/20 bg-cyan-300/5 p-3 text-sm leading-6">
             <p>默认密码：<strong className="select-all font-mono text-cyan-200">{FRIEND_SHARED_PASSWORD}</strong></p>
             <p className="text-slate-300">改密自愿；忘记个人密码也可用默认密码登录。</p>
           </div>
           <p className="mt-3 text-xs leading-5 text-slate-400">这是群共用登录模式，知道共用密码和用户名的人也能进入该账号。请勿复用其他网站的重要密码。</p>
 
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <form onSubmit={handleSubmit} aria-busy={isSubmitting} className="mt-6 space-y-4">
             <label className="block">
               <span className="text-sm font-semibold text-slate-200">用户名</span>
               <input
+                name="username"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                disabled={isSubmitting}
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
                 className="anime-field mt-2"
@@ -91,9 +86,18 @@ function LoginContent() {
                 maxLength={24}
                 placeholder="例如：akira"
               />
+              <span className="mt-2 block text-xs text-slate-400">新用户名会自动创建账号。</span>
             </label>
 
-            <label className="block"><span className="text-sm font-semibold text-slate-200">密码（共用或个人密码）</span><input type="password" required minLength={8} maxLength={128} autoComplete="current-password" className="anime-field mt-2" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+            <div>
+              <label htmlFor="login-password" className="text-sm font-semibold text-slate-200">密码（共用或个人密码）</label>
+              <div className="relative mt-2">
+                <input id="login-password" name="password" type={showPassword ? "text" : "password"} required minLength={8} maxLength={128} autoComplete="current-password" disabled={isSubmitting} className="anime-field pr-20" value={password} onChange={(e) => setPassword(e.target.value)} />
+                <button type="button" aria-label={showPassword ? "隐藏密码" : "显示密码"} aria-controls="login-password" aria-pressed={showPassword} onClick={() => setShowPassword((current) => !current)} className="absolute inset-y-0 right-1 min-h-11 rounded-xl px-3 text-sm text-slate-300 hover:text-white">
+                  {showPassword ? "隐藏" : "显示"}
+                </button>
+              </div>
+            </div>
             <details className="text-sm text-slate-300"><summary className="cursor-pointer py-3">使用个人密码注册 / 管理员恢复码</summary>
             <label className="block">
               <span className="text-sm font-semibold text-slate-200">群邀请码（仅注册时需要）</span>

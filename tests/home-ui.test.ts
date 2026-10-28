@@ -11,26 +11,26 @@ import { AppCard } from "../src/components/ui/AppCard";
 (globalThis as typeof globalThis & { React: typeof React }).React = React;
 
 describe("home page UI refresh", () => {
-  it("renders the value proposition, CTAs, mini match preview, and onboarding flow", () => {
+  it("renders a concise heading, actions, and match preview", () => {
     const html = renderToStaticMarkup(React.createElement(Home));
 
-    expect(html).toContain("用左右选择，生成你的动画 Tier List");
-    expect(html).toContain("三步生成榜单");
+    expect(html).toContain("动画对决");
     expect(html).toContain("进入番组大厅");
-    expect(html).toContain("添加动画");
-    expect(html).toContain("开始对决");
-    expect(html).toContain("生成榜单");
-    expect(html).toContain("番剧擂台");
+    expect(html).toContain("mini match demo");
+    expect(html).not.toContain("三步生成榜单");
+    expect(html).not.toContain("选出心头好");
   });
 });
 
-describe("home page playtest readiness copy", () => {
-  it("explains public community battle and anonymous aggregate ranking", () => {
+describe("home page preview copy", () => {
+  it("keeps the non-saving notice in the preview instead of a marketing introduction", () => {
     const source = readFileSync("src/app/page.tsx", "utf8");
+    const preview = readFileSync("src/components/home/HomeMiniMatchDemo.tsx", "utf8");
 
-    expect(source).toContain("从公开番组体验一次大乱斗");
-    expect(source).toContain("个人 Tier List");
-    expect(source).toContain("生成公开分享链接");
+    expect(source).toContain("HomeActions");
+    expect(source).toContain("HomeMiniMatchDemo");
+    expect(source).not.toContain("从公开番组体验一次大乱斗");
+    expect(preview).toContain("不保存结果");
   });
 });
 
@@ -53,9 +53,9 @@ describe("home mini match demo source", () => {
     expect(source).toContain("disabled={choice !== null}");
   });
 
-  it("renders side labels without anime title displayed in preview card area", () => {
-    expect(source).toContain("这边");
-    expect(source).toContain("那边");
+  it("identifies preview works with their actual titles", () => {
+    expect(source).toContain("title={title}>{title}</p>");
+    expect(source).not.toContain('side === "left" ? "这边" : "那边"');
   });
 });
 

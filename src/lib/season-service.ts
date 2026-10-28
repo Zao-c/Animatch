@@ -194,6 +194,7 @@ export interface VoteInput {
 }
 
 export interface VoteResult {
+  usage: Omit<CurrentUserState, "hiddenAnimeIds">;
   id: string;
   stepNumber: number;
   voteType: string;
@@ -206,6 +207,9 @@ type ExistingBattleVoteResult = {
   stepNumber: number;
   voteType: "NORMAL" | "BIAS";
   weight: number;
+  leftAnimeId: string;
+  rightAnimeId: string;
+  winnerAnimeId: string;
 };
 
 const MAX_VOTE_WRITE_ATTEMPTS = 5;
@@ -1282,13 +1286,12 @@ export async function setSeasonAnimeHidden(
       ? animeIds.filter((animeId) => poolAnimeIds.has(animeId))
       : [...poolAnimeIds];
 
-  if (targetAnimeIds.length === 0) return { hiddenAnimeIds: [] };
-
   await prisma.battleSeasonUserScore.updateMany({
     where: {
       seasonId,
       userId,
-      animeId: { in: targetAnimeIds }
+      animeId: { in: targetAnimeIds },
+      ...(isHidden ? { isHidden: false } : {})
     },
     data: isHidden
       ? {
@@ -1308,14 +1311,56 @@ export async function setSeasonAnimeHidden(
   return { hiddenAnimeIds: hiddenRows.map((row) => row.animeId) };
 }
 
-function toVoteResult(vote: ExistingBattleVoteResult, maxVotesPerUser: number): VoteResult {
-  return {
-    id: vote.id,
-    stepNumber: vote.stepNumber,
-    voteType: vote.voteType,
-    weight: vote.weight,
-    votesRemaining: Math.max(0, maxVotesPerUser - vote.stepNumber)
-  };
+export async function replaceSeasonCandidates(poolId: string, seasonId: string, userId: string, input: {
+  includedAnimeIds: string[]; expectedAnimeIds: string[]; expectedHiddenAnimeIds: string[];
+}): Promise<{ hiddenAnimeIds: string[] }> {
+  await getPlayableSeasonPool(poolId, userId);
+  const included = new Set(input.includedAnimeIds);
+  if (included.size < 2) throw new AppError("至少选择 2 部作品才能对决。", 400, "NOT_ENOUGH_CANDIDATES");
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const season = await tx.battleSeason.findFirst({ where: { id: seasonId, poolId } });
+      if (!season) throw new AppError("Season not found", 404, "SEASON_NOT_FOUND");
+      validateSeasonAccess(season, new Date());
+      const rows = await getPoolAnimeSeedRows(tx, poolId);
+      const poolIds = new Set(rows.map((row) => row.animeId));
+      const sameIds = (a: Set<string>, b: Set<string>) => a.size === b.size && [...a].every((id) => b.has(id));
+      if (!sameIds(poolIds, new Set(input.expectedAnimeIds)) || [...included].some((id) => !poolIds.has(id))) {
+        throw new AppError("番组作品已变化，请重新加载清单后再保存。", 409, "CANDIDATES_CHANGED");
+      }
+      const hidden = await tx.battleSeasonUserScore.findMany({ where: { seasonId, userId, isHidden: true }, select: { animeId: true } });
+      const hiddenIds = hidden.map((row) => row.animeId);
+      const nextHidden = [...poolIds].filter((id) => !included.has(id));
+      // A retry of an already applied selection is safe even if its base is old.
+      if (sameIds(new Set(hiddenIds.filter((id) => poolIds.has(id))), new Set(nextHidden))) return { hiddenAnimeIds: hiddenIds };
+      if (!sameIds(new Set(hiddenIds), new Set(input.expectedHiddenAnimeIds))) {
+        throw new AppError("你在其他页面修改过候选作品，请重新加载后再保存。", 409, "HIDDEN_SELECTION_CHANGED");
+      }
+      await ensureSeasonUserScores(tx, poolId, seasonId, userId);
+      await tx.battleSeasonUserScore.updateMany({ where: { seasonId, userId, animeId: { in: [...included] } }, data: { isHidden: false } });
+      await tx.battleSeasonUserScore.updateMany({ where: { seasonId, userId, animeId: { in: nextHidden }, isHidden: false }, data: { isHidden: true, unseenCount: { increment: 1 } } });
+      const result = await tx.battleSeasonUserScore.findMany({ where: { seasonId, userId, isHidden: true }, select: { animeId: true } });
+      return { hiddenAnimeIds: result.map((row) => row.animeId) };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  } catch (error) {
+    if (isRetryableVoteWriteError(error)) throw new AppError("候选作品正在更新，请重试保存。", 409, "CANDIDATE_WRITE_CONFLICT");
+    throw error;
+  }
+}
+
+async function toVoteResult(tx: SeasonTx, seasonId: string, userId: string, vote: ExistingBattleVoteResult): Promise<VoteResult> {
+  const dailyWindow = getSeasonDailyVoteWindow();
+  const [season, votesUsed, biasVotesUsed, dailyVotesUsed] = await Promise.all([
+    tx.battleSeason.findUnique({ where: { id: seasonId }, select: { maxVotesPerUser: true, biasVotesPerUser: true } }),
+    tx.battleVote.count({ where: { seasonId, userId } }),
+    tx.battleVote.count({ where: { seasonId, userId, voteType: "BIAS" } }),
+    tx.battleVote.count({ where: { seasonId, userId, createdAt: { gte: dailyWindow.start, lt: dailyWindow.end } } })
+  ]);
+  if (!season) throw new AppError("Season not found", 404, "SEASON_NOT_FOUND");
+  const usage = { votesUsed, votesRemaining: Math.max(0, season.maxVotesPerUser - votesUsed),
+    biasVotesUsed, biasVotesRemaining: Math.max(0, season.biasVotesPerUser - biasVotesUsed), dailyVotesUsed };
+  return { id: vote.id, stepNumber: vote.stepNumber, voteType: vote.voteType, weight: vote.weight,
+    votesRemaining: usage.votesRemaining, usage };
 }
 
 async function findExistingBattleVoteResult(
@@ -1330,9 +1375,19 @@ async function findExistingBattleVoteResult(
       id: true,
       stepNumber: true,
       voteType: true,
-      weight: true
+      weight: true,
+      leftAnimeId: true,
+      rightAnimeId: true,
+      winnerAnimeId: true
     }
   });
+}
+
+function assertSameSeasonVote(vote: ExistingBattleVoteResult, input: VoteInput) {
+  if (vote.leftAnimeId !== input.leftAnimeId || vote.rightAnimeId !== input.rightAnimeId ||
+    vote.winnerAnimeId !== input.winnerAnimeId || vote.voteType !== (input.useBiasVote ? "BIAS" : "NORMAL")) {
+    throw new AppError("提交编号与原投票不一致，请重试原选择。", 409, "VOTE_MUTATION_MISMATCH");
+  }
 }
 
 export async function submitVote(
@@ -1348,6 +1403,12 @@ export async function submitVote(
   });
   if (!season) throw new AppError("Season not found", 404, "SEASON_NOT_FOUND");
 
+  // An already committed vote can be acknowledged after the season closes.
+  // Only new writes pass through the schedule and budget checks below.
+  if (input.clientMutationId) {
+    const existing = await findExistingBattleVoteResult(prisma, seasonId, userId, input.clientMutationId);
+    if (existing) { assertSameSeasonVote(existing, input); return toVoteResult(prisma, seasonId, userId, existing); }
+  }
   validateSeasonAccess(season, new Date());
 
   if (input.leftAnimeId === input.rightAnimeId) {
@@ -1371,7 +1432,8 @@ export async function submitVote(
           if (input.clientMutationId) {
             const existingVote = await findExistingBattleVoteResult(tx, seasonId, userId, input.clientMutationId);
             if (existingVote) {
-              return toVoteResult(existingVote, season.maxVotesPerUser);
+              assertSameSeasonVote(existingVote, input);
+              return toVoteResult(tx, seasonId, userId, existingVote);
             }
           }
 
@@ -1507,29 +1569,16 @@ export async function submitVote(
             })
           ]);
 
-          return {
-            id: vote.id,
-            stepNumber: vote.stepNumber,
-            voteType: vote.voteType,
-            weight: vote.weight,
-            votesRemaining: Math.max(0, activeSeason.maxVotesPerUser - stepNumber)
-          };
+          return toVoteResult(tx, seasonId, userId, vote);
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
       );
     } catch (error) {
       if (isClientMutationConflict(error) && input.clientMutationId) {
-        const existingVote = await prisma.battleVote.findFirst({
-          where: { seasonId, userId, clientMutationId: input.clientMutationId },
-          select: {
-            id: true,
-            stepNumber: true,
-            voteType: true,
-            weight: true
-          }
-        });
+        const existingVote = await findExistingBattleVoteResult(prisma, seasonId, userId, input.clientMutationId);
         if (existingVote) {
-          return toVoteResult(existingVote, season.maxVotesPerUser);
+          assertSameSeasonVote(existingVote, input);
+          return toVoteResult(prisma, seasonId, userId, existingVote);
         }
       }
       if (isRetryableVoteWriteError(error) && attempt < MAX_VOTE_WRITE_ATTEMPTS) {

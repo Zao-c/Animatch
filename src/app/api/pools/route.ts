@@ -1,5 +1,5 @@
 import { PoolComparisonResult, PoolStatus, Prisma, Visibility } from "@prisma/client";
-import { badRequest, ok, fromError } from "@/lib/api-response";
+import { badRequest, forbidden, ok, fromError } from "@/lib/api-response";
 import { AppError } from "@/lib/app-error";
 import { getCurrentUser, requireCurrentUser, type FriendAuthUser } from "@/lib/auth-session";
 import { getCommunitySummaries } from "@/lib/community-ranking-service";
@@ -10,6 +10,8 @@ import { formatPoolManagementStatus } from "@/lib/pool-labels";
 import { getPoolPermissions } from "@/lib/pool-permissions";
 import { buildRankingProgress } from "@/lib/ranking-progress";
 import { getAnimeCoverUrl, getAnimeSourceCoverCandidates } from "@/lib/anime-cover-url";
+
+import { createPoolOnce, poolCreationHash, poolCreationKey } from "@/lib/pool-creation";
 
 const VISIBILITIES = new Set<string>(Object.values(Visibility));
 const LIST_STATUSES = new Set([
@@ -23,6 +25,8 @@ const LIST_STATUSES = new Set([
 const LIST_SORTS = new Set(["UPDATED", "ANIME_COUNT", "COMPARISON_COUNT", "NAME"]);
 
 interface CreatePoolBody {
+  clientMutationId?: unknown;
+  expectedUserId?: unknown;
   name?: unknown;
   description?: unknown;
   visibility?: unknown;
@@ -423,14 +427,12 @@ export async function POST(request: Request) {
 
   try {
     const user = await requireCurrentUser();
-    const pool = await prisma.customPool.create({
-      data: {
-        creatorId: user.id,
-        name,
-        description,
-        visibility,
-        tags
-      }
+    const key = poolCreationKey(body?.clientMutationId);
+    if ((key || body?.expectedUserId !== undefined) && body?.expectedUserId !== user.id) return forbidden("登录账号已变化，请切回原账号确认创建结果。");
+    const data = { creatorId: user.id, name, description, visibility, tags };
+    const pool = await createPoolOnce(user.id, key, poolCreationHash({ kind: "manual", ...data }), async (tx) => {
+      const created = await tx.customPool.create({ data });
+      return { poolId: created.id, result: created };
     });
 
     return ok(pool, { status: 201 });

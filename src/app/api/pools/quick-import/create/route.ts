@@ -1,8 +1,12 @@
-import { badRequest, ok, fromError } from "@/lib/api-response";
+import { badRequest, forbidden, ok, fromError } from "@/lib/api-response";
 import { requireCurrentUser } from "@/lib/auth-session";
 import { createPoolFromQuickImport, type QuickImportParams } from "@/lib/import/quick-pool-builder";
 
+import { poolCreationKey } from "@/lib/pool-creation";
+
 interface CreateBody {
+  clientMutationId?: string;
+  expectedUserId?: string;
   poolName: string;
   description?: string;
   visibility?: string;
@@ -23,9 +27,12 @@ export async function POST(request: Request) {
 
   try {
     const user = await requireCurrentUser();
+    const key = poolCreationKey(body.clientMutationId);
+    if ((key || body.expectedUserId !== undefined) && body.expectedUserId !== user.id) return forbidden("登录账号已变化，请切回原账号确认创建结果。");
     const result = await createPoolFromQuickImport(
       {
         ...body.params,
+        clientMutationId: key,
         poolName: body.poolName,
         description: body.description,
         visibility: body.visibility,

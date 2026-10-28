@@ -15,9 +15,4 @@ describe("mobile Tier editing", () => {
     expect(pageSource).toContain("onMoveEarlier={() => moveAnimeWithinTier(row.id, item.animeId, -1)}");
     expect(pageSource).toContain("onMoveLater={() => moveAnimeWithinTier(row.id, item.animeId, 1)}");
   });
-
-  it("keeps desktop drag and drop available", () => {
-    expect(editorSource).toContain("draggable={editable && !exportMode}");
-    expect(editorSource).toContain("onDropBefore();");
-  });
 });

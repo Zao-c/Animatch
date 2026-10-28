@@ -138,11 +138,11 @@ export function TierShareCard({
       {exportMode ? (
         <header className="border-b border-cyan-300/15 bg-gradient-to-b from-[#0f1923] to-[#11161c] px-5 py-5 sm:px-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
+            <div className="min-w-0 sm:flex-1">
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
                 AniMatch Tier List
               </p>
-              <h1 className="mt-2 text-2xl font-black leading-tight text-white sm:text-3xl">
+              <h1 className="mt-2 break-words text-2xl font-black leading-tight text-white sm:text-3xl [overflow-wrap:anywhere]">
                 {share.title}
               </h1>
               {share.snapshot.isInitialEstimate ? (
@@ -164,10 +164,10 @@ export function TierShareCard({
                 </p>
               ) : null}
             </div>
-            <div className="flex flex-wrap gap-3 text-xs text-slate-400">
+            <p data-tier-export-meta className="shrink-0 whitespace-nowrap text-xs leading-5 text-slate-400">
               <span>{animeCount} 作品</span>
-              {comparisonCount !== null ? <span>{comparisonCount} 对决</span> : null}
-            </div>
+              {comparisonCount !== null ? <span className="ml-3">{comparisonCount} 对决</span> : null}
+            </p>
           </div>
         </header>
       ) : null}

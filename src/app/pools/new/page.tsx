@@ -1,43 +1,28 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { PageShell } from "@/components/PageShell";
-import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
-import { ErrorAlert } from "@/components/ui/ErrorAlert";
-import { createPool } from "@/lib/client-api";
+import { usePoolCreation } from "@/lib/use-pool-creation";
+import { PoolCreationNotice } from "@/components/PoolCreationNotice";
 import { QuickImportPanel } from "@/components/QuickImportPanel";
 
 const NAME_CHIPS = ["四月新番", `${new Date().getFullYear()} 年度动画`, "恋爱番对决", "JUMP 系作品", "我的补番清单"];
 
 export default function NewPoolPage() {
-  const router = useRouter();
+  const creation = usePoolCreation("manual");
+  const [quickBusy, setQuickBusy] = useState(false);
   const [method, setMethod] = useState<"manual" | "bangumi">("bangumi");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState<"PRIVATE" | "UNLISTED" | "PUBLIC">("PRIVATE");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const isSubmitting = creation.busy;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
-
-    try {
-      const pool = await createPool({
-        name,
-        description,
-        visibility
-      });
-      router.push(`/pools/${pool.id}#add-anime`);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "创建番组失败");
-    } finally {
-      setIsSubmitting(false);
-    }
+    if (creation.locked || quickBusy) return;
+    await creation.submit({ name: name.trim(), description: description.trim(), visibility });
   }
 
   function applyNameChip(value: string) {
@@ -49,22 +34,16 @@ export default function NewPoolPage() {
   return (
     <PageShell>
       <section className="mx-auto max-w-6xl space-y-5">
-        <header><h1 className="text-3xl font-black">创建番组</h1><p className="mt-2 text-sm text-slate-400">从 Bangumi 批量选番，或创建空番组后自行添加。</p></header>
+        <header><h1 className="text-3xl font-black">创建番组</h1></header>
         <nav aria-label="创建方式" className="flex gap-2 rounded-2xl border border-white/10 p-2">
-          <AppButton variant={method === "bangumi" ? "secondary" : "quiet"} aria-pressed={method === "bangumi"} onClick={() => setMethod("bangumi")}>Bangumi 批量导入</AppButton>
-          <AppButton variant={method === "manual" ? "secondary" : "quiet"} aria-pressed={method === "manual"} onClick={() => setMethod("manual")}>手动创建</AppButton>
+          <AppButton variant={method === "bangumi" ? "secondary" : "quiet"} disabled={isSubmitting || quickBusy} aria-pressed={method === "bangumi"} onClick={() => setMethod("bangumi")}>Bangumi 批量导入</AppButton>
+          <AppButton variant={method === "manual" ? "secondary" : "quiet"} disabled={isSubmitting || quickBusy} aria-pressed={method === "manual"} onClick={() => setMethod("manual")}>手动创建{creation.record ? creation.record.poolId ? " · 已创建" : " · 待确认" : ""}</AppButton>
         </nav>
         <div hidden={method !== "manual"}>
         <AppCard variant="focus" className="p-5 sm:p-7">
-          <AppBadge tone="source">手动创建</AppBadge>
-          <h2 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-4xl">
-            先起一个名字
-          </h2>
-          <p className="mt-3 text-sm leading-6 text-slate-400">
-            先给这场对决起个名字，下一步再添加动画。
-          </p>
-
-          <form onSubmit={handleSubmit} className="mt-7 space-y-5">
+          <PoolCreationNotice creation={creation} />
+          <form onSubmit={handleSubmit} className="mt-7">
+          <fieldset disabled={creation.locked || quickBusy} className="space-y-5">
             <label className="block">
               <span className="text-sm font-semibold text-slate-200">番组名</span>
               <input
@@ -119,16 +98,16 @@ export default function NewPoolPage() {
               </span>
             </label>
 
-            {error ? <ErrorAlert message={error} /> : null}
 
             <AppButton type="submit" variant="primary" size="lg" disabled={isSubmitting}>
               {isSubmitting ? "创建中..." : "创建并添加动画"}
             </AppButton>
+          </fieldset>
           </form>
         </AppCard>
 
         </div>
-        <div hidden={method !== "bangumi"}><QuickImportPanel /></div>
+        <div hidden={method !== "bangumi"}><QuickImportPanel onBusyChange={setQuickBusy} /></div>
       </section>
     </PageShell>
   );

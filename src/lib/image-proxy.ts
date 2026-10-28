@@ -127,6 +127,8 @@ export function getCoverDeliveryCandidates(
   for (const value of sources) {
     add(proxyExternalImageUrl(value));
     add(getSameOriginImageUrl(value));
+    // Try the independent browser route before queueing more copies on a slow proxy.
+    if (/^https:\/\/lain\.(?:bgm|bangumi)\.tv\//i.test(value)) add(value);
   }
   // Bangumi can be reachable from the viewer even when server egress is slow.
   for (const value of sources) {

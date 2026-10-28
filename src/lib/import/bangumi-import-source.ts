@@ -17,6 +17,7 @@ import {
 } from "@/lib/anime-tag-dictionary";
 import type { QuickImportParams } from "./quick-pool-builder";
 import { MAX_QUICK_IMPORT } from "./quick-import-options";
+import { animeFormatAliases, animeMonthRange, bangumiFormatTag } from "@/lib/anime-filter-options";
 
 export interface RemoteFetchResult {
   attempted: boolean;
@@ -109,7 +110,7 @@ async function fetchTopSubjects(
 
     try {
       const category = ({ TV: 1, OVA: 2, MOVIE: 3, WEB: 5 } as Record<string, number>)[params.type ?? ""];
-      const url = `${BANGUMI_BASE_URL}/subjects?type=2&sort=rank&limit=${pageLimit}&offset=${offset}${params.year ? `&year=${params.year}` : ""}${category ? `&cat=${category}` : ""}`;
+      const url = `${BANGUMI_BASE_URL}/subjects?type=2&sort=rank&limit=${pageLimit}&offset=${offset}${params.year ? `&year=${params.year}` : ""}${params.month ? `&month=${params.month}` : ""}${category ? `&cat=${category}` : ""}`;
       const response = await requestImportPage(url, {
         method: "GET",
         headers: buildHeaders()
@@ -194,7 +195,11 @@ function buildSearchBody(
   if (params.year) {
     filter.air_date = [`>=${params.year}-01-01`, `<=${params.year}-12-31`];
   }
-  const platformTag = ({ TV: "TV", MOVIE: "剧场版", OVA: "OVA", WEB: "WEB" } as Record<string, string>)[params.type ?? ""];
+  if (params.year && params.month) {
+    const { start, end } = animeMonthRange(params.year, params.month);
+    filter.air_date = [`>=${start.toISOString().slice(0, 10)}`, `<${end.toISOString().slice(0, 10)}`];
+  }
+  const platformTag = bangumiFormatTag(params.type);
   if (platformTag) filter.meta_tags = [platformTag];
 
   if (mode === "TAG" && params.tags && params.tags.length === 1) {
@@ -295,9 +300,11 @@ function filterAndSortCandidates(
   }
 
   if (params.type && params.type !== "ALL") {
-    const expectedType = params.type.toUpperCase();
-    filtered = filtered.filter((s) => s.animeType === expectedType);
+    const expectedTypes = animeFormatAliases(params.type.toUpperCase());
+    filtered = filtered.filter((s) => s.animeType != null && expectedTypes.includes(s.animeType));
   }
+
+  if (params.month) filtered = filtered.filter((s) => s.airDate && s.airDate.getUTCMonth() + 1 === params.month);
 
   if (params.tags && params.tags.length > 0) {
     const scored = filtered.map((subject) => {

@@ -8,6 +8,8 @@ export function validateQuickImportParams(params: QuickImportParams): QuickImpor
     if (year !== undefined && (!Number.isInteger(year) || year < 1900 || year > 2100)) throw new AppError("年份需在 1900–2100 之间", 400);
   }
   if (params.mode === "YEAR" && !params.year) throw new AppError("请填写播出年份", 400);
+  if (params.month !== undefined && (!Number.isInteger(params.month) || params.month < 1 || params.month > 12)) throw new AppError("月份需在 1–12 之间", 400);
+  if (params.month !== undefined && !params.year) throw new AppError("按月份筛选时请先选择播出年份", 400);
   if (params.limit !== undefined && (!Number.isInteger(params.limit) || params.limit < 1 || params.limit > MAX_QUICK_IMPORT)) throw new AppError(`每次最多查询 ${MAX_QUICK_IMPORT} 部`, 400);
   if (params.tags !== undefined && (!Array.isArray(params.tags) || params.tags.length > 5 || params.tags.some((t) => typeof t !== "string" || !t.trim() || t.length > 50))) throw new AppError("最多选择 5 个标签，每个不超过 50 字", 400);
   if (params.mode === "TAG" && !params.tags?.length) throw new AppError("请至少选择一个题材标签", 400);

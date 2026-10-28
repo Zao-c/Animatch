@@ -64,7 +64,7 @@ export async function preloadPair(pair: MatchPair): Promise<boolean> {
 
 export async function preloadPairs(
   pairs: MatchPair[],
-  options: { preloadCount?: number } = {}
+  options: { preloadCount?: number; signal?: AbortSignal } = {}
 ): Promise<{ loaded: number; total: number }> {
   const preloadCount = Math.max(0, Math.trunc(options.preloadCount ?? 4));
   const targetPairs = pairs.slice(0, preloadCount);
@@ -76,8 +76,8 @@ export async function preloadPairs(
 
   const results = await Promise.all(
     targetPairs.flatMap((pair) => [
-      preloadAnimeImage(pair.left),
-      preloadAnimeImage(pair.right)
+      preloadAnimeImage(pair.left, options.signal),
+      preloadAnimeImage(pair.right, options.signal)
     ])
   );
 
@@ -87,10 +87,10 @@ export async function preloadPairs(
   };
 }
 
-async function preloadAnimeImage(anime: AnimeCoverUrlFields): Promise<boolean> {
+async function preloadAnimeImage(anime: AnimeCoverUrlFields, signal?: AbortSignal): Promise<boolean> {
   const controller = new AbortController();
   try {
-    await loadCoverImage(bestImageCandidates(anime), { signal: controller.signal, priority: 2 });
+    await loadCoverImage(bestImageCandidates(anime), { signal: signal ?? controller.signal, priority: 2 });
     return true;
   } catch { return false; }
   finally { controller.abort(); }

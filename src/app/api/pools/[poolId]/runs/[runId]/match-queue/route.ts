@@ -52,7 +52,7 @@ export async function GET(request: Request, context: RouteContext) {
 
     prewarmMatchQueue(queue);
 
-    return ok(queue);
+    return ok({ ...queue, draftOwnerId: user.id }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return fromError(error);
   }

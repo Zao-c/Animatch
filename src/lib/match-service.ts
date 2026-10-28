@@ -46,6 +46,8 @@ export interface MatchQueuePair {
 }
 
 export interface MatchQueueResult {
+  candidateCount: number;
+  pausedCount: number;
   pairs: MatchQueuePair[];
   confidenceScore: number;
   scoreDistribution: RankingScoreDistribution;
@@ -106,7 +108,7 @@ export async function getMatchQueue(params: {
 }): Promise<MatchQueueResult> {
   const limit = Math.min(10, Math.max(1, Math.trunc(params.limit ?? 8)));
 
-  await assertRunAccess(params);
+  const run = await assertRunAccess(params);
   await initializeScoresForRun(params);
 
   const [scores, poolAnimeEntries] = await Promise.all([
@@ -135,6 +137,8 @@ export async function getMatchQueue(params: {
   const activeAnimeIds = new Set(poolAnimeEntries.map((entry) => entry.animeId));
   const activeScores = scores.filter((score) => activeAnimeIds.has(score.animeId));
   const visibleScores = activeScores.filter((score) => !score.isHidden);
+  const excluded = new Set(run.matchExcludedAnimeIds);
+  const candidateScores = visibleScores.filter((score) => !excluded.has(score.animeId));
 
   if (visibleScores.length < 2) {
     const effectiveComparisons = Math.floor(
@@ -142,6 +146,8 @@ export async function getMatchQueue(params: {
     );
 
     return {
+      candidateCount: candidateScores.length,
+      pausedCount: visibleScores.length - candidateScores.length,
       pairs: [],
       confidenceScore: calculateQueueConfidence(visibleScores),
       scoreDistribution: buildScoreDistribution(visibleScores.map((score) => score.eloScore)),
@@ -197,7 +203,7 @@ export async function getMatchQueue(params: {
 
   while (pairs.length < limit) {
     const pickedPair = pickNextPair(
-      visibleScores.map(toScoreItem),
+      candidateScores.map(toScoreItem),
       comparedPairKeys,
       new Set([...recentPairKeys, ...queuedPairKeys]),
       {
@@ -230,6 +236,8 @@ export async function getMatchQueue(params: {
   }
 
   return {
+    candidateCount: candidateScores.length,
+    pausedCount: visibleScores.length - candidateScores.length,
     pairs,
     confidenceScore: calculateQueueConfidence(visibleScores),
     scoreDistribution: buildScoreDistribution(visibleScores.map((score) => score.eloScore)),
@@ -254,6 +262,11 @@ export async function submitComparison(
     });
 
     if (existingComparison !== null) {
+      if (existingComparison.poolId !== params.poolId || existingComparison.runId !== params.runId ||
+        existingComparison.leftAnimeId !== params.leftAnimeId || existingComparison.rightAnimeId !== params.rightAnimeId ||
+        existingComparison.result !== params.result || existingComparison.mode !== (params.mode ?? PoolComparisonMode.NORMAL)) {
+        throw new AppError("提交编号已用于另一条对决，请检查对决历史后重试。", 409, "COMPARISON_MUTATION_MISMATCH");
+      }
       return {
         comparison: existingComparison,
         leftScore: toPublicScore(
@@ -296,6 +309,12 @@ export async function submitComparison(
       upsertScore(tx, params.userId, params.poolId, params.runId, leftPoolAnime.animeId, leftPoolAnime.initialElo),
       upsertScore(tx, params.userId, params.poolId, params.runId, rightPoolAnime.animeId, rightPoolAnime.initialElo)
     ]);
+    if (!isRecalibrationMode(params.mode)) {
+      const run = await assertRunAccess(params, tx);
+      if (run.matchExcludedAnimeIds.includes(params.leftAnimeId) || run.matchExcludedAnimeIds.includes(params.rightAnimeId) || leftScoreBefore.isHidden || rightScoreBefore.isHidden) {
+        throw new AppError("对决范围或没看过状态已变化，请重新获取对局。", 400, "MATCH_CANDIDATE_UNAVAILABLE");
+      }
+    }
     const ledgerSnapshotBefore = await getLedgerScoreSnapshot(tx, params);
     const pairKey = makePairKey(params.leftAnimeId, params.rightAnimeId);
     const now = new Date();

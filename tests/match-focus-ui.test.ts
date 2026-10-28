@@ -14,7 +14,7 @@ describe("match focus UI", () => {
     expect(pairGrid).toBeGreaterThan(-1);
     expect(detailedProgress).toBeGreaterThan(pairGrid);
     expect(matchSource).toContain("<MatchHeading");
-    expect(matchSource).toContain("queueMeta.progress.effectiveComparisons");
+    expect(matchSource).toContain("有效 {effectiveCount}");
   });
 
   it("reserves feedback space instead of inserting a queue refill banner above the cards", () => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { SeasonCandidatePicker } from "@/components/SeasonCandidatePicker";
 import { MatchRecap } from "@/components/MatchRecap";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -9,12 +10,14 @@ import { AppCard } from "@/components/ui/AppCard";
 import { AppButton } from "@/components/ui/AppButton";
 import { PageShell } from "@/components/PageShell";
 import { MatchActions, MatchArena, MatchChoiceCard, MatchHeading, MatchWorkspace } from "@/components/MatchPresentation";
-import { ApiClientError, getSeasonDetail, getSeasonMatchQueue, setSeasonAnimeHidden, submitSeasonVote } from "@/lib/client-api";
+import { ApiClientError, getSeasonDetail, getSeasonMatchQueue, setSeasonAnimeHidden, replaceSeasonCandidates, submitSeasonVote } from "@/lib/client-api";
 import { getAnimeCoverUrl, getAnimeSourceCoverCandidates } from "@/lib/anime-cover-url";
-import { getAnimeDisplayTitle, getAnimeImageFitMode } from "@/lib/anime-display";
+import { getAnimeDisplayTitle } from "@/lib/anime-display";
 import type { SeasonDetail, SeasonMatchQueueItem, SeasonAnimeEntry } from "@/lib/client-api";
 import { isInteractiveShortcutTarget } from "@/lib/match-shortcuts";
 import { getSeasonScheduleState } from "@/lib/season-schedule";
+import { clearPendingSeasonVote, pendingSeasonVoteKey, readPendingSeasonVote, storePendingSeasonVote, type PendingSeasonVote } from "@/lib/pending-season-vote";
+import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 
 function SeasonDuelCard({ anime, side, disabled, onPick, highlighted }: {
   anime: SeasonAnimeEntry; side: "left" | "right"; disabled: boolean; onPick: () => void; highlighted: boolean;
@@ -22,7 +25,7 @@ function SeasonDuelCard({ anime, side, disabled, onPick, highlighted }: {
   const title = getAnimeDisplayTitle(anime);
   const coverUrl = getAnimeCoverUrl(anime, { intent: "hero" });
   const secondarySrc = anime.imageLargeUrl ?? anime.imageSmallUrl ?? anime.thumbnailUrl ?? anime.imageUrl;
-  return <MatchChoiceCard title={title} src={coverUrl} secondarySrc={secondarySrc} fallbackSrcs={getAnimeSourceCoverCandidates(anime)} animeId={anime.animeId} fit={getAnimeImageFitMode(anime)} side={side} mode="season" disabled={disabled} onPick={onPick} highlighted={highlighted} details={<p>选择这部作品会消耗 1 张赛季票；跳过和标记没看过不消耗票数。</p>} />;
+  return <MatchChoiceCard title={title} src={coverUrl} secondarySrc={secondarySrc} fallbackSrcs={getAnimeSourceCoverCandidates(anime)} animeId={anime.animeId} fit="contain" side={side} mode="season" disabled={disabled} onPick={onPick} highlighted={highlighted} details={<p>选择这部作品会消耗 1 张赛季票；跳过和标记没看过不消耗票数。</p>} />;
 }
 
 function filterSeasonQueue(
@@ -42,26 +45,6 @@ function seasonMatchPairKey(pair: SeasonMatchQueueItem): string {
   return [pair.left.animeId, pair.right.animeId].sort().join(":");
 }
 
-function seasonUnseenStorageKey(seasonId: string): string {
-  return `animematch:season:${seasonId}:unseen-anime`;
-}
-
-function readSeasonUnseenAnimeIds(seasonId: string): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    const raw = window.localStorage.getItem(seasonUnseenStorageKey(seasonId));
-    const parsed = raw ? JSON.parse(raw) : [];
-    return new Set(Array.isArray(parsed) ? parsed.filter((value) => typeof value === "string") : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function writeSeasonUnseenAnimeIds(seasonId: string, animeIds: ReadonlySet<string>): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(seasonUnseenStorageKey(seasonId), JSON.stringify([...animeIds]));
-}
-
 function createVoteMutationId(seasonId: string): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return `${seasonId}:${crypto.randomUUID()}`;
@@ -71,6 +54,10 @@ function createVoteMutationId(seasonId: string): string {
 
 function isVoteWriteConflict(error: unknown): boolean {
   return error instanceof ApiClientError && error.status === 409;
+}
+
+function waitForSeasonFeedback() {
+  return wait(window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 180);
 }
 
 function wait(ms: number): Promise<void> {
@@ -98,9 +85,11 @@ function SeasonMatchSkeleton() {
 type SeasonFeedback = "LEFT_WIN" | "RIGHT_WIN" | "SKIP" | "LEFT_UNSEEN" | "RIGHT_UNSEEN" | "BOTH_UNSEEN";
 
 export default function SeasonMatchPage() {
-  const params = useParams<{ poolId: string; seasonId: string }>();
-  const { poolId, seasonId } = params;
+  const { poolId, seasonId } = useParams<{ poolId: string; seasonId: string }>();
+  return <SeasonMatchContent key={`${poolId}:${seasonId}`} poolId={poolId} seasonId={seasonId} />;
+}
 
+function SeasonMatchContent({ poolId, seasonId }: { poolId: string; seasonId: string }) {
   const [detail, setDetail] = useState<SeasonDetail | null>(null);
   const [queue, setQueue] = useState<SeasonMatchQueueItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -110,211 +99,284 @@ export default function SeasonMatchPage() {
   const [feedback, setFeedback] = useState<SeasonFeedback | null>(null);
   const [useBias, setUseBias] = useState(false);
   const [voteResult, setVoteResult] = useState<{ stepNumber: number; votesRemaining: number } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [skippedPairKeys, setSkippedPairKeys] = useState<Set<string>>(new Set());
   const [unseenAnimeIds, setUnseenAnimeIds] = useState<Set<string>>(new Set());
-  const voteMutationIdsRef = useRef(new Map<string, string>());
+  const [editingCandidates, setEditingCandidates] = useState(false);
+  const pickerWasOpen = useRef(false);
+  const actionLock = useRef(false);
+  const fetching = useRef(false);
+  const generation = useRef(0);
+  const alive = useRef(false);
+  const pendingVote = useRef<PendingSeasonVote | null>(null);
+  const inspectedStorageKey = useRef<string | null>(null);
+  const [pendingRecord, setPendingRecord] = useState<PendingSeasonVote | null>(null);
+  const [storageWarning, setStorageWarning] = useState<string | null>(null);
+  const [storageReadFailed, setStorageReadFailed] = useState(false);
+  useUnsavedChanges(!!pendingRecord, "上一票还没有确认结果，确定离开？返回后请先确认原票；清除本地记录不会撤销已保存的投票。");
 
-  const fetchData = useCallback(async (
-    skippedPairs: ReadonlySet<string>,
-    hiddenAnimeIds: ReadonlySet<string>
-  ) => {
+  const fetchData = useCallback(async (skippedPairs: ReadonlySet<string>) => {
+    const requestId = ++generation.current;
+    fetching.current = true;
+    setLoading(true);
     setError(null);
+    setQueue([]);
+    setCurrentIndex(0);
     try {
       const d = await getSeasonDetail(poolId, seasonId);
+      if (!alive.current || requestId !== generation.current) return;
+      const serverHidden = new Set(d.currentUserState?.hiddenAnimeIds ?? []);
       setDetail(d);
-      if (!getSeasonScheduleState(d).canVote) {
+      setUnseenAnimeIds(serverHidden);
+      const storageKey = d.viewerId ? pendingSeasonVoteKey(d.viewerId, poolId, seasonId) : null;
+      if (inspectedStorageKey.current !== storageKey) {
+        inspectedStorageKey.current = storageKey;
+        pendingVote.current = null;
+        setPendingRecord(null);
+        setStorageWarning(null);
+        setStorageReadFailed(false);
+        if (d.viewerId) {
+          try {
+            const stored = readPendingSeasonVote(d.viewerId, poolId, seasonId);
+            pendingVote.current = stored;
+            setPendingRecord(stored);
+          } catch {
+            setStorageReadFailed(true);
+            setStorageWarning("无法读取本标签页的待确认投票。请先查看赛季榜单，再清除本地记录；当前不会自动重发。");
+          }
+        }
+      }
+      // Resolve a stored request before fetching new choices, even after the deadline.
+      if (pendingVote.current) return;
+      if (!getSeasonScheduleState(d).canVote || !d.currentUserState || !canSubmitSeasonVote(d)) {
         setQueue([]);
         setCurrentIndex(0);
-        setVoteResult(null);
-        setLoading(false);
         return;
       }
-      const q = await getSeasonMatchQueue(poolId, seasonId, {
-        limit: 5,
-        excludePairKeys: [...skippedPairs],
-        hiddenAnimeIds: [...hiddenAnimeIds]
-      });
-      const serverHiddenAnimeIds = new Set(d.currentUserState?.hiddenAnimeIds ?? []);
-      const mergedHiddenAnimeIds = new Set([...hiddenAnimeIds, ...serverHiddenAnimeIds]);
-      writeSeasonUnseenAnimeIds(seasonId, mergedHiddenAnimeIds);
-      setUnseenAnimeIds(mergedHiddenAnimeIds);
-
-      let filtered = filterSeasonQueue(q, skippedPairs, mergedHiddenAnimeIds);
+      const q = await getSeasonMatchQueue(poolId, seasonId, { limit: 5, excludePairKeys: [...skippedPairs] });
+      if (!alive.current || requestId !== generation.current) return;
+      let filtered = filterSeasonQueue(q, skippedPairs, serverHidden);
       if (filtered.length === 0 && skippedPairs.size > 0) {
-        const resetSkippedPairs = new Set<string>();
-        const fallbackQueue = await getSeasonMatchQueue(poolId, seasonId, {
-          limit: 5,
-          hiddenAnimeIds: [...mergedHiddenAnimeIds]
-        });
-        setSkippedPairKeys(resetSkippedPairs);
-        filtered = filterSeasonQueue(fallbackQueue, resetSkippedPairs, mergedHiddenAnimeIds);
+        const fallback = await getSeasonMatchQueue(poolId, seasonId, { limit: 5 });
+        if (!alive.current || requestId !== generation.current) return;
+        setSkippedPairKeys(new Set());
+        filtered = filterSeasonQueue(fallback, new Set(), serverHidden);
       }
       setQueue(filtered);
       setCurrentIndex(0);
-      setVoteResult(null);
-      setLoading(false);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "加载失败");
-      setLoading(false);
+    } catch (reason) {
+      if (alive.current && requestId === generation.current) setError(reason instanceof Error ? reason.message : "加载失败");
+    } finally {
+      if (alive.current && requestId === generation.current) { fetching.current = false; setLoading(false); }
     }
   }, [poolId, seasonId]);
 
   useEffect(() => {
-    const hiddenIds = readSeasonUnseenAnimeIds(seasonId);
-    const skippedPairs = new Set<string>();
-    setUnseenAnimeIds(hiddenIds);
-    setSkippedPairKeys(skippedPairs);
-    setLoading(true);
-    void fetchData(skippedPairs, hiddenIds);
-  }, [fetchData, seasonId]);
+    const requestGeneration = generation;
+    alive.current = true;
+    void fetchData(new Set());
+    return () => { alive.current = false; requestGeneration.current++; };
+  }, [fetchData]);
 
-  const currentPair = queue.length > currentIndex ? queue[currentIndex] : null;
+  const currentPair = queue[currentIndex] ?? null;
+  const busy = loading || submitting;
+  const controlsDisabled = busy || !!pendingVote.current || storageReadFailed || editingCandidates;
 
-  const handleRollPair = useCallback(() => {
-    if (feedback === "SKIP") return;
-    setFeedback("SKIP");
-    setUseBias(false);
+  useEffect(() => {
+    if (editingCandidates) pickerWasOpen.current = true;
+    else if (!busy && pickerWasOpen.current) {
+      pickerWasOpen.current = false;
+      document.getElementById("season-candidate-trigger")?.focus();
+    }
+  }, [editingCandidates, busy]);
+
+  const beginAction = useCallback(() => {
+    if (!alive.current || actionLock.current || fetching.current || pendingVote.current || storageReadFailed || editingCandidates) return false;
+    actionLock.current = true;
+    setSubmitting(true);
+    setError(null);
+    setNotice(null);
     setVoteResult(null);
-    let nextSkippedPairKeys = skippedPairKeys;
-    if (currentPair) {
-      nextSkippedPairKeys = new Set(skippedPairKeys);
-      nextSkippedPairKeys.add(seasonMatchPairKey(currentPair));
-      setSkippedPairKeys(nextSkippedPairKeys);
-    }
-    const filteredQueue = filterSeasonQueue(queue, nextSkippedPairKeys, unseenAnimeIds);
-    if (filteredQueue.length > 0) {
-      setQueue(filteredQueue);
+    return true;
+  }, [editingCandidates, storageReadFailed]);
+
+  const endAction = useCallback(() => {
+    actionLock.current = false;
+    if (alive.current) { setSubmitting(false); setFeedback(null); }
+  }, []);
+
+  const handleRollPair = useCallback(async () => {
+    if (!currentPair || !beginAction()) return;
+    try {
+      setFeedback("SKIP");
+      setUseBias(false);
+      setVoteResult(null);
+      const skipped = new Set(skippedPairKeys).add(seasonMatchPairKey(currentPair));
+      setSkippedPairKeys(skipped);
+      await waitForSeasonFeedback();
+      if (!alive.current) return;
+      const filtered = filterSeasonQueue(queue.slice(currentIndex + 1), skipped, unseenAnimeIds);
+      setQueue(filtered);
       setCurrentIndex(0);
-    } else {
-      void fetchData(nextSkippedPairKeys, unseenAnimeIds);
-    }
-    window.setTimeout(() => setFeedback(null), 360);
-  }, [currentPair, feedback, fetchData, queue, skippedPairKeys, unseenAnimeIds]);
+      if (!filtered.length) await fetchData(skipped);
+    } finally { endAction(); }
+  }, [currentPair, beginAction, skippedPairKeys, queue, currentIndex, unseenAnimeIds, fetchData, endAction]);
 
   const handleMarkUnseen = useCallback(async (kind: Extract<SeasonFeedback, "LEFT_UNSEEN" | "RIGHT_UNSEEN" | "BOTH_UNSEEN">) => {
-    if (!currentPair || submitting) return;
-
-    const hiddenIds =
-      kind === "LEFT_UNSEEN"
-        ? [currentPair.left.animeId]
-        : kind === "RIGHT_UNSEEN"
-          ? [currentPair.right.animeId]
-          : [currentPair.left.animeId, currentPair.right.animeId];
-
-    setSubmitting(true);
+    if (!currentPair || !beginAction()) return;
     try {
-      const result = await setSeasonAnimeHidden(poolId, seasonId, {
-        animeIds: hiddenIds,
-        isHidden: true
-      });
-      const nextUnseenAnimeIds = new Set(result.hiddenAnimeIds);
-      for (const animeId of hiddenIds) nextUnseenAnimeIds.add(animeId);
-      writeSeasonUnseenAnimeIds(seasonId, nextUnseenAnimeIds);
-      setUnseenAnimeIds(nextUnseenAnimeIds);
-
-      const nextSkippedPairKeys = new Set(skippedPairKeys);
-      nextSkippedPairKeys.add(seasonMatchPairKey(currentPair));
-      setSkippedPairKeys(nextSkippedPairKeys);
-
-      const filteredQueue = filterSeasonQueue(queue, nextSkippedPairKeys, nextUnseenAnimeIds);
-      setQueue(filteredQueue);
-      setCurrentIndex(0);
+      const animeIds = kind === "LEFT_UNSEEN" ? [currentPair.left.animeId] : kind === "RIGHT_UNSEEN" ? [currentPair.right.animeId] : [currentPair.left.animeId, currentPair.right.animeId];
+      const result = await setSeasonAnimeHidden(poolId, seasonId, { animeIds, isHidden: true, expectedUserId: detail?.viewerId });
+      if (!alive.current) return;
+      const hidden = new Set(result.hiddenAnimeIds);
+      setUnseenAnimeIds(hidden);
+      setDetail((current) => current?.currentUserState ? { ...current, currentUserState: { ...current.currentUserState, hiddenAnimeIds: result.hiddenAnimeIds } } : current);
       setUseBias(false);
       setVoteResult(null);
       setFeedback(kind);
-
-      if (filteredQueue.length === 0) {
-        void fetchData(nextSkippedPairKeys, nextUnseenAnimeIds);
-      }
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "排除作品失败");
-    } finally {
-      setSubmitting(false);
-    }
-    window.setTimeout(() => setFeedback(null), 420);
-  }, [currentPair, fetchData, poolId, queue, seasonId, skippedPairKeys, submitting]);
+      const skipped = new Set(skippedPairKeys).add(seasonMatchPairKey(currentPair));
+      setSkippedPairKeys(skipped);
+      await waitForSeasonFeedback();
+      if (!alive.current) return;
+      const filtered = filterSeasonQueue(queue.slice(currentIndex + 1), skipped, hidden);
+      setQueue(filtered);
+      setCurrentIndex(0);
+      if (!filtered.length) await fetchData(skipped);
+    } catch (reason) {
+      if (alive.current) setError(reason instanceof Error ? reason.message : "排除作品失败，请重试。");
+    } finally { endAction(); }
+  }, [currentPair, beginAction, poolId, seasonId, detail?.viewerId, skippedPairKeys, queue, currentIndex, fetchData, endAction]);
 
   async function handleResetUnseen() {
-    const emptySet = new Set<string>();
-    setLoading(true);
+    if (!beginAction()) return;
     try {
-      await setSeasonAnimeHidden(poolId, seasonId, {
-        animeIds: [],
-        isHidden: false
-      });
-      const resetSkippedPairs = new Set<string>();
-      writeSeasonUnseenAnimeIds(seasonId, emptySet);
-      setUnseenAnimeIds(emptySet);
-      setSkippedPairKeys(resetSkippedPairs);
-      void fetchData(resetSkippedPairs, emptySet);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "恢复作品失败");
-      setLoading(false);
-    }
+      await setSeasonAnimeHidden(poolId, seasonId, { animeIds: [], isHidden: false, expectedUserId: detail?.viewerId });
+      if (!alive.current) return;
+      setSkippedPairKeys(new Set());
+      await fetchData(new Set());
+      if (alive.current) setNotice("已恢复全部作品，历史投票保留。");
+    } catch (reason) {
+      if (alive.current) setError(reason instanceof Error ? reason.message : "恢复作品失败");
+    } finally { endAction(); }
   }
 
+  async function saveCandidates(includedAnimeIds: string[], expectedHiddenAnimeIds: string[], expectedAnimeIds: string[]) {
+    if (actionLock.current || fetching.current || pendingVote.current || !detail?.viewerId) throw new Error("请先等待当前操作完成。");
+    actionLock.current = true;
+    setSubmitting(true);
+    try {
+      await replaceSeasonCandidates(poolId, seasonId, { includedAnimeIds, expectedAnimeIds, expectedHiddenAnimeIds, expectedUserId: detail.viewerId });
+      if (!alive.current) return;
+      setEditingCandidates(false);
+      setSkippedPairKeys(new Set());
+      await fetchData(new Set());
+      if (alive.current) setNotice(`已保存本赛季的候选作品，历史投票保留。`);
+    } finally { endAction(); }
+  }
+
+  const forgetPendingVote = useCallback((record: PendingSeasonVote) => {
+    try {
+      clearPendingSeasonVote(record.ownerId, poolId, seasonId, record.request.clientMutationId);
+      if (alive.current) setStorageWarning(null);
+    } catch {
+      if (alive.current) setStorageWarning("服务器结果已确认，但浏览器未能清除恢复记录。刷新后若再次出现原票，可重试确认，不会重复扣票。");
+    }
+    pendingVote.current = null;
+    if (alive.current) setPendingRecord(null);
+  }, [poolId, seasonId]);
+
   const handleVote = useCallback(async (winnerId: string) => {
-    if (!currentPair || submitting || !canSubmitSeasonVote(detail)) return;
-    const mutationKey = `${seasonMatchPairKey(currentPair)}:${winnerId}:${detail?.mode === "BIAS" && useBias ? "bias" : "normal"}`;
-    const clientMutationId = voteMutationIdsRef.current.get(mutationKey) ?? createVoteMutationId(seasonId);
-    voteMutationIdsRef.current.set(mutationKey, clientMutationId);
+    if (actionLock.current || fetching.current || editingCandidates || storageReadFailed) return;
+    const previous = pendingVote.current;
+    if (previous && previous.request.winnerAnimeId !== winnerId) { setError("上一票尚未确认，请先重试原选择。"); return; }
+    if (!previous && (!currentPair || !canSubmitSeasonVote(detail))) return;
+    if (!detail?.viewerId || (previous && previous.ownerId !== detail.viewerId)) { setError("请登录原账号后重新加载赛季。"); return; }
+    const record: PendingSeasonVote = previous ?? {
+      version: 1, ownerId: detail.viewerId, poolId, seasonId,
+      leftTitle: getAnimeDisplayTitle(currentPair!.left), rightTitle: getAnimeDisplayTitle(currentPair!.right),
+      request: {
+        leftAnimeId: currentPair!.left.animeId, rightAnimeId: currentPair!.right.animeId,
+        winnerAnimeId: winnerId, useBiasVote: detail.mode === "BIAS" && useBias,
+        clientMutationId: createVoteMutationId(seasonId), expectedUserId: detail.viewerId
+      }
+    };
+    const request = record.request;
+    pendingVote.current = record;
+    setPendingRecord(record);
+    actionLock.current = true;
     setSubmitting(true);
     setError(null);
+    setNotice(null);
+    setVoteResult(null);
+    try { storePendingSeasonVote(record); setStorageWarning(null); }
+    catch { setStorageWarning("浏览器无法保存恢复记录。原票目前只保留在本页，请确认结果后再刷新或离开。"); }
+    let saved = false;
     try {
       let result = null;
-      for (let attempt = 1; attempt <= 4; attempt += 1) {
-        try {
-          result = await submitSeasonVote(poolId, seasonId, {
-            leftAnimeId: currentPair.left.animeId,
-            rightAnimeId: currentPair.right.animeId,
-            winnerAnimeId: winnerId,
-            useBiasVote: detail?.mode === "BIAS" && useBias,
-            clientMutationId
-          });
-          break;
-        } catch (e: unknown) {
-          if (!isVoteWriteConflict(e) || attempt >= 4) {
-            throw e;
-          }
+      for (let attempt = 1; attempt <= 4; attempt++) {
+        try { result = await submitSeasonVote(poolId, seasonId, request); break; }
+        catch (reason) {
+          if (!isVoteWriteConflict(reason) || attempt >= 4) throw reason;
           await wait(120 * attempt);
+          if (!alive.current) return;
         }
       }
-      if (!result) throw new Error("Vote failed");
-      voteMutationIdsRef.current.delete(mutationKey);
+      if (!result) throw new Error("投票失败，请重试。");
+      saved = true;
+      forgetPendingVote(record);
+      if (!alive.current) return;
       setVoteResult({ stepNumber: result.stepNumber, votesRemaining: result.votesRemaining });
-      setFeedback(winnerId === currentPair.left.animeId ? "LEFT_WIN" : "RIGHT_WIN");
-      const nextSkippedPairKeys = new Set(skippedPairKeys);
-      nextSkippedPairKeys.add(seasonMatchPairKey(currentPair));
-      setSkippedPairKeys(nextSkippedPairKeys);
-      setTimeout(() => {
-        void (async () => {
-          try {
-            setFeedback(null);
-            const shouldLoadNextBatch = currentIndex >= queue.length - 1;
-            if (result.votesRemaining <= 0 || shouldLoadNextBatch) {
-              setUseBias(false);
-              await fetchData(nextSkippedPairKeys, unseenAnimeIds);
-            } else {
-              setCurrentIndex((prev) => prev + 1);
-              setUseBias(false);
-              setVoteResult(null);
-            }
-          } finally {
-            setSubmitting(false);
-          }
-        })();
-      }, 600);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "投票失败");
-      setSubmitting(false);
+      setFeedback(winnerId === request.leftAnimeId ? "LEFT_WIN" : "RIGHT_WIN");
+      const nextDetail: SeasonDetail = { ...detail, currentUserState: detail.currentUserState ? {
+        ...detail.currentUserState, ...result.usage
+      } : null };
+      setDetail(nextDetail);
+      const skipped = new Set(skippedPairKeys).add([request.leftAnimeId, request.rightAnimeId].sort().join(":"));
+      setSkippedPairKeys(skipped);
+      await waitForSeasonFeedback();
+      if (!alive.current) return;
+      setUseBias(false);
+      if (previous || !canSubmitSeasonVote(nextDetail) || currentIndex >= queue.length - 1) await fetchData(skipped);
+      else setCurrentIndex((index) => index + 1);
+      if (alive.current && previous) setNotice("原投票已确认，票数已同步；同一提交编号不会重复扣票。");
+    } catch (reason) {
+      if (!alive.current) return;
+      // A retry may follow a committed request whose response was lost. Keep it
+      // recoverable even if a later request is rejected by auth or access checks.
+      if (!previous && reason instanceof ApiClientError && [400, 401, 403, 404, 422].includes(reason.status)) forgetPendingVote(record);
+      setError(saved ? "上一票已保存，下一组暂时无法加载。" : reason instanceof Error ? reason.message : "投票失败，请重试原选择。");
+    } finally { endAction(); }
+  }, [currentPair, editingCandidates, storageReadFailed, detail, useBias, seasonId, poolId, skippedPairKeys, currentIndex, queue.length, fetchData, endAction, forgetPendingVote]);
+
+  async function discardPendingVote() {
+    if (actionLock.current || fetching.current || !detail?.viewerId) return;
+    if (!window.confirm("清除本标签页的待确认记录？这不会撤销服务器已保存的投票。若原请求仍在处理，它仍可能保存；请先查看榜单，避免重新投同一票。")) return;
+    try {
+      clearPendingSeasonVote(detail.viewerId, poolId, seasonId);
+    } catch {
+      setStorageWarning("浏览器仍无法清除本地记录，请允许此网站使用存储后重试。");
+      return;
     }
-  }, [currentPair, submitting, poolId, seasonId, detail, useBias, fetchData, currentIndex, queue.length, skippedPairKeys, unseenAnimeIds]);
+    pendingVote.current = null;
+    setPendingRecord(null);
+    setStorageReadFailed(false);
+    setStorageWarning(null);
+    setUseBias(false);
+    setVoteResult(null);
+    await fetchData(skippedPairKeys);
+    if (alive.current) setNotice("本地待确认记录已清除，服务器已保存的投票保留。");
+  }
+
+  function reloadQueue() {
+    if (actionLock.current || fetching.current || pendingVote.current || editingCandidates) return;
+    void fetchData(skippedPairKeys);
+  }
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (!currentPair || submitting) return;
+      if (!currentPair || controlsDisabled || actionLock.current || fetching.current) return;
       if (isInteractiveShortcutTarget(e.target)) return;
-      if (e.repeat) return;
+      if (e.repeat || e.isComposing || e.ctrlKey || e.metaKey || e.altKey) return;
 
       const canUseBiasShortcut =
         detail?.mode === "BIAS" && (detail.currentUserState?.biasVotesRemaining ?? 0) > 0;
@@ -333,7 +395,7 @@ export default function SeasonMatchPage() {
         handleMarkUnseen("RIGHT_UNSEEN");
       } else if (e.key === "3" || e.key === "0") {
         handleMarkUnseen("BOTH_UNSEEN");
-      } else if ((e.key === "b" || e.key === "B" || e.key === "Shift") && canUseBiasShortcut) {
+      } else if ((e.key === "b" || e.key === "B") && canUseBiasShortcut) {
         setUseBias((prev) => !prev);
       } else {
         handled = false;
@@ -343,10 +405,10 @@ export default function SeasonMatchPage() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [currentPair, submitting, handleVote, detail, handleRollPair, handleMarkUnseen]);
+  }, [currentPair, controlsDisabled, handleVote, detail, handleRollPair, handleMarkUnseen]);
 
   if (loading && detail === null) return <PageShell><SeasonMatchSkeleton /></PageShell>;
-  if (error && detail === null) return <PageShell><main className="mx-auto max-w-6xl px-4 py-8"><AppCard className="p-8 text-center"><h1 className="text-xl font-black text-white">加载失败</h1><p className="mt-2 text-sm text-slate-400">{error}</p><div className="mt-5 flex flex-wrap justify-center gap-3"><AppButton type="button" onClick={() => { setLoading(true); void fetchData(skippedPairKeys, unseenAnimeIds); }} variant="secondary">重新加载对决</AppButton><Link href={`/pools/${poolId}/seasons/${seasonId}`} className="inline-flex min-h-11 items-center text-sm text-amber-200 underline">返回赛季详情</Link></div></AppCard></main></PageShell>;
+  if (error && detail === null) return <PageShell><main className="mx-auto max-w-6xl px-4 py-8"><AppCard className="p-8 text-center"><h1 className="text-xl font-black text-white">加载失败</h1><p className="mt-2 text-sm text-slate-400">{error}</p><div className="mt-5 flex flex-wrap justify-center gap-3"><AppButton type="button" onClick={reloadQueue} variant="secondary">重新加载对决</AppButton><Link href={`/pools/${poolId}/seasons/${seasonId}`} className="inline-flex min-h-11 items-center text-sm text-amber-200 underline">返回赛季详情</Link></div></AppCard></main></PageShell>;
   if (!detail) return null;
 
   const cs = detail.currentUserState;
@@ -366,26 +428,38 @@ export default function SeasonMatchPage() {
         : "grid-cols-3";
 
   return (
-    <PageShell>
+    <PageShell contentClassName="!py-3">
       <MatchWorkspace>
         <MatchHeading mode="season" title={detail.title} backHref={`/pools/${poolId}/seasons/${seasonId}`} description="限量投票，和群友一起选出本季最喜欢的作品。" context={<AppBadge tone={schedule.canVote ? "success" : "muted"}>{schedule.canVote ? "开放中" : schedule.phase === "CLOSED" || schedule.phase === "ENDED" ? "投票已结束" : "等待开放"}</AppBadge>} tools={<><Link href={`/pools/${poolId}/seasons/${seasonId}#personal`} className="inline-flex min-h-11 items-center px-3 text-sm font-semibold text-amber-100">查看赛季榜单</Link>            {unseenAnimeIds.size > 0 ? (
               <button
                 type="button"
                 onClick={handleResetUnseen}
-                disabled={loading}
+                disabled={controlsDisabled}
                 className="min-h-11 rounded-full border border-amber-300/20 bg-amber-300/5 px-4 text-sm font-semibold text-amber-100 transition hover:border-amber-200/50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 恢复已排除 {unseenAnimeIds.size} 部
               </button>
             ) : null}
+{schedule.canVote && cs && <AppButton id="season-candidate-trigger" size="sm" variant="secondary" disabled={controlsDisabled} onClick={() => setEditingCandidates(true)}>选择熟悉的作品</AppButton>}
 </>} />
+        {editingCandidates && detail.viewerId && <SeasonCandidatePicker poolId={poolId} seasonId={seasonId} ownerId={detail.viewerId} onSave={saveCandidates} onClose={() => { if (!actionLock.current) { setEditingCandidates(false); void fetchData(skippedPairKeys); } }} />}
+        {notice && <p role="status" className="my-2 text-sm text-cyan-200">{notice}</p>}
+        {storageWarning && <div role="alert" className="my-3 rounded-xl border border-amber-300/25 p-4 text-sm text-amber-100"><p>{storageWarning}</p>{storageReadFailed && <AppButton className="mt-3" size="sm" variant="secondary" disabled={busy} onClick={discardPendingVote}>清除本地记录并同步</AppButton>}</div>}
+        {pendingRecord && !submitting && <AppCard className="my-3 p-4" role="status">
+          <h2 className="font-bold text-amber-100">有一票尚待确认</h2>
+          <p className="mt-2 break-words text-sm text-slate-300">{pendingRecord.leftTitle} vs {pendingRecord.rightTitle}</p>
+          <p className="mt-2 break-words text-sm text-white">原选择：{pendingRecord.request.winnerAnimeId === pendingRecord.request.leftAnimeId ? pendingRecord.leftTitle : pendingRecord.rightTitle} · {pendingRecord.request.useBiasVote ? "私心票" : "普通票"}</p>
+          <p className="mt-2 text-sm text-slate-400">确认会按原编号重试：已保存则返回原结果，未保存且仍可投票时提交原选择。不会重复扣票，也不会自动重发。</p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <AppButton disabled={busy} onClick={() => void handleVote(pendingRecord.request.winnerAnimeId)}>确认原投票并继续</AppButton>
+            <AppButton variant="secondary" disabled={busy} onClick={discardPendingVote}>清除本地记录</AppButton>
+          </div>
+        </AppCard>}
 
         {error ? (
           <div className="mt-3 flex flex-col gap-3 rounded-xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
             <p className="font-medium">{error}</p>
-            <AppButton type="button" onClick={() => { setLoading(true); void fetchData(skippedPairKeys, unseenAnimeIds); }} variant="secondary" size="sm" disabled={loading}>
-              {loading ? "正在重新加载..." : "重新获取对局"}
-            </AppButton>
+            {pendingVote.current ? null : <AppButton type="button" onClick={reloadQueue} variant="secondary" size="sm" disabled={controlsDisabled}>{loading ? "正在重新加载…" : "重新获取对局"}</AppButton>}
           </div>
         ) : null}
 
@@ -415,7 +489,7 @@ export default function SeasonMatchPage() {
           </div>
         ) : null}
 
-        {schedule.phase === "UPCOMING" || schedule.phase === "DRAFT" || schedule.phase === "CLOSED" || isSeasonEnded ? (
+        {pendingRecord && !currentPair ? (submitting ? <p role="status" className="py-8 text-center text-slate-300">正在确认原投票，请稍候…</p> : null) : schedule.phase === "UPCOMING" || schedule.phase === "DRAFT" || schedule.phase === "CLOSED" || isSeasonEnded ? (
           <AppCard className="mt-8 p-6 text-center">
             <AppBadge tone={schedule.phase === "UPCOMING" || schedule.phase === "DRAFT" ? "warning" : "muted"}>
               {schedule.phase === "UPCOMING" || schedule.phase === "DRAFT" ? "等待开放" : schedule.phase === "CLOSED" ? "投票已截止" : "赛季已结束"}
@@ -434,6 +508,8 @@ export default function SeasonMatchPage() {
               返回赛季详情查看结果
             </Link>
           </AppCard>
+        ) : !cs ? (
+          <AppCard className="mt-8 p-6 text-center"><h2 className="text-xl font-bold">登录后参与赛季投票</h2><p className="mt-2 text-sm text-slate-400">票数和候选作品会保存到你的账号。</p><Link href={`/login?next=${encodeURIComponent(`/pools/${poolId}/seasons/${seasonId}/match`)}`} className="mt-4 inline-flex min-h-11 items-center text-amber-200 underline">登录并继续</Link></AppCard>
         ) : !canVote && cs ? (
           <AppCard className="mt-8 p-6 text-center">
             <h2 className="text-xl font-black text-white">
@@ -451,7 +527,7 @@ export default function SeasonMatchPage() {
                   : "请稍后刷新赛季状态后再试。"}
             </p>
           </AppCard>
-        ) : currentPair ? (
+        ) : loading ? <div role="status" className="py-8 text-center text-slate-300">正在准备下一组…</div> : currentPair ? (
           <div className="mt-2 sm:mt-4">
             {detail.mode === "BIAS" && cs && cs.biasVotesRemaining > 0 ? (
               <div className="mb-2 flex items-center justify-center sm:mb-4">
@@ -459,6 +535,7 @@ export default function SeasonMatchPage() {
                   <input
                     type="checkbox"
                     checked={useBias}
+                    disabled={controlsDisabled}
                     onChange={(e) => setUseBias(e.target.checked)}
                     className="h-4 w-4 rounded accent-rose-400"
                   />
@@ -469,10 +546,10 @@ export default function SeasonMatchPage() {
             ) : null}
 
             <MatchArena mode="season"
-              left={<SeasonDuelCard key={currentPair.left.animeId + String(currentIndex)} anime={currentPair.left} side="left" disabled={submitting} onPick={() => handleVote(currentPair.left.animeId)} highlighted={feedback === "LEFT_WIN"} />}
-              right={<SeasonDuelCard key={currentPair.right.animeId + String(currentIndex)} anime={currentPair.right} side="right" disabled={submitting} onPick={() => handleVote(currentPair.right.animeId)} highlighted={feedback === "RIGHT_WIN"} />}
+              left={<SeasonDuelCard key={currentPair.left.animeId + String(currentIndex)} anime={currentPair.left} side="left" disabled={controlsDisabled} onPick={() => handleVote(currentPair.left.animeId)} highlighted={feedback === "LEFT_WIN"} />}
+              right={<SeasonDuelCard key={currentPair.right.animeId + String(currentIndex)} anime={currentPair.right} side="right" disabled={controlsDisabled} onPick={() => handleVote(currentPair.right.animeId)} highlighted={feedback === "RIGHT_WIN"} />}
             />
-            <MatchActions disabled={submitting} onSkip={handleRollPair} onUnseen={handleMarkUnseen} hint="跳过只更换当前对局，不计票；没看过的作品从赛季候选池隐藏，可在赛季详情恢复。" />
+            <MatchActions disabled={controlsDisabled} onSkip={handleRollPair} onUnseen={handleMarkUnseen} hint="跳过只更换当前对局，不计票；没看过的作品从赛季候选池隐藏，可在赛季详情恢复。" />
             <p className="mt-2 text-center text-xs text-slate-400">本批投完会自动获取下一批作品，直到你的票数用完。</p>
           </div>
         ) : (
@@ -498,16 +575,14 @@ export default function SeasonMatchPage() {
             {canVote ? (
               <div className="mt-4 flex flex-wrap justify-center gap-2">
                 {unseenAnimeIds.size > 0 ? (
-                  <AppButton variant="secondary" onClick={handleResetUnseen}>
+                  <AppButton variant="secondary" onClick={handleResetUnseen} disabled={controlsDisabled}>
                     恢复已排除作品
                   </AppButton>
                 ) : null}
                 <AppButton
                   variant="primary"
-                  onClick={() => {
-                    setLoading(true);
-                    void fetchData(skippedPairKeys, unseenAnimeIds);
-                  }}
+                  onClick={reloadQueue}
+                  disabled={controlsDisabled}
                 >
                   获取下一批作品
                 </AppButton>
@@ -526,7 +601,7 @@ export default function SeasonMatchPage() {
           ) : null}
         </div>
 
-        <div className="mt-4"><MatchRecap count={voteResult?.stepNumber ?? detail?.currentUserState?.votesUsed ?? 0} scopeKey={seasonId} endpoint={`/api/pools/${poolId}/seasons/${seasonId}`} resultHref={`/pools/${poolId}/seasons/${seasonId}#personal`} season /></div>
+        <div className="mt-4"><MatchRecap count={detail.currentUserState?.votesUsed ?? 0} scopeKey={`${detail.viewerId ?? "guest"}:${seasonId}`} endpoint={`/api/pools/${poolId}/seasons/${seasonId}`} resultHref={`/pools/${poolId}/seasons/${seasonId}#personal`} season /></div>
       </MatchWorkspace>
     </PageShell>
   );

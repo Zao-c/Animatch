@@ -1,6 +1,6 @@
 "use client";
 
-import React, { type DragEvent } from "react";
+import React, { useRef, useState, type DragEvent } from "react";
 import { AnimeCover } from "./AnimeCover";
 import { AppBadge } from "./ui/AppBadge";
 import { getAnimeCoverUrl, getAnimeSourceCoverCandidates } from "@/lib/anime-cover-url";
@@ -16,10 +16,12 @@ export type TierMoveOption = {
 export function TierAnimeCard({
   item,
   editable,
+  disabled = false,
   exportMode = false,
   compact = false,
   scoreDistribution,
   onDragStart,
+  onDragEnd,
   onDropBefore,
   moveOptions = [],
   onMoveToTier,
@@ -31,10 +33,12 @@ export function TierAnimeCard({
 }: {
   item: TierListItem;
   editable: boolean;
+  disabled?: boolean;
   exportMode?: boolean;
   compact?: boolean;
   scoreDistribution: RankingScoreDistribution;
   onDragStart: () => void;
+  onDragEnd?: () => void;
   onDropBefore: () => void;
   moveOptions?: TierMoveOption[];
   onMoveToTier?: (tierId: string) => void;
@@ -49,18 +53,30 @@ export function TierAnimeCard({
   const secondaryUrl = getAnimeSourceCoverCandidates(item).find((url) => url !== coverUrl);
   const coverFit = getAnimeImageFitMode(item);
   const aniScore = getAniScore(item.eloScore, scoreDistribution);
+  const [controlsOpen, setControlsOpen] = useState(false);
+  const adjustButtonRef = useRef<HTMLButtonElement>(null);
+  const canDrag = editable && !exportMode && !disabled;
 
   return (
     <div
-      draggable={editable && !exportMode}
-      onDragStart={onDragStart}
-      onDragOver={(event: DragEvent<HTMLDivElement>) => event.preventDefault()}
+      data-tier-anime-id={item.animeId}
+      draggable={canDrag}
+      onDragStart={(event) => {
+        if (!canDrag) { event.preventDefault(); return; }
+        onDragStart();
+      }}
+      onDragEnd={onDragEnd}
+      onDragOver={(event: DragEvent<HTMLDivElement>) => {
+        if (canDrag) event.preventDefault();
+      }}
       onDrop={(event) => {
+        if (!canDrag) return;
+        event.preventDefault();
         event.stopPropagation();
         onDropBefore();
       }}
       className={`w-full min-w-0 overflow-hidden rounded-xl border border-anime-border bg-anime-panel transition duration-anime hover:border-anime-cyan/30 ${
-        editable ? "cursor-grab active:cursor-grabbing" : ""
+        canDrag ? "cursor-grab active:cursor-grabbing" : ""
       } ${className}`}
     >
       <AnimeCover
@@ -84,54 +100,87 @@ export function TierAnimeCard({
           <p className="whitespace-nowrap text-xs font-black text-cyan-100 sm:text-sm">{aniScore.label}</p>
           <p className="whitespace-nowrap text-xs text-slate-400">{item.compareCount} 场</p>
         </div> : null}
-        {editable && onMoveToTier ? (
+        {editable && !exportMode && onMoveToTier ? (
           <div
-            className="mt-3 space-y-2 [@media(hover:hover)_and_(pointer:fine)]:hidden"
+            data-tier-controls={item.animeId}
+            className="mt-3 scroll-mt-72 scroll-mb-8 cursor-default sm:scroll-mt-48"
             onPointerDown={(event) => event.stopPropagation()}
+            onDragStart={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape" || !controlsOpen) return;
+              event.preventDefault();
+              event.stopPropagation();
+              setControlsOpen(false);
+              adjustButtonRef.current?.focus();
+            }}
           >
-            <label className="sr-only" htmlFor={`tier-move-${item.animeId}`}>
-              将 {title} 移至其他 Tier
-            </label>
-            <select
-              id={`tier-move-${item.animeId}`}
-              defaultValue=""
-              onChange={(event) => {
-                if (event.target.value) {
-                  onMoveToTier(event.target.value);
-                  event.target.value = "";
-                }
-              }}
-              className="min-h-11 w-full rounded-lg border border-white/15 bg-slate-900 px-2 text-xs font-semibold text-slate-100 outline-none transition focus:border-anime-cyan/60 focus:ring-2 focus:ring-anime-cyan/30"
-              aria-label={`将 ${title} 移至其他 Tier`}
+            <button
+              ref={adjustButtonRef}
+              id={`tier-adjust-${item.animeId}`}
+              type="button"
+              disabled={disabled}
+              aria-label={`调整 ${title} 的位置`}
+              aria-expanded={controlsOpen}
+              aria-controls={`tier-controls-${item.animeId}`}
+              onClick={() => setControlsOpen((value) => !value)}
+              className="hidden min-h-11 w-full items-center justify-between gap-1 rounded-lg border border-white/15 bg-white/[0.04] px-2 text-xs font-semibold text-slate-100 transition hover:border-anime-cyan/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 disabled:cursor-not-allowed disabled:opacity-35 [@media(hover:hover)_and_(pointer:fine)]:inline-flex"
             >
-              <option value="">移动到 Tier</option>
-              {moveOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={onMoveEarlier}
-                disabled={!canMoveEarlier || onMoveEarlier === undefined}
-                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] text-base text-slate-100 transition hover:border-anime-cyan/40 hover:bg-anime-cyan/10 disabled:cursor-not-allowed disabled:opacity-35"
-                aria-label={`将 ${title} 在本 Tier 内前移`}
-                title="在本 Tier 内前移"
+              调整位置 <span aria-hidden="true">{controlsOpen ? "▴" : "▾"}</span>
+            </button>
+            <div
+              id={`tier-controls-${item.animeId}`}
+              className={`space-y-2 [@media(hover:hover)_and_(pointer:fine)]:mt-2 ${controlsOpen ? "" : "[@media(hover:hover)_and_(pointer:fine)]:hidden"}`}
+            >
+              <label className="sr-only" htmlFor={`tier-move-${item.animeId}`}>
+                将 {title} 移至其他 Tier
+              </label>
+              <select
+                id={`tier-move-${item.animeId}`}
+                disabled={disabled}
+                defaultValue=""
+                onChange={(event) => {
+                  if (event.target.value) {
+                    onMoveToTier(event.target.value);
+                    event.target.value = "";
+                  }
+                }}
+                className="min-h-11 w-full rounded-lg border border-white/15 bg-slate-900 px-2 text-xs font-semibold text-slate-100 outline-none transition focus:border-anime-cyan/60 focus:ring-2 focus:ring-anime-cyan/30"
+                aria-label={`将 ${title} 移至其他 Tier`}
               >
-                &larr;
-              </button>
-              <button
-                type="button"
-                onClick={onMoveLater}
-                disabled={!canMoveLater || onMoveLater === undefined}
-                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] text-base text-slate-100 transition hover:border-anime-cyan/40 hover:bg-anime-cyan/10 disabled:cursor-not-allowed disabled:opacity-35"
-                aria-label={`将 ${title} 在本 Tier 内后移`}
-                title="在本 Tier 内后移"
-              >
-                &rarr;
-              </button>
+                <option value="">移动到 Tier</option>
+                {moveOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  id={`tier-earlier-${item.animeId}`}
+                  type="button"
+                  onClick={onMoveEarlier}
+                  disabled={disabled || !canMoveEarlier || onMoveEarlier === undefined}
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] text-base text-slate-100 transition hover:border-anime-cyan/40 hover:bg-anime-cyan/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 disabled:cursor-not-allowed disabled:opacity-35"
+                  aria-label={`将 ${title} 在本 Tier 内前移`}
+                  title="在本 Tier 内前移"
+                >
+                  &larr;
+                </button>
+                <button
+                  id={`tier-later-${item.animeId}`}
+                  type="button"
+                  onClick={onMoveLater}
+                  disabled={disabled || !canMoveLater || onMoveLater === undefined}
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] text-base text-slate-100 transition hover:border-anime-cyan/40 hover:bg-anime-cyan/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 disabled:cursor-not-allowed disabled:opacity-35"
+                  aria-label={`将 ${title} 在本 Tier 内后移`}
+                  title="在本 Tier 内后移"
+                >
+                  &rarr;
+                </button>
+              </div>
             </div>
           </div>
         ) : null}

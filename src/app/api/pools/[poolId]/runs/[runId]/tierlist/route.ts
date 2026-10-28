@@ -46,7 +46,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
     prewarmTierList(tierList);
 
-    return ok(tierList);
+    return ok({ ...tierList, draftOwnerId: user.id }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return fromError(error);
   }

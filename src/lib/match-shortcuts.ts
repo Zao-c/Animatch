@@ -3,7 +3,13 @@ import type { ComparisonResult } from "./client-api";
 export function getComparisonResultForShortcut(event: {
   key: string;
   target: EventTarget | null;
+  repeat?: boolean;
+  isComposing?: boolean;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  altKey?: boolean;
 }): ComparisonResult | null {
+  if (event.repeat || event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return null;
   if (isInteractiveShortcutTarget(event.target)) {
     return null;
   }

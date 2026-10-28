@@ -13,6 +13,7 @@ function buildCacheKey(params: QuickImportParams): string {
   return JSON.stringify({
     mode: params.mode,
     year: params.year,
+    month: params.month,
     yearFrom: params.yearFrom,
     yearTo: params.yearTo,
     type: params.type,

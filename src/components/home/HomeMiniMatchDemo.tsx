@@ -84,7 +84,7 @@ export function HomeMiniMatchDemo() {
     return (
       <AppCard variant="focus" className="overflow-hidden p-5" aria-label="mini match demo">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">番剧擂台</p>
-        <h2 className="mt-2 text-lg font-semibold text-white">正在准备真实对决预览...</h2>
+        <h2 className="mt-2 text-lg font-semibold text-white">正在加载对决…</h2>
       </AppCard>
     );
   }
@@ -97,11 +97,8 @@ export function HomeMiniMatchDemo() {
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">番剧擂台</p>
             <h2 className="mt-2 text-xl font-black text-white">还没有可预览的对决</h2>
           </div>
-          <AppBadge tone="warning">Preview</AppBadge>
+          <AppBadge tone="warning">预览</AppBadge>
         </div>
-        <p className="mt-4 text-sm leading-6 text-slate-400">
-          创建番组或体验示例番组后，这里会显示真实封面对决预览。
-        </p>
         <AppButton
           type="button"
           className="mt-5 w-full"
@@ -120,11 +117,9 @@ export function HomeMiniMatchDemo() {
     <AppCard variant="focus" className="overflow-hidden p-4 sm:p-5" aria-label="mini match demo">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">番剧擂台</p>
-          <h2 className="mt-1 text-lg font-semibold text-white">本轮你更想推荐哪部？</h2>
-          <p className="mt-1 text-xs text-slate-400">体验预览，不会保存结果。</p>
+          <h2 className="text-lg font-semibold text-white">对决预览</h2>
+          <p className="mt-1 text-xs text-slate-400">不保存结果</p>
         </div>
-        <AppBadge tone="warning">VS</AppBadge>
       </div>
 
       <div className="mt-5 grid grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)] items-center gap-3">
@@ -140,12 +135,6 @@ export function HomeMiniMatchDemo() {
         <ChoiceButton label="差不多" onClick={() => choose("draw")} active={choice === "draw"} disabled={choice !== null} />
         <ChoiceButton label="右边" onClick={() => choose("right")} active={choice === "right"} disabled={choice !== null} />
       </div>
-
-      {choice !== null ? (
-        <p className="mt-3 text-center text-xs text-cyan-100">
-          演示选择不会保存，进入对决页后才会记录结果。
-        </p>
-      ) : null}
 
       {preview.ctaHref ? (
         <Link
@@ -201,9 +190,7 @@ function PreviewCard({
           className="aspect-[3/4] h-auto w-full rounded-none border-0 object-cover"
         />
       </div>
-      <p className="mt-2 text-center text-xs font-semibold text-slate-400">
-        {side === "left" ? "这边" : "那边"}
-      </p>
+      <p className="mt-2 line-clamp-2 min-h-10 text-center text-sm font-semibold text-slate-200" title={title}>{title}</p>
     </div>
   );
 }

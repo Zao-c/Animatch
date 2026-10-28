@@ -190,6 +190,28 @@ describe("tier share service", () => {
     });
   });
 
+  it("counts the visible snapshot items instead of only compared works or hidden totals", () => {
+    const tierList = tierListFixture();
+    tierList.tiers.a = [{ ...tierList.tiers.s[0], animeId: "anime-2", compareCount: 0 }];
+    tierList.totalAnime = 12;
+    const snapshot = buildTierShareSnapshot({
+      poolId: "pool-1", poolName: "Pool", runId: "run-1", tierList,
+      tierLabels: sanitizeTierShareLabels({})
+    });
+    expect(snapshot.animeCount).toBe(2);
+  });
+
+  it("rejects a changed ranking before persisting a public snapshot", async () => {
+    mockedPool.findUnique.mockResolvedValue({ id: "pool-1", name: "Pool" } as Awaited<ReturnType<typeof mockedPool.findUnique>>);
+    mockedRun.findUnique.mockResolvedValue(runFixture() as Awaited<ReturnType<typeof mockedRun.findUnique>>);
+    mockedUser.findUnique.mockResolvedValue(userFixture() as Awaited<ReturnType<typeof mockedUser.findUnique>>);
+    mockedGetRunTierList.mockResolvedValue(tierListFixture());
+    await expect(createTierShare({
+      userId: "user-1", poolId: "pool-1", runId: "run-1", expectedVersion: "older-ranking"
+    })).rejects.toMatchObject({ statusCode: 409, code: "TIER_SHARE_CHANGED" });
+    expect(mockedTierShare.create).not.toHaveBeenCalled();
+  });
+
   it("creates a persisted snapshot instead of accepting client snapshot data", async () => {
     mockedPool.findUnique.mockResolvedValue({
       id: "pool-1",
@@ -224,6 +246,7 @@ describe("tier share service", () => {
     });
 
     const result = await createTierShare({
+      expectedVersion: "fixture-share-version",
       userId: "user-1",
       poolId: "pool-1",
       runId: "run-1",
@@ -265,6 +288,7 @@ describe("tier share service", () => {
 
     await expect(
       createTierShare({
+      expectedVersion: "fixture-share-version",
         userId: "user-1",
         poolId: "pool-1",
         runId: "run-1"
@@ -287,6 +311,7 @@ describe("tier share service", () => {
     });
 
     const result = await createTierShare({
+      expectedVersion: "fixture-share-version",
       userId: "user-1",
       poolId: "pool-1",
       runId: "run-1"
@@ -312,6 +337,7 @@ describe("tier share service", () => {
 
     await expect(
       createTierShare({
+      expectedVersion: "fixture-share-version",
         userId: "user-1",
         poolId: "pool-1",
         runId: "run-1"
@@ -327,6 +353,7 @@ describe("tier share service", () => {
 
     await expect(
       createTierShare({
+      expectedVersion: "fixture-share-version",
         userId: "user-1",
         poolId: "missing-pool",
         runId: "run-1"
@@ -345,6 +372,7 @@ describe("tier share service", () => {
 
     await expect(
       createTierShare({
+      expectedVersion: "fixture-share-version",
         userId: "user-1",
         poolId: "pool-1",
         runId: "missing-run"
@@ -365,6 +393,7 @@ describe("tier share service", () => {
 
     await expect(
       createTierShare({
+      expectedVersion: "fixture-share-version",
         userId: "user-1",
         poolId: "pool-1",
         runId: "run-1"
@@ -449,6 +478,8 @@ function tierShareRecord(overrides: Record<string, unknown> = {}) {
 
 function tierListFixture(): RunTierListResult {
   return {
+    manualTierVersion: "fixture-version",
+    shareVersion: "fixture-share-version",
     tiers: {
       s: [
         {

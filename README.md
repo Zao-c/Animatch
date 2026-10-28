@@ -1,121 +1,101 @@
 <div align="center">
 
-<img src="./public/brand/animatch-logo-icon.png" alt="AniMatch" width="96" />
+<img src="./public/brand/animatch-logo-icon.png" alt="AniMatch" width="80" />
 
 # AniMatch
 
-**两部动画，你更喜欢哪一部？**
-用一次次「左右选择」排出属于你的动画 Tier List，围观社区大乱斗，也能和朋友一起办一届「年度大赏」。
+动画对决与 Tier List。
 
-![Next.js](https://img.shields.io/badge/Next.js-14-000?logo=nextdotjs&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white) ![Prisma](https://img.shields.io/badge/Prisma-6-2d3748?logo=prisma&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169e1?logo=postgresql&logoColor=white)
+Next.js 14 · React 18 · TypeScript · Prisma 6 · PostgreSQL
 
 </div>
 
-## 这是什么
+## 功能
 
-AniMatch 是一个动画**两两对决（Duel）**工具。
-
-直接给几十部动画手动排 Tier List 很难——你很难说清第 7 名和第 11 名谁更好。AniMatch 换个思路：每次只给你两部作品，回答一个简单问题「更喜欢哪一部」。回答积累起来，模糊的喜好会变成可排序的数据，最后自动生成你的 Tier List。
-
-同一套偏好还能参与公开番组的**社区大乱斗**：每个人按自己的节奏独立排序，系统把大家的结果**匿名聚合**成社区榜单——但不会改写任何人的个人榜单。
+- **番组管理**：公开 / 私有番组，Bangumi 搜索与批量导入，按类型、年份、月份筛选；支持 TierMaker 导入、手动添加和图片上传。
+- **个人对决**：左右选择、平局、跳过、没看过；候选作品可选，支持撤回、继续进度和键盘操作。
+- **个人榜单**：根据对决结果生成 Tier List，可手动调整；手动分档不改写 Elo 和对决历史。
+- **自由排榜**：直接拖拽封面，支持批量选择、点选分档、自定义档位和撤销。
+- **保存与分享**：草稿恢复、覆盖冲突保护、PNG 导出、公开快照链接。保存草稿不会自动更新已分享的内容。
+- **社区玩法**：匿名聚合榜单、赛季投票、年度组合与年度大赏；个人排序独立保存。
 
 ## 截图
 
-| 首页 | 对决 | Tier List | 社区榜单 |
-| --- | --- | --- | --- |
-| ![首页](./docs/images/home.png) | ![对决](./docs/images/duel.png) | ![Tier List](./docs/images/tier-list.png) | ![社区榜单](./docs/images/community.png) |
+使用独立本地数据库和真实登录的 `animatch_demo` 账号截取，未模拟接口响应。作品来自公开番组；截图中的选择与分档仅作界面演示。
 
-## 怎么玩
-
-| 步骤 | 做什么 |
+| 首页 | 番组 |
 | --- | --- |
-| **01 · 添加动画** | 从公开番组挑一个开始，或创建自己的作品池。支持 Bangumi 搜索导入、TierMaker 导入、快速导入、手动添加、图片上传和批量添加。 |
-| **02 · 开始对决** | 每次只出现两部作品，只需回答「更喜欢哪一部」。左胜 / 右胜 / 差不多 / 跳过 / 没看过，支持撤回、重开与移动端操作。 |
-| **03 · 生成榜单** | 对决积累够多后得到个人 Tier List，可以手动微调最终排序、导出成图片，或生成公开分享链接。 |
+| ![首页](docs/images/home.png) | ![番组作品墙](docs/images/pool.png) |
 
-> 不想注册？首页的「体验示例番组」用一份内置作品池就能直接玩一轮对决。
+### 对决
 
-## 主要功能
+![个人对决](docs/images/duel.png)
 
-- **普通对决** —— 个人专属的排序过程。每个分数严格属于「你 + 该番组 + 该轮次 + 该作品」，不会串到别人那里。
-- **大乱斗赛季** —— 公开番组的社区玩法。每位参与者拥有独立的赛季 Elo 与比较记录；私心票只在社区聚合阶段产生加成。
-- **社区榜单 / 社区 Tier List** —— 由匿名聚合结果生成，样本不足的作品单独展示，不混进正式分档。
-- **Tier List 导出与分享** —— 可导出为图片（支持可选条目标题），或生成公开分享快照链接。
-- **作品管理** —— Bangumi 搜索导入、TierMaker 导入、批量添加、批量编辑标题 / 类型 / 备注、封面修复。
-- **年度大赏** —— 面向社区的活动模式：提名 → 入围 → 现场投票 → 揭晓，并支持年度回顾导出。
-- **个人主页** —— 每个用户都有 `/u/用户名` 公开页，展示参与过的番组与榜单。
+### 自由排榜
 
-## 计分规则
-
-- 有效结果是左胜 / 右胜 / 平局，会在事务中更新 Elo 和对局流水。
-- **跳过不改 Elo**；**没看过**只更新个人状态并从候选中隐藏，不进入个人 Tier List。
-- 配对优先考虑未充分比较、Elo 接近、排序边界附近和低置信度的作品，同时避免近期重复组合。
-- **手动 Tier 只影响最终展示**，不会篡改 Elo 或对决历史。
-- 社区榜单按个人结果聚合，并保留样本门槛，避免单人少量投票直接成为正式排名。
-
-完整原理见 [当前普通对决引擎](docs/ranking-engine-current.md) 与 [对决流水说明](docs/comparison-ledger.md)。
+![自由排榜编辑器](docs/images/tier-list.png)
 
 ## 本地运行
 
-需要 Node.js 20+、Corepack/pnpm 和 Docker。
+需要 Node.js 22、pnpm 9 和 PostgreSQL 16。可使用 Docker 启动数据库。
 
 ```bash
 corepack enable
-corepack pnpm install
-docker compose up -d              # 启动本地 PostgreSQL
-cp .env.example .env.local        # 本地配置
-corepack pnpm prisma generate
-corepack pnpm prisma migrate dev
-corepack pnpm dev
+pnpm install
+docker compose up -d
+cp .env.example .env.local
 ```
 
-打开 <http://127.0.0.1:3000>。
+在 `.env.local` 中配置数据库连接与 `AUTH_SECRET`。本地 HTTP 使用 `AUTH_COOKIE_SECURE=false`。
 
-常用命令：
+**首次使用空数据库：**
 
 ```bash
-corepack pnpm test                # 单元测试
-corepack pnpm lint                # ESLint
-corepack pnpm exec tsc --noEmit   # 类型检查
-corepack pnpm build               # 生产构建
-corepack pnpm db:studio           # Prisma Studio
+pnpm exec prisma generate
+DATABASE_URL='postgresql://animatch:animatch_password@localhost:5432/animatch?schema=public' pnpm exec prisma db push
+pnpm dev
 ```
 
-> 本仓库的 `.env` 是指向 `.env.production` 的软链，本地开发请用 `.env.local`，不要覆盖它。
+打开 [localhost:3000](http://localhost:3000)。登录页提供当前内测登录方式。
 
-## 技术栈与结构
+现有迁移中，`20250617000000_add_tier_config` 排在初始建表迁移之前，空库无法按序应用。上面的 `db push` 仅用于本地空库，不建立迁移历史。已有生产库按已记录的迁移升级；不要把本地初始化命令用于生产环境。
 
-- **框架**：Next.js 14（App Router）、React 18、TypeScript
-- **样式**：Tailwind CSS
-- **数据**：Prisma 6 + PostgreSQL，NextAuth / Friend Auth 登录
-- **测试**：Vitest
-- **部署**：Docker Compose
+若工作区的 `.env` 指向生产配置，请勿覆盖该文件。应用开发配置使用 `.env.local`；单独执行 Prisma CLI（包括 Studio）时显式指定本地 `DATABASE_URL`，因为它默认加载 `.env`。上面的连接与仓库自带 Docker 配置一致；自建数据库请替换。
 
-```
-src/app         页面路由与 API 路由（src/app/api）
-src/components   UI 组件（对决、Tier List、社区榜单、大赏等）
-src/lib          领域逻辑（Elo、配对、计分边界、导入、封面、鉴权等）
-prisma/          数据模型与迁移
-scripts/         运维与数据脚本
-docs/            设计、部署与运维文档
+### 常用命令
+
+```bash
+pnpm dev                       # 本地开发
+pnpm test                      # Vitest
+pnpm lint                      # ESLint
+pnpm exec tsc --noEmit          # 类型检查
+pnpm build                     # 生产构建
+pnpm db:studio                 # 数据库管理，需先显式指定本地 DATABASE_URL
 ```
 
-API 使用统一响应外层：`{ "ok": true, "data": {} }` / `{ "ok": false, "error": { "message": "..." } }`。
-请通过网页界面或 `src/lib/client-api.ts` 访问，不要从浏览器直接请求 Bangumi，也不要把 Elo / 胜负结果作为客户端写入参数。
+## 项目结构
 
-## 部署
+```text
+src/app/          页面与 API
+src/components/   对决、榜单与编辑组件
+src/lib/          配对、计分、导入、封面与鉴权
+prisma/           数据模型与迁移
+scripts/          数据与运维脚本
+docs/             设计、部署与变更记录
+```
 
-生产部署、备份与恢复见 [部署文档](docs/deploy-server.md)。生产环境只使用 `prisma migrate deploy`，不要执行 `prisma migrate dev`。
+## 文档与部署
 
-## 文档
+- [部署、备份与恢复](docs/deploy-server.md)
+- [对决引擎](docs/ranking-engine-current.md)
+- [对决流水与计分边界](docs/comparison-ledger.md)
+- [UI / UX 问题清单](docs/ui-ux-audit-2026-10-24.md)
+- [界面精简与截图记录](docs/minimal-ui-readme-2026-10-27.md)
 
-- [部署与备份](docs/deploy-server.md)
-- [好友内测准备](docs/playtest-readiness.md)
-- [当前普通对决引擎](docs/ranking-engine-current.md)
-- [排名引擎 v2 方向](docs/ranking-engine-v2.md)
-- [对决流水说明](docs/comparison-ledger.md)
-- [UI 优化路线](docs/animematch-ui-optimization-roadmap.md)
+已有生产数据库使用 `pnpm exec prisma migrate deploy` 升级；部署前按部署文档备份。
 
-## 许可
+## 数据来源与许可
 
-本项目基于 [MIT License](LICENSE) 开源。
+作品搜索与导入使用 [Bangumi](https://bgm.tv/)。本地目录也保留了从 [manami-project/anime-offline-database](https://github.com/manami-project/anime-offline-database) 导入的数据，数据库采用 [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/)，条目内容采用 [DbCL 1.0](https://opendatacommons.org/licenses/dbcl/1-0/)，见[原始许可](https://github.com/manami-project/anime-offline-database/blob/master/LICENSE)。应用内集中展示于 `/data-sources`。
+
+封面、用户上传及其他导入素材的权利归各自权利人所有。项目代码采用 [MIT License](LICENSE)。

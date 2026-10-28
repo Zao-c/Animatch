@@ -51,6 +51,8 @@ function CoverImage({ sourceKey, secondarySrc, title, size = "md", fit = "cover"
 
   useEffect(() => {
     if (!isNearViewport || !candidates.length) return;
+    const cached = rememberedCover(candidates);
+    if (cached) { setImageSrc(cached); setState("loaded"); return; }
     const controller = new AbortController();
     setState("loading");
     void loadCoverImage(candidates, { signal: controller.signal, priority: loading === "eager" || warm ? 0 : priority.current })
@@ -85,15 +87,15 @@ function CoverImage({ sourceKey, secondarySrc, title, size = "md", fit = "cover"
   return (
     <div
       ref={containerRef}
-      onClickCapture={isCoverUnavailable && candidates.length ? (event) => { event.preventDefault(); event.stopPropagation(); retry(); } : undefined}
+      onClickCapture={isCoverUnavailable && candidates.length ? () => retry() : undefined}
       className={`${SIZE_CLASS[size]} relative overflow-hidden rounded-lg border border-white/10 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 ${className}`}
       data-cover-fit={fit}
       data-cover-state={coverState}
       data-cover-url-present={String(candidates.length > 0)}
       data-cover-candidate-count={candidates.length}
       data-anime-id={animeId ?? ""}
-      title={isCoverUnavailable ? "封面加载失败，会自动重试，也可点击封面重试。" : undefined}
-      aria-label={isCoverUnavailable ? `${title}：封面加载失败，会自动重试，也可点击封面重试。` : undefined}
+      title={coverState === "empty" ? "暂无封面" : isCoverUnavailable ? "封面暂时不可用，会自动重试，不影响选择作品。" : undefined}
+      aria-label={isCoverUnavailable ? `${title}：${coverState === "empty" ? "暂无封面" : "封面暂时不可用"}` : undefined}
     >
       <div className="absolute inset-0 flex h-full w-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-cyan-900/30 via-zinc-900 to-purple-900/20 p-3">
         <span className="text-lg font-bold text-cyan-400/60">
@@ -102,10 +104,10 @@ function CoverImage({ sourceKey, secondarySrc, title, size = "md", fit = "cover"
         {size !== "sm" && (
           <>
             <span className="text-center text-[10px] font-semibold leading-tight text-zinc-400">
-              {isCoverUnavailable ? "封面加载失败" : ""}
+              {coverState === "empty" ? "暂无封面" : isCoverUnavailable ? "封面暂不可用" : ""}
             </span>
             <span className="line-clamp-2 text-center text-[10px] font-medium leading-tight text-zinc-500">
-              {isCoverUnavailable ? "稍后自动重试 · 点击重试" : ""}
+              {coverState === "error" ? "稍后自动重试" : ""}
             </span>
             <span className="line-clamp-1 text-center text-[10px] font-medium leading-tight text-zinc-600">
               {isCoverUnavailable ? title : ""}
@@ -140,7 +142,14 @@ function CoverImage({ sourceKey, secondarySrc, title, size = "md", fit = "cover"
             state === "loaded" ? "opacity-100" : "opacity-0"
           }`}
           onLoad={() => setState("loaded")}
-          onError={() => { if (imageSrc) forgetCoverSource(imageSrc); setImageSrc(undefined); setState("error"); }}
+          onError={() => {
+            if (imageSrc) {
+              forgetCoverSource(imageSrc);
+              setImageSrc(undefined);
+              setRetryToken((value) => value + 1);
+            }
+            setState("error");
+          }}
         />
       )}
     </div>

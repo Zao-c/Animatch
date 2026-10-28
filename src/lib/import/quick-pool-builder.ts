@@ -1,3 +1,4 @@
+import { createPoolOnce, poolCreationHash, poolCreationKey, readPoolCreation } from "@/lib/pool-creation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
@@ -6,6 +7,9 @@ import { enqueuePoolAnimeCoversCache } from "@/lib/server/pool-cover-cache";
 import { GLOBAL_SEARCH_EXCLUDED_SOURCES } from "@/lib/anime-service";
 import type { Anime } from "@prisma/client";
 import type { NormalizedBangumiSubject } from "@/lib/bangumi";
+import { animeFormatAliases, animeMonthRange } from "@/lib/anime-filter-options";
+import { animeYearFilter } from "@/lib/anime-date-filter";
+import { AppError } from "@/lib/app-error";
 import { MAX_QUICK_IMPORT, validateQuickImportParams } from "./quick-import-options";
 import {
   fetchBangumiSubjects,
@@ -26,6 +30,7 @@ export interface QuickImportParams {
   source: ImportSource;
   mode: ImportMode;
   year?: number;
+  month?: number;
   yearFrom?: number;
   yearTo?: number;
   type?: string;
@@ -80,6 +85,7 @@ export interface QuickImportAddResult {
 const MAX_LIMIT = MAX_QUICK_IMPORT;
 
 type QuickImportCreateParams = QuickImportParams & {
+  clientMutationId?: string;
   poolName: string;
   description?: string;
   visibility?: string;
@@ -140,19 +146,11 @@ export async function previewQuickImport(
     deletedAt: null,
   };
   const andConditions: Prisma.AnimeWhereInput[] = [];
-  if (params.year) where.year = params.year;
-  if (params.type && params.type !== "ALL") where.animeType = params.type.toUpperCase();
   if (params.mode !== "TAG" && params.tags?.length) andConditions.push(...params.tags.map((tag) => ({ tags: { has: tag } })));
 
   if (params.mode === "YEAR") {
     if (!params.year) {
       warnings.push("年份模式需要指定 year 参数");
-    }
-    if (params.year) {
-      where.year = params.year;
-    }
-    if (params.type && params.type !== "ALL") {
-      where.animeType = params.type.toUpperCase();
     }
   }
 
@@ -161,23 +159,6 @@ export async function previewQuickImport(
       warnings.push("标签模式需要指定至少一个标签");
     } else {
       andConditions.push(...params.tags.map((tag) => ({ tags: { has: tag } })));
-    }
-    if (params.yearFrom !== undefined || params.yearTo !== undefined) {
-      where.year = {};
-      if (params.yearFrom !== undefined) where.year.gte = params.yearFrom;
-      if (params.yearTo !== undefined) where.year.lte = params.yearTo;
-    }
-    if (params.type && params.type !== "ALL") {
-      where.animeType = params.type.toUpperCase();
-    }
-  }
-
-  if (params.mode === "TOP") {
-    if (params.type && params.type !== "ALL") {
-      where.animeType = params.type.toUpperCase();
-    }
-    if (params.year) {
-      where.year = params.year;
     }
   }
 
@@ -190,8 +171,18 @@ export async function previewQuickImport(
     return { candidates: [], warnings, total: 0 };
   }
 
+  // Apply the same date rules as discovery, including legacy records without year.
+  const rangeMode = params.mode === "TAG" && (params.yearFrom !== undefined || params.yearTo !== undefined);
+  const dateFilter = animeYearFilter(rangeMode ? params.yearFrom : params.year, rangeMode ? params.yearTo : params.year);
+  if (dateFilter) andConditions.push(dateFilter);
   if (andConditions.length > 0) {
     where.AND = andConditions;
+  }
+
+  if (params.type && params.type !== "ALL") where.animeType = { in: animeFormatAliases(params.type) };
+  if (params.month && params.year) {
+    const { start, end } = animeMonthRange(params.year, params.month);
+    where.airDate = { gte: start, lt: end };
   }
 
   let orderBy: Prisma.AnimeOrderByWithRelationInput | Prisma.AnimeOrderByWithRelationInput[];
@@ -240,56 +231,59 @@ function candidateWarnings(candidates: QuickImportCandidate[]): string[] {
   return warnings;
 }
 
-function filterCandidatesBySelectedIds(
-  candidates: QuickImportCandidate[],
-  selectedAnimeIds?: string[]
-): QuickImportCandidate[] {
-  if (selectedAnimeIds === undefined) return candidates;
-
-  const selected = new Set(selectedAnimeIds.map((id) => id.trim()).filter(Boolean));
-  if (selected.size === 0) {
-    throw new Error("没有选中任何作品");
-  }
-
-  return candidates.filter((candidate) => selected.has(candidate.animeId));
-}
-
 export async function createPoolFromQuickImport(
   params: QuickImportCreateParams,
   userId: string
 ): Promise<QuickImportCreateResult> {
+  validateQuickImportParams(params);
+  if (typeof params.poolName !== "string") throw new AppError("请填写番组名", 400);
   const normalizedName = params.poolName.trim();
   if (!normalizedName || normalizedName.length > 80) {
-    throw new Error("番组名不能为空且不超过80个字符");
+    throw new AppError("番组名不能为空且不超过80个字符", 400);
   }
 
-  const { candidates } = await previewQuickImportWithRemoteFallback(params);
-  const selectedCandidates = filterCandidatesBySelectedIds(candidates, params.selectedAnimeIds);
-
-  if (selectedCandidates.length === 0) {
-    throw new Error("没有找到符合条件的作品");
+  if (params.selectedAnimeIds !== undefined && (!Array.isArray(params.selectedAnimeIds) || params.selectedAnimeIds.length > MAX_LIMIT || params.selectedAnimeIds.some((id) => typeof id !== "string" || !id.trim()))) {
+    throw new AppError(`请选择 1–${MAX_LIMIT} 部有效作品`, 400);
   }
+  if (params.description !== undefined && (typeof params.description !== "string" || params.description.trim().length > 500)) throw new AppError("描述不能超过 500 个字符", 400);
+  const key = poolCreationKey(params.clientMutationId);
+  const { clientMutationId: _key, ...content } = params;
+  const hash = poolCreationHash({ kind: "quick-import", ...content, poolName: normalizedName, description: params.description?.trim() || null });
+  const completed = await readPoolCreation<QuickImportCreateResult>(userId, key, hash);
+  if (completed) return completed;
+  // Preview already stores catalogue entries. Keep those identities instead of
+  // re-running a live remote query whose ranking or page contents may change.
+  const selectedIds = params.selectedAnimeIds === undefined
+    ? (await previewQuickImportWithRemoteFallback(params)).candidates.map((candidate) => candidate.animeId)
+    : [...new Set(params.selectedAnimeIds.map((id) => id.trim()))];
+  if (!selectedIds.length) throw new AppError("没有选中任何作品", 400);
 
   const visibility = params.visibility === "PUBLIC" || params.visibility === "UNLISTED"
     ? params.visibility
     : "PRIVATE";
 
-  const pool = await prisma.customPool.create({
-    data: {
+  let coversToCache: Anime[] = [];
+  const result = await createPoolOnce<QuickImportCreateResult>(userId, key, hash, async (tx) => {
+    const available = await tx.anime.findMany({ where: {
+      id: { in: selectedIds }, deletedAt: null, source: { notIn: GLOBAL_SEARCH_EXCLUDED_SOURCES }
+    } });
+    const byId = new Map(available.map((anime) => [anime.id, anime]));
+    const missing = selectedIds.filter((id) => !byId.has(id));
+    if (missing.length) throw new AppError(`${missing.length} 部已选作品已不可用，未创建番组。请重新预览后确认选择。`, 409);
+    const animes = selectedIds.map((id) => byId.get(id)!);
+    const pool = await tx.customPool.create({ data: {
       name: normalizedName,
       description: params.description?.trim() || null,
       visibility: visibility as "PUBLIC" | "PRIVATE" | "UNLISTED",
-      creatorId: userId,
-    },
+      creatorId: userId
+    } });
+    await tx.poolAnime.createMany({ data: animes.map((anime, index) => ({ poolId: pool.id, animeId: anime.id, position: index + 1 })) });
+    coversToCache = animes;
+    return { poolId: pool.id, result: { poolId: pool.id, poolName: normalizedName, addedCount: animes.length, skippedCount: 0, failedCount: 0 } };
   });
-
-  const result = await addAnimeToPoolBatch(pool.id, selectedCandidates.map((c) => c.animeId));
-
-  return {
-    poolId: pool.id,
-    poolName: normalizedName,
-    ...result,
-  };
+  // Cache warming is optional after the pool and creation receipt commit together.
+  try { if (coversToCache.length) enqueuePoolAnimeCoversCache(coversToCache, { proxyLimit: 60, proxyConcurrency: 5 }); } catch { /* A cover job must not turn a successful creation into an error. */ }
+  return result;
 }
 
 export async function addQuickImportToPool(

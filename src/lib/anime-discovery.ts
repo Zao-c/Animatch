@@ -6,19 +6,22 @@ export interface DiscoveryFilters {
   q: string;
   yearFrom: string;
   yearTo: string;
+  month?: string;
   type: string;
   tags: string[];
   sort: string;
 }
 export const DEFAULT_DISCOVERY_FILTERS: DiscoveryFilters = {
-  source: "bangumi", q: "", yearFrom: "", yearTo: "", type: "", tags: [], sort: "match"
+  source: "bangumi", q: "", yearFrom: "", yearTo: "", month: "", type: "", tags: [], sort: "match"
 };
 
-export function validateDiscoveryYears(filters: Pick<DiscoveryFilters, "yearFrom" | "yearTo">): string | null {
+export function validateDiscoveryYears(filters: Pick<DiscoveryFilters, "yearFrom" | "yearTo" | "month">): string | null {
   for (const value of [filters.yearFrom, filters.yearTo]) {
     if (value && (!/^\d{4}$/.test(value) || Number(value) < 1900 || Number(value) > 2100)) return "年份请填写 1900–2100 之间的四位数字。";
   }
   if (filters.yearFrom && filters.yearTo && Number(filters.yearFrom) > Number(filters.yearTo)) return "开始年份不能晚于结束年份。";
+  if (filters.month && (!Number.isInteger(Number(filters.month)) || Number(filters.month) < 1 || Number(filters.month) > 12)) return "月份请选择 1–12 月。";
+  if (filters.month && (!filters.yearFrom || filters.yearFrom !== filters.yearTo)) return "按月份筛选时请选择一个具体年份。";
   return null;
 }
 

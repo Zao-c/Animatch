@@ -24,6 +24,7 @@
 
 html {
   min-height: 100%;
+  scroll-padding-top: 9rem;
 }
 
 body {
@@ -120,6 +121,14 @@ textarea:focus {
   font-size: 0.875rem;
   line-height: 1.25rem;
   transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+@media (max-width: 639px) {
+  .anime-field {
+    /* Keep focusing a form field from zooming the whole page on mobile Safari. */
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
 }
 
 .anime-field:hover {

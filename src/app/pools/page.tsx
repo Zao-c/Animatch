@@ -10,7 +10,6 @@ import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
-import { SectionHeader } from "@/components/ui/SectionHeader";
 import {
   archivePool,
   createDemoPool,
@@ -63,10 +62,10 @@ function PoolsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pools, setPools] = useState<PoolSummary[]>([]);
-  const [query, setQuery] = useState("");
-  const [appliedQuery, setAppliedQuery] = useState("");
-  const [filter, setFilter] = useState<PoolFilter>("ALL");
-  const [sort, setSort] = useState<PoolSort>("UPDATED");
+  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
+  const [appliedQuery, setAppliedQuery] = useState(() => (searchParams.get("q") ?? "").trim());
+  const [filter, setFilter] = useState<PoolFilter>(() => parsePoolFilter(searchParams.get("status")));
+  const [sort, setSort] = useState<PoolSort>(() => parsePoolSort(searchParams.get("sort")));
   const [view, setView] = useState<PoolView>(() => parsePoolView(searchParams.get("view")));
   const [editingPoolId, setEditingPoolId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -75,6 +74,7 @@ function PoolsPageContent() {
   const [editTags, setEditTags] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
+  const [openingPoolId, setOpeningPoolId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const latestRequestRef = useRef(0);
@@ -113,7 +113,26 @@ function PoolsPageContent() {
 
   useEffect(() => {
     setView(parsePoolView(searchParams.get("view")));
+    setQuery(searchParams.get("q") ?? "");
+    setAppliedQuery((searchParams.get("q") ?? "").trim());
+    setFilter(parsePoolFilter(searchParams.get("status")));
+    setSort(parsePoolSort(searchParams.get("sort")));
   }, [searchParams]);
+
+  function updateListParams(changes: Record<string, string | undefined>) {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(changes)) {
+      if (value) nextParams.set(key, value);
+      else nextParams.delete(key);
+    }
+    const nextQuery = nextParams.toString();
+    router.replace(`/pools${nextQuery ? `?${nextQuery}` : ""}`, { scroll: false });
+  }
+
+  function resetFilters() {
+    setQuery("");
+    updateListParams({ q: undefined, status: undefined });
+  }
 
   function beginEdit(pool: PoolSummary) {
     setEditingPoolId(pool.id);
@@ -132,22 +151,11 @@ function PoolsPageContent() {
       void loadPools();
       return;
     }
-    setAppliedQuery(nextQuery);
+    updateListParams({ q: nextQuery || undefined });
   }
 
   function handleViewChange(nextView: PoolView) {
-    setView(nextView);
-    const nextParams = new URLSearchParams(searchParams.toString());
-    const queryView = poolViewToQueryValue(nextView);
-
-    if (queryView === undefined) {
-      nextParams.delete("view");
-    } else {
-      nextParams.set("view", queryView);
-    }
-
-    const nextQuery = nextParams.toString();
-    router.replace(`/pools${nextQuery ? `?${nextQuery}` : ""}`, { scroll: false });
+    updateListParams({ view: poolViewToQueryValue(nextView) });
   }
 
   async function handleSave(poolId: string) {
@@ -234,12 +242,14 @@ function PoolsPageContent() {
   }
 
   async function openRun(pool: PoolSummary, target: "match" | "tier") {
+    if (isMutating) return;
     const isArchived = isPoolArchived(pool);
     if (isArchived && pool.defaultRunId == null) {
       return;
     }
 
     setIsMutating(true);
+    setOpeningPoolId(pool.id);
     setError(null);
     setNotice(null);
 
@@ -252,6 +262,7 @@ function PoolsPageContent() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "打开榜单失败");
       setIsMutating(false);
+      setOpeningPoolId(null);
     }
   }
 
@@ -270,6 +281,7 @@ function PoolsPageContent() {
   }
 
   const hasSearch = appliedQuery.length > 0;
+  const hasFilters = hasSearch || filter !== "ALL";
   const playableCount = pools.filter(
     (pool) => !isPoolArchived(pool) && (pool.animeCount ?? 0) >= 2
   ).length;
@@ -278,30 +290,27 @@ function PoolsPageContent() {
 
   return (
     <PageShell>
-      <section className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
+      <section className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
         <div>
-          <AppBadge tone={isPublicView ? "status" : "source"}>
-            {isPublicView ? "一起发现好动画" : "我的动画收藏"}
-          </AppBadge>
-          <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
+          <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
             {viewCopy.title}
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-            {viewCopy.description}
-          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-4 py-2 text-xs text-slate-400">
+        <div role="status" className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+          {isLoading ? "正在加载番组…" : <>
           <span className="font-black text-white">{String(pools.length)}</span> 个番组
           <span className="text-slate-500">·</span>
           <span className="font-black text-emerald-200">{String(playableCount)}</span> 可对决
           <span className="text-slate-500">·</span>
           <span className="text-slate-400">筛选 {FILTERS.find((item) => item.value === filter)?.label ?? "全部"}</span>
+          </>}
         </div>
       </section>
 
-      <div className="mt-7 rounded-2xl border border-white/10 bg-slate-950/22 p-3">
-        <form onSubmit={handleSearch} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+      <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/22 p-3">
+        <form role="search" onSubmit={handleSearch} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
           <input
+            type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="搜索番组名称或描述"
@@ -327,7 +336,7 @@ function PoolsPageContent() {
           </select>
           <select
             value={filter}
-            onChange={(event) => setFilter(event.target.value as PoolFilter)}
+            onChange={(event) => updateListParams({ status: event.target.value === "ALL" ? undefined : event.target.value })}
             className="anime-field"
             aria-label="筛选番组状态"
           >
@@ -339,7 +348,7 @@ function PoolsPageContent() {
           </select>
           <select
             value={sort}
-            onChange={(event) => setSort(event.target.value as PoolSort)}
+            onChange={(event) => updateListParams({ sort: event.target.value === "UPDATED" ? undefined : event.target.value })}
             className="anime-field"
             aria-label="排序番组"
           >
@@ -352,35 +361,42 @@ function PoolsPageContent() {
             </div>
           </details>
         </form>
+        {hasFilters ? <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/10 pt-2">
+          <p className="min-w-0 flex-1 break-words text-xs text-slate-300">
+            {hasSearch ? `关键词：${appliedQuery}` : ""}{hasSearch && filter !== "ALL" ? " · " : ""}{filter !== "ALL" ? `状态：${FILTERS.find((item) => item.value === filter)?.label}` : ""}
+          </p>
+          <AppButton type="button" variant="quiet" size="sm" onClick={resetFilters}>清除筛选</AppButton>
+        </div> : null}
       </div>
 
       <div className="mt-5 space-y-3">
-        {error ? <ErrorAlert message={error} /> : null}
+        {error ? <div className="space-y-2"><ErrorAlert message={error} /><AppButton type="button" variant="ghost" onClick={() => void loadPools()} disabled={isLoading}>重新加载番组</AppButton></div> : null}
         {notice ? <ErrorAlert message={notice} tone="notice" /> : null}
-        {isLoading ? <ErrorAlert message="正在加载番组..." tone="notice" /> : null}
       </div>
 
       {!isLoading && !error && pools.length === 0 ? (
         <div className="mt-8">
           <EmptyState
             title={
-              hasSearch
+              hasFilters
                 ? "没有匹配的番组"
                 : isPublicView
                   ? "暂无公开番组"
                   : "当前筛选没有番组"
             }
             description={
-              hasSearch
-                ? "调整关键词、状态或排序后再试。"
+              hasFilters
+                ? filter === "ARCHIVED" && !hasSearch
+                  ? "还没有归档番组。清除筛选可以回到当前列表。"
+                  : "试试其他关键词，或清除筛选查看这个列表中的全部番组。"
                 : isPublicView
                   ? "公开番组开放后会出现在这里；你可以稍后再来，或切回我的番组。"
-                  : filter === "ARCHIVED"
-                    ? "还没有归档番组。"
-                    : "创建第一个番组，添加动画后就可以开始两两对决。"
+                  : "创建第一个番组，添加动画后就可以开始两两对决。"
             }
             action={
-              !hasSearch && isPublicView ? (
+              hasFilters ? (
+                <AppButton type="button" variant="secondary" onClick={resetFilters}>清除筛选，查看全部</AppButton>
+              ) : isPublicView ? (
                 <button
                   type="button"
                   onClick={() => handleViewChange("MINE")}
@@ -388,7 +404,7 @@ function PoolsPageContent() {
                 >
                   查看我的番组
                 </button>
-              ) : !hasSearch && filter !== "ARCHIVED" ? (
+              ) : (
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Link href="/pools/new" className={appButtonClasses({ variant: "primary" })}>
                     创建番组
@@ -402,19 +418,20 @@ function PoolsPageContent() {
                     {isMutating ? "正在准备体验池..." : "体验示例番组"}
                   </AppButton>
                 </div>
-              ) : null
+              )
             }
           />
         </div>
       ) : null}
 
-      <section className="mt-8">
-        <SectionHeader
-          eyebrow={isPublicView ? "发现" : "收藏"}
-          title={isPublicView ? "发现公开番组" : "番组列表"}
-          description={isPublicView ? "所有人都可以浏览公开番组；查看作品、社区榜和赛季投票，或直接开始个人自由对决。" : "默认隐藏已归档番组；切到已归档可以恢复或查看历史。"}
-        />
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <section className="mt-5" aria-label={isPublicView ? "发现公开番组" : "番组列表"} aria-busy={isLoading}>
+        <div className={`grid gap-4 md:grid-cols-2 xl:grid-cols-3 ${isLoading && pools.length > 0 ? "opacity-60" : ""}`}>
+          {isLoading && pools.length === 0 ? Array.from({ length: 3 }, (_, index) => (
+            <AppCard key={index} className="overflow-hidden p-0" aria-hidden="true">
+              <div className="h-28 animate-pulse bg-white/[0.06]" />
+              <div className="space-y-4 p-5"><div className="h-6 w-2/3 rounded bg-white/[0.08]" /><div className="h-4 rounded bg-white/[0.04]" /><div className="h-11 rounded-xl bg-white/[0.06]" /></div>
+            </AppCard>
+          )) : null}
           {pools.map((pool) => (
             <PoolCard
               key={pool.id}
@@ -425,7 +442,8 @@ function PoolsPageContent() {
               editDescription={editDescription}
               editVisibility={editVisibility}
               editTags={editTags}
-              isMutating={isMutating}
+              isMutating={isMutating || isLoading}
+              isOpening={openingPoolId === pool.id}
               onBeginEdit={() => beginEdit(pool)}
               onCancelEdit={() => setEditingPoolId(null)}
               onSave={() => handleSave(pool.id)}
@@ -462,6 +480,7 @@ function PoolCard({
   editVisibility,
   editTags,
   isMutating,
+  isOpening,
   onBeginEdit,
   onCancelEdit,
   onSave,
@@ -482,6 +501,7 @@ function PoolCard({
   editVisibility: PoolVisibilityValue;
   editTags: string;
   isMutating: boolean;
+  isOpening: boolean;
   onBeginEdit: () => void;
   onCancelEdit: () => void;
   onSave: () => void;
@@ -651,7 +671,7 @@ function PoolCard({
 
           <div className="mt-auto pt-4">
             <div className={`grid gap-2 ${canMatch || canPromptLoginToMatch ? "grid-cols-2" : "grid-cols-1"}`}>
-              <Link href={`/pools/${pool.id}`} className={appButtonClasses({ variant: "primary", size: "md", className: "w-full min-w-0 px-2" })}>
+              <Link href={`/pools/${pool.id}`} className={appButtonClasses({ variant: canMatch || canPromptLoginToMatch ? "ghost" : "primary", size: "md", className: "w-full min-w-0 px-2" })}>
                 番组详情
               </Link>
             {canMatch || canPromptLoginToMatch ? (
@@ -666,7 +686,7 @@ function PoolCard({
                 size="md"
                 className="w-full min-w-0 px-2"
               >
-                {isPublicView && pool.visibility === "PUBLIC"
+                {isOpening ? "正在进入…" : isPublicView && pool.visibility === "PUBLIC"
                   ? canPromptLoginToMatch
                     ? "登录后对决"
                     : "个人自由对决"
@@ -676,10 +696,9 @@ function PoolCard({
               </AppButton>
             ) : null}
             </div>
-            <p className="mt-2 text-xs leading-5 text-slate-400">番组详情包含作品墙、社区榜与赛季入口。</p>
           </div>
           <details className="mt-3 rounded-xl border border-white/10 bg-slate-950/24 px-3 py-2">
-            <summary className="cursor-pointer select-none text-sm font-semibold text-slate-300">
+            <summary className="min-h-11 cursor-pointer select-none py-3 text-sm font-semibold text-slate-300">
               更多操作
             </summary>
             <p className="mt-2 text-xs leading-5 text-slate-500">
@@ -798,6 +817,14 @@ function parsePoolView(value: string | null): PoolView {
   }
 }
 
+function parsePoolFilter(value: string | null): PoolFilter {
+  return FILTERS.find((item) => item.value === value)?.value ?? "ALL";
+}
+
+function parsePoolSort(value: string | null): PoolSort {
+  return SORTS.find((item) => item.value === value)?.value ?? "UPDATED";
+}
+
 function poolViewToQueryValue(view: PoolView): "mine" | "public" | "all" | undefined {
   switch (view) {
     case "MINE":
@@ -815,7 +842,7 @@ function getPoolViewCopy(view: PoolView): { title: string; description: string }
   if (view === "PUBLIC") {
     return {
       title: "公开番组",
-      description: "浏览公开番组的作品、社区榜与赛季；个人自由对决会生成你的个人 Tier List，并以匿名聚合方式贡献到社区榜单。"
+      description: "挑一组喜欢的动画，开始对决，生成个人 Tier List。你的结果也会匿名聚合到社区榜单。"
     };
   }
 
@@ -828,7 +855,7 @@ function getPoolViewCopy(view: PoolView): { title: string; description: string }
 
   return {
     title: "我的番组",
-    description: "快速找到、继续或清理测试番组。归档只会隐藏默认列表，不会删除历史对决和 Tier List。"
+    description: "继续上次的对决，或挑一组动画开始。已归档番组可在筛选中找回。"
   };
 }
 

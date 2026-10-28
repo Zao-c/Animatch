@@ -294,6 +294,19 @@ model Anime {
   battleSeasonScores   BattleSeasonUserScore[] @relation("AnimeBattleSeasonUserScores")
 }
 
+// Keep creation receipts even if a pool is later removed, so retrying cannot recreate it.
+model PoolCreationRequest {
+  userId           String
+  clientMutationId String
+  requestHash      String
+  poolId           String
+  result           Json
+  createdAt        DateTime @default(now())
+
+  @@id([userId, clientMutationId])
+  @@index([poolId])
+}
+
 model CustomPool {
   id                  String                 @id @default(cuid())
   creatorId           String
@@ -408,6 +421,7 @@ model PersonalRun {
   algorithmVersion String                 @default("elo-v1")
   pairingVersion   String                 @default("active-v1")
   tierRuleVersion  String                 @default("percentile-v1")
+  matchExcludedAnimeIds String[]          @default([])
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
   deletedAt        DateTime?

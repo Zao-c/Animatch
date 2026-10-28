@@ -244,6 +244,9 @@ export interface MatchPair {
 }
 
 export interface MatchQueueResponse {
+  candidateCount?: number;
+  pausedCount?: number;
+  draftOwnerId?: string;
   pairs: MatchPair[];
   confidenceScore: number;
   scoreDistribution: RankingScoreDistribution;
@@ -266,6 +269,7 @@ export interface SubmitComparisonResponse {
     pairKey: string;
     isEffective: boolean;
     createdAt: string;
+    undoneAt?: string | null;
   };
   leftScore: ScoreSummary;
   rightScore: ScoreSummary;
@@ -308,6 +312,9 @@ export interface TierListItem extends PublicAnime {
 }
 
 export interface TierListResponse {
+  draftOwnerId?: string;
+  manualTierVersion: string;
+  shareVersion: string;
   tiers: Record<string, TierListItem[]>;
   tierRows?: TierRowConfig[];
   confidenceScore: number;
@@ -599,6 +606,7 @@ export function discoverAnime(params: {
   studio?: string;
   yearFrom?: number;
   yearTo?: number;
+  month?: number;
   type?: string;
   sort?: string;
   limit?: number;
@@ -613,6 +621,7 @@ export function discoverAnime(params: {
   if (params.studio) searchParams.set("studio", params.studio);
   if (params.yearFrom) searchParams.set("yearFrom", String(params.yearFrom));
   if (params.yearTo) searchParams.set("yearTo", String(params.yearTo));
+  if (params.month) searchParams.set("month", String(params.month));
   if (params.type) searchParams.set("type", params.type);
   if (params.sort) searchParams.set("sort", params.sort);
   if (params.limit) searchParams.set("limit", String(params.limit));
@@ -621,7 +630,7 @@ export function discoverAnime(params: {
   return fetchJson<{ items: PublicAnime[]; total: number }>(`/api/anime/discover?${searchParams.toString()}`, { signal });
 }
 
-export function searchBangumiAnime(q: string, limit = 20, options: { offset?: number; yearFrom?: number; yearTo?: number; type?: string; tags?: string[]; sort?: string; signal?: AbortSignal } = {}) {
+export function searchBangumiAnime(q: string, limit = 20, options: { offset?: number; yearFrom?: number; yearTo?: number; month?: number; type?: string; tags?: string[]; sort?: string; signal?: AbortSignal } = {}) {
   const params = new URLSearchParams({
     q,
     limit: String(limit)
@@ -689,6 +698,8 @@ export function getDashboard() {
 }
 
 export function createPool(data: {
+  clientMutationId?: string;
+  expectedUserId?: string;
   name: string;
   description?: string;
   visibility?: "PRIVATE" | "UNLISTED" | "PUBLIC";
@@ -1004,6 +1015,7 @@ export function submitComparison(
     mode?: "NORMAL" | RecalibrationMode;
     clientMutationId: string;
     recalibrationSessionId?: string;
+    expectedUserId?: string;
   }
 ) {
   return fetchJson<SubmitComparisonResponse>(
@@ -1046,8 +1058,9 @@ export function createTierShare(data: {
   runId: string;
   tierLabels: PublicTierLabels;
   description?: string;
+  expectedVersion: string;
 }) {
-  return fetchJson<{ token: string; url: string }>("/api/tier-shares", {
+  return fetchJson<{ token: string; url: string; createdAt: string }>("/api/tier-shares", {
     method: "POST",
     body: data
   });
@@ -1060,18 +1073,19 @@ export function getTierShare(token: string) {
 export function saveManualTierList(
   poolId: string,
   runId: string,
-  tiers: { tier: string; animeIds: string[] }[]
+  tiers: { tier: string; animeIds: string[] }[],
+  expectedVersion: string
 ) {
   return fetchJson<TierListResponse>(`/api/pools/${poolId}/runs/${runId}/manual-tier`, {
     method: "PATCH",
-    body: { tiers }
+    body: { tiers, expectedVersion }
   });
 }
 
-export function clearManualTier(poolId: string, runId: string, animeId?: string) {
+export function clearManualTier(poolId: string, runId: string, expectedVersion: string, animeId?: string) {
   return fetchJson<TierListResponse>(`/api/pools/${poolId}/runs/${runId}/manual-tier`, {
     method: "DELETE",
-    body: animeId === undefined ? {} : { animeId }
+    body: animeId === undefined ? { expectedVersion } : { animeId, expectedVersion }
   });
 }
 
@@ -1300,6 +1314,7 @@ export interface CurrentUserState {
 }
 
 export interface SeasonDetail {
+  viewerId?: string | null;
   id: string;
   poolId: string;
   title: string;
@@ -1349,6 +1364,7 @@ export interface SeasonMatchQueueItem {
 }
 
 export interface SeasonVoteResult {
+  usage: Omit<CurrentUserState, "hiddenAnimeIds">;
   id: string;
   stepNumber: number;
   voteType: string;
@@ -1416,6 +1432,7 @@ export function submitSeasonVote(poolId: string, seasonId: string, data: {
   winnerAnimeId: string;
   useBiasVote?: boolean;
   clientMutationId?: string;
+  expectedUserId?: string;
 }) {
   return fetchJson<SeasonVoteResult>("/api/pools/" + poolId + "/seasons/" + seasonId + "/vote", { method: "POST", body: data });
 }
@@ -1423,8 +1440,18 @@ export function submitSeasonVote(poolId: string, seasonId: string, data: {
 export function setSeasonAnimeHidden(poolId: string, seasonId: string, data: {
   animeIds: string[];
   isHidden?: boolean;
+  expectedUserId?: string | null;
 }) {
   return fetchJson<{ hiddenAnimeIds: string[] }>("/api/pools/" + poolId + "/seasons/" + seasonId + "/unseen", { method: "POST", body: data });
+}
+
+export function replaceSeasonCandidates(poolId: string, seasonId: string, data: {
+  includedAnimeIds: string[];
+  expectedAnimeIds: string[];
+  expectedHiddenAnimeIds: string[];
+  expectedUserId: string;
+}) {
+  return fetchJson<{ hiddenAnimeIds: string[] }>(`/api/pools/${poolId}/seasons/${seasonId}/unseen`, { method: "PUT", body: data });
 }
 
 export interface QuickImportCandidate {
@@ -1482,6 +1509,7 @@ export function previewQuickImport(data: {
     source: string;
     mode: string;
     year?: number;
+    month?: number;
     yearFrom?: number;
     yearTo?: number;
     type?: string;
@@ -1493,14 +1521,17 @@ export function previewQuickImport(data: {
   };
   poolId?: string;
   useRemote?: boolean;
-}) {
+}, signal?: AbortSignal) {
   return fetchJson<QuickImportPreviewResult>("/api/pools/quick-import/preview", {
     method: "POST",
+    signal,
     body: data
   });
 }
 
 export function createPoolFromQuickImport(data: {
+  clientMutationId?: string;
+  expectedUserId?: string;
   poolName: string;
   description?: string;
   visibility?: string;
@@ -1509,6 +1540,7 @@ export function createPoolFromQuickImport(data: {
     source: string;
     mode: string;
     year?: number;
+    month?: number;
     yearFrom?: number;
     yearTo?: number;
     type?: string;
@@ -1607,4 +1639,23 @@ export interface BattleSeasonImpact {
 
 export function getSeasonImpact(poolId: string, seasonId: string) {
   return fetchJson<BattleSeasonImpact>(`/api/pools/${poolId}/seasons/${seasonId}/impact`);
+}
+
+
+export interface PersonalMatchCandidates {
+  ownerId: string;
+  anime: PoolAnimeEntry[];
+  hiddenAnimeIds: string[];
+  excludedAnimeIds: string[];
+  version: string;
+}
+
+export function getPersonalMatchCandidates(poolId: string, runId: string) {
+  return fetchJson<PersonalMatchCandidates>(`/api/pools/${poolId}/runs/${runId}/candidates`);
+}
+
+export function replacePersonalMatchCandidates(poolId: string, runId: string, data: {
+  includedAnimeIds: string[]; expectedVersion: string; expectedUserId: string;
+}) {
+  return fetchJson<PersonalMatchCandidates>(`/api/pools/${poolId}/runs/${runId}/candidates`, { method: "PUT", body: data });
 }

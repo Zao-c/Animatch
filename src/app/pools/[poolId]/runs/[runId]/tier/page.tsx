@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
+import { useRecoverableDraft } from "@/lib/use-recoverable-draft";
+import { DraftRecoveryNotice } from "@/components/DraftRecoveryNotice";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { TierAnimeCard } from "@/components/TierAnimeCard";
@@ -21,6 +24,7 @@ import { getAnimeDisplayTitle } from "@/lib/anime-display";
 import { copyToClipboard } from "@/lib/clipboard";
 import {
   clearManualTier,
+  ApiClientError,
   createRecalibrationSession,
   createTierShare,
   getCommunityRanking,
@@ -104,8 +108,8 @@ function buildLocalTierExportShare(input: {
         color: row.color,
         items: (input.tiers[row.id] ?? []).map((item) => ({
           animeId: item.animeId,
-          title: item.titleCn ?? item.title,
-          subtitle: item.titleCn ? item.title : undefined,
+          title: getAnimeDisplayTitle(item),
+          subtitle: item.display?.subtitle ?? (item.titleCn ? item.title : undefined),
           coverUrl: getAnimeCoverUrl(item, { intent: "export" }),
           imageUrl: item.imageUrl,
           imageSmallUrl: item.imageSmallUrl,
@@ -113,16 +117,16 @@ function buildLocalTierExportShare(input: {
           imageLargeUrl: item.imageLargeUrl,
           thumbnailUrl: item.thumbnailUrl,
           source: item.source,
-          animeType: item.animeType ?? undefined,
-          tags: item.tags,
+          animeType: item.display?.animeType ?? item.animeType ?? undefined,
+          tags: item.display?.tags ?? item.tags,
           elo: item.eloScore,
           isLocked: item.manualLocked,
           isEdited: item.manualTier !== null
         }))
       })),
       tierRows: input.tierRows,
-      animeCount: input.tierList.totalAnime,
-      comparisonCount: input.tierList.totalComparisons,
+      animeCount: input.tierRows.reduce((count, row) => count + (input.tiers[row.id]?.length ?? 0), 0),
+      comparisonCount: input.tierList.effectiveComparisons,
       isInitialEstimate: input.tierList.totalComparisons === 0 || input.tierList.effectiveComparisons === 0
     }
   };
@@ -153,18 +157,27 @@ export default function TierPage({
 }: {
   params: { poolId: string; runId: string };
 }) {
+  return <TierPageContent key={`${params.poolId}:${params.runId}`} params={params} />;
+}
+
+function TierPageContent({ params }: { params: { poolId: string; runId: string } }) {
   const router = useRouter();
+  const [draftOwnerId, setDraftOwnerId] = useState<string | null>(null);
   const [poolName, setPoolName] = useState("当前番组");
   const [poolTierConfig, setPoolTierConfig] = useState<PoolTierConfig | null>(null);
   const [poolUpdatedAt, setPoolUpdatedAt] = useState<string | null>(null);
   const [tierList, setTierList] = useState<TierListResponse | null>(null);
   const [editableTiers, setEditableTiers] = useState<Record<string, TierListItem[]> | null>(null);
   const [dragSource, setDragSource] = useState<{ tier: string; animeId: string } | null>(null);
+  const [sortStatus, setSortStatus] = useState("");
+  const pendingTierFocus = useRef<{ animeId: string; controlId: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const isEditingRef = useRef(false);
   const [isSaving, setIsSaving] = useState(false);
   const [tierConfigSaving, setTierConfigSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tierSaveConflict, setTierSaveConflict] = useState(false);
   const [showRecalibration, setShowRecalibration] = useState(false);
   const [recalibrationType, setRecalibrationType] = useState<RecalibrationType>("SMART");
   const [targetTier, setTargetTier] = useState<string>("a");
@@ -175,12 +188,20 @@ export default function TierPage({
   const [exportProgress, setExportProgress] = useState<string | null>(null);
   const [exportShowTitles, setExportShowTitles] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [shareStage, setShareStage] = useState<"saving" | "creating" | null>(null);
+  const shareInFlight = useRef(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
   const [shareCopyFallback, setShareCopyFallback] = useState(false);
   const [shareToken, setShareToken] = useState<string | null>(null);
+  const [shareCreatedAt, setShareCreatedAt] = useState<string | null>(null);
+  const [sharedVersion, setSharedVersion] = useState<string | null>(null);
+  const [sharedLabels, setSharedLabels] = useState<string | null>(null);
+  const [shareConflict, setShareConflict] = useState(false);
   const [showShareConfirm, setShowShareConfirm] = useState(false);
+  const shareConfirmRef = useRef<HTMLDivElement>(null);
+  const isTierBusy = isSaving || isSharing || tierConfigSaving;
   const [shareSnapshot, setShareSnapshot] = useState<PublicTierShare | null>(null);
   const exportCardRef = useRef<HTMLDivElement | null>(null);
   const [tierLabels, setTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
@@ -192,6 +213,62 @@ export default function TierPage({
   const [canShowCommunityRanking, setCanShowCommunityRanking] = useState(false);
   const [communityRanking, setCommunityRanking] = useState<CommunityRankingResponse | null>(null);
   const [divergenceResult, setDivergenceResult] = useState<DivergenceResult | null>(null);
+  const hasUnsavedChanges = isEditing && JSON.stringify(editableTiers) !== JSON.stringify(tierList?.tiers);
+  const shareIsOutdated = shareUrl !== null && (hasUnsavedChanges || sharedVersion !== tierList?.shareVersion || sharedLabels !== JSON.stringify(tierLabels));
+  const exportScopeDescription = hasUnsavedChanges
+    ? "图片包含当前未保存的排序，导出不会保存到账号或创建公开链接。"
+    : "图片按点击导出时的排序生成，不会创建公开链接。";
+  useUnsavedChanges(hasUnsavedChanges);
+  const draftOrder = Object.fromEntries(Object.entries(editableTiers ?? {}).map(([id, items]) => [id, items.map((item) => item.animeId)]));
+  const savedOrder = Object.fromEntries(Object.entries(tierList?.tiers ?? {}).map(([id, items]) => [id, items.map((item) => item.animeId)]));
+  const draftVersion = JSON.stringify({ tiers: savedOrder, rows: tierList?.tierRows, comparisons: tierList?.totalComparisons });
+  const recovery = useRecoverableDraft(draftOwnerId ? `animatch:draft:tier:${draftOwnerId}:${params.poolId}:${params.runId}` : null, draftOrder, hasUnsavedChanges, draftVersion);
+
+  useEffect(() => {
+    if (!showShareConfirm) return;
+    shareConfirmRef.current?.focus({ preventScroll: true });
+    shareConfirmRef.current?.scrollIntoView({ block: "nearest" });
+  }, [showShareConfirm]);
+
+  useEffect(() => {
+    const request = pendingTierFocus.current;
+    if (!request || !isEditing) return;
+    pendingTierFocus.current = null;
+    const target = [request.controlId, `tier-adjust-${request.animeId}`, `tier-move-${request.animeId}`]
+      .map((id) => document.getElementById(id))
+      .find((element) => element && element.getClientRects().length > 0 && !element.matches(":disabled"));
+    if (!target) return;
+    target.focus({ preventScroll: true });
+    target.closest("[data-tier-controls]")?.scrollIntoView({ block: "nearest" });
+  }, [editableTiers, isEditing]);
+
+  function restoreDraft() {
+    if (!recovery.pending || !tierList) return;
+    if (recovery.pending.baseVersion !== draftVersion && !window.confirm("服务器榜单已变化。仍要恢复上次的排序到编辑区？请检查后再保存。")) return;
+    try {
+      const order = recovery.pending.data;
+      if (!order || typeof order !== "object" || Array.isArray(order)) throw new Error("暂存排序无效。");
+      const rows = tierList.tierRows ?? DEFAULT_TIER_CONFIG.rows;
+      const items = new Map(Object.values(tierList.tiers).flat().map((item) => [item.animeId, item]));
+      const seen = new Set<string>();
+      if (Object.keys(order).length !== rows.length || Object.keys(order).some((id) => !rows.some((row) => row.id === id))) throw new Error("档位已变化，无法直接恢复这份暂存排序。可放弃暂存后重新编辑。");
+      const next: Record<string, TierListItem[]> = {};
+      for (const row of rows) {
+        if (!Array.isArray(order[row.id])) throw new Error("暂存档位无效。");
+        next[row.id] = order[row.id].map((id) => {
+          if (typeof id !== "string" || !items.has(id) || seen.has(id)) throw new Error("作品集合已变化，无法直接恢复这份暂存排序。可放弃暂存后重新编辑。");
+          seen.add(id);
+          return items.get(id)!;
+        });
+      }
+      if (seen.size !== items.size) throw new Error("榜单有新增作品，无法直接恢复旧排序。可放弃暂存后重新编辑。");
+      setEditableTiers(next);
+      isEditingRef.current = true;
+      setIsEditing(true);
+      setError(null);
+      recovery.dismiss();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "暂存排序无法恢复。"); }
+  }
 
   const loadTierList = useCallback(async () => {
     setIsLoading(true);
@@ -221,8 +298,9 @@ export default function TierPage({
         }
 
         const data = tierResult.value;
+        setDraftOwnerId(data.draftOwnerId ?? null);
         setTierList(data);
-        if (!isEditing) {
+        if (!isEditingRef.current) {
           setEditableTiers(cloneTiers(data.tiers));
         }
         setError(null);
@@ -240,7 +318,7 @@ export default function TierPage({
 
     setError(lastError instanceof Error ? lastError.message : "Tier List 暂时加载失败，请重试。");
     setIsLoading(false);
-  }, [isEditing, params.poolId, params.runId]);
+  }, [params.poolId, params.runId]);
 
   useEffect(() => {
     void loadTierList();
@@ -291,67 +369,91 @@ export default function TierPage({
   }, [tierList]);
 
   function startEditing() {
-    if (tierList === null) {
+    if (tierList === null || isTierBusy) {
       return;
     }
 
     setEditableTiers(cloneTiers(tierList.tiers));
+    setSortStatus("");
+    isEditingRef.current = true;
     setIsEditing(true);
     setError(null);
   }
 
   function cancelEditing() {
+    if (isTierBusy || (hasUnsavedChanges && !window.confirm("放弃本次未保存的排序修改？"))) return;
     if (tierList !== null) {
       setEditableTiers(cloneTiers(tierList.tiers));
     }
     setIsEditing(false);
+    isEditingRef.current = false;
     setError(null);
+    recovery.dismiss();
+  }
+
+  async function persistCurrentTierOrder() {
+    if (editableTiers === null || tierList === null) throw new Error("榜单尚未加载完成。");
+    const data = await saveManualTierList(
+      params.poolId,
+      params.runId,
+      tierRows.map((row) => ({
+        tier: row.id,
+        animeIds: (editableTiers[row.id] ?? []).map((item) => item.animeId)
+      })),
+      tierList.manualTierVersion
+    );
+    setTierList(data);
+    setEditableTiers(cloneTiers(data.tiers));
+    setIsEditing(false);
+    isEditingRef.current = false;
+    recovery.dismiss();
+    return data;
   }
 
   async function handleSave() {
-    if (editableTiers === null) {
-      return;
-    }
-
+    if (editableTiers === null || tierList === null || isTierBusy) return;
     setIsSaving(true);
     setError(null);
+    setTierSaveConflict(false);
 
     try {
-      const data = await saveManualTierList(
-        params.poolId,
-        params.runId,
-        tierRows.map((row) => ({
-          tier: row.id,
-          animeIds: (editableTiers[row.id] ?? []).map((item) => item.animeId)
-        }))
-      );
-      setTierList(data);
-      setEditableTiers(cloneTiers(data.tiers));
-      setIsEditing(false);
+      await persistCurrentTierOrder();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "保存最终设定失败");
+      const conflict = reason instanceof ApiClientError && reason.status === 409;
+      setTierSaveConflict(conflict);
+      setError(conflict
+        ? "服务器上的个人 Tier 已更新。你的排序仍保留在本页，重新载入前不会覆盖服务器版本。"
+        : reason instanceof Error ? reason.message : "保存最终设定失败");
     } finally {
       setIsSaving(false);
     }
   }
 
   async function handleClearManual() {
+    if (isTierBusy || tierList === null || !window.confirm("恢复系统排序会清除手动调整，确定继续？")) return;
     setIsSaving(true);
     setError(null);
+    setTierSaveConflict(false);
 
     try {
-      const data = await clearManualTier(params.poolId, params.runId);
+      const data = await clearManualTier(params.poolId, params.runId, tierList.manualTierVersion);
       setTierList(data);
       setEditableTiers(cloneTiers(data.tiers));
       setIsEditing(false);
+      isEditingRef.current = false;
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "恢复系统排序失败");
+      const conflict = reason instanceof ApiClientError && reason.status === 409;
+      setTierSaveConflict(conflict);
+      setError(conflict
+        ? "服务器上的个人 Tier 已更新，恢复系统排序没有执行。请重新载入后重试。"
+        : reason instanceof Error ? reason.message : "恢复系统排序失败");
     } finally {
       setIsSaving(false);
     }
   }
 
   async function handleCreateRecalibration() {
+    if (isTierBusy || (hasUnsavedChanges && !window.confirm("排序尚未保存，确定离开并开始校准？"))) return;
     setIsSaving(true);
     setError(null);
 
@@ -372,6 +474,7 @@ export default function TierPage({
   }
 
   async function handleSaveTierConfig(config: PoolTierConfig) {
+    if (isTierBusy) return;
     if (poolUpdatedAt === null) {
       setError("番组信息尚未加载完成，请稍后重试。");
       return;
@@ -387,6 +490,7 @@ export default function TierPage({
       setTierList(data);
       setEditableTiers(cloneTiers(data.tiers));
       setIsEditing(false);
+      isEditingRef.current = false;
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : "保存 Tier 行配置失败");
     } finally {
@@ -395,12 +499,14 @@ export default function TierPage({
   }
 
   function openTierLabelEditor() {
+    if (isTierBusy) return;
     setShowRecalibration(false);
     setDraftTierLabels(tierLabels);
     setShowTierLabelEditor(true);
   }
 
   function handleSaveTierLabels() {
+    if (isTierBusy) return;
     const labels = saveTierLabels(params.poolId, params.runId, draftTierLabels);
     setTierLabels(labels);
     setDraftTierLabels(labels);
@@ -408,13 +514,14 @@ export default function TierPage({
   }
 
   function handleResetTierLabels() {
+    if (isTierBusy) return;
     const labels = resetTierLabels(params.poolId, params.runId);
     setTierLabels(labels);
     setDraftTierLabels(labels);
   }
 
   async function handleExportImage() {
-    if (tierList === null) {
+    if (tierList === null || isExporting) {
       return;
     }
 
@@ -448,11 +555,13 @@ export default function TierPage({
         onProgress: setExportProgress,
         filename: `animatch-tier-${poolName.replace(/[^a-zA-Z0-9\u4e00-\u9fff_-]+/g, "-").slice(0, 40)}`
       });
+      setExportProgress(hasUnsavedChanges ? "图片已导出，包含点击导出时尚未保存的排序；导出未执行保存。" : "图片已导出，未创建公开链接。");
     } catch (reason) {
+      setExportProgress(null);
       setExportError(
         reason instanceof Error
-          ? `导出图片失败，请刷新后重试。(${reason.message})`
-          : "导出图片失败，请刷新后重试。"
+          ? `导出图片失败，当前排序仍保留，请重试。(${reason.message})`
+          : "导出图片失败，当前排序仍保留，请重试。"
       );
     } finally {
       setIsExporting(false);
@@ -460,25 +569,40 @@ export default function TierPage({
   }
 
   async function handleCreateShare() {
-    if (tierList === null) {
+    if (tierList === null || isTierBusy || shareInFlight.current || isInitialEstimate) {
       return;
     }
 
+    shareInFlight.current = true;
     setIsSharing(true);
-    setShowShareConfirm(false);
     setShareError(null);
+    setShareConflict(false);
+    setError(null);
+    setTierSaveConflict(false);
     setShareCopied(false);
     setShareCopyFallback(false);
+    let stage: "saving" | "creating" = hasUnsavedChanges ? "saving" : "creating";
+    let savedBeforeSharing = false;
+    setShareStage(stage);
 
     try {
+      const source = hasUnsavedChanges ? await persistCurrentTierOrder() : tierList;
+      savedBeforeSharing = hasUnsavedChanges;
+      stage = "creating";
+      setShareStage(stage);
       const result = await createTierShare({
         poolId: params.poolId,
         runId: params.runId,
-        tierLabels
+        tierLabels,
+        expectedVersion: source.shareVersion
       });
       const absoluteUrl = `${window.location.origin}${result.url}`;
       setShareToken(result.token);
       setShareUrl(absoluteUrl);
+      setShareCreatedAt(result.createdAt);
+      setSharedVersion(source.shareVersion);
+      setSharedLabels(JSON.stringify(tierLabels));
+      setShowShareConfirm(false);
       const copyResult = await copyToClipboard(absoluteUrl);
       if (copyResult.ok) {
         setShareCopied(true);
@@ -487,12 +611,55 @@ export default function TierPage({
         setShareCopied(false);
         setShareCopyFallback(true);
       }
+      requestAnimationFrame(() => document.getElementById("tier-share-copy")?.focus());
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : "请稍后重试。";
-      setShareError(`分享链接生成失败：${message}`);
+      const conflict = reason instanceof ApiClientError && reason.status === 409;
+      if (stage === "saving") {
+        setTierSaveConflict(conflict);
+        setError(conflict ? "服务器上的个人 Tier 已更新。你的排序仍保留在本页，请重新载入后再编辑。" : message);
+        setShareError(`排序保存结果未确认，尚未请求创建公开链接。${message}`);
+      } else {
+        setShareConflict(conflict);
+        setShareError(`${savedBeforeSharing ? "排序已保存；" : ""}${conflict ? message : `分享链接暂未获取，请重试。${message}`}`);
+      }
+      requestAnimationFrame(() => {
+        shareConfirmRef.current?.focus({ preventScroll: true });
+        shareConfirmRef.current?.scrollIntoView({ block: "nearest" });
+      });
     } finally {
+      shareInFlight.current = false;
       setIsSharing(false);
+      setShareStage(null);
     }
+  }
+
+  function openShareConfirmation() {
+    if (isTierBusy) return;
+    setShareError(null);
+    setShowShareConfirm(true);
+    if (showShareConfirm) {
+      shareConfirmRef.current?.focus({ preventScroll: true });
+      shareConfirmRef.current?.scrollIntoView({ block: "nearest" });
+    }
+  }
+
+  function reloadServerTierList() {
+    if (isTierBusy || (hasUnsavedChanges && !window.confirm("重新载入会丢弃本页未保存的排序，继续吗？"))) return;
+    isEditingRef.current = false;
+    setIsEditing(false);
+    setTierSaveConflict(false);
+    setShareConflict(false);
+    setShareError(null);
+    setShowShareConfirm(false);
+    recovery.dismiss();
+    void loadTierList();
+  }
+
+  function closeShareConfirmation() {
+    if (isTierBusy) return;
+    setShowShareConfirm(false);
+    document.getElementById("tier-share-button")?.focus();
   }
 
   async function handleCopyShareUrl() {
@@ -511,7 +678,12 @@ export default function TierPage({
   }
 
   function handleDrop(targetTierName: string, beforeAnimeId?: string) {
-    if (dragSource === null || editableTiers === null) {
+    if (!isEditing || isTierBusy || dragSource === null || editableTiers === null) {
+      return;
+    }
+
+    if (beforeAnimeId === dragSource.animeId) {
+      setDragSource(null);
       return;
     }
 
@@ -544,61 +716,60 @@ export default function TierPage({
       next[targetTierName].splice(insertIndex, 0, sourceItem);
       return next;
     });
+    const targetLabel = tierLabels[targetTierName] ?? tierRows.find((row) => row.id === targetTierName)?.label ?? targetTierName;
+    setSortStatus(`已移至 ${targetLabel} · ${getAnimeDisplayTitle(sourceItem)}`);
     setDragSource(null);
   }
 
   function moveAnimeToTier(animeId: string, targetTierId: string) {
-    if (editableTiers === null) {
+    if (!isEditing || isTierBusy || editableTiers === null) {
       return;
     }
 
-    setEditableTiers((current) => {
-      if (current === null) {
-        return current;
-      }
+    const sourceTier = tierRows.find((row) =>
+      (editableTiers[row.id] ?? []).some((item) => item.animeId === animeId)
+    );
+    const sourceItem = sourceTier
+      ? editableTiers[sourceTier.id].find((item) => item.animeId === animeId)
+      : undefined;
+    const targetTier = tierRows.find((row) => row.id === targetTierId);
 
-      const sourceTier = tierRows.find((row) =>
-        (current[row.id] ?? []).some((item) => item.animeId === animeId)
-      );
-      const sourceItem = sourceTier
-        ? current[sourceTier.id].find((item) => item.animeId === animeId)
-        : undefined;
+    if (!sourceTier || !sourceItem || !targetTier || sourceTier.id === targetTierId || !editableTiers[targetTierId]) return;
 
-      if (!sourceTier || !sourceItem || sourceTier.id === targetTierId || !current[targetTierId]) {
-        return current;
-      }
-
-      const next = cloneTiers(current);
-      next[sourceTier.id] = next[sourceTier.id].filter((item) => item.animeId !== animeId);
-      next[targetTierId] = [...next[targetTierId], sourceItem];
-      return next;
-    });
+    const next = cloneTiers(editableTiers);
+    next[sourceTier.id] = next[sourceTier.id].filter((item) => item.animeId !== animeId);
+    next[targetTierId] = [...next[targetTierId], sourceItem];
+    queueTierControlFocus(animeId);
+    setEditableTiers(next);
+    setSortStatus(`已移至 ${tierLabels[targetTierId] ?? targetTier.label}，第 ${next[targetTierId].length} 位 · ${getAnimeDisplayTitle(sourceItem)}`);
   }
 
   function moveAnimeWithinTier(tierId: string, animeId: string, direction: -1 | 1) {
-    if (editableTiers === null) {
+    if (!isEditing || isTierBusy || editableTiers === null) {
       return;
     }
 
-    setEditableTiers((current) => {
-      if (current === null) {
-        return current;
-      }
+    const items = editableTiers[tierId] ?? [];
+    const sourceIndex = items.findIndex((item) => item.animeId === animeId);
+    const targetIndex = sourceIndex + direction;
+    if (sourceIndex < 0 || targetIndex < 0 || targetIndex >= items.length) return;
 
-      const items = current[tierId] ?? [];
-      const sourceIndex = items.findIndex((item) => item.animeId === animeId);
-      const targetIndex = sourceIndex + direction;
-      if (sourceIndex < 0 || targetIndex < 0 || targetIndex >= items.length) {
-        return current;
-      }
+    const next = cloneTiers(editableTiers);
+    const [sourceItem] = next[tierId].splice(sourceIndex, 1);
+    next[tierId].splice(targetIndex, 0, sourceItem);
+    queueTierControlFocus(animeId);
+    setEditableTiers(next);
+    setSortStatus(`本档第 ${targetIndex + 1} / ${items.length} 位 · ${getAnimeDisplayTitle(sourceItem)}`);
+  }
 
-      const next = cloneTiers(current);
-      const reordered = [...items];
-      const [sourceItem] = reordered.splice(sourceIndex, 1);
-      reordered.splice(targetIndex, 0, sourceItem);
-      next[tierId] = reordered;
-      return next;
-    });
+  function queueTierControlFocus(animeId: string) {
+    const active = document.activeElement;
+    pendingTierFocus.current = {
+      animeId,
+      controlId: active instanceof HTMLElement && active.closest("[data-tier-controls]")?.getAttribute("data-tier-controls") === animeId
+        ? active.id
+        : `tier-adjust-${animeId}`
+    };
   }
 
   const visibleTiers = editableTiers ?? tierList?.tiers ?? null;
@@ -620,6 +791,9 @@ export default function TierPage({
 
   return (
     <PageShell>
+      {recovery.pending && <DraftRecoveryNotice changed={recovery.pending.baseVersion !== draftVersion} onRestore={restoreDraft} onDiscard={recovery.dismiss} />}
+      {recovery.storageError && <p role="alert" className="mb-4 text-sm text-amber-200">{recovery.storageError}</p>}
+      <fieldset disabled={!!recovery.pending} className="min-w-0">
       <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="flex flex-wrap gap-2">
@@ -628,9 +802,6 @@ export default function TierPage({
           <h1 className="mt-3 break-words text-3xl font-black tracking-tight text-white sm:text-4xl">
             {poolName}
           </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-            挑出你的心头好，把这份喜好保存下来。
-          </p>
         </div>
       </div>
 
@@ -649,9 +820,21 @@ export default function TierPage({
       {error ? (
         <div className="mb-5 space-y-3">
           <ErrorAlert message={error} />
-          <AppButton type="button" onClick={loadTierList} variant="secondary" disabled={isLoading}>
-            {isLoading ? "正在重新加载..." : "重新加载 Tier List"}
-          </AppButton>
+          {tierSaveConflict ? (
+            <AppButton
+              type="button"
+              variant="secondary"
+              disabled={isLoading}
+              onClick={reloadServerTierList}
+            >
+              丢弃本地修改并重新载入
+            </AppButton>
+          ) : null}
+          {!tierSaveConflict ? (
+            <AppButton type="button" onClick={reloadServerTierList} variant="secondary" disabled={isLoading || isTierBusy}>
+              {isLoading ? "正在重新加载..." : "重新加载 Tier List"}
+            </AppButton>
+          ) : null}
         </div>
       ) : null}
       {exportError ? <ErrorAlert message={exportError} className="mb-5" /> : exportProgress ? (
@@ -660,15 +843,17 @@ export default function TierPage({
 
       {isLoading ? <ErrorAlert message="正在加载榜单..." tone="notice" className="mb-5" /> : null}
       {isEditing ? (
-        <ErrorAlert
-          message="正在编辑最终设定，保存后将锁定你的手动排序，但不会删除任何对决历史。"
-          tone="warning"
-          className="mb-5"
-        />
+        <div className="sticky top-32 z-30 mb-5 flex flex-col items-stretch gap-2 rounded-xl border border-amber-300/30 bg-slate-950 p-3 shadow-xl sm:flex-row sm:flex-wrap sm:items-center sm:justify-between xl:top-24">
+          <p role="status" aria-atomic="true" className="min-w-0 flex-1 text-sm text-amber-100">
+            {isSaving || shareStage === "saving" ? "正在保存排序…" : shareStage === "creating" ? "正在创建公开链接…" : hasUnsavedChanges ? recovery.ready && !recovery.storageError ? "未保存到账号 · 此标签页暂存" : "有未保存修改" : "编辑中 · 可拖动或用卡片菜单调整"}
+            {sortStatus ? <span title={sortStatus} className="mt-1 line-clamp-2 text-xs text-slate-300 [overflow-wrap:anywhere]">{sortStatus}</span> : null}
+          </p>
+          <div className="flex shrink-0 gap-2 [&>button]:flex-1 sm:[&>button]:flex-none"><AppButton onClick={handleSave} disabled={isTierBusy || !hasUnsavedChanges} variant="primary">{isSaving ? "保存中…" : "保存排序"}</AppButton><AppButton onClick={cancelEditing} disabled={isTierBusy} variant="ghost">取消编辑</AppButton></div>
+        </div>
       ) : null}
 
       <div className="mb-4 flex flex-wrap items-center gap-2 xl:hidden">
-        <AppButton onClick={handleExportImage} disabled={isExporting || tierList === null} variant="primary">{isExporting ? "生成中..." : "导出图片"}</AppButton>
+        <AppButton onClick={handleExportImage} disabled={isExporting || tierList === null} aria-describedby="tier-export-scope-mobile" variant="primary">{isExporting ? "生成中..." : "导出图片"}</AppButton>
         <label className="flex min-h-11 items-center gap-2 text-sm text-slate-300">
           <input
             type="checkbox"
@@ -681,6 +866,7 @@ export default function TierPage({
         </label>
         <a href="#tier-tools" className={appButtonClasses({ variant: "secondary" })}>设置与分享 ↓</a>
       </div>
+      <p id="tier-export-scope-mobile" className="mb-4 text-xs leading-5 text-slate-400 xl:hidden">{exportScopeDescription}</p>
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
       <div className="min-w-0">
       {tierList && visibleTiers ? (
@@ -728,6 +914,7 @@ export default function TierPage({
             />
           ) : null}
           <div className="mb-3">
+            {!isEditing ? <AppButton onClick={startEditing} disabled={isTierBusy} variant="secondary" size="sm">调整排序</AppButton> : null}
             <AppButton variant="secondary" size="sm" aria-pressed={compactBoard} onClick={() => setCompactBoard((value) => !value)}>{compactBoard ? "切换大图详情" : "切换紧凑总览"}</AppButton>
             <AppButton
               onClick={() => setShowTierInfo((value) => !value)}
@@ -763,8 +950,14 @@ export default function TierPage({
               return (
               <section
                 key={row.id}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={() => handleDrop(row.id)}
+                onDragOver={(event) => {
+                  if (isEditing && !isTierBusy) event.preventDefault();
+                }}
+                onDrop={(event) => {
+                  if (!isEditing || isTierBusy) return;
+                  event.preventDefault();
+                  handleDrop(row.id);
+                }}
                 className="grid min-w-0 gap-3 rounded-2xl border border-anime-border bg-anime-panel p-3 sm:grid-cols-[80px_minmax(0,1fr)]"
               >
                 <div
@@ -789,9 +982,11 @@ export default function TierPage({
                         key={item.animeId}
                         item={item}
                         editable={isEditing}
+                        disabled={isTierBusy}
                         compact={compactBoard && !isEditing}
                         scoreDistribution={scoreDistribution}
                         onDragStart={() => setDragSource({ tier: row.id, animeId: item.animeId })}
+                        onDragEnd={() => setDragSource(null)}
                         onDropBefore={() => handleDrop(row.id, item.animeId)}
                         moveOptions={tierRows
                           .filter((candidate) => candidate.id !== row.id)
@@ -833,6 +1028,7 @@ export default function TierPage({
           <AppButton
             onClick={handleExportImage}
             disabled={isExporting || tierList === null}
+            aria-describedby="tier-export-scope"
             variant="primary"
           >
             {isExporting ? "生成中..." : "导出图片"}
@@ -848,17 +1044,18 @@ export default function TierPage({
             显示作品名称
           </label>
           <AppButton
-            onClick={() => {
-              setShareError(null);
-              setShowShareConfirm(true);
-            }}
-            disabled={isSharing || tierList === null || isInitialEstimate}
+            id="tier-share-button"
+            onClick={openShareConfirmation}
+            aria-controls="tier-share-confirmation"
+            aria-expanded={showShareConfirm}
+            disabled={isTierBusy || tierList === null || isInitialEstimate}
             variant="secondary"
             title={isInitialEstimate ? "完成至少一轮对决后才能创建公开分享链接" : undefined}
           >
             {isSharing ? "生成分享链接中..." : "分享榜单"}
           </AppButton>
           </div>
+          <p id="tier-export-scope" className="text-xs leading-5 text-slate-400">{exportScopeDescription}</p>
         </div>
         <div className="mt-4 flex flex-wrap gap-3 border-t border-anime-border pt-4">
           <Link href={`/pools/${params.poolId}/runs/${params.runId}/match`} className={appButtonClasses({ variant: "ghost" })}>
@@ -885,11 +1082,15 @@ export default function TierPage({
         </div>
       </AppCard>
       <TierSharePanel
-        shareError={shareError}
+        shareError={showShareConfirm ? null : shareError}
         shareUrl={shareUrl}
         shareCopied={shareCopied}
         shareCopyFallback={shareCopyFallback}
         onCopyShareUrl={handleCopyShareUrl}
+        createdAt={shareCreatedAt}
+        isOutdated={shareIsOutdated}
+        onCreateNewShare={openShareConfirmation}
+        disabled={isTierBusy || isInitialEstimate}
       />      {showAdvancedActions ? (
       <AppCard className="mb-8 p-4" variant="soft">
         <div className="mb-4 flex flex-col gap-2 sm:flex-col sm:items-stretch">
@@ -906,22 +1107,22 @@ export default function TierPage({
         <div className="flex flex-wrap gap-3">
           {isEditing ? (
             <>
-              <AppButton onClick={handleSave} disabled={isSaving} variant="primary">
+              <AppButton onClick={handleSave} disabled={isTierBusy} variant="primary">
                 保存最终设定
               </AppButton>
-              <AppButton onClick={cancelEditing} disabled={isSaving} variant="ghost">
+              <AppButton onClick={cancelEditing} disabled={isTierBusy} variant="ghost">
                 取消编辑
               </AppButton>
             </>
           ) : (
-            <AppButton onClick={startEditing} variant="primary">
+            <AppButton onClick={startEditing} disabled={isTierBusy} variant="primary">
               编辑最终设定
             </AppButton>
           )}
-          <AppButton onClick={handleClearManual} disabled={isSaving} variant="ghost">
+          <AppButton onClick={handleClearManual} disabled={isTierBusy} variant="ghost">
             恢复系统排序
           </AppButton>
-          <AppButton onClick={openTierLabelEditor} variant="ghost">
+          <AppButton onClick={openTierLabelEditor} disabled={isTierBusy} variant="ghost">
             编辑分层标签
           </AppButton>
         </div>
@@ -930,7 +1131,7 @@ export default function TierPage({
           <PoolTierConfigEditor
             tierConfig={poolTierConfig}
             onSave={handleSaveTierConfig}
-            isSaving={tierConfigSaving}
+            isSaving={isTierBusy}
             compact
           />
         </details>
@@ -939,22 +1140,43 @@ export default function TierPage({
       ) : null}
 
       {showShareConfirm ? (
-        <AppCard className="mb-5 border-cyan-300/25 p-4" variant="focus">
+        <AppCard
+          ref={shareConfirmRef}
+          id="tier-share-confirmation"
+          role="region"
+          aria-labelledby="tier-share-confirm-title"
+          tabIndex={-1}
+          aria-busy={isSharing}
+          className="mb-5 scroll-mt-40 border-cyan-300/25 p-4 focus:outline-none"
+          variant="focus"
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && !isTierBusy) { event.stopPropagation(); closeShareConfirmation(); }
+          }}
+        >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">
               <AppBadge tone="source">公开快照</AppBadge>
-              <h2 className="mt-2 text-lg font-semibold text-white">创建可访问的榜单链接</h2>
+              <h2 id="tier-share-confirm-title" className="mt-2 text-lg font-semibold text-white">创建可访问的榜单链接</h2>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">
                 这会生成一份固定的公开快照。拿到链接的任何人都能查看当前榜单；之后的对决不会修改这份快照。
               </p>
+              <p className="mt-2 text-sm leading-6 text-cyan-100">
+                {hasUnsavedChanges ? "当前有未保存排序。确认后先保存到账号，再按保存成功的版本创建公开链接。" : "将按当前已保存排序和当前分层名称创建公开链接。之后的编辑不会更新这个链接。"}
+              </p>
+              {isSharing ? <p role="status" className="mt-2 text-sm text-slate-300">{shareStage === "saving" ? "正在保存当前排序…" : "正在创建公开链接…"}</p> : null}
+              {shareError ? <ErrorAlert message={shareError} className="mt-3" /> : null}
             </div>
             <div className="flex flex-wrap gap-2">
-              <AppButton type="button" onClick={() => setShowShareConfirm(false)} disabled={isSharing} variant="quiet">
+              <AppButton type="button" onClick={closeShareConfirmation} disabled={isTierBusy} variant="quiet">
                 取消
               </AppButton>
-              <AppButton type="button" onClick={handleCreateShare} disabled={isSharing} variant="primary">
-                {isSharing ? "创建中..." : "确认创建公开链接"}
-              </AppButton>
+              {shareConflict || tierSaveConflict ? (
+                <AppButton type="button" onClick={reloadServerTierList} disabled={isTierBusy || isLoading} variant="secondary">重新载入后确认</AppButton>
+              ) : (
+                <AppButton type="button" onClick={handleCreateShare} disabled={isTierBusy} variant="primary">
+                  {isSharing ? shareStage === "saving" ? "保存中…" : "创建中…" : hasUnsavedChanges ? "保存并创建公开链接" : "确认创建公开链接"}
+                </AppButton>
+              )}
             </div>
           </div>
         </AppCard>
@@ -971,10 +1193,10 @@ export default function TierPage({
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <AppButton onClick={handleSaveTierLabels} variant="primary">
+              <AppButton onClick={handleSaveTierLabels} disabled={isTierBusy} variant="primary">
                 保存
               </AppButton>
-              <AppButton onClick={handleResetTierLabels} variant="ghost">
+              <AppButton onClick={handleResetTierLabels} disabled={isTierBusy} variant="ghost">
                 重置默认
               </AppButton>
               <AppButton onClick={() => setShowTierLabelEditor(false)} variant="ghost">
@@ -995,6 +1217,7 @@ export default function TierPage({
                     }))
                   }
                   maxLength={24}
+                  disabled={isTierBusy}
                   className="anime-field mt-2"
                 />
               </label>
@@ -1013,7 +1236,7 @@ export default function TierPage({
                 选择校准方式和计划场数，系统会优先选择分数接近、信息不足或未直接比较过的作品。
               </p>
             </div>
-            <AppButton onClick={handleCreateRecalibration} disabled={isSaving} variant="primary">
+            <AppButton onClick={handleCreateRecalibration} disabled={isTierBusy} variant="primary">
               开始校准
             </AppButton>
           </div>
@@ -1120,6 +1343,7 @@ export default function TierPage({
           </div>
         </div>
       ) : null}
+      </fieldset>
     </PageShell>
   );
 }

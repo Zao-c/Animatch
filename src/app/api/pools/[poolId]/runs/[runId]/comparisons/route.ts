@@ -1,5 +1,5 @@
 import { PoolComparisonMode, PoolComparisonResult } from "@prisma/client";
-import { badRequest, fromError, ok } from "@/lib/api-response";
+import { badRequest, forbidden, fromError, ok } from "@/lib/api-response";
 import { getComparisonHistory } from "@/lib/comparison-history-service";
 import { requireCurrentUser } from "@/lib/auth-session";
 import { submitComparison } from "@/lib/match-service";
@@ -18,6 +18,7 @@ interface ComparisonBody {
   mode?: unknown;
   clientMutationId?: unknown;
   recalibrationSessionId?: unknown;
+  expectedUserId?: unknown;
 }
 
 const RESULTS = new Set<string>(Object.values(PoolComparisonResult));
@@ -56,6 +57,9 @@ export async function POST(request: Request, context: RouteContext) {
 
   try {
     const user = await requireCurrentUser();
+    if (body?.expectedUserId !== undefined && body.expectedUserId !== user.id) {
+      return forbidden("登录账号已变化，请切回原账号后确认这次投票。");
+    }
     const comparison = await submitComparison({
       userId: user.id,
       poolId: context.params.poolId,

@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function ManualTierPage({ params }: { params: { poolId: string } }) {
   const user = await getCurrentUser();
   if (!user) redirect(`/login?next=${encodeURIComponent(`/pools/${params.poolId}/tier-maker`)}`);
-  try { const board = await getManualBoard(user.id, params.poolId); return <PageShell><ManualTierBoard initial={board} /></PageShell>; }
+  try { const board = await getManualBoard(user.id, params.poolId); return <PageShell><ManualTierBoard key={`${user.id}:${params.poolId}`} ownerId={user.id} initial={board} /></PageShell>; }
   catch (error) {
     if (!isAppError(error)) throw error;
     return <PageShell><p role="alert">{error.message}</p></PageShell>;

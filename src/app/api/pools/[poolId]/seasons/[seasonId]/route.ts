@@ -15,7 +15,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const currentUserCanManage =
       user !== null &&
       (detail.createdByUserId === user.id || await isAdminEditSession(user));
-    return ok({ ...detail, currentUserCanManage });
+    return ok({ ...detail, currentUserCanManage, viewerId: user?.id ?? null }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return fromError(error);
   }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ANIME_FORMAT_OPTIONS } from "@/lib/anime-filter-options";
+import { validateQuickImportParams } from "@/lib/import/quick-import-options";
 import { AnimeCover } from "@/components/AnimeCover";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton } from "@/components/ui/AppButton";
@@ -12,11 +13,12 @@ import { getAnimeCoverUrl, getAnimeSourceCoverCandidates } from "@/lib/anime-cov
 import { getAnimeDisplayTitle, getAnimeImageFitMode } from "@/lib/anime-display";
 import {
   addQuickImportToPool,
-  createPoolFromQuickImport,
   previewQuickImport,
   type QuickImportCandidate,
   type QuickImportPreviewResult,
 } from "@/lib/client-api";
+import { usePoolCreation } from "@/lib/use-pool-creation";
+import { PoolCreationNotice } from "@/components/PoolCreationNotice";
 import { QUICK_IMPORT_PRESETS } from "@/lib/import/quick-import-presets";
 import type { QuickImportParams } from "@/lib/import/quick-pool-builder";
 
@@ -35,9 +37,7 @@ const MODES: { key: string; label: string }[] = [
 
 const TYPES: { key: string; label: string }[] = [
   { key: "ALL", label: "全部" },
-  { key: "TV", label: "TV" },
-  { key: "MOVIE", label: "MOVIE" },
-  { key: "OVA", label: "OVA" },
+  ...ANIME_FORMAT_OPTIONS.map(({ value, label }) => ({ key: value, label })),
 ];
 
 const SORTS: { key: string; label: string }[] = [
@@ -123,14 +123,18 @@ function makeAnimeForCover(candidate: QuickImportCandidate) {
 export function QuickImportPanel({
   poolId,
   onAdded,
+  onBusyChange,
 }: {
   poolId?: string;
   onAdded?: () => void;
+  onBusyChange?: (busy: boolean) => void;
 }) {
-  const router = useRouter();
+  const creation = usePoolCreation("quick", !poolId);
+  const addLock = useRef(false);
   const [source, setSource] = useState<string>("BANGUMI");
   const [mode, setMode] = useState<string>("YEAR");
   const [year, setYear] = useState<string>(String(new Date().getFullYear()));
+  const [month, setMonth] = useState("");
   const [type, setType] = useState<string>("ALL");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [limit, setLimit] = useState<number>(50);
@@ -139,12 +143,18 @@ export function QuickImportPanel({
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState<"PRIVATE" | "PUBLIC">("PRIVATE");
   const requestVersion = useRef(0);
+  const previewController = useRef<AbortController | null>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+  useEffect(() => () => { previewController.current?.abort(); requestVersion.current++; }, []);
   const [resultPage, setResultPage] = useState(1);
   const [preview, setPreview] = useState<QuickImportPreviewResult | null>(null);
   const [previewParams, setPreviewParams] = useState<QuickImportParams | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const isCreating = isAdding || creation.busy;
+  const formLocked = isCreating || (!poolId && creation.locked);
+  useEffect(() => { onBusyChange?.(isCreating); }, [isCreating, onBusyChange]);
   const [error, setError] = useState<string | null>(null);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
   const [useRemote, setUseRemote] = useState(true);
@@ -155,6 +165,7 @@ export function QuickImportPanel({
   const effectiveUseRemote = remoteRequired || useRemote;
 
   function clearPreviewSelection() {
+    previewController.current?.abort();
     requestVersion.current++;
     setIsLoading(false);
     setResultPage(1);
@@ -181,28 +192,34 @@ export function QuickImportPanel({
       sort,
     };
     const tags = mergeTags(selectedTags, customTagInput);
-    if (year && year.trim()) p.year = parseInt(year, 10);
+    if (year && year.trim()) p.year = Number(year);
+    if (month) p.month = Number(month);
     if (type && type !== "ALL") p.type = type;
     if (tags.length > 0) p.tags = tags;
     if (bangumiUserId.trim()) p.bangumiUserId = bangumiUserId.trim();
     if (collectionType) p.collectionType = collectionType;
     return p;
-  }, [source, mode, year, type, selectedTags, customTagInput, limit, sort, bangumiUserId, collectionType]);
+  }, [source, mode, year, month, type, selectedTags, customTagInput, limit, sort, bangumiUserId, collectionType]);
 
   async function handlePreview() {
+    if (formLocked) return;
     setError(null);
     clearPreviewSelection();
     setIsLoading(true);
     const version = requestVersion.current;
+    const controller = new AbortController();
+    previewController.current = controller;
     try {
       const params = buildParams();
-      const result = await previewQuickImport({ params, poolId, useRemote: effectiveUseRemote });
+      validateQuickImportParams(params);
+      const result = await previewQuickImport({ params, poolId, useRemote: effectiveUseRemote }, controller.signal);
       if (version !== requestVersion.current) return;
       setPreview(result);
       setPreviewParams(params);
       setSelectedIds(new Set(result.candidates.filter((c) => !c.alreadyInPool).map((c) => c.animeId)));
+      requestAnimationFrame(() => { if (version === requestVersion.current) resultRef.current?.scrollIntoView({ block: "start" }); });
     } catch (reason) {
-      if (version === requestVersion.current) setError(reason instanceof Error ? reason.message : "预览失败");
+      if (version === requestVersion.current && !controller.signal.aborted) setError(reason instanceof Error ? reason.message : "预览失败");
     } finally {
       if (version === requestVersion.current) setIsLoading(false);
     }
@@ -234,6 +251,7 @@ export function QuickImportPanel({
   }
 
   async function handleCreatePool() {
+    if (formLocked || isLoading) return;
     if (!poolName.trim()) {
       setError("请输入番组名");
       return;
@@ -247,23 +265,14 @@ export function QuickImportPanel({
       return;
     }
     setError(null);
-    setIsCreating(true);
-    try {
-      const result = await createPoolFromQuickImport({
-        poolName: poolName.trim(),
-        description: description.trim() || undefined,
-        visibility,
-        params: previewParams,
-        selectedAnimeIds: Array.from(selectedIds),
-      });
-      router.push(`/pools/${result.poolId}`);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "创建番组失败");
-      setIsCreating(false);
-    }
+    await creation.submit({
+      poolName: poolName.trim(), description: description.trim() || undefined, visibility,
+      params: previewParams, selectedAnimeIds: Array.from(selectedIds)
+    });
   }
 
   async function handleAddToPool() {
+    if (addLock.current || isCreating || isLoading) return;
     if (!poolId) return;
     const ids = Array.from(selectedIds);
     if (ids.length === 0) {
@@ -271,7 +280,8 @@ export function QuickImportPanel({
       return;
     }
     setError(null);
-    setIsCreating(true);
+    addLock.current = true;
+    setIsAdding(true);
     try {
       const result = await addQuickImportToPool(poolId, ids);
       setResultMessage(`成功添加 ${result.addedCount} 部，跳过 ${result.skippedCount} 部`);
@@ -281,7 +291,8 @@ export function QuickImportPanel({
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "添加失败");
     } finally {
-      setIsCreating(false);
+      addLock.current = false;
+      setIsAdding(false);
     }
   }
 
@@ -290,6 +301,7 @@ export function QuickImportPanel({
     setSource(p.source);
     setMode(p.mode);
     setYear(p.year ? String(p.year) : "");
+    setMonth(p.month ? String(p.month) : "");
     setType(p.type ?? "ALL");
     setSelectedTags(p.tags ?? []);
     setCustomTagInput("");
@@ -303,7 +315,9 @@ export function QuickImportPanel({
 
   return (
     <div className="space-y-5">
+      {!poolId && <PoolCreationNotice creation={creation} />}
       <AppCard className="p-5">
+        <fieldset disabled={formLocked} className="min-w-0">
         <SectionHeader eyebrow="Bangumi" title={poolId ? "从 Bangumi 批量添加" : "筛选动画"} />
 
         <div className="mt-4 flex flex-wrap gap-2">
@@ -333,6 +347,7 @@ export function QuickImportPanel({
                     clearPreviewSelection();
                     setMode(m.key);
                     setYear(m.key === "YEAR" ? String(new Date().getFullYear()) : "");
+                    setMonth("");
                     setType("ALL");
                     setSelectedTags([]); setCustomTagInput("");
                     if (m.key === "USER_COLLECTION") setSource("BANGUMI");
@@ -360,6 +375,7 @@ export function QuickImportPanel({
                 onChange={(e) => {
                   clearPreviewSelection();
                   setYear(e.target.value);
+                  if (!e.target.value) setMonth("");
                 }}
                 className="anime-field mt-1.5"
                 type="number" min={1900} max={2100}
@@ -367,6 +383,14 @@ export function QuickImportPanel({
               />
             </label>
           )}
+
+          <label className="block">
+            <span className="text-xs font-semibold text-slate-400">播出月份（可选）</span>
+            <select aria-label="批量筛选播出月份" className="anime-field mt-1.5 disabled:opacity-50" value={month} disabled={!year} onChange={(event) => { clearPreviewSelection(); setMonth(event.target.value); }}>
+              <option value="">{year ? "全年" : "先选择年份"}</option>
+              {Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={String(index + 1)}>{index + 1} 月</option>)}
+            </select>
+          </label>
 
           <label className="block">
             <span className="text-xs font-semibold text-slate-400">类型</span>
@@ -552,20 +576,22 @@ export function QuickImportPanel({
         ) : null}
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <AppButton type="button" onClick={handlePreview} disabled={isLoading} variant="primary">
+          <AppButton type="button" onClick={handlePreview} disabled={isLoading || isCreating} variant="primary">
             {isLoading ? "加载中..." : "预览"}
           </AppButton>
           {!poolId ? (
-            <AppButton type="button" onClick={handleCreatePool} disabled={!canCreate || isCreating} variant="secondary">
+            <AppButton type="button" onClick={handleCreatePool} disabled={!canCreate || isCreating || isLoading} variant="secondary">
               {isCreating ? "创建中..." : `创建番组（${selectedIds.size} 部）`}
             </AppButton>
           ) : (
-            <AppButton type="button" onClick={handleAddToPool} disabled={!canAdd || isCreating} variant="secondary">
+            <AppButton type="button" onClick={handleAddToPool} disabled={!canAdd || isCreating || isLoading} variant="secondary">
               {isCreating ? "添加中..." : `添加选中 (${selectedIds.size})`}
             </AppButton>
           )}
         </div>
+        {isLoading ? <div className="mt-3 flex flex-wrap items-center gap-2"><p role="status" className="text-sm text-slate-300">正在从 Bangumi 查询，数量较多时需要稍等…</p><AppButton type="button" variant="quiet" onClick={clearPreviewSelection}>取消查询</AppButton></div> : null}
         <p className="mt-2 text-xs leading-5 text-slate-400">先预览再勾选；每次最多 500 部。收藏仅支持公开条目，筛选结果不保证覆盖全部作品。</p>
+        </fieldset>
       </AppCard>
 
       {error ? <ErrorAlert message={error} /> : null}
@@ -580,9 +606,10 @@ export function QuickImportPanel({
       ) : null}
 
       {preview ? (
-        <AppCard className="p-5">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+        <AppCard ref={resultRef} className="scroll-mt-36 p-5">
+          <fieldset disabled={formLocked} className="min-w-0">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <AppBadge tone="source">{preview.total} 部</AppBadge>
               {preview.remoteFetch?.attempted ? (
                 <span className="text-[10px] text-anime-cyan">
@@ -591,17 +618,20 @@ export function QuickImportPanel({
                     : "Bangumi 未返回结果"}
                 </span>
               ) : null}
-              {preview.warnings.length > 0 ? (
-                <span className="text-xs text-amber-300">{preview.warnings[0]}</span>
-              ) : null}
             </div>
             <div className="flex flex-wrap gap-2"><AppButton variant="quiet" onClick={() => setSelectedIds(new Set())}>清空选择</AppButton>
+              <AppButton variant="quiet" onClick={() => setSelectedIds((current) => new Set([...current, ...preview.candidates.slice((resultPage - 1) * 20, resultPage * 20).filter((item) => !item.alreadyInPool).map((item) => item.animeId)]))}>选择本页</AppButton>
+              <AppButton variant="quiet" onClick={() => setSelectedIds((current) => {
+                const next = new Set(current);
+                preview.candidates.slice((resultPage - 1) * 20, resultPage * 20).forEach((item) => next.delete(item.animeId));
+                return next;
+              })}>取消本页</AppButton>
               <button
                 type="button"
                 onClick={selectAll}
                 className="min-h-11 rounded-lg px-3 text-xs font-semibold text-slate-400 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-anime-cyan/40"
               >
-                全选结果
+                全选所有页
               </button>
               {poolId ? (
                 <button
@@ -614,9 +644,15 @@ export function QuickImportPanel({
               ) : null}
             </div>
           </div>
+          <p className="mb-3 text-xs leading-5 text-slate-300">已选 {selectedIds.size} 部，包含其他页的选择。预览默认选中全部可添加作品，提交会加入所有已选作品。</p>
+          {selectedIds.size > 0 && <details className="mb-4 rounded-xl border border-white/10 px-3">
+            <summary className="min-h-11 cursor-pointer py-3 text-sm">查看待导入清单（{selectedIds.size} 部）</summary>
+            <ul className="mb-3 max-h-60 space-y-1 overflow-y-auto text-sm text-slate-300">{preview.candidates.filter((item) => selectedIds.has(item.animeId)).map((item) => <li key={item.animeId} className="flex items-center justify-between gap-2"><span className="min-w-0 break-words">{item.titleCn || item.title}</span><AppButton size="sm" variant="quiet" aria-label={`取消选择 ${item.titleCn || item.title}`} onClick={() => toggleCandidate(item.animeId)}>移除</AppButton></li>)}</ul>
+          </details>}
+          {preview.warnings.length > 0 ? <div role="status" className="mb-4 space-y-1 rounded-xl border border-amber-300/20 bg-amber-300/5 p-3 text-xs leading-5 text-amber-200">{preview.warnings.map((warning) => <p key={warning}>{warning}</p>)}</div> : null}
 
           {preview.candidates.length === 0 ? (
-            <p className="text-sm text-slate-400">本地库没有命中，Bangumi 也没有拉到结果。可以换关键词、年份或类型试试。</p>
+            <p className="text-sm text-slate-400">没有找到符合当前条件的作品。试试选择全年、全部类型，或减少题材标签后重新预览。</p>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {preview.candidates.slice((resultPage - 1) * 20, resultPage * 20).map((candidate) => {
@@ -692,6 +728,11 @@ export function QuickImportPanel({
             </div>
           )}
           {preview.candidates.length > 20 && <nav aria-label="导入预览分页" className="mt-4 flex items-center justify-between gap-2"><AppButton variant="ghost" disabled={resultPage === 1} onClick={() => setResultPage((p) => p - 1)}>上一页</AppButton><span className="text-sm">{resultPage} / {Math.ceil(preview.candidates.length / 20)} · 已选 {selectedIds.size} 部</span><AppButton variant="ghost" disabled={resultPage * 20 >= preview.candidates.length} onClick={() => setResultPage((p) => p + 1)}>下一页</AppButton></nav>}
+          <div className="sticky bottom-2 z-20 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-anime-border bg-slate-950 p-3 shadow-xl">
+            <p className="text-sm text-slate-300">已选 {selectedIds.size} 部{!poolId && !poolName.trim() ? " · 请先填写番组名" : ""}</p>
+            <AppButton type="button" variant="primary" onClick={poolId ? handleAddToPool : handleCreatePool} disabled={isCreating || isLoading || (poolId ? !canAdd : !canCreate)}>{isCreating ? "正在导入…" : poolId ? "添加选中作品" : "创建番组并导入"}</AppButton>
+          </div>
+          </fieldset>
         </AppCard>
       ) : null}
     </div>

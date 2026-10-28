@@ -1,4 +1,5 @@
 import type { Anime, UserPoolScore } from "@prisma/client";
+import { createHash } from "node:crypto";
 import { toPublicAnime } from "./anime-service";
 import { getEffectiveAnimeDisplay, type EffectiveAnimeDisplay } from "./anime-display";
 import { prisma } from "./db";
@@ -7,6 +8,7 @@ import { buildRankingProgress, type RankingProgress } from "./ranking-progress";
 import { buildTierList, calculateRankingConfidence } from "./tier";
 import { resolveTierRows, type TierRowConfig, type PoolTierConfig } from "./tier-config";
 import { assertRunAccess } from "./run-service";
+import { createTierShareVersion } from "./tier-share-version";
 
 type ScoreWithAnime = UserPoolScore & { anime: Anime };
 
@@ -27,6 +29,8 @@ export interface TierListItem extends ReturnType<typeof toPublicAnime> {
 }
 
 export interface RunTierListResult {
+  manualTierVersion: string;
+  shareVersion: string;
   tiers: Record<string, TierListItem[]>;
   tierRows: TierRowConfig[];
   confidenceScore: number;
@@ -36,6 +40,24 @@ export interface RunTierListResult {
   effectiveComparisons: number;
   scoreDistribution: RankingScoreDistribution;
   progress: RankingProgress;
+}
+
+export function createManualTierVersion(
+  scores: Pick<UserPoolScore, "animeId" | "manualTier" | "manualRank" | "manualLocked">[],
+  tierConfig: PoolTierConfig | null
+): string {
+  const manualState = [...scores]
+    .sort((left, right) => left.animeId.localeCompare(right.animeId))
+    .map(({ animeId, manualTier, manualRank, manualLocked }) => ({
+      animeId,
+      manualTier,
+      manualRank,
+      manualLocked
+    }));
+
+  return createHash("sha256")
+    .update(JSON.stringify({ tierConfig, manualState }))
+    .digest("hex");
 }
 
 export function toTierListItem(
@@ -128,15 +150,20 @@ export async function getRunTierList(params: {
     toTierListItem(score, displayByAnimeId.get(score.animeId))
   );
   const tiers = buildTierList(items, tierRows);
-
-  return {
-    tiers,
-    tierRows,
-    confidenceScore: calculateRankingConfidence(items),
+  const summary = {
     totalAnime: activeAnimeIds.size,
     comparedAnime: visibleScores.filter((score) => score.compareCount > 0).length,
     totalComparisons: activeTotalComparisons,
-    effectiveComparisons: activeEffectiveComparisons,
+    effectiveComparisons: activeEffectiveComparisons
+  };
+
+  return {
+    manualTierVersion: createManualTierVersion(scores, tierConfig),
+    shareVersion: createTierShareVersion({ tiers, tierRows, ...summary }),
+    tiers,
+    tierRows,
+    confidenceScore: calculateRankingConfidence(items),
+    ...summary,
     scoreDistribution: buildScoreDistribution(items.map((item) => item.eloScore)),
     progress: buildRankingProgress({
       totalItems: visibleScores.length,

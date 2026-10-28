@@ -8,6 +8,7 @@ import { getAnimeDisplayTitle } from "@/lib/anime-display";
 import { ANIME_TAG_DICTIONARY, labelAnimeTag, suggestAnimeTags, normalizeTagKey } from "@/lib/anime-tag-dictionary";
 import { addAnimeToPool, bulkImportAnimeToPool, discoverAnime, searchBangumiAnime, type PublicAnime } from "@/lib/client-api";
 import { bangumiSearchItemToAnime, DEFAULT_DISCOVERY_FILTERS, validateDiscoveryYears, type DiscoveryFilters } from "@/lib/anime-discovery";
+import { ANIME_FORMAT_OPTIONS } from "@/lib/anime-filter-options";
 
 const PAGE_SIZE = 12;
 const selectionKey = (anime: PublicAnime) => anime.bgmId !== null ? `bgm:${anime.bgmId}` : anime.id;
@@ -39,7 +40,11 @@ export function AnimeDiscoveryPanel({ poolId, joinedAnimeIds, joinedBangumiIds, 
   const suggestions = draft.q.trim() ? suggestAnimeTags(draft.q, 4).filter((tag) => !draft.tags.includes(tag.key)) : [];
 
   function update<K extends keyof DiscoveryFilters>(key: K, value: DiscoveryFilters[K]) {
-    setDraft((current) => ({ ...current, [key]: value }));
+    setDraft((current) => {
+      const next = { ...current, [key]: value };
+      if ((key === "yearFrom" || key === "yearTo") && (!next.yearFrom || next.yearFrom !== next.yearTo)) next.month = "";
+      return next;
+    });
   }
   function toggleTag(key: string) {
     setDraft((current) => ({ ...current, tags: current.tags.includes(key) ? current.tags.filter((tag) => tag !== key) : [...current.tags, key].slice(0, 5) }));
@@ -57,6 +62,7 @@ export function AnimeDiscoveryPanel({ poolId, joinedAnimeIds, joinedBangumiIds, 
       const params = {
         yearFrom: filters.yearFrom ? Number(filters.yearFrom) : undefined,
         yearTo: filters.yearTo ? Number(filters.yearTo) : undefined,
+        month: filters.month ? Number(filters.month) : undefined,
         type: filters.type || undefined, tags: filters.tags, sort: filters.sort, offset: nextPage * PAGE_SIZE
       };
       let results: PublicAnime[], more: boolean, count: number | null;
@@ -126,11 +132,16 @@ export function AnimeDiscoveryPanel({ poolId, joinedAnimeIds, joinedBangumiIds, 
         <div className="mt-1 flex gap-2"><input type="search" aria-label="搜索作品" maxLength={200} value={draft.q} onChange={(event) => update("q", event.target.value)} placeholder={draft.source === "bangumi" ? "中文名、原名或条目链接" : "搜索本地已收录的作品"} className="anime-field min-w-0 flex-1" /><AppButton type="submit" variant="primary">{busy ? "重新查询" : "搜索"}</AppButton></div>
       </label>
       <div className="grid grid-cols-2 gap-2">
-        <label className="text-xs text-slate-400">作品形式<select aria-label="作品形式" value={draft.type} onChange={(event) => update("type", event.target.value)} className="anime-field mt-1"><option value="">全部形式</option>{["TV", "MOVIE", "OVA", "ONA", "SPECIAL"].map((type) => <option key={type} value={type}>{type === "MOVIE" ? "动画电影" : type === "SPECIAL" ? "特别篇" : type}</option>)}</select></label>
+        <label className="text-xs text-slate-400">作品形式<select aria-label="作品形式" value={draft.type} onChange={(event) => update("type", event.target.value)} className="anime-field mt-1"><option value="">全部形式</option>{ANIME_FORMAT_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label className="text-xs text-slate-400">排序<select aria-label="作品排序" value={draft.sort} onChange={(event) => update("sort", event.target.value)} className="anime-field mt-1">{draft.source === "bangumi" ? <option value="match">匹配度</option> : <><option value="title">按标题</option><option value="year">按年份</option></>}<option value="score">按评分</option><option value="rank">按排名</option></select></label>
       </div>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="text-xs text-slate-400">播出年份<input aria-label="播出年份" type="number" min={1900} max={2100} placeholder="不限年份" value={draft.yearFrom === draft.yearTo ? draft.yearFrom : ""} onChange={(event) => setDraft((current) => ({ ...current, yearFrom: event.target.value, yearTo: event.target.value, month: event.target.value ? current.month : "" }))} className="anime-field mt-1" /></label>
+        <label className="text-xs text-slate-400">播出月份<select aria-label="播出月份" value={draft.month ?? ""} disabled={!draft.yearFrom || draft.yearFrom !== draft.yearTo} onChange={(event) => update("month", event.target.value)} className="anime-field mt-1 disabled:opacity-50"><option value="">{draft.yearFrom && draft.yearFrom === draft.yearTo ? "全年" : "先选择年份"}</option>{Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={String(index + 1)}>{index + 1} 月</option>)}</select></label>
+      </div>
+      <p className="text-xs leading-5 text-slate-400">按首播日期筛选；名称可以留空。类型、年份、月份可一起选择。</p>
       <details className="rounded-xl border border-white/10 p-3">
-        <summary className="cursor-pointer text-sm text-slate-300">年份与题材{draft.tags.length ? ` · ${draft.tags.length} 个标签` : ""}{draft.yearFrom || draft.yearTo ? " · 已选年份" : ""}</summary>
+        <summary className="min-h-11 cursor-pointer py-3 text-sm text-slate-300">更多筛选：题材与年份范围{draft.tags.length ? ` · ${draft.tags.length} 个标签` : ""}</summary>
         <div className="mt-3 grid grid-cols-2 gap-2">{([ ["yearFrom", "开始年份"], ["yearTo", "结束年份"] ] as const).map(([key, label]) => <label key={key} className="text-xs text-slate-400">{label}<input aria-label={label} type="number" min={1900} max={2100} value={draft[key]} onChange={(event) => update(key, event.target.value)} placeholder="不限" className="anime-field mt-1" /></label>)}</div>
         <div className="mt-3 flex flex-wrap gap-2">{COMMON_TAGS.map((tag) => <button key={tag.key} type="button" aria-pressed={draft.tags.includes(tag.key)} onClick={() => toggleTag(tag.key)} className={`min-h-9 rounded-full border px-3 text-xs ${draft.tags.includes(tag.key) ? "border-cyan-300/50 bg-cyan-300/10 text-cyan-100" : "border-white/10 text-slate-400"}`}>{tag.label}</button>)}</div>
         <label className="mt-3 block text-xs text-slate-400">更多标签<select aria-label="添加题材标签" value="" onChange={(event) => toggleTag(event.target.value)} className="anime-field mt-1"><option value="" disabled>选择题材标签 · 最多 5 个</option>{ANIME_TAG_DICTIONARY.filter((tag) => !draft.tags.includes(tag.key)).map((tag) => <option key={tag.key} value={tag.key}>{tag.label}</option>)}</select></label>
@@ -141,7 +152,7 @@ export function AnimeDiscoveryPanel({ poolId, joinedAnimeIds, joinedBangumiIds, 
         setDraft((current) => ({ ...current, q: exact ? "" : current.q, tags: [...current.tags, tag.key].slice(0, 5) }));
       }} className="min-h-9 rounded-full border border-cyan-300/25 px-3 text-cyan-100">{tag.label}</button>)}</div>}
       {(draft.tags.length > 0 || draft.yearFrom || draft.yearTo || draft.type) && <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">{draft.tags.map((tag) => <button type="button" onClick={() => toggleTag(tag)} className="min-h-9 rounded-full border border-cyan-300/25 px-3 text-cyan-100" key={tag}>{labelAnimeTag(tag)} ×</button>)}<button type="button" className="min-h-9 px-2" onClick={() => setDraft({ ...DEFAULT_DISCOVERY_FILTERS, source: draft.source, q: draft.q, sort: draft.source === "local" ? "title" : "match" })}>清空筛选</button></div>}
-      <div className="flex flex-wrap items-center gap-2"><AppButton type="submit" size="sm" variant="ghost">应用筛选</AppButton><AppButton type="button" size="sm" variant="quiet" onClick={() => { const next = { ...draft, q: "", yearFrom: String(new Date().getFullYear()), yearTo: String(new Date().getFullYear()) }; setDraft(next); void search(next); }}>今年新番</AppButton></div>
+      <div className="flex flex-wrap items-center gap-2"><AppButton type="submit" size="sm" variant="ghost">应用筛选</AppButton><AppButton type="button" size="sm" variant="quiet" onClick={() => { const next = { ...draft, q: "", month: "", yearFrom: String(new Date().getFullYear()), yearTo: String(new Date().getFullYear()) }; setDraft(next); void search(next); }}>今年新番</AppButton></div>
     </form>
     {error && <div role="alert" className="rounded-xl border border-rose-300/25 bg-rose-300/5 p-3 text-sm text-rose-200"><p>{error}</p>{errorKind === "search" && <AppButton type="button" size="sm" variant="quiet" onClick={() => void search(draft)}>重试查询</AppButton>}</div>}
     {notice && <p role="status" className="text-sm text-cyan-200">{notice}</p>}
