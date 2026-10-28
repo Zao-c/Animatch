@@ -33,12 +33,13 @@ export function AppShell({
               </span>
             </span>
           </Link>
-          <nav aria-label="主导航" className="order-3 col-span-2 grid min-w-0 grid-cols-5 gap-1 text-xs text-slate-300 [&_a]:justify-center [&_a]:px-1 sm:gap-2 sm:text-sm xl:order-none xl:ml-auto xl:flex xl:items-center xl:[&_a]:px-4">
+          <nav aria-label="主导航" className="order-3 col-span-2 grid min-w-0 grid-cols-3 gap-1 text-xs text-slate-300 [&_a]:justify-center [&_a]:px-1 sm:grid-cols-6 sm:gap-2 sm:text-sm xl:order-none xl:ml-auto xl:flex xl:items-center xl:[&_a]:px-4">
             <NavLink href="/pools?view=public">番组大厅</NavLink>
             <NavLink href="/pools/new">创建番组</NavLink>
             <NavLink href="/pools">我的番组</NavLink>
             <NavLink href="/collections">年度组合</NavLink>
             <NavLink href="/tierlists">Tier List</NavLink>
+            <NavLink href="/anisong">音乐对决</NavLink>
           </nav>
           <div className="min-w-0 justify-self-end text-sm text-slate-300"><AuthNav /></div>
         </div>

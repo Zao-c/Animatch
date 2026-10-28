@@ -98,6 +98,7 @@ model User {
   tasteProfilePublic   Boolean                @default(false)
   collections          AnimeCollection[]
   manualTierBoards     ManualTierBoard[]
+  songBoards           SongBoard[]
   awardCeremonies       AwardCeremony[]
   awardBallots         AwardBallot[]
   awardMembers         AwardMember[]
@@ -118,6 +119,22 @@ model User {
   battleSeasons        BattleSeason[]
   battleVotes          BattleVote[]
   battleSeasonScores   BattleSeasonUserScore[]
+}
+
+// Personal music comparisons; song metadata and the replayable ledger are versioned together.
+model SongBoard {
+  id          String   @id @default(cuid())
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title       String
+  revision    Int      @default(1)
+  document    Json
+  shareToken  String?  @unique
+  snapshot    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerId, updatedAt])
 }
 
 // Nomination collection is separate from live voting and winner decisions.

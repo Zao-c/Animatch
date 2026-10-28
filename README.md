@@ -18,6 +18,7 @@ Next.js 14 · React 18 · TypeScript · Prisma 6 · PostgreSQL
 - **自由排榜**：直接拖拽封面，支持批量选择、点选分档、自定义档位和撤销。
 - **保存与分享**：草稿恢复、覆盖冲突保护、PNG 导出、公开快照链接。保存草稿不会自动更新已分享的内容。
 - **社区玩法**：匿名聚合榜单、赛季投票、年度组合与年度大赏；个人排序独立保存。
+- **AnisongMatch**：在 `/anisong` 创建音乐曲单，按季度、OP / ED、风格筛选，自有音频上传或 HTTPS 直链试听；对决生成 Tier List，支持撤回、手动分档、PNG 导出和不含音频的分享快照。
 
 ## 截图
 
@@ -91,6 +92,7 @@ docs/             设计、部署与变更记录
 - [对决流水与计分边界](docs/comparison-ledger.md)
 - [UI / UX 问题清单](docs/ui-ux-audit-2026-10-24.md)
 - [界面精简与截图记录](docs/minimal-ui-readme-2026-10-27.md)
+- [AnisongMatch：功能、验证与第三方音源待办](docs/anisongmatch-2026-10-29.md)
 
 已有生产数据库使用 `pnpm exec prisma migrate deploy` 升级；部署前按部署文档备份。
 
