@@ -105,9 +105,9 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
   };
   useEffect(() => {
     function keyboard(e: KeyboardEvent) {
-      if (tab !== "match" || !pair || busy || conflict || loading || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (tab !== "match" || !pair || busy || conflict || loading || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
       const target = e.target as HTMLElement;
-      if (target.closest("input, textarea, select, button, a, [contenteditable=true]")) return;
+      if (target.closest("input, textarea, select, button, a, summary, [contenteditable]:not([contenteditable=false])")) return;
       const result = ({ ArrowLeft: "LEFT_WIN", ArrowRight: "RIGHT_WIN", ArrowUp: "DRAW", ArrowDown: "SKIP", "1": "LEFT_WIN", "2": "RIGHT_WIN", "3": "DRAW", "4": "SKIP" } as Record<string, SongDecision>)[e.key];
       if (result) { e.preventDefault(); vote(result); }
     }
@@ -144,7 +144,7 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
     </div>
     {tab === "library" && <section role="tabpanel" id="panel-library" aria-labelledby="tab-library" className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-slate-400">按季度、类型或风格筛选，再选择参赛范围。</p><div className="flex flex-wrap gap-2"><AppButton variant="ghost" disabled={disabled || batchOpen || board.document.tracks.length >= MAX_TRACKS} onClick={() => { if ((editing || batchOpen || bulkEditing) && !window.confirm("放弃当前未保存的编辑或待导入文件？")) return; setEditing(null); setBulkEditing(false); setBatchOpen(true); }}>批量导入音频</AppButton><AppButton disabled={disabled || board.document.tracks.length >= MAX_TRACKS} onClick={() => editTrack("new")}>＋ 添加歌曲</AppButton></div></div>
-      {batchOpen && <SongBatchImport tracks={board.document.tracks} disabled={busy || conflict || loading || login} onRunning={setImporting} onSave={data => mutate({}, data)} onCancel={() => { if (window.confirm("收起导入面板？已保存歌曲会保留，待导入文件需重新选择。")) setBatchOpen(false); }} />}
+      {batchOpen && <SongBatchImport tracks={board.document.tracks} disabled={busy || conflict || loading || login} onRunning={setImporting} onSave={data => mutate({}, data)} onCancel={hasPending => { if (!hasPending || window.confirm("收起导入面板？已保存歌曲会保留，待导入文件需重新选择。")) setBatchOpen(false); }} />}
       {editing && <SongForm boardId={boardId} key={editing === "new" ? "new" : editing.id} track={editing === "new" ? undefined : editing} busy={disabled} onCancel={() => editTrack(null)} onSave={async data => { const saved = await mutate({}, data); if (saved) setEditing(null); return saved; }} />}
       <div className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr_1fr]">
         <input aria-label="搜索歌曲或风格" placeholder="歌名 / 歌手 / 动画 / 风格" className="anime-field" disabled={bulkEditing || busy || importing} value={search} onChange={e => setSearch(e.target.value)} />
@@ -186,7 +186,7 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
           right={<SongMatchCard key={`right-${board.revision}`} track={pair.right} boardId={boardId} side="right" disabled={disabled} onPick={() => vote("RIGHT_WIN")} onUnheard={() => vote("RIGHT_UNSEEN")} />}
         /></div>
         <div className="flex justify-center gap-3"><AppButton variant="secondary" disabled={disabled} onClick={() => vote("DRAW")}>一样喜欢</AppButton><AppButton variant="ghost" disabled={disabled} onClick={() => vote("SKIP")}>跳过这组</AppButton></div>
-        <p className="text-center text-xs text-slate-500">← / → 选左右 · ↑ 平局 · ↓ 跳过（也支持 1 / 2 / 3 / 4）</p>
+        <p className="text-center text-xs leading-6 text-slate-500"><span className="block text-slate-400">Q / E 试听或暂停左右歌曲 · 切换试听会自动暂停另一首</span>← / → 选左右 · ↑ 平局 · ↓ 跳过（也支持 1 / 2 / 3 / 4）</p>
       </> : <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center"><p>参与对决的歌曲不足两首。</p><p className="mt-2 text-sm text-slate-400">添加歌曲、调整参赛范围，或恢复「未听过」的歌。</p><AppButton className="mt-5" onClick={() => changeTab("library")}>管理曲单</AppButton></div>}
       {ranking && <div className="rounded-2xl border border-white/10 p-5"><div className="flex justify-between gap-3 text-sm"><span>{ranking.progress.stage === "EMPTY" ? "等待开始" : ranking.progress.stageLabel}</span><button className="text-anime-cyan" onClick={() => changeTab("tier")}>查看当前 Tier List →</button></div><progress aria-label="对决进度" value={ranking.progress.progressRatio} max={1} className="mt-3 h-2 w-full accent-teal-300" /><p className="mt-2 text-xs text-slate-400">{ranking.progress.remainingToNextStage > 0 ? `再比较 ${ranking.progress.remainingToNextStage} 次，${ranking.progress.nextTargetLabel}。` : "可以继续比较，或查看榜单。"}进度是比较次数参考，不代表统计置信度。</p></div>}
     </section>}

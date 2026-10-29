@@ -1,4 +1,4 @@
-import type { SongSnapshot } from "./types";
+import { KIND_LABELS, type SongSnapshot } from "./types";
 import { downloadSongFile } from "./client";
 
 function loadCover(url: string, timeoutMs: number): Promise<HTMLImageElement | null> {
@@ -73,7 +73,7 @@ export async function exportSongPng(snapshot: SongSnapshot) {
       }
       text(song.title, x, sy + 201, coverSize, 19, "#f8fafc", true);
       text(song.artist || "歌手未填写", x, sy + 222, coverSize, 14, "#cbd5e1");
-      text(`${song.kind} · ${song.anime || "动画未填写"}${song.manual ? " · 手动" : ""}`, x, sy + 241, coverSize, 12, "#94a3b8");
+      text(`${KIND_LABELS[song.kind]}${song.anime ? ` · ${song.anime}` : ""}${song.manual ? " · 手动" : ""}`, x, sy + 241, coverSize, 12, "#94a3b8");
     });
     y += height + 8;
   });

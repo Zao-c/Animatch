@@ -93,6 +93,7 @@ docs/             设计、部署与变更记录
 - [UI / UX 问题清单](docs/ui-ux-audit-2026-10-24.md)
 - [界面精简与截图记录](docs/minimal-ui-readme-2026-10-27.md)
 - [AnisongMatch：功能、验证与第三方音源待办](docs/anisongmatch-2026-10-29.md)
+- [AnisongMatch：免费音乐 UI 验收素材与上传步骤](docs/anisong-demo-music.md)
 
 已有生产数据库使用 `pnpm exec prisma migrate deploy` 升级；部署前按部署文档备份。
 

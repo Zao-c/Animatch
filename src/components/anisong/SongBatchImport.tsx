@@ -10,7 +10,7 @@ import { LocalSongCover } from "./LocalSongCover";
 type Item = { key: string; file: File; title: string; artist: string; cover: Blob | null; note: string; status: "queued" | "uploading" | "done" | "failed"; data?: FormData };
 export function SongBatchImport({ tracks, disabled, onSave, onRunning, onCancel }: {
   tracks: SongTrack[]; disabled: boolean; onSave: (data: FormData) => Promise<boolean>;
-  onRunning: (running: boolean) => void; onCancel: () => void;
+  onRunning: (running: boolean) => void; onCancel: (hasPending: boolean) => void;
 }) {
   const [items, setItems] = useState<Item[]>([]);
   const [reading, setReading] = useState(false);
@@ -102,7 +102,7 @@ export function SongBatchImport({ tracks, disabled, onSave, onRunning, onCancel 
           </li>;
         })}
       </ul>
-      <div className="flex flex-wrap gap-3"><AppButton type="submit" disabled={!pending.length || pending.some(i => !i.title.trim())}>导入剩余 {pending.length} 首</AppButton><AppButton type="button" variant="ghost" onClick={onCancel}>收起</AppButton></div>
+      <div className="flex flex-wrap gap-3"><AppButton type="submit" disabled={!pending.length || pending.some(i => !i.title.trim())}>导入剩余 {pending.length} 首</AppButton><AppButton type="button" variant="ghost" onClick={() => onCancel(pending.length > 0)}>收起</AppButton></div>
     </fieldset>
     {reading && <div role="status" className="flex flex-wrap items-center gap-3 text-sm"><span>正在读取本地文件信息…</span><AppButton type="button" variant="ghost" onClick={() => reader.current?.abort()}>跳过自动读取</AppButton></div>}
     {running && <div className="flex flex-wrap items-center gap-3"><span role="status" className="text-sm text-slate-300">已保存 {items.filter(i => i.status === "done" || doneKeys.has(i.key)).length} / {items.length} 首</span><AppButton type="button" variant="ghost" disabled={stopping} onClick={() => { stop.current = true; setStopping(true); }}> {stopping ? "当前歌曲保存后暂停…" : "暂停导入"}</AppButton></div>}
