@@ -5,6 +5,7 @@ import { AppButton } from "@/components/ui/AppButton";
 export function SongClipEditor({ src, initialStart = 0, initialLength = 30 }: { src: string; initialStart?: number; initialLength?: number }) {
   const audio = useRef<HTMLAudioElement>(null);
   const previewing = useRef(false);
+  const generation = useRef(0);
   const [start, setStart] = useState(String(initialStart));
   const [length, setLength] = useState(String(initialLength));
   const [duration, setDuration] = useState<number | null>(null);
@@ -15,23 +16,25 @@ export function SongClipEditor({ src, initialStart = 0, initialLength = 30 }: { 
   const valid = start !== "" && length !== "" && Number.isFinite(offset) && Number.isFinite(seconds) && offset >= 0 && offset <= 3600 && seconds >= 5 && seconds <= 90;
   useEffect(() => {
     const element = audio.current;
+    const currentGeneration = generation;
     previewing.current = false; setDuration(null); setPosition(0); setError("");
-    function stop(event: Event) { if ((event as CustomEvent).detail !== element) { previewing.current = false; element?.pause(); } }
+    function stop(event: Event) { if ((event as CustomEvent).detail !== element) { generation.current++; previewing.current = false; element?.pause(); } }
     window.addEventListener("anisong:play", stop);
-    return () => { window.removeEventListener("anisong:play", stop); element?.pause(); };
+    return () => { currentGeneration.current++; window.removeEventListener("anisong:play", stop); element?.pause(); };
   }, [src]);
-  function stopPreview() { previewing.current = false; audio.current?.pause(); }
+  function stopPreview() { generation.current++; previewing.current = false; audio.current?.pause(); }
   async function preview() {
     const element = audio.current;
     if (!element || !valid) return;
     if (duration !== null && offset >= duration) { setError("试听起点超出音频长度，请重新选择。"); return; }
     setError(""); window.dispatchEvent(new CustomEvent("anisong:play", { detail: element }));
     previewing.current = true;
+    const current = ++generation.current;
     try {
       if (element.readyState === 0 || element.error) element.load();
       else element.currentTime = offset;
       await element.play();
-    } catch (e) { if (!(e instanceof DOMException && e.name === "AbortError")) setError("暂时无法试听，请检查音频文件或直链。"); previewing.current = false; }
+    } catch (e) { if (generation.current === current) { if (!(e instanceof DOMException && e.name === "AbortError")) setError("暂时无法试听，请检查音频文件或直链。"); previewing.current = false; } }
   }
   return <div className="space-y-4 rounded-xl border border-white/10 p-4">
     <div><h3 className="text-sm font-semibold">选择试听片段</h3><p className="mt-1 text-xs leading-5 text-slate-400">先用播放器找到喜欢的段落，再设为起点。保存前可以试听这段音乐。</p></div>
@@ -50,8 +53,8 @@ export function SongClipEditor({ src, initialStart = 0, initialLength = 30 }: { 
             else element.currentTime = offset;
           }
         }}
-        onPlay={e => window.dispatchEvent(new CustomEvent("anisong:play", { detail: e.currentTarget }))}
-        onPause={() => { previewing.current = false; }}
+        onPlay={e => { if (!e.currentTarget.paused) window.dispatchEvent(new CustomEvent("anisong:play", { detail: e.currentTarget })); }}
+        onPause={e => { if (e.currentTarget === audio.current && e.currentTarget.paused) { generation.current++; previewing.current = false; } }}
         onTimeUpdate={e => { const element = e.currentTarget; setPosition(element.currentTime); if (previewing.current && element.currentTime >= offset + seconds) stopPreview(); }}
         onError={() => { previewing.current = false; setError("音频无法加载，可以更换文件或检查直链后重试。"); }} />
       <div className="flex flex-wrap gap-2"><AppButton type="button" size="sm" variant="ghost" disabled={duration === null} onClick={() => { stopPreview(); setError(""); setStart(String(Math.min(3600, Math.max(0, Math.floor(Math.min(position, Math.max(0, (duration ?? 0) - 0.1)) * 10) / 10)))); }}>用当前位置作为起点</AppButton><AppButton type="button" size="sm" disabled={!valid} onClick={() => void preview()}>试听所选片段</AppButton>{[15, 30, 60].map(value => <AppButton key={value} type="button" size="sm" variant="quiet" aria-pressed={seconds === value} onClick={() => { stopPreview(); setLength(String(value)); }}>{value}秒</AppButton>)}</div>

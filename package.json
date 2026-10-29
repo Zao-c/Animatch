@@ -25,6 +25,7 @@
     "cheerio": "^1.2.0",
     "cos-nodejs-sdk-v5": "^2.15.4",
     "html-to-image": "^1.11.13",
+    "music-metadata": "11.16.1",
     "next": "^14.2.23",
     "next-auth": "^4.24.11",
     "react": "^18.3.1",

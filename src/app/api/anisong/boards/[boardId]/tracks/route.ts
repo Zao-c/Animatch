@@ -37,6 +37,7 @@ export async function POST(request: Request, { params }: { params: { boardId: st
       coverUrl = uploadedCover;
     }
     const file = form.get("file");
+    if (file instanceof File && file.name && file.size === 0) throw new AppError("所选音频文件为空，请重新选择", 400);
     const url = audioUrlInput(form.get("audioUrl"));
     let source: SongSource = form.get("removeAudio") === "true" ? { kind: "none" } : previous?.source ?? { kind: "none" };
     if (file instanceof File && file.size > 0) {
