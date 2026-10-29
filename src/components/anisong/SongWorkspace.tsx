@@ -8,6 +8,7 @@ import { exportSongPng } from "@/lib/anisong/export";
 import { KIND_LABELS, SONG_KINDS, MAX_TRACKS, type SongBoardView, type SongDecision, type SongTrack } from "@/lib/anisong/types";
 import { SongForm } from "./SongForm";
 import { SongBatchImport } from "./SongBatchImport";
+import { SongBulkTools } from "./SongBulkTools";
 import { SongPlayer } from "./SongPlayer";
 import { SongTierView } from "./SongTierView";
 import { SongCover } from "./SongCover";
@@ -21,6 +22,8 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
   const [tab, setTab] = useState<Tab>("library");
   const [busy, setBusy] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
   const latestBoard = useRef<SongBoardView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,8 +42,8 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
   const endpoint = `/api/anisong/boards/${boardId}`;
   function changeTab(next: Tab) {
     if (lock.current || importing) return;
-    if (next !== tab && (editing || batchOpen) && !window.confirm("编辑或导入面板尚未收起，要放弃待保存内容并切换吗？")) return;
-    if (next !== tab) { setEditing(null); setBatchOpen(false); }
+    if (next !== tab && (editing || batchOpen || bulkEditing) && !window.confirm("编辑或导入面板尚未收起，要放弃待保存内容并切换吗？")) return;
+    if (next !== tab) { setEditing(null); setBatchOpen(false); setBulkEditing(false); }
     setTab(next);
     const url = new URL(window.location.href); url.searchParams.set("view", next);
     window.history.replaceState(window.history.state, "", url);
@@ -59,14 +62,14 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
   }, [reload]);
   useEffect(() => { setShareUrl(board?.shareToken ? `${window.location.origin}/anisong/share/${board.shareToken}` : ""); }, [board?.shareToken]);
   useEffect(() => {
-    if (!editing && !batchOpen && !busy && !importing) return;
+    if (!editing && !batchOpen && !bulkEditing && !busy && !importing) return;
     return registerUnsavedChangesGuard(window, busy || importing ? "操作尚未完成，确定离开吗？" : "编辑或导入面板尚未收起，确定放弃待保存内容并离开吗？");
-  }, [editing, batchOpen, busy, importing]);
+  }, [editing, batchOpen, bulkEditing, busy, importing]);
   function editTrack(next: SongTrack | "new" | null) {
     if (lock.current || importing) return;
     if (next === editing || (next && next !== "new" && editing && editing !== "new" && next.id === editing.id)) return;
-    if ((editing || batchOpen) && !window.confirm("放弃当前未保存的歌曲编辑？")) return;
-    setBatchOpen(false); setEditing(next);
+    if ((editing || batchOpen || bulkEditing) && !window.confirm("放弃当前未保存的歌曲编辑？")) return;
+    setBatchOpen(false); setBulkEditing(false); setEditing(next);
   }
 
   async function mutate(input: Record<string, unknown>, form?: FormData): Promise<boolean> {
@@ -94,8 +97,9 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
   const pair = useMemo(() => board ? nextSongPair(board.document) : null, [board]);
   const visibleTracks = useMemo(() => board?.document.tracks.filter(t =>
     (!kind || t.kind === kind) && (!year || String(t.year) === year) && (!quarter || String(t.quarter) === quarter) &&
-    (!search || [t.title, t.artist, t.anime, ...t.tags].some(s => s.toLocaleLowerCase().includes(search.toLocaleLowerCase())))
+    (!search.trim() || [t.title, t.artist, t.anime, ...t.tags].some(s => s.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())))
   ) ?? [], [board, search, kind, year, quarter]);
+  const visibleMatchCount = visibleTracks.filter(t => !ranking?.scores.find(score => score.animeId === t.id)?.isHidden).length;
   const vote = (result: SongDecision) => {
     if (pair) void mutate({ action: "vote", eventId: crypto.randomUUID(), leftId: pair.left.id, rightId: pair.right.id, result });
   };
@@ -139,34 +143,40 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
       {([["library", "曲单"], ["match", "音乐对决"], ["tier", "Tier List"]] as const).map(([key, label]) => <button key={key} id={`tab-${key}`} role="tab" disabled={busy || importing} aria-selected={tab === key} aria-controls={`panel-${key}`} className={`min-h-12 rounded-xl px-3 text-sm font-semibold ${tab === key ? "bg-anime-cyan text-slate-950" : "text-slate-300 hover:bg-white/5"}`} onClick={() => changeTab(key)}>{label}</button>)}
     </div>
     {tab === "library" && <section role="tabpanel" id="panel-library" aria-labelledby="tab-library" className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-slate-400">按季度、类型或风格筛选，再选择参赛范围。</p><div className="flex flex-wrap gap-2"><AppButton variant="ghost" disabled={disabled || batchOpen || board.document.tracks.length >= MAX_TRACKS} onClick={() => { if ((editing || batchOpen) && !window.confirm("放弃当前未保存的编辑或待导入文件？")) return; setEditing(null); setBatchOpen(true); }}>批量导入音频</AppButton><AppButton disabled={disabled || board.document.tracks.length >= MAX_TRACKS} onClick={() => editTrack("new")}>＋ 添加歌曲</AppButton></div></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-slate-400">按季度、类型或风格筛选，再选择参赛范围。</p><div className="flex flex-wrap gap-2"><AppButton variant="ghost" disabled={disabled || batchOpen || board.document.tracks.length >= MAX_TRACKS} onClick={() => { if ((editing || batchOpen || bulkEditing) && !window.confirm("放弃当前未保存的编辑或待导入文件？")) return; setEditing(null); setBulkEditing(false); setBatchOpen(true); }}>批量导入音频</AppButton><AppButton disabled={disabled || board.document.tracks.length >= MAX_TRACKS} onClick={() => editTrack("new")}>＋ 添加歌曲</AppButton></div></div>
       {batchOpen && <SongBatchImport tracks={board.document.tracks} disabled={busy || conflict || loading || login} onRunning={setImporting} onSave={data => mutate({}, data)} onCancel={() => { if (window.confirm("收起导入面板？已保存歌曲会保留，待导入文件需重新选择。")) setBatchOpen(false); }} />}
       {editing && <SongForm boardId={boardId} key={editing === "new" ? "new" : editing.id} track={editing === "new" ? undefined : editing} busy={disabled} onCancel={() => editTrack(null)} onSave={async data => { const saved = await mutate({}, data); if (saved) setEditing(null); return saved; }} />}
       <div className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr_1fr]">
-        <input aria-label="搜索歌曲或风格" placeholder="歌名 / 歌手 / 动画 / 风格" className="anime-field" value={search} onChange={e => setSearch(e.target.value)} />
-        <select aria-label="歌曲类型" className="anime-field" value={kind} onChange={e => setKind(e.target.value)}><option value="">全部类型</option>{SONG_KINDS.map(k => <option key={k} value={k}>{KIND_LABELS[k]}</option>)}</select>
-        <select aria-label="年份" className="anime-field" value={year} onChange={e => setYear(e.target.value)}><option value="">全部年份</option>{[...new Set(board.document.tracks.map(t => t.year).filter((v): v is number => v !== null))].sort((a, b) => b - a).map(y => <option key={y}>{y}</option>)}</select>
-        <select aria-label="季度" className="anime-field" value={quarter} onChange={e => setQuarter(e.target.value)}><option value="">全部季度</option>{["冬季", "春季", "夏季", "秋季"].map((s, i) => <option key={s} value={i + 1}>{s}</option>)}</select>
+        <input aria-label="搜索歌曲或风格" placeholder="歌名 / 歌手 / 动画 / 风格" className="anime-field" disabled={bulkEditing || busy || importing} value={search} onChange={e => setSearch(e.target.value)} />
+        <select aria-label="歌曲类型" className="anime-field" disabled={bulkEditing || busy || importing} value={kind} onChange={e => setKind(e.target.value)}><option value="">全部类型</option>{SONG_KINDS.map(k => <option key={k} value={k}>{KIND_LABELS[k]}</option>)}</select>
+        <select aria-label="年份" className="anime-field" disabled={bulkEditing || busy || importing} value={year} onChange={e => setYear(e.target.value)}><option value="">全部年份</option>{[...new Set([...board.document.tracks.map(t => t.year).filter((v): v is number => v !== null), ...(year ? [Number(year)] : [])])].sort((a, b) => b - a).map(y => <option key={y}>{y}</option>)}</select>
+        <select aria-label="季度" className="anime-field" disabled={bulkEditing || busy || importing} value={quarter} onChange={e => setQuarter(e.target.value)}><option value="">全部季度</option>{["冬季", "春季", "夏季", "秋季"].map((s, i) => <option key={s} value={i + 1}>{s}</option>)}</select>
       </div>
-      <div className="flex flex-wrap items-center gap-3"><AppButton variant="secondary" size="sm" disabled={disabled || Boolean(editing) || batchOpen || visibleTracks.length < 2} onClick={async () => { if (await mutate({ action: "candidates", trackIds: visibleTracks.map(t => t.id) })) changeTab("match"); }}>用筛选的 {visibleTracks.length} 首开始对决</AppButton>{board.document.candidateIds !== null && <AppButton variant="ghost" size="sm" disabled={disabled} onClick={() => void mutate({ action: "candidates", trackIds: null })}>恢复全曲单参赛</AppButton>}<span className="text-xs text-slate-500">分档仅使用参赛歌曲之间的比较；切换范围保留历史。</span></div>
+      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400"><span>筛选结果 {visibleTracks.length} 首 · 可对决 {visibleMatchCount} 首</span>{(search || kind || year || quarter) && <AppButton size="sm" variant="quiet" disabled={disabled || bulkEditing} onClick={() => { setSearch(""); setKind(""); setYear(""); setQuarter(""); }}>清除筛选</AppButton>}</div>
+      <div className="rounded-xl border border-white/10 px-4 py-3 text-sm text-slate-300">当前参赛范围：{board.document.candidateIds === null ? `全曲单 ${board.document.tracks.length} 首（新加入的歌曲也参赛）` : `自选 ${board.document.candidateIds.length} 首`}<span className="ml-2 text-xs text-slate-400">可对决 {ranking?.active.length ?? 0} 首 · 未听过 {ranking?.hidden.length ?? 0} 首</span></div>
+      {(board.document.tracks.length > 0 || bulkEditing) && <SongBulkTools tracks={board.document.tracks} visible={visibleTracks} selectedIds={selectedIds} hiddenIds={ranking?.scores.filter(score => score.isHidden).map(score => score.animeId) ?? []} candidateIds={board.document.candidateIds} disabled={disabled || Boolean(editing) || batchOpen} open={bulkEditing} onOpen={setBulkEditing} onSelection={setSelectedIds}
+        onSave={(trackIds, patch) => mutate({ action: "bulkEdit", trackIds, patch })}
+        onCandidates={async (trackIds, mode) => { const saved = await mutate(mode === "only" ? { action: "candidates", trackIds } : { action: "candidateSelection", trackIds, mode }); if (saved && mode === "only") changeTab("match"); return saved; }} />}
+      <div className="flex flex-wrap items-center gap-3"><AppButton variant="secondary" size="sm" disabled={disabled || Boolean(editing) || batchOpen || bulkEditing || visibleMatchCount < 2} onClick={async () => { if (await mutate({ action: "candidates", trackIds: visibleTracks.map(t => t.id) })) changeTab("match"); }}>用筛选的 {visibleTracks.length} 首开始对决</AppButton>{board.document.candidateIds !== null && <AppButton variant="ghost" size="sm" disabled={disabled || bulkEditing} onClick={() => void mutate({ action: "candidates", trackIds: null })}>恢复全曲单参赛</AppButton>}<span className="text-xs text-slate-500">分档仅使用参赛歌曲之间的比较；切换范围保留历史。</span></div>
       {visibleTracks.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center"><p className="text-lg font-semibold">{board.document.tracks.length ? "没有符合筛选的歌曲" : "把舍不得跳过的歌放进来"}</p><p className="mt-1 text-xs text-slate-400">{board.document.tracks.length ? "试试其他季度、类型或关键词。" : "添加至少两首歌曲，就能开始第一场对决。"}</p></div> : <div className="grid gap-3 sm:grid-cols-2">
         {visibleTracks.map(track => {
           const score = ranking?.scores.find(s => s.animeId === track.id);
           const excluded = board.document.candidateIds !== null && !board.document.candidateIds.includes(track.id);
           return <article key={`${track.id}-${board.revision}`} className="min-w-0 space-y-4 rounded-2xl border border-white/10 bg-slate-950/30 p-5">
+            <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs text-slate-300"><input type="checkbox" aria-label={`选择歌曲：${track.title}`} checked={selectedIds.includes(track.id)} disabled={disabled || bulkEditing || Boolean(editing) || batchOpen} className="h-4 w-4 accent-teal-300" onChange={e => setSelectedIds(previous => e.target.checked ? [...new Set([...previous, track.id])] : previous.filter(id => id !== track.id))} />选择歌曲</label>
             <div className="flex items-start gap-3"><SongCover src={track.coverUrl} title={track.title} className="w-20" /><div className="min-w-0 flex-1"><h3 className="break-words font-semibold">{track.title}</h3><p className="mt-1 break-words text-sm text-slate-400">{track.artist || "歌手未填写"}</p></div><span className="rounded-md bg-anime-purple/10 px-2 py-1 text-xs text-anime-purple">{KIND_LABELS[track.kind]}</span></div>
             <p className="break-words text-xs text-slate-400">{[track.anime, track.year, track.quarter ? ["冬季", "春季", "夏季", "秋季"][track.quarter - 1] : "", ...track.tags].filter(Boolean).join(" · ") || "可在编辑中补充动画、季度和风格"}</p>
             <SongPlayer track={track} boardId={boardId} />
             <div className="flex flex-wrap items-center gap-2 border-t border-white/5 pt-3">
               <span className="mr-auto text-xs text-slate-500">{excluded ? "未参赛" : score?.isHidden ? "未听过" : `已比较 ${score?.compareCount ?? 0} 次`}</span>
-              {score?.isHidden && <AppButton size="sm" variant="ghost" disabled={disabled} onClick={() => void mutate({ action: "restore", trackId: track.id })}>恢复</AppButton>}
+              {score?.isHidden && <AppButton size="sm" variant="ghost" disabled={disabled || bulkEditing} onClick={() => void mutate({ action: "restore", trackId: track.id })}>恢复</AppButton>}
               <AppButton size="sm" variant="ghost" disabled={disabled} onClick={() => { editTrack(track); window.scrollTo({ top: 0, behavior: "smooth" }); }}>编辑</AppButton>
-              <AppButton size="sm" variant="ghost" disabled={disabled} onClick={() => { if (window.confirm(`移除「${track.title}」及与它相关的对决记录？榜单将重新计算。`)) void mutate({ action: "remove", trackId: track.id }); }}>移除</AppButton>
+              <AppButton size="sm" variant="ghost" disabled={disabled || bulkEditing} onClick={() => { if (window.confirm(`移除「${track.title}」及与它相关的对决记录？榜单将重新计算。`)) void mutate({ action: "remove", trackId: track.id }); }}>移除</AppButton>
             </div>
           </article>;
         })}
       </div>}
-      <div className="border-t border-white/10 pt-5"><AppButton variant="quiet" size="sm" disabled={disabled || Boolean(editing) || batchOpen} onClick={() => void removeBoard()}>删除这份曲单</AppButton></div>
+      <div className="border-t border-white/10 pt-5"><AppButton variant="quiet" size="sm" disabled={disabled || Boolean(editing) || batchOpen || bulkEditing} onClick={() => void removeBoard()}>删除这份曲单</AppButton></div>
     </section>}
     {tab === "match" && <section role="tabpanel" id="panel-match" aria-labelledby="tab-match" className="space-y-6">
       <h2 className="text-center text-sm font-semibold text-slate-300">哪首更让你心动？先试听，再选择。</h2>

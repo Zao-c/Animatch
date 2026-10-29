@@ -9,6 +9,7 @@ import { objectInput, revisionInput, textInput } from "./validation";
 import { discardAudio } from "./audio-storage";
 import { cleanSongCovers, songCoverReferences } from "./cover-storage";
 import type { SongSnapshot } from "./types";
+import { selectedSongIds, songBulkPatch, changeSongCandidates } from "./bulk";
 
 export async function ownedSongBoard(userId: string, id: string) {
   const board = await prisma.songBoard.findFirst({ where: { id, ownerId: userId } });
@@ -70,9 +71,25 @@ export async function changeSongBoard(userId: string, id: string, value: unknown
   const revision = revisionInput(input.revision);
   const board = await ownedSongBoard(userId, id);
   const document = structuredClone(board.document) as unknown as SongDocument;
+  // A target deleted by another tab is a revision conflict first. Returning 400
+  // here would hide the reload action and strand a preserved bulk-edit draft.
+  if (["bulkEdit", "candidateSelection", "candidates"].includes(String(input.action)) && revision !== board.revision) {
+    throw new AppError("曲单已在其他页面更新，请重新载入后再操作", 409);
+  }
   const extra: Parameters<typeof saveSongBoard>[3] = {};
   let removedAudio: string | null = null;
   switch (input.action) {
+    case "bulkEdit": {
+      const ids = new Set(selectedSongIds(input.trackIds, document.tracks));
+      const patch = songBulkPatch(input.patch);
+      document.tracks = document.tracks.map(track => ids.has(track.id) ? { ...track, ...patch } : track);
+      break;
+    }
+    case "candidateSelection": {
+      const ids = selectedSongIds(input.trackIds, document.tracks);
+      document.candidateIds = changeSongCandidates(document, ids, input.mode);
+      break;
+    }
     case "vote": {
       const eventId = textInput(input.eventId, "操作编号", 80, true);
       // An identical retry after a lost response is safe; payload reuse is rejected.

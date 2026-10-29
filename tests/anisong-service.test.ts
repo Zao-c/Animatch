@@ -9,6 +9,52 @@ const document = (): SongDocument => ({ ...emptySongDocument(), tracks: [song("a
 const board = (doc = document()) => ({ id: "board", ownerId: "owner", title: "test", revision: 3, document: doc, shareToken: null, snapshot: null, createdAt: new Date(), updatedAt: new Date() });
 beforeEach(() => { vi.resetAllMocks(); mocks.findFirst.mockResolvedValue(board()); mocks.updateMany.mockResolvedValue({ count: 1 }); mocks.deleteMany.mockResolvedValue({ count: 1 }); });
 describe("music board persistence", () => {
+  it("atomically changes selected metadata and preserves media, history, tiers and share snapshots", async () => {
+    const doc = document(); doc.tracks.push(song("c"));
+    doc.tracks[0].source = { kind: "upload", key: "kept.wav", mime: "audio/wav", bytes: 100 };
+    doc.tracks[0].coverUrl = "https://example.com/cover.jpg";
+    doc.tracks[0].clipStart = 12; doc.tracks[0].importKey = "kept-import";
+    doc.events.push({ id: "one", leftId: "a", rightId: "b", result: "DRAW" });
+    doc.manualTiers.a = "s"; doc.candidateIds = ["a", "b"];
+    mocks.findFirst.mockResolvedValue(board(doc));
+    const result = await changeSongBoard("owner", "board", { revision: 3, action: "bulkEdit", trackIds: ["a", "b"], patch: { anime: "秋日来信", kind: "ED" } });
+    expect(mocks.updateMany).toHaveBeenCalledOnce();
+    expect(result.document.tracks[0]).toEqual({ ...doc.tracks[0], anime: "秋日来信", kind: "ED" });
+    expect(result.document.tracks[1].kind).toBe("ED");
+    expect(result.document.tracks[2]).toEqual(doc.tracks[2]);
+    expect(result.document.events).toEqual(doc.events); expect(result.document.manualTiers).toEqual(doc.manualTiers); expect(result.document.candidateIds).toEqual(doc.candidateIds);
+    expect(mocks.updateMany.mock.calls[0][0].data).not.toHaveProperty("snapshot");
+    expect(mocks.discardAudio).not.toHaveBeenCalled();
+  });
+  it("does not partially save a bulk edit with invalid targets or fields", async () => {
+    for (const input of [{ trackIds: ["a", "missing"], patch: { kind: "ED" } }, { trackIds: ["a"], patch: { quarter: 8 } }, { trackIds: ["a"], patch: { source: { kind: "none" } } }]) {
+      await expect(changeSongBoard("owner", "board", { revision: 3, action: "bulkEdit", ...input })).rejects.toMatchObject({ statusCode: 400 });
+    }
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+  });
+  it("rejects bulk edits on stale or concurrently replaced revisions", async () => {
+    const input = { action: "bulkEdit", trackIds: ["a", "b"], patch: { year: "2026" } };
+    await expect(changeSongBoard("owner", "board", { revision: 2, ...input })).rejects.toMatchObject({ statusCode: 409 });
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+    mocks.updateMany.mockResolvedValueOnce({ count: 0 });
+    await expect(changeSongBoard("owner", "board", { revision: 3, ...input })).rejects.toMatchObject({ statusCode: 409 });
+  });
+  it("reports a revision conflict before validating targets removed in another tab", async () => {
+    mocks.findFirst.mockResolvedValue(board(emptySongDocument()));
+    for (const action of ["bulkEdit", "candidateSelection", "candidates"]) {
+      await expect(changeSongBoard("owner", "board", { revision: 2, action, trackIds: ["a", "b"], patch: { kind: "ED" }, mode: "exclude" })).rejects.toMatchObject({ statusCode: 409 });
+    }
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+  });
+  it("changes candidate membership without deleting any comparison history", async () => {
+    const doc = document(); doc.tracks.push(song("c"));
+    doc.events.push({ id: "one", leftId: "a", rightId: "b", result: "LEFT_WIN" });
+    mocks.findFirst.mockResolvedValue(board(doc));
+    const result = await changeSongBoard("owner", "board", { revision: 3, action: "candidateSelection", trackIds: ["a"], mode: "exclude" });
+    expect(result.document.candidateIds).toEqual(["b", "c"]);
+    expect(result.document.events).toEqual(doc.events);
+    expect(result.document.tracks).toEqual(doc.tracks);
+  });
   it("scopes reads and writes to the authenticated owner and uses compare-and-swap", async () => {
     const result = await changeSongBoard("owner", "board", { revision: 3, action: "vote", eventId: "one", leftId: "a", rightId: "b", result: "LEFT_WIN", ownerId: "attacker" });
     expect(mocks.findFirst).toHaveBeenCalledWith({ where: { id: "board", ownerId: "owner" } });
