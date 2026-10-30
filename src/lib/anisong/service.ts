@@ -19,12 +19,12 @@ export async function ownedSongBoard(userId: string, id: string) {
 type StoredBoard = Awaited<ReturnType<typeof ownedSongBoard>>;
 export function boardView(board: StoredBoard): SongBoardView {
   return { id: board.id, title: board.title, revision: board.revision, document: board.document as unknown as SongDocument,
-    shareToken: board.shareToken, updatedAt: board.updatedAt.toISOString() };
+    shareToken: board.shareToken, updatedAt: board.updatedAt.toISOString(), templateId: board.templateId ?? null, templateRevision: board.templateRevision ?? null };
 }
 export async function createSongBoard(userId: string, value: unknown) {
   const input = objectInput(value);
   const title = textInput(input.title, "曲单名称", 80, true);
-  if (await prisma.songBoard.count({ where: { ownerId: userId } }) >= 30) throw new AppError("最多创建30个曲单", 400);
+  if (await prisma.songBoard.count({ where: { ownerId: userId, templateId: null } }) >= 30) throw new AppError("最多创建30个曲单", 400);
   const board = await prisma.songBoard.create({ data: { ownerId: userId, title,
     document: emptySongDocument() as unknown as Prisma.InputJsonValue } });
   return boardView(board);

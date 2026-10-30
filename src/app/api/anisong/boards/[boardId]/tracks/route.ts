@@ -11,6 +11,7 @@ import { deleteLocalAnimeCoverIfPresent } from "@/lib/anime-cover-upload";
 import { neteaseId, neteaseSong } from "@/lib/anisong/netease/api";
 import { readNeteaseAccount } from "@/lib/anisong/netease/accounts";
 import { limitNetease } from "@/lib/anisong/netease/limits";
+import { lookupItunes, itunesId, itunesCountry } from "@/lib/anisong/itunes/api";
 export const runtime = "nodejs";
 export async function POST(request: Request, { params }: { params: { boardId: string } }) {
   let uploadKey: string | null = null;
@@ -24,7 +25,11 @@ export async function POST(request: Request, { params }: { params: { boardId: st
     if (importKey !== null && (typeof importKey !== "string" || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(importKey))) throw new AppError("导入编号无效", 400);
     const document = board.document as unknown as SongDocument;
     const remoteId = form.has("neteaseId") ? neteaseId(form.get("neteaseId")) : null;
+    const appleId = form.has("itunesId") ? itunesId(form.get("itunesId")) : null;
+    const appleCountry = appleId ? itunesCountry(form.get("itunesCountry") || "JP") : null;
+    if (appleId && remoteId) throw new AppError("请一次选择一个歌曲来源", 400);
     if (remoteId && !form.get("trackId") && document.tracks.some(t => t.source.kind === "netease" && t.source.id === remoteId)) return ok(boardView(board));
+    if (appleId && !form.get("trackId") && document.tracks.some(t => t.itunes?.id === appleId && t.itunes.country === appleCountry)) return ok(boardView(board));
     // A batch item keeps its immutable import key when retrying a lost response.
     if (importKey && !form.get("trackId") && document.tracks.some(t => t.importKey === importKey)) return ok(boardView(board));
     const revision = revisionInput(form.get("revision"));
@@ -59,7 +64,16 @@ export async function POST(request: Request, { params }: { params: { boardId: st
       track.title = song.title; track.artist = song.artist;
       source = { kind: "netease", id: song.id }; coverUrl = song.coverUrl;
     }
-    const result = await addSongTrack(board, revision, { ...track, id, source, coverUrl, ...(previous?.importKey || importKey ? { importKey: previous?.importKey ?? String(importKey) } : {}) });
+    let itunes = previous?.source.kind === "itunes" && form.get("removeAudio") === "true" ? null : previous?.itunes;
+    if (appleId && appleCountry) {
+      if (previous || url || (file instanceof File && file.size) || uploadedCover) throw new AppError("iTunes 导入不能同时提交其他音源或封面", 400);
+      limitNetease(user.id, "itunes-import", 20);
+      const song = await lookupItunes(appleId, appleCountry);
+      if (!song.hasPreview) throw new AppError("此版本没有 iTunes 试听，请选择其他版本", 422);
+      track.title = song.reference.title; track.artist = song.reference.artist;
+      source = { kind: "itunes", id: appleId, country: appleCountry }; coverUrl = song.coverUrl; itunes = song.reference;
+    }
+    const result = await addSongTrack(board, revision, { ...track, id, source, coverUrl, ...(itunes ? { itunes } : {}), ...(previous?.importKey || importKey ? { importKey: previous?.importKey ?? String(importKey) } : {}) });
     uploadKey = null;
     uploadedCover = null;
     return ok(result, { status: 201 });

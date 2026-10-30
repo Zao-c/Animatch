@@ -1,5 +1,7 @@
 # 网易云音乐接入
 
+公共曲单与持久音频池已经扩展此流程：参见[公共音频池与缓存说明](anisong-shared-audio.md)。下文的网易云直连播放说明适用于尚未发布入池的个人歌曲。
+
 实现日期：2026-10-30。使用第三方 [NeteaseCloudMusicApi Enhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced) 4.41.1，[接口文档](https://neteasecloudmusicapienhanced.js.org/)。
 
 ## 页面使用

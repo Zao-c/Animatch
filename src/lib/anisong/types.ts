@@ -9,6 +9,8 @@ export type SongSource =
   | { kind: "upload"; key: string; mime: string; bytes: number }
   | { kind: "url"; url: string }
   | { kind: "netease"; id: string }
+  | { kind: "pool"; assetId: string }
+  | { kind: "itunes"; id: string; country: string }
   | { kind: "none" };
 export type SongTrack = {
   id: string;
@@ -24,7 +26,12 @@ export type SongTrack = {
   clipLength: number;
   source: SongSource;
   coverUrl?: string | null;
+  itunes?: ItunesReference | null;
 };
+export type ItunesReference = { id: string; country: string; title: string; artist: string; storeUrl: string };
+export type SongAudioProvider = "pool" | "itunes" | "original";
+export type SongPlayback = { provider: SongAudioProvider; url: string; expiresAt: number; trial: boolean; start: number; length: number; storeUrl?: string };
+export type SongTemplateView = { id: string; title: string; revision: number; trackCount: number; playableCount: number; poolCount: number; itunesCount: number; ownerName: string; covers: string[]; updatedAt: string; mine?: boolean };
 export type SongDecision = "LEFT_WIN" | "RIGHT_WIN" | "DRAW" | "SKIP" | "LEFT_UNSEEN" | "RIGHT_UNSEEN";
 export type SongEvent = { id: string; leftId: string; rightId: string; result: SongDecision };
 export type SongDocument = {
@@ -41,6 +48,8 @@ export type SongBoardView = {
   document: SongDocument;
   shareToken: string | null;
   updatedAt: string;
+  templateId?: string | null;
+  templateRevision?: number | null;
 };
 export type SongSnapshot = {
   version: 1;

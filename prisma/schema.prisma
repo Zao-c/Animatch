@@ -99,6 +99,7 @@ model User {
   collections          AnimeCollection[]
   manualTierBoards     ManualTierBoard[]
   songBoards           SongBoard[]
+  songTemplates        SongTemplate[]
   awardCeremonies       AwardCeremony[]
   awardBallots         AwardBallot[]
   awardMembers         AwardMember[]
@@ -133,8 +134,39 @@ model SongBoard {
   snapshot    Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  templateId  String?
+  templateRevision Int?
+  template    SongTemplate? @relation("SongTemplateRuns", fields: [templateId], references: [id], onDelete: SetNull)
+  publishedTemplate SongTemplate? @relation("SongTemplateSource")
 
   @@index([ownerId, updatedAt])
+  @@unique([ownerId, templateId])
+}
+
+model SongTemplate {
+  id          String   @id @default(cuid())
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  sourceBoardId String? @unique
+  sourceBoard SongBoard? @relation("SongTemplateSource", fields: [sourceBoardId], references: [id], onDelete: SetNull)
+  title       String
+  revision    Int      @default(1)
+  document    Json
+  active      Boolean  @default(true)
+  runs        SongBoard[] @relation("SongTemplateRuns")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([active, updatedAt])
+}
+
+model SongAudioAsset {
+  id          String   @id @default(cuid())
+  sha256      String   @unique
+  key         String   @unique
+  mime        String
+  bytes       Int
+  isPreview   Boolean  @default(false)
+  createdAt   DateTime @default(now())
 }
 
 // Nomination collection is separate from live voting and winner decisions.

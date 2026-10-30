@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { songRequest, SongApiError } from "@/lib/anisong/client";
 import type { SongBoardView } from "@/lib/anisong/types";
+import { SongTemplateGallery } from "./SongTemplateGallery";
 
 export function SongLobby() {
   const router = useRouter();
@@ -42,17 +43,18 @@ export function SongLobby() {
       <h1 className="mt-4 text-4xl font-black leading-tight sm:text-5xl">这一季，<br />哪首歌让你舍不得跳过？</h1>
       <p className="mt-5 max-w-xl leading-7 text-slate-300">收集喜欢的 OP、ED 和插入曲。听一段，选一首，<br className="hidden sm:block" />把一次次选择变成你的音乐 Tier List。</p>
       <div className="mt-7 flex flex-wrap gap-2 text-xs text-slate-300">
-        {["01  建立曲单", "02  左右试听与对决", "03  生成个人分档"].map(text => <span key={text} className="rounded-full border border-white/10 px-4 py-2">{text}</span>)}
+        {["01  选择公共曲单", "02  左右试听与对决", "03  生成个人分档"].map(text => <span key={text} className="rounded-full border border-white/10 px-4 py-2">{text}</span>)}
       </div>
     </section>
+    <SongTemplateGallery />
     {error && <div role="alert" className="rounded-2xl border border-amber-300/20 bg-amber-300/5 p-4 text-amber-100">{error} {login && <Link className="underline" href="/login?next=%2Fanisong">去登录</Link>}</div>}
     {!login && <section className="grid gap-8 lg:grid-cols-[1fr_1.25fr]">
       <form onSubmit={create} className="space-y-4 rounded-3xl border border-white/10 bg-slate-950/30 p-6">
-        <h2 className="text-xl font-semibold">创建音乐曲单</h2>
-        <p className="text-sm leading-6 text-slate-400">例如「2026 秋季 OP」「摇滚 ED 精选」。每份曲单最多 64 首，上传音频或填写音频直链即可开赛。</p>
+        <h2 className="text-xl font-semibold">创建与发布曲单</h2>
+        <p className="text-sm leading-6 text-slate-400">例如「2026 秋季 OP」「摇滚 ED 精选」。每份曲单最多64首，可上传文件、使用音频直链或平台搜索。建好后发布，让其他人直接复用。</p>
         <label className="block text-sm">曲单名称<input required maxLength={80} className="anime-field mt-2" placeholder="2026 秋季 OP / ED" value={title} onChange={e => setTitle(e.target.value)} /></label>
         <AppButton type="submit" disabled={busy || loading}>{busy ? "正在创建…" : "创建曲单"}</AppButton>
-        <p className="text-xs leading-5 text-slate-500">曲单与上传音频默认仅自己可见。发布榜单时只分享歌名、歌手和分档。</p>
+        <p className="text-xs leading-5 text-slate-500">编辑中的曲单默认仅自己可见。「发布公共曲单」会公开歌曲和可用音频；「分享榜单」只公开封面、歌曲信息与分档。</p>
       </form>
       <div>
         <h2 className="mb-4 text-xl font-semibold">我的音乐曲单</h2>

@@ -6,6 +6,7 @@ import { KIND_LABELS, MAX_AUDIO_BYTES, MAX_TRACKS, SONG_KINDS, type SongTrack } 
 import { readLocalSongMetadata } from "@/lib/anisong/metadata-reader";
 import { filenameMetadata } from "@/lib/anisong/metadata";
 import { LocalSongCover } from "./LocalSongCover";
+import { createClientUuid } from "@/lib/client-id";
 
 type Item = { key: string; file: File; title: string; artist: string; cover: Blob | null; note: string; status: "queued" | "uploading" | "done" | "failed"; data?: FormData };
 export function SongBatchImport({ tracks, disabled, onSave, onRunning, onCancel }: {
@@ -33,7 +34,7 @@ export function SongBatchImport({ tracks, disabled, onSave, onRunning, onCancel 
       if (!/\.(mp3|m4a|wav|ogg|flac)$/i.test(file.name) || !file.size || file.size > MAX_AUDIO_BYTES) { rejected.push(`${file.name}：需为支持的音频且不超过20 MB`); continue; }
       if (next.some(i => i.file.name === file.name && i.file.size === file.size && i.file.lastModified === file.lastModified)) continue;
       if (next.filter(i => i.status !== "done" && !doneKeys.has(i.key)).length >= MAX_TRACKS - tracks.length) { rejected.push(`${file.name}：曲单最多64首`); continue; }
-      next.push({ key: crypto.randomUUID(), file, ...filenameMetadata(file.name), cover: null, note: "等待读取文件信息…", status: "queued" });
+      next.push({ key: createClientUuid(), file, ...filenameMetadata(file.name), cover: null, note: "等待读取文件信息…", status: "queued" });
     }
     setItems(next); setMessage(rejected.join("；"));
     const additions = next.filter(item => !items.some(previous => previous.key === item.key));

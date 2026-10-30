@@ -9,6 +9,9 @@ import { KIND_LABELS, SONG_KINDS, MAX_TRACKS, type SongBoardView, type SongDecis
 import { SongForm } from "./SongForm";
 import { SongBatchImport } from "./SongBatchImport";
 import { SongNeteaseSearch } from "./SongNeteaseSearch";
+import { SongItunesSearch } from "./SongItunesSearch";
+import { SongPlaybackPreferences } from "./SongPlaybackPreferences";
+import { SongTemplatePublisher, type TemplatePublishResult } from "./SongTemplatePublisher";
 import { SongBulkTools } from "./SongBulkTools";
 import { SongPlayer } from "./SongPlayer";
 import { SongTierView } from "./SongTierView";
@@ -16,8 +19,11 @@ import { SongCover } from "./SongCover";
 import { SongMatchCard } from "./SongMatchCard";
 import { MatchArena, MatchHeading } from "@/components/MatchPresentation";
 import { registerUnsavedChangesGuard } from "@/lib/unsaved-changes-guard";
+import { createClientMutationId } from "@/lib/client-id";
 
 type Tab = "library" | "match" | "tier";
+// Keep buffered media while the same recording remains in a subsequent round.
+const playbackKey = (track: SongTrack) => JSON.stringify([track.id, track.source, track.itunes, track.clipStart, track.clipLength]);
 export function SongWorkspace({ boardId }: { boardId: string }) {
   const [board, setBoard] = useState<SongBoardView | null>(null);
   const [tab, setTab] = useState<Tab>("library");
@@ -33,6 +39,7 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
   const [login, setLogin] = useState(false);
   const [notice, setNotice] = useState("");
   const [editing, setEditing] = useState<SongTrack | "new" | null>(null);
+  const [itunesTarget, setItunesTarget] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState("");
   const [year, setYear] = useState("");
@@ -92,6 +99,22 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
       return false;
     } finally { lock.current = false; setBusy(false); }
   }
+  async function auxiliary<T extends SongBoardView | TemplatePublishResult>(route: "template" | "itunes", input: Record<string, unknown>): Promise<T | null> {
+    const current = latestBoard.current;
+    if (!current || lock.current || conflict || importing) return null;
+    lock.current = true; setBusy(true); setError(""); setNotice("");
+    window.dispatchEvent(new CustomEvent("anisong:play", { detail: null }));
+    try {
+      const value = await songRequest<SongBoardView | TemplatePublishResult>(`${endpoint}/${route}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...input, revision: current.revision }) });
+      const next = "board" in value ? value.board : value;
+      latestBoard.current = next; setBoard(next); setNotice(route === "template" ? "公共曲单已发布" : "iTunes 匹配已保存"); return value as T;
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "保存失败");
+      if (!(cause instanceof SongApiError) || cause.status === 409 || cause.status >= 500) setConflict(true);
+      if (cause instanceof SongApiError && cause.status === 401) setLogin(true);
+      return null;
+    } finally { lock.current = false; setBusy(false); }
+  }
 
   const ranking = useMemo(() => board ? rankSongs(board.document) : null, [board]);
   const snapshot = useMemo(() => board ? songSnapshot(board.title, board.document) : null, [board]);
@@ -102,7 +125,7 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
   ) ?? [], [board, search, kind, year, quarter]);
   const visibleMatchCount = visibleTracks.filter(t => !ranking?.scores.find(score => score.animeId === t.id)?.isHidden).length;
   const vote = (result: SongDecision) => {
-    if (pair) void mutate({ action: "vote", eventId: crypto.randomUUID(), leftId: pair.left.id, rightId: pair.right.id, result });
+    if (pair) void mutate({ action: "vote", eventId: createClientMutationId("song-vote"), leftId: pair.left.id, rightId: pair.right.id, result });
   };
   useEffect(() => {
     function keyboard(e: KeyboardEvent) {
@@ -138,13 +161,18 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
       <div className="min-w-0"><Link href="/anisong" className="text-sm text-anime-cyan">← ANISONGMATCH</Link><h1 className="mt-2 break-words text-xl font-bold sm:text-2xl">{board.title}</h1><p className="mt-1 text-xs text-slate-400">{board.document.tracks.length} 首歌曲 · {ranking?.active.length} 首参与对决 · {ranking?.progress.effectiveComparisons} 次有效比较</p></div>
       <div className="flex items-center gap-3"><span role="status" className="text-xs text-slate-400">{busy ? "正在处理…" : conflict ? "请重新载入确认进度" : notice || "进度已保存"}</span><AppButton variant="ghost" size="sm" disabled={disabled} onClick={() => setRenaming(!renaming)}>改名</AppButton></div>
     </header>}
+    {board.templateId && <p className="text-xs leading-6 text-slate-400">来自<Link href={`/anisong/templates/${board.templateId}`} className="mx-1 text-anime-cyan underline">公共曲单</Link>· 版本 {board.templateRevision} · 你的比较进度与其他玩家独立保存</p>}
+    <SongPlaybackPreferences />
     {renaming && <form className="flex gap-3" onSubmit={async e => { e.preventDefault(); const data = new FormData(e.currentTarget); if (await mutate({ action: "rename", title: data.get("title") })) setRenaming(false); }}><input aria-label="曲单名称" name="title" defaultValue={board.title} maxLength={80} required className="anime-field" /><AppButton type="submit" disabled={disabled}>保存</AppButton></form>}
     {error && <div role="alert" className="space-y-3 rounded-xl border border-amber-300/30 bg-amber-300/5 p-4 text-sm text-amber-100"><p>{error}</p>{conflict && <><p>当前操作未确认。重新载入已保存进度后即可继续。</p><AppButton size="sm" onClick={() => void reload()} disabled={busy || loading}>重新载入</AppButton></>}{login && <Link href={`/login?next=${encodeURIComponent(`/anisong/${boardId}`)}`} className="underline">重新登录</Link>}</div>}
     <div role="tablist" aria-label="音乐曲单视图" className="grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-slate-950/30 p-1.5">
       {([["library", "曲单"], ["match", "音乐对决"], ["tier", "Tier List"]] as const).map(([key, label]) => <button key={key} id={`tab-${key}`} role="tab" disabled={busy || importing} aria-selected={tab === key} aria-controls={`panel-${key}`} className={`min-h-12 rounded-xl px-3 text-sm font-semibold ${tab === key ? "bg-anime-cyan text-slate-950" : "text-slate-300 hover:bg-white/5"}`} onClick={() => changeTab(key)}>{label}</button>)}
     </div>
     {tab === "library" && <section role="tabpanel" id="panel-library" aria-labelledby="tab-library" className="space-y-5">
+      <SongTemplatePublisher board={board} disabled={disabled || Boolean(editing) || batchOpen || bulkEditing} onPublish={confirmed => auxiliary<TemplatePublishResult>("template", { shareAudioConfirmed: confirmed })} />
+      {itunesTarget && board.document.tracks.find(t => t.id === itunesTarget) && <SongItunesSearch key={itunesTarget} track={board.document.tracks.find(t => t.id === itunesTarget)} disabled={disabled} onClose={() => setItunesTarget(null)} onSelect={async song => Boolean(await auxiliary<SongBoardView>("itunes", { trackId: itunesTarget, itunesId: song.reference.id, country: song.reference.country }))} onRemove={async () => Boolean(await auxiliary<SongBoardView>("itunes", { trackId: itunesTarget, remove: true }))} />}
       <SongNeteaseSearch tracks={board.document.tracks} disabled={disabled || Boolean(editing) || batchOpen || bulkEditing} onSave={data => mutate({}, data)} />
+      <SongItunesSearch disabled={disabled || Boolean(editing) || batchOpen || bulkEditing} onSelect={async (song, data) => { data.set("itunesId", song.reference.id); data.set("itunesCountry", song.reference.country); data.set("title", song.reference.title); data.set("artist", song.reference.artist); data.set("clipStart", "0"); data.set("clipLength", "30"); return mutate({}, data); }} />
       <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-slate-400">按季度、类型或风格筛选，再选择参赛范围。</p><div className="flex flex-wrap gap-2"><AppButton variant="ghost" disabled={disabled || batchOpen || board.document.tracks.length >= MAX_TRACKS} onClick={() => { if ((editing || batchOpen || bulkEditing) && !window.confirm("放弃当前未保存的编辑或待导入文件？")) return; setEditing(null); setBulkEditing(false); setBatchOpen(true); }}>批量导入音频</AppButton><AppButton disabled={disabled || board.document.tracks.length >= MAX_TRACKS} onClick={() => editTrack("new")}>＋ 添加歌曲</AppButton></div></div>
       {batchOpen && <SongBatchImport tracks={board.document.tracks} disabled={busy || conflict || loading || login} onRunning={setImporting} onSave={data => mutate({}, data)} onCancel={hasPending => { if (!hasPending || window.confirm("收起导入面板？已保存歌曲会保留，待导入文件需重新选择。")) setBatchOpen(false); }} />}
       {editing && <SongForm boardId={boardId} key={editing === "new" ? "new" : editing.id} track={editing === "new" ? undefined : editing} busy={disabled} onCancel={() => editTrack(null)} onSave={async data => { const saved = await mutate({}, data); if (saved) setEditing(null); return saved; }} />}
@@ -164,7 +192,7 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
         {visibleTracks.map(track => {
           const score = ranking?.scores.find(s => s.animeId === track.id);
           const excluded = board.document.candidateIds !== null && !board.document.candidateIds.includes(track.id);
-          return <article key={`${track.id}-${board.revision}`} className="min-w-0 space-y-4 rounded-2xl border border-white/10 bg-slate-950/30 p-5">
+          return <article key={playbackKey(track)} className="min-w-0 space-y-4 rounded-2xl border border-white/10 bg-slate-950/30 p-5">
             <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs text-slate-300"><input type="checkbox" aria-label={`选择歌曲：${track.title}`} checked={selectedIds.includes(track.id)} disabled={disabled || bulkEditing || Boolean(editing) || batchOpen} className="h-4 w-4 accent-teal-300" onChange={e => setSelectedIds(previous => e.target.checked ? [...new Set([...previous, track.id])] : previous.filter(id => id !== track.id))} />选择歌曲</label>
             <div className="flex items-start gap-3"><SongCover src={track.coverUrl} title={track.title} className="w-20" /><div className="min-w-0 flex-1"><h3 className="break-words font-semibold">{track.title}</h3><p className="mt-1 break-words text-sm text-slate-400">{track.artist || "歌手未填写"}</p></div><span className="rounded-md bg-anime-purple/10 px-2 py-1 text-xs text-anime-purple">{KIND_LABELS[track.kind]}</span></div>
             <p className="break-words text-xs text-slate-400">{[track.anime, track.year, track.quarter ? ["冬季", "春季", "夏季", "秋季"][track.quarter - 1] : "", ...track.tags].filter(Boolean).join(" · ") || "可在编辑中补充动画、季度和风格"}</p>
@@ -173,6 +201,7 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
               <span className="mr-auto text-xs text-slate-500">{excluded ? "未参赛" : score?.isHidden ? "未听过" : `已比较 ${score?.compareCount ?? 0} 次`}</span>
               {score?.isHidden && <AppButton size="sm" variant="ghost" disabled={disabled || bulkEditing} onClick={() => void mutate({ action: "restore", trackId: track.id })}>恢复</AppButton>}
               <AppButton size="sm" variant="ghost" disabled={disabled} onClick={() => { editTrack(track); window.scrollTo({ top: 0, behavior: "smooth" }); }}>编辑</AppButton>
+              <AppButton size="sm" variant="ghost" disabled={disabled || Boolean(editing) || batchOpen || bulkEditing} onClick={() => { setItunesTarget(track.id); window.scrollTo({ top: 0, behavior: "smooth" }); }}>{track.itunes ? "修改 iTunes 匹配" : "匹配 iTunes 备用源"}</AppButton>
               <AppButton size="sm" variant="ghost" disabled={disabled || bulkEditing} onClick={() => { if (window.confirm(`移除「${track.title}」及与它相关的对决记录？榜单将重新计算。`)) void mutate({ action: "remove", trackId: track.id }); }}>移除</AppButton>
             </div>
           </article>;
@@ -184,8 +213,8 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
       <h2 className="text-center text-sm font-semibold text-slate-300">哪首更让你心动？先试听，再选择。</h2>
       {pair ? <>
         <div className="mx-auto max-w-4xl"><MatchArena
-          left={<SongMatchCard key={`left-${board.revision}`} track={pair.left} boardId={boardId} side="left" disabled={disabled} onPick={() => vote("LEFT_WIN")} onUnheard={() => vote("LEFT_UNSEEN")} />}
-          right={<SongMatchCard key={`right-${board.revision}`} track={pair.right} boardId={boardId} side="right" disabled={disabled} onPick={() => vote("RIGHT_WIN")} onUnheard={() => vote("RIGHT_UNSEEN")} />}
+          left={<SongMatchCard key={playbackKey(pair.left)} track={pair.left} boardId={boardId} side="left" disabled={disabled} onPick={() => vote("LEFT_WIN")} onUnheard={() => vote("LEFT_UNSEEN")} />}
+          right={<SongMatchCard key={playbackKey(pair.right)} track={pair.right} boardId={boardId} side="right" disabled={disabled} onPick={() => vote("RIGHT_WIN")} onUnheard={() => vote("RIGHT_UNSEEN")} />}
         /></div>
         <div className="flex justify-center gap-3"><AppButton variant="secondary" disabled={disabled} onClick={() => vote("DRAW")}>一样喜欢</AppButton><AppButton variant="ghost" disabled={disabled} onClick={() => vote("SKIP")}>跳过这组</AppButton></div>
         <p className="text-center text-xs leading-6 text-slate-500"><span className="block text-slate-400">Q / E 试听或暂停左右歌曲 · 切换试听会自动暂停另一首</span>← / → 选左右 · ↑ 平局 · ↓ 跳过（也支持 1 / 2 / 3 / 4）</p>

@@ -35,3 +35,4 @@ screenshots/
 output/
 .playwright-cli/
 data/netease-accounts/
+data/anisong-public-audio/

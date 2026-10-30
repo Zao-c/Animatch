@@ -38,7 +38,7 @@ export function coverUrlInput(value: unknown, previous?: string | null): string 
   const raw = textInput(value, "封面地址", 2048);
   if (!raw) return null;
   // Existing uploads can be retained, but cannot be borrowed from another board.
-  if (raw === previous && raw.startsWith("/uploads/anime-covers/song-")) return raw;
+  if (raw === previous && (raw.startsWith("/uploads/anime-covers/song-") || raw.startsWith("/uploads/anime-covers/shared-song-"))) return raw;
   try { return audioUrlInput(raw); }
   catch { throw new AppError("请填写公开的 HTTPS 图片地址，或直接上传封面", 400); }
 }

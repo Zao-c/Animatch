@@ -40,12 +40,12 @@ export function parseAudioRange(header: string | null, size: number): { start: n
   if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || start >= size || end < start) throw new AppError("Invalid range", 416);
   return { start, end };
 }
-export async function streamAudio(request: Request, source: Extract<SongSource, { kind: "upload" }>) {
+export async function streamAudio(request: Request, source: Extract<SongSource, { kind: "upload" }>, options: { directory?: string; public?: boolean } = {}) {
   if (!/^[a-f0-9-]+\.(mp3|m4a|wav|ogg|flac)$/.test(source.key)) throw new AppError("音频不存在", 404);
-  const filePath = path.join(audioDirectory(), source.key);
+  const filePath = path.join(options.directory ?? audioDirectory(), source.key);
   const info = await stat(filePath).catch(() => null);
   if (!info?.isFile()) throw new AppError("音频文件不存在，请联系管理员恢复音频备份", 404);
-  const headers: Record<string, string> = { "Content-Type": source.mime, "Accept-Ranges": "bytes", "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
+  const headers: Record<string, string> = { "Content-Type": source.mime, "Accept-Ranges": "bytes", "Cache-Control": options.public ? "public, max-age=31536000, immutable" : "private, no-store", "X-Content-Type-Options": "nosniff" };
   let range;
   try { range = parseAudioRange(request.headers.get("range"), info.size); }
   catch { return new Response(null, { status: 416, headers: { ...headers, "Content-Range": `bytes */${info.size}` } }); }
