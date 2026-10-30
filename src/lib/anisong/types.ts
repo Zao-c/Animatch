@@ -8,6 +8,7 @@ export const MAX_SONG_COVER_BYTES = 5 * 1024 * 1024;
 export type SongSource =
   | { kind: "upload"; key: string; mime: string; bytes: number }
   | { kind: "url"; url: string }
+  | { kind: "netease"; id: string }
   | { kind: "none" };
 export type SongTrack = {
   id: string;

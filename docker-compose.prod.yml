@@ -42,6 +42,8 @@ services:
       BANGUMI_PROXY_URL: ${BANGUMI_PROXY_URL:-}
       BANGUMI_ACCESS_TOKEN: ${BANGUMI_ACCESS_TOKEN:-}
       ANIMATCH_OUTBOUND_PROXY_URL: ${ANIMATCH_OUTBOUND_PROXY_URL:-}
+      NETEASE_API_URL: ${NETEASE_API_URL:-}
+      NETEASE_ACCOUNT_DIR: /app/data/netease-accounts
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
       NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1,postgres,animatch-postgres,registry.npmjs.org,npmjs.org}
@@ -70,9 +72,11 @@ services:
       - anime_uploads:/app/public/uploads
       - animatch_image_cache:/app/data/image-cache
       - anisong_audio:/app/data/anisong-audio
+      - netease_accounts:/app/data/netease-accounts
 
 volumes:
   animatch_postgres_data:
   anime_uploads:
   animatch_image_cache:
   anisong_audio:
+  netease_accounts:

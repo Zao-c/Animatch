@@ -8,6 +8,9 @@ import { trackInput, revisionInput, audioUrlInput, coverUrlInput } from "@/lib/a
 import { MAX_AUDIO_BYTES, MAX_SONG_COVER_BYTES, MAX_TRACKS, type SongSource, type SongDocument } from "@/lib/anisong/types";
 import { saveSongCover } from "@/lib/anisong/cover-storage";
 import { deleteLocalAnimeCoverIfPresent } from "@/lib/anime-cover-upload";
+import { neteaseId, neteaseSong } from "@/lib/anisong/netease/api";
+import { readNeteaseAccount } from "@/lib/anisong/netease/accounts";
+import { limitNetease } from "@/lib/anisong/netease/limits";
 export const runtime = "nodejs";
 export async function POST(request: Request, { params }: { params: { boardId: string } }) {
   let uploadKey: string | null = null;
@@ -20,6 +23,8 @@ export async function POST(request: Request, { params }: { params: { boardId: st
     const importKey = form.get("importKey");
     if (importKey !== null && (typeof importKey !== "string" || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(importKey))) throw new AppError("导入编号无效", 400);
     const document = board.document as unknown as SongDocument;
+    const remoteId = form.has("neteaseId") ? neteaseId(form.get("neteaseId")) : null;
+    if (remoteId && !form.get("trackId") && document.tracks.some(t => t.source.kind === "netease" && t.source.id === remoteId)) return ok(boardView(board));
     // A batch item keeps its immutable import key when retrying a lost response.
     if (importKey && !form.get("trackId") && document.tracks.some(t => t.importKey === importKey)) return ok(boardView(board));
     const revision = revisionInput(form.get("revision"));
@@ -46,6 +51,14 @@ export async function POST(request: Request, { params }: { params: { boardId: st
       uploadKey = source.key;
     } else if (url) source = { kind: "url", url };
     else if (form.has("audioUrl") && previous?.source.kind === "url") source = { kind: "none" };
+    if (remoteId) {
+      if (previous || url || (file instanceof File && file.size) || uploadedCover) throw new AppError("网易云导入不能同时提交其他音源或封面", 400);
+      limitNetease(user.id, "import", 20);
+      const account = await readNeteaseAccount(user.id);
+      const song = await neteaseSong(remoteId, account.cookie || "");
+      track.title = song.title; track.artist = song.artist;
+      source = { kind: "netease", id: song.id }; coverUrl = song.coverUrl;
+    }
     const result = await addSongTrack(board, revision, { ...track, id, source, coverUrl, ...(previous?.importKey || importKey ? { importKey: previous?.importKey ?? String(importKey) } : {}) });
     uploadKey = null;
     uploadedCover = null;

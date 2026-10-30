@@ -8,6 +8,7 @@ import { exportSongPng } from "@/lib/anisong/export";
 import { KIND_LABELS, SONG_KINDS, MAX_TRACKS, type SongBoardView, type SongDecision, type SongTrack } from "@/lib/anisong/types";
 import { SongForm } from "./SongForm";
 import { SongBatchImport } from "./SongBatchImport";
+import { SongNeteaseSearch } from "./SongNeteaseSearch";
 import { SongBulkTools } from "./SongBulkTools";
 import { SongPlayer } from "./SongPlayer";
 import { SongTierView } from "./SongTierView";
@@ -143,6 +144,7 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
       {([["library", "曲单"], ["match", "音乐对决"], ["tier", "Tier List"]] as const).map(([key, label]) => <button key={key} id={`tab-${key}`} role="tab" disabled={busy || importing} aria-selected={tab === key} aria-controls={`panel-${key}`} className={`min-h-12 rounded-xl px-3 text-sm font-semibold ${tab === key ? "bg-anime-cyan text-slate-950" : "text-slate-300 hover:bg-white/5"}`} onClick={() => changeTab(key)}>{label}</button>)}
     </div>
     {tab === "library" && <section role="tabpanel" id="panel-library" aria-labelledby="tab-library" className="space-y-5">
+      <SongNeteaseSearch tracks={board.document.tracks} disabled={disabled || Boolean(editing) || batchOpen || bulkEditing} onSave={data => mutate({}, data)} />
       <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-slate-400">按季度、类型或风格筛选，再选择参赛范围。</p><div className="flex flex-wrap gap-2"><AppButton variant="ghost" disabled={disabled || batchOpen || board.document.tracks.length >= MAX_TRACKS} onClick={() => { if ((editing || batchOpen || bulkEditing) && !window.confirm("放弃当前未保存的编辑或待导入文件？")) return; setEditing(null); setBulkEditing(false); setBatchOpen(true); }}>批量导入音频</AppButton><AppButton disabled={disabled || board.document.tracks.length >= MAX_TRACKS} onClick={() => editTrack("new")}>＋ 添加歌曲</AppButton></div></div>
       {batchOpen && <SongBatchImport tracks={board.document.tracks} disabled={busy || conflict || loading || login} onRunning={setImporting} onSave={data => mutate({}, data)} onCancel={hasPending => { if (!hasPending || window.confirm("收起导入面板？已保存歌曲会保留，待导入文件需重新选择。")) setBatchOpen(false); }} />}
       {editing && <SongForm boardId={boardId} key={editing === "new" ? "new" : editing.id} track={editing === "new" ? undefined : editing} busy={disabled} onCancel={() => editTrack(null)} onSave={async data => { const saved = await mutate({}, data); if (saved) setEditing(null); return saved; }} />}

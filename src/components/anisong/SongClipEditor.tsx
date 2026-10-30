@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AppButton } from "@/components/ui/AppButton";
 
-export function SongClipEditor({ src, initialStart = 0, initialLength = 30 }: { src: string; initialStart?: number; initialLength?: number }) {
+export function SongClipEditor({ src, initialStart = 0, initialLength = 30, remote = false }: { src: string; initialStart?: number; initialLength?: number; remote?: boolean }) {
   const audio = useRef<HTMLAudioElement>(null);
   const previewing = useRef(false);
   const generation = useRef(0);
@@ -59,7 +59,7 @@ export function SongClipEditor({ src, initialStart = 0, initialLength = 30 }: { 
         onError={() => { previewing.current = false; setError("音频无法加载，可以更换文件或检查直链后重试。"); }} />
       <div className="flex flex-wrap gap-2"><AppButton type="button" size="sm" variant="ghost" disabled={duration === null} onClick={() => { stopPreview(); setError(""); setStart(String(Math.min(3600, Math.max(0, Math.floor(Math.min(position, Math.max(0, (duration ?? 0) - 0.1)) * 10) / 10)))); }}>用当前位置作为起点</AppButton><AppButton type="button" size="sm" disabled={!valid} onClick={() => void preview()}>试听所选片段</AppButton>{[15, 30, 60].map(value => <AppButton key={value} type="button" size="sm" variant="quiet" aria-pressed={seconds === value} onClick={() => { stopPreview(); setLength(String(value)); }}>{value}秒</AppButton>)}</div>
       <p className="text-xs text-slate-400">{valid ? `${offset.toFixed(1)}秒 → ${Math.min(offset + seconds, duration ?? Infinity).toFixed(1)}秒` : "请填写有效的起点和长度"}{duration !== null ? ` · 音频全长 ${duration.toFixed(1)}秒` : " · 播放后显示音频时长"}{duration !== null && offset + seconds > duration && offset < duration ? "（到音频结尾停止）" : ""}</p>
-    </> : <p className="text-xs text-slate-500">选择音频文件或填写直链后，即可在这里试听。</p>}
+    </> : <p className="text-xs text-slate-500">{remote ? "起点相对于平台返回的音频片段；保存后在曲单中试听。若平台仅提供短片段，建议起点设为0。" : "选择音频文件或填写直链后，即可在这里试听。"}</p>}
     {error && <p role="alert" className="text-sm text-amber-200">{error}</p>}
   </div>;
 }
