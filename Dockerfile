@@ -22,6 +22,7 @@ RUN pnpm run build
 
 FROM base AS runner
 ENV NODE_ENV=production
+RUN apk add --no-cache ffmpeg
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml

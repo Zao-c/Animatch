@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppButton } from "@/components/ui/AppButton";
 import { songRequest, SongApiError, downloadSongFile } from "@/lib/anisong/client";
 import { nextSongPair, rankSongs, songSnapshot } from "@/lib/anisong/engine";
+import { cancelSongAudioPreload, preloadSongAudioPair } from "@/lib/anisong/preload-playback";
 import { exportSongPng } from "@/lib/anisong/export";
 import { KIND_LABELS, SONG_KINDS, MAX_TRACKS, type SongBoardView, type SongDecision, type SongTrack } from "@/lib/anisong/types";
 import { SongForm } from "./SongForm";
@@ -52,6 +53,7 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
     if (lock.current || importing) return;
     if (next !== tab && (editing || batchOpen || bulkEditing) && !window.confirm("编辑或导入面板尚未收起，要放弃待保存内容并切换吗？")) return;
     if (next !== tab) { setEditing(null); setBatchOpen(false); setBulkEditing(false); }
+    cancelSongAudioPreload();
     setTab(next);
     const url = new URL(window.location.href); url.searchParams.set("view", next);
     window.history.replaceState(window.history.state, "", url);
@@ -69,6 +71,7 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
     void reload();
   }, [reload]);
   useEffect(() => { setShareUrl(board?.shareToken ? `${window.location.origin}/anisong/share/${board.shareToken}` : ""); }, [board?.shareToken]);
+  useEffect(() => () => cancelSongAudioPreload(), []);
   useEffect(() => {
     if (!editing && !batchOpen && !bulkEditing && !busy && !importing) return;
     return registerUnsavedChangesGuard(window, busy || importing ? "操作尚未完成，确定离开吗？" : "编辑或导入面板尚未收起，确定放弃待保存内容并离开吗？");
@@ -84,7 +87,7 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
     const currentBoard = latestBoard.current;
     if (!currentBoard || lock.current || conflict || (importing && !form?.get("importKey"))) return false;
     lock.current = true; setBusy(true); setError(""); setNotice("");
-    window.dispatchEvent(new CustomEvent("anisong:play", { detail: null }));
+    cancelSongAudioPreload(); window.dispatchEvent(new CustomEvent("anisong:play", { detail: null }));
     try {
       if (form) form.set("revision", String(currentBoard.revision));
       const next = await songRequest<SongBoardView>(form ? `${endpoint}/tracks` : endpoint, form ? { method: "POST", body: form } : {
@@ -103,7 +106,7 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
     const current = latestBoard.current;
     if (!current || lock.current || conflict || importing) return null;
     lock.current = true; setBusy(true); setError(""); setNotice("");
-    window.dispatchEvent(new CustomEvent("anisong:play", { detail: null }));
+    cancelSongAudioPreload(); window.dispatchEvent(new CustomEvent("anisong:play", { detail: null }));
     try {
       const value = await songRequest<SongBoardView | TemplatePublishResult>(`${endpoint}/${route}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...input, revision: current.revision }) });
       const next = "board" in value ? value.board : value;
@@ -125,7 +128,13 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
   ) ?? [], [board, search, kind, year, quarter]);
   const visibleMatchCount = visibleTracks.filter(t => !ranking?.scores.find(score => score.animeId === t.id)?.isHidden).length;
   const vote = (result: SongDecision) => {
-    if (pair) void mutate({ action: "vote", eventId: createClientMutationId("song-vote"), leftId: pair.left.id, rightId: pair.right.id, result });
+    if (!pair) return;
+    void mutate({ action: "vote", eventId: createClientMutationId("song-vote"), leftId: pair.left.id, rightId: pair.right.id, result }).then(saved => {
+      const nextBoard = latestBoard.current;
+      if (!saved || !nextBoard) return;
+      const nextPair = nextSongPair(nextBoard.document);
+      if (nextPair) preloadSongAudioPair([nextPair.left, nextPair.right]);
+    });
   };
   useEffect(() => {
     function keyboard(e: KeyboardEvent) {

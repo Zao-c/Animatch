@@ -41,7 +41,7 @@ export function parseAudioRange(header: string | null, size: number): { start: n
   return { start, end };
 }
 export async function streamAudio(request: Request, source: Extract<SongSource, { kind: "upload" }>, options: { directory?: string; public?: boolean } = {}) {
-  if (!/^[a-f0-9-]+\.(mp3|m4a|wav|ogg|flac)$/.test(source.key)) throw new AppError("音频不存在", 404);
+  if (!/^(?:[a-f0-9]{64}\.preview-v1\.mp3|[a-f0-9-]+\.(?:mp3|m4a|wav|ogg|flac))$/.test(source.key)) throw new AppError("音频不存在", 404);
   const filePath = path.join(options.directory ?? audioDirectory(), source.key);
   const info = await stat(filePath).catch(() => null);
   if (!info?.isFile()) throw new AppError("音频文件不存在，请联系管理员恢复音频备份", 404);

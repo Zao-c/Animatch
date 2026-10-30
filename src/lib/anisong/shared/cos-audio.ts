@@ -24,10 +24,11 @@ function config(): CosAudioConfig | null {
 }
 export function isCosAudioConfigured() { return config() !== null; }
 export function cosAudioObjectKey(key: string) {
-  if (!/^[a-f0-9]{64}\.(mp3|m4a|wav|ogg|flac)$/.test(key)) throw new AppError("公共音频编号无效", 400);
+  const preview = /^([a-f0-9]{64})\.preview-v1\.mp3$/.exec(key);
+  if (!preview && !/^[a-f0-9]{64}\.(mp3|m4a|wav|ogg|flac)$/.test(key)) throw new AppError("公共音频编号无效", 400);
   const current = config();
   if (!current) throw new AppError("AniMatch 音频 COS 尚未配置", 503);
-  return `${current.prefix}/${key}`;
+  return preview ? `${current.prefix}/preview/${preview[1]}.v1.mp3` : `${current.prefix}/${key}`;
 }
 export function cosAudioPublicUrl(key: string) {
   const current = config();
@@ -58,4 +59,14 @@ export async function putCosAudioObject(key: string, mime: string, bytes: Uint8A
       CacheControl: "public, max-age=31536000, immutable", ACL: "public-read"
     }, error => error ? reject(error) : resolve()));
   } catch { throw new AppError("公共音频上传 COS 失败，请稍后重试", 502); }
+}
+export async function getCosAudioObject(key: string): Promise<Uint8Array> {
+  const current = config();
+  if (!current) throw new AppError("AniMatch 音频 COS 尚未配置", 503);
+  const objectKey = cosAudioObjectKey(key);
+  try {
+    const data = await client(current).getObject({ Bucket: current.bucket, Region: current.region, Key: objectKey });
+    if (!data.Body) throw new Error("empty object");
+    return new Uint8Array(Buffer.isBuffer(data.Body) ? data.Body : Buffer.from(data.Body as string));
+  } catch { throw new AppError("AniMatch 公共音频暂时无法读取", 502); }
 }

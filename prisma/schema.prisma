@@ -166,6 +166,9 @@ model SongAudioAsset {
   storageProvider String   @default("local")
   mime            String
   bytes           Int
+  previewKey      String?
+  previewMime     String?
+  previewBytes    Int?
   isPreview       Boolean  @default(false)
   createdAt       DateTime @default(now())
 }
