@@ -7,6 +7,7 @@ import { audioDirectory, detectAudio } from "../audio-storage";
 import { MAX_AUDIO_BYTES, type SongTrack } from "../types";
 import { resolveNetease } from "../netease/api";
 import { downloadPublicAudio } from "./download";
+import { cosAudioObjectExists, isCosAudioConfigured, putCosAudioObject } from "./cos-audio";
 export function publicAudioDirectory() { return process.env.ANISONG_PUBLIC_AUDIO_DIR || path.join(process.cwd(), "data/anisong-public-audio"); }
 let ingestion = Promise.resolve();
 async function serial<T>(work: () => Promise<T>): Promise<T> {
@@ -20,6 +21,20 @@ export async function storePublicAudio(bytes: Uint8Array, isPreview = false) {
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   return serial(async () => {
     const previous = await prisma.songAudioAsset.findUnique({ where: { sha256 } });
+    const key = `${sha256}.${format.extension}`;
+    if (isCosAudioConfigured()) {
+      if (previous?.storageProvider === "cos" && await cosAudioObjectExists(previous.key)) return previous;
+      if (previous && previous.storageProvider !== "local" && previous.storageProvider !== "cos") throw new AppError("公共音频存储位置无效", 500);
+      const quota = Math.max(250 * 1024 * 1024, Number(process.env.ANISONG_PUBLIC_AUDIO_QUOTA_BYTES) || 5 * 1024 * 1024 * 1024);
+      if (!previous) {
+        const used = (await prisma.songAudioAsset.aggregate({ _sum: { bytes: true } }))._sum.bytes ?? 0;
+        if (used + bytes.length > quota) throw new AppError("公共音频池存储已满，请联系管理员", 507);
+      }
+      // COS keys are content-addressed, so retrying a failed DB write is safe and cannot replace different audio.
+      await putCosAudioObject(key, format.mime, bytes);
+      if (previous) return prisma.songAudioAsset.update({ where: { id: previous.id }, data: { storageProvider: "cos" } });
+      return prisma.songAudioAsset.upsert({ where: { sha256 }, update: { storageProvider: "cos" }, create: { sha256, key, storageProvider: "cos", mime: format.mime, bytes: bytes.length, isPreview } });
+    }
     if (previous) {
       // Repair a missing file without creating another asset or changing its URL.
       await mkdir(publicAudioDirectory(), { recursive: true });
@@ -29,7 +44,6 @@ export async function storePublicAudio(bytes: Uint8Array, isPreview = false) {
     const quota = Math.max(250 * 1024 * 1024, Number(process.env.ANISONG_PUBLIC_AUDIO_QUOTA_BYTES) || 5 * 1024 * 1024 * 1024);
     const used = (await prisma.songAudioAsset.aggregate({ _sum: { bytes: true } }))._sum.bytes ?? 0;
     if (used + bytes.length > quota) throw new AppError("公共音频池存储已满，请联系管理员", 507);
-    const key = `${sha256}.${format.extension}`;
     await mkdir(publicAudioDirectory(), { recursive: true });
     await writeFile(path.join(publicAudioDirectory(), key), bytes, { flag: "wx", mode: 0o600 }).catch(error => { if (error.code !== "EEXIST") throw error; });
     return prisma.songAudioAsset.upsert({ where: { sha256 }, update: {}, create: { sha256, key, mime: format.mime, bytes: bytes.length, isPreview } });
@@ -38,7 +52,14 @@ export async function storePublicAudio(bytes: Uint8Array, isPreview = false) {
 export async function ingestSongAudio(track: SongTrack, cookie: string) {
   if (track.source.kind === "pool") {
     const asset = await prisma.songAudioAsset.findUnique({ where: { id: track.source.assetId } });
-    if (!asset || !(await stat(path.join(publicAudioDirectory(), asset.key)).catch(() => null))?.isFile()) throw new AppError("公共音频文件缺失，请补充音频", 404);
+    if (!asset) throw new AppError("公共音频文件缺失，请补充音频", 404);
+    if (asset.storageProvider === "cos") {
+      if (!(await cosAudioObjectExists(asset.key))) throw new AppError("公共音频文件缺失，请补充音频", 404);
+      return asset;
+    }
+    const file = path.join(publicAudioDirectory(), asset.key);
+    if (!(await stat(file).catch(() => null))?.isFile()) throw new AppError("公共音频文件缺失，请补充音频", 404);
+    if (isCosAudioConfigured()) return storePublicAudio(await readFile(file), asset.isPreview);
     return asset;
   }
   if (track.source.kind === "upload") {

@@ -9,13 +9,14 @@ import { storePublicAudio } from "@/lib/anisong/shared/audio-pool";
 import { publicAudioHost, publicIPv4, downloadPublicAudio } from "@/lib/anisong/shared/download";
 import { normalizeItunes } from "@/lib/anisong/itunes/api";
 import type { SongTrack } from "@/lib/anisong/types";
-const mocks = vi.hoisted(() => ({ find: vi.fn(), upsert: vi.fn(), aggregate: vi.fn(), lookup: vi.fn(), fetch: vi.fn() }));
-vi.mock("@/lib/db", () => ({ prisma: { songAudioAsset: { findUnique: mocks.find, upsert: mocks.upsert, aggregate: mocks.aggregate } } }));
+const mocks = vi.hoisted(() => ({ find: vi.fn(), upsert: vi.fn(), update: vi.fn(), aggregate: vi.fn(), lookup: vi.fn(), fetch: vi.fn(), cosPut: vi.fn(), cosHead: vi.fn() }));
+vi.mock("@/lib/db", () => ({ prisma: { songAudioAsset: { findUnique: mocks.find, upsert: mocks.upsert, update: mocks.update, aggregate: mocks.aggregate } } }));
 vi.mock("node:dns/promises", () => ({ lookup: mocks.lookup }));
 vi.mock("undici", async original => ({ ...await original<typeof import("undici")>(), fetch: mocks.fetch }));
+vi.mock("cos-nodejs-sdk-v5", () => ({ default: class { putObject(...args: any[]) { return mocks.cosPut(...args); } headObject(...args: any[]) { return mocks.cosHead(...args); } } }));
 const track: SongTrack = { id: "song", title: "Cipher", artist: "Kevin MacLeod", anime: "", kind: "OTHER", year: null, quarter: null, tags: ["电音"], clipStart: 35, clipLength: 30, source: { kind: "pool", assetId: "asset" }, itunes: { id: "123", country: "JP", title: "Cipher", artist: "Kevin MacLeod", storeUrl: "https://music.apple.com/jp/album/a/123" } };
 let directory: string;
-beforeEach(async () => { vi.clearAllMocks(); directory = await mkdtemp(path.join(tmpdir(), "song-public-test-")); vi.stubEnv("ANISONG_PUBLIC_AUDIO_DIR", directory); mocks.aggregate.mockResolvedValue({ _sum: { bytes: 0 } }); mocks.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]); });
+beforeEach(async () => { vi.clearAllMocks(); directory = await mkdtemp(path.join(tmpdir(), "song-public-test-")); vi.stubEnv("ANISONG_PUBLIC_AUDIO_DIR", directory); for (const key of ["ANISONG_COS_SECRET_ID", "ANISONG_COS_SECRET_KEY", "ANISONG_COS_BUCKET", "ANISONG_COS_REGION", "ANISONG_COS_PREFIX", "ANISONG_COS_PUBLIC_BASE_URL"]) vi.stubEnv(key, ""); mocks.aggregate.mockResolvedValue({ _sum: { bytes: 0 } }); mocks.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]); });
 afterEach(async () => { vi.unstubAllEnvs(); await rm(directory, { recursive: true, force: true }); });
 
 describe("shared playback choices", () => {
@@ -83,6 +84,32 @@ describe("public audio storage", () => {
     await expect(storePublicAudio(new Uint8Array(44))).rejects.toThrow("格式");
     mocks.find.mockResolvedValue(null); mocks.aggregate.mockResolvedValue({ _sum: { bytes: 5 * 1024 * 1024 * 1024 } });
     await expect(storePublicAudio(bytes)).rejects.toMatchObject({ statusCode: 507 }); expect(mocks.upsert).not.toHaveBeenCalled();
+  });
+  it("stores content-addressed audio in COS with per-object public Range caching", async () => {
+    for (const [key, value] of Object.entries({ ANISONG_COS_SECRET_ID: "test-id", ANISONG_COS_SECRET_KEY: "test-key", ANISONG_COS_BUCKET: "audio-123", ANISONG_COS_REGION: "ap-guangzhou", ANISONG_COS_PREFIX: "AniMatch/audio-pool", ANISONG_COS_PUBLIC_BASE_URL: "https://audio-123.cos.ap-guangzhou.myqcloud.com" })) vi.stubEnv(key, value);
+    mocks.find.mockResolvedValue(null);
+    mocks.cosPut.mockImplementation((_params: any, callback: (error: null) => void) => callback(null));
+    mocks.upsert.mockImplementation(async ({ create }: any) => ({ id: "cos-asset", ...create }));
+    const asset = await storePublicAudio(bytes);
+    const hash = createHash("sha256").update(bytes).digest("hex");
+    expect(asset.storageProvider).toBe("cos");
+    expect(mocks.cosPut.mock.calls[0][0]).toMatchObject({ Bucket: "audio-123", Region: "ap-guangzhou", Key: `AniMatch/audio-pool/${hash}.wav`, ACL: "public-read", CacheControl: "public, max-age=31536000, immutable", ContentType: "audio/wav" });
+    expect(mocks.upsert.mock.calls[0][0].create.storageProvider).toBe("cos");
+  });
+  it("moves a legacy local asset to COS without changing its identity", async () => {
+    for (const [key, value] of Object.entries({ ANISONG_COS_SECRET_ID: "test-id", ANISONG_COS_SECRET_KEY: "test-key", ANISONG_COS_BUCKET: "audio-123", ANISONG_COS_REGION: "ap-guangzhou", ANISONG_COS_PREFIX: "AniMatch/audio-pool" })) vi.stubEnv(key, value);
+    const hash = createHash("sha256").update(bytes).digest("hex"), legacy = { id: "legacy", sha256: hash, key: `${hash}.wav`, bytes: 44, mime: "audio/wav", isPreview: false, storageProvider: "local" };
+    mocks.find.mockResolvedValue(legacy);
+    mocks.cosPut.mockImplementation((_params: any, callback: (error: null) => void) => callback(null));
+    mocks.update.mockImplementation(async ({ data }: any) => ({ ...legacy, ...data }));
+    const asset = await storePublicAudio(bytes);
+    expect(asset).toMatchObject({ id: "legacy", key: legacy.key, storageProvider: "cos" });
+    expect(mocks.update).toHaveBeenCalledWith({ where: { id: "legacy" }, data: { storageProvider: "cos" } });
+  });
+  it("builds the public audio URL from the configured COS origin", async () => {
+    for (const [key, value] of Object.entries({ ANISONG_COS_SECRET_ID: "test-id", ANISONG_COS_SECRET_KEY: "test-key", ANISONG_COS_BUCKET: "audio-123", ANISONG_COS_REGION: "ap-guangzhou", ANISONG_COS_PREFIX: "AniMatch/audio-pool", ANISONG_COS_PUBLIC_BASE_URL: "https://audio-123.cos.ap-guangzhou.myqcloud.com" })) vi.stubEnv(key, value);
+    const { cosAudioPublicUrl } = await import("@/lib/anisong/shared/cos-audio");
+    expect(cosAudioPublicUrl(`${"a".repeat(64)}.mp3`)).toBe(`https://audio-123.cos.ap-guangzhou.myqcloud.com/AniMatch/audio-pool/${"a".repeat(64)}.mp3`);
   });
 });
 describe("iTunes metadata", () => {

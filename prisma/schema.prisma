@@ -160,13 +160,14 @@ model SongTemplate {
 }
 
 model SongAudioAsset {
-  id          String   @id @default(cuid())
-  sha256      String   @unique
-  key         String   @unique
-  mime        String
-  bytes       Int
-  isPreview   Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  id              String   @id @default(cuid())
+  sha256          String   @unique
+  key             String   @unique
+  storageProvider String   @default("local")
+  mime            String
+  bytes           Int
+  isPreview       Boolean  @default(false)
+  createdAt       DateTime @default(now())
 }
 
 // Nomination collection is separate from live voting and winner decisions.

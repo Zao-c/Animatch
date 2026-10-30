@@ -7,12 +7,18 @@ import { publicAudioDirectory } from "./audio-pool";
 import { readNeteaseAccount } from "../netease/accounts";
 import { resolveNetease } from "../netease/api";
 import { lookupItunes } from "../itunes/api";
+import { cosAudioPublicUrl, isCosAudioConfigured } from "./cos-audio";
 export async function resolveSongPlayback(track: SongTrack, boardId: string, userId: string, provider: SongAudioProvider): Promise<SongPlayback> {
   const base = { provider, expiresAt: Date.now() + 3600000, trial: false, start: track.clipStart, length: track.clipLength };
   if (provider === "pool") {
     if (track.source.kind !== "pool") throw new AppError("这首歌尚未保存到公共音频池", 422);
     const asset = await prisma.songAudioAsset.findUnique({ where: { id: track.source.assetId } });
-    if (!asset || !(await stat(path.join(publicAudioDirectory(), asset.key)).catch(() => null))?.isFile()) throw new AppError("公共音频暂时缺失，请尝试 iTunes 或反馈给曲单创建者", 404);
+    if (!asset) throw new AppError("公共音频暂时缺失，请尝试 iTunes 或反馈给曲单创建者", 404);
+    if (asset.storageProvider === "cos") {
+      if (!isCosAudioConfigured()) throw new AppError("公共音频暂时缺失，请尝试 iTunes 或反馈给曲单创建者", 404);
+      return { ...base, url: cosAudioPublicUrl(asset.key), trial: asset.isPreview };
+    }
+    if (!(await stat(path.join(publicAudioDirectory(), asset.key)).catch(() => null))?.isFile()) throw new AppError("公共音频暂时缺失，请尝试 iTunes 或反馈给曲单创建者", 404);
     return { ...base, url: `/api/anisong/audio-pool/${asset.id}`, trial: asset.isPreview };
   }
   if (provider === "itunes") {

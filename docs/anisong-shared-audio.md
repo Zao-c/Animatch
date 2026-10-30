@@ -21,7 +21,7 @@
 
 ## 缓存、大小和音质
 
-- **服务器公共池**：持久文件保存在 Docker `public_song_audio` 卷。相同文件哈希复用一份；音频独立于创建者的个人曲单。
+- **服务器公共池**：部署配置 COS 后，音频以 SHA-256 命名写入 `AniMatch/audio-pool/` 前缀，播放器从 COS 公网地址直接流式读取；应用服务器不再承载这些音频的播放流量。相同文件哈希复用一份；音频独立于创建者的个人曲单。未配置 COS 的本地开发仍使用磁盘目录。
 - **用户设备**：公共音频响应允许浏览器 HTTP 缓存：`public, max-age=31536000, immutable`，支持 HEAD 与字节 Range。浏览器决定缓存哪些已请求内容及何时清理，不能保证完整下载或离线播放。
 - **私人上传**：受账号保护的文件使用 `private, no-store`；播放器可在当前媒体元素中缓冲，页面关闭后不保证保留。
 - **第三方直连**：网易云、iTunes 由浏览器直连平台音频，缓存行为由平台响应头及浏览器决定。应用只短期复用解析结果，不把第三方临时 URL 当作永久文件。
@@ -40,13 +40,13 @@ Apple 对试听内容有推广用途、关联商店链接、流式播放等限�
 
 ## 运维
 
-新增 `SongTemplate`、`SongAudioAsset` 和 `SongBoard.templateId/templateRevision`，生产启动执行增量迁移 `20261030090000_shared_song_templates`。部署只更新应用，保留网易云服务：
+新增 `SongTemplate`、`SongAudioAsset` 和 `SongBoard.templateId/templateRevision`，生产启动执行增量迁移 `20261030090000_shared_song_templates`。COS 音频迁移增加 `SongAudioAsset.storageProvider`；新入池对象按内容哈希重试安全写入，并仅对这个对象设置 `public-read` 与一年 immutable Cache-Control，不修改存储桶级 ACL。部署只更新应用，保留网易云服务：
 
 ```sh
 docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build --no-deps app
 ```
 
-备份需同时覆盖 PostgreSQL、`public_song_audio`、`anime_uploads`、私人音频和网易云凭据卷。公共文件不随曲单删除自动回收；当前没有自动垃圾清理及存储管理 UI。多实例入池需补充分布式配额和写入协调。
+生产音频凭据用独立 `ANISONG_COS_*` 变量，避免覆盖图片使用的 AniMatch COS 配置；桶与对象前缀须对应授权。备份需同时覆盖 PostgreSQL、COS 音频前缀、`anime_uploads`、私人音频和网易云凭据卷。公共文件不随曲单删除自动回收；当前没有自动垃圾清理及存储管理 UI。多实例入池仍需补充分布式配额协调。
 
 外链入池只允许公开 HTTPS 域名，解析并固定公网 IPv4，每次跳转重新校验地址，限制重定向、大小及下载时间。不把平台 Cookie、私有文件路径、原始外链、创建者投票和手动档位复制到公共模板。
 
@@ -58,7 +58,9 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d --bui
 
 ## 2026-10-30 生产上线
 
-- 更新地址：`http://182.61.136.105:3000/anisong`。生产 Node 20 镜像构建成功，包含 TypeScript / ESLint 检查，22项迁移已应用，应用及网易云接口健康。
-- 使用公网 HTTP 地址与 Chromium 完成15项验收：批量上传的 UUID 格式、左右按钮/封面/方向键投票、投票后保留媒体元素、创建者历史保留、匿名公共音频 Range 及缓存头、另一账号从公共页面开始独立对决、公共池真实解码、真实 iTunes 搜索播放、源失败后切换以及双源失败停止。记录：`output/anisong-shared/production-verification.json`。
+- 更新地址：`http://182.61.136.105:3000/anisong`。生产 Node 20 镜像构建成功，包含 TypeScript / ESLint 检查，23项迁移已应用，应用及网易云接口健康。
+- 公共音频使用 PMH 自有 COS 桶 `obsidian-1407692069` 的 `AniMatch/audio-pool/` 前缀；AniMatch 图片 COS 未改动。存储桶仍为私有，仅逐个音频对象设置 `public-read` 和一年 immutable 缓存头，没有改桶级 ACL。
+- 已将原有2个本地公共音频资产校验 SHA-256、大小并迁至 COS，数据库切换到 COS；服务器原文件保留作回退副本。新播放器请求直接使用 COS 公网地址，应用服务器不再转发公共池音频。当前直连 COS，尚未配置 CDN。
+- 使用公网 HTTP 地址与 Chromium 完成16项验收：批量上传的 UUID 格式、左右按钮/封面/方向键投票、投票后保留媒体元素、创建者历史保留、匿名公共音频 Range 及缓存头、另一账号从公共页面开始独立对决、播放解析返回 PMH COS 地址、公共池真实解码、真实 iTunes 搜索播放、源失败后切换以及双源失败停止。记录：`output/anisong-shared/production-verification.json`。
 - 上线前生成并核验 `backups/animatch-before-shared-20261030.dump`，保留 `animatch-app:before-shared-20261030` 镜像。验收只发布自生成测试音，未公开现有用户曲单或商业音乐；临时账号、曲单和私人测试文件已清理，公共池文件按设计独立保存。
 - 对正式曲单抽查两首网易云匿名试听：均返回约128 kbps MP3、45秒、约480 kB。服务器到平台解析耗时约110/424 ms，仅反映抽查时服务器链路，不代表用户设备的音频吞吐或缓冲。
