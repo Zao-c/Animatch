@@ -79,7 +79,7 @@ initial 原文件含 UTF-8 BOM。将其 SQL 放入事务前，脚本用 `utf-8-s
 | public 约束和索引定义 | 完全一致，包括 CHECK、部分索引 |
 | fresh vs schema.prisma | **存在下述 6 个既有外键差异** |
 
-证据见 [validation/anisong-release](validation/anisong-release)。这不是生产数据库恢复演练；生产真实备份和真实账本尚未接收。
+证据见 [validation/anisong-release](validation/anisong-release)。提交的日志仅规范化行尾空白。这不是生产数据库恢复演练；生产真实备份和真实账本尚未接收。
 
 ### 发现的 schema 漂移
 

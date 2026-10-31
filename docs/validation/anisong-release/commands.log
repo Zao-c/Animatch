@@ -241,7 +241,7 @@ migrations/
     └─ migration.sql
   └─ 20261030133000_anisong_preview_audio/
     └─ migration.sql
-      
+
 All migrations have been successfully applied.
 Environment variables loaded from .env
 
@@ -827,7 +827,7 @@ INSERT 0 1
 
 exit=0
 $ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
-       id        |                                                                                                                                                                                                                                                                                                                                                                                                                                     document                                                                                                                                                                                                                                                                                                                                                                                                                                      |      shareToken       |                                                                                                                                                                                      snapshot                                                                                                                                                                                      
+       id        |                                                                                                                                                                                                                                                                                                                                                                                                                                     document                                                                                                                                                                                                                                                                                                                                                                                                                                      |      shareToken       |                                                                                                                                                                                      snapshot
 -----------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  legacy-sentinel | {"events": [{"id": "legacy-vote", "leftId": "legacy-op", "result": "LEFT_WIN", "rightId": "legacy-ed"}], "tracks": [{"id": "legacy-op", "kind": "OP", "tags": [], "year": 2023, "anime": "Synthetic series", "title": "Legacy OP", "artist": "Synthetic QA", "source": {"key": "11111111-1111-4111-8111-111111111111.wav", "kind": "upload", "mime": "audio/wav", "bytes": 176478}, "quarter": 4, "coverUrl": "https://p1.music.126.net/synthetic-fixture.jpg", "clipStart": 0, "clipLength": 30}, {"id": "legacy-ed", "kind": "ED", "tags": [], "year": 2023, "anime": "Synthetic series", "title": "Legacy ED", "artist": "Synthetic QA", "source": {"id": "123456", "kind": "netease"}, "quarter": 4, "coverUrl": "https://p1.music.126.net/synthetic-fixture.jpg", "clipStart": 0, "clipLength": 30}], "version": 1, "manualTiers": {"legacy-op": "s"}, "candidateIds": null} | legacy-sentinel-share | {"rows": [{"id": "s", "color": "#fb7185", "label": "S", "songs": [{"id": "legacy-op", "kind": "OP", "anime": "Synthetic series", "title": "Legacy OP", "artist": "Synthetic QA", "manual": true, "coverUrl": "https://p1.music.126.net/synthetic-fixture.jpg"}]}], "title": "Synthetic legacy snapshot", "version": 1, "capturedAt": "2026-10-29T00:00:00.000Z", "comparisons": 1}
 (1 row)
@@ -3298,9 +3298,9 @@ SET
 SET
 SET
 SET
- set_config 
+ set_config
 ------------
- 
+
 (1 row)
 
 SET
@@ -3582,7 +3582,7 @@ migrations/
     └─ migration.sql
   └─ 20261030133000_anisong_preview_audio/
     └─ migration.sql
-      
+
 All migrations have been successfully applied.
 Environment variables loaded from .env
 
@@ -3609,7 +3609,7 @@ Environment variables loaded from .env
 
 exit=0
 $ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d restored
-       id        |                                                                                                                                                                                                                                                                                                                                                                                                                                     document                                                                                                                                                                                                                                                                                                                                                                                                                                      |      shareToken       |                                                                                                                                                                                      snapshot                                                                                                                                                                                      
+       id        |                                                                                                                                                                                                                                                                                                                                                                                                                                     document                                                                                                                                                                                                                                                                                                                                                                                                                                      |      shareToken       |                                                                                                                                                                                      snapshot
 -----------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  legacy-sentinel | {"events": [{"id": "legacy-vote", "leftId": "legacy-op", "result": "LEFT_WIN", "rightId": "legacy-ed"}], "tracks": [{"id": "legacy-op", "kind": "OP", "tags": [], "year": 2023, "anime": "Synthetic series", "title": "Legacy OP", "artist": "Synthetic QA", "source": {"key": "11111111-1111-4111-8111-111111111111.wav", "kind": "upload", "mime": "audio/wav", "bytes": 176478}, "quarter": 4, "coverUrl": "https://p1.music.126.net/synthetic-fixture.jpg", "clipStart": 0, "clipLength": 30}, {"id": "legacy-ed", "kind": "ED", "tags": [], "year": 2023, "anime": "Synthetic series", "title": "Legacy ED", "artist": "Synthetic QA", "source": {"id": "123456", "kind": "netease"}, "quarter": 4, "coverUrl": "https://p1.music.126.net/synthetic-fixture.jpg", "clipStart": 0, "clipLength": 30}], "version": 1, "manualTiers": {"legacy-op": "s"}, "candidateIds": null} | legacy-sentinel-share | {"rows": [{"id": "s", "color": "#fb7185", "label": "S", "songs": [{"id": "legacy-op", "kind": "OP", "anime": "Synthetic series", "title": "Legacy OP", "artist": "Synthetic QA", "manual": true, "coverUrl": "https://p1.music.126.net/synthetic-fixture.jpg"}]}], "title": "Synthetic legacy snapshot", "version": 1, "capturedAt": "2026-10-29T00:00:00.000Z", "comparisons": 1}
 (1 row)
@@ -3661,7 +3661,7 @@ ALTER TABLE "BattleSeasonArchive" ADD CONSTRAINT "BattleSeasonArchive_seasonId_f
 
 exit=0
 $ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d fresh
-        conrelid         |                     conname                     |                                               pg_get_constraintdef                                               
+        conrelid         |                     conname                     |                                               pg_get_constraintdef
 -------------------------+-------------------------------------------------+------------------------------------------------------------------------------------------------------------------
  "Anime"                 | Anime_pkey                                      | PRIMARY KEY (id)
  "AnimeCollection"       | AnimeCollection_finalPoolId_fkey                | FOREIGN KEY ("finalPoolId") REFERENCES "CustomPool"(id) ON DELETE SET NULL
@@ -3771,7 +3771,7 @@ $ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit 
  "UserTagPreference"     | UserTagPreference_userId_fkey                   | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
 (106 rows)
 
-       tablename       |                         indexname                         |                                                                                indexdef                                                                                
+       tablename       |                         indexname                         |                                                                                indexdef
 -----------------------+-----------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Anime                 | Anime_bgmId_key                                           | CREATE UNIQUE INDEX "Anime_bgmId_key" ON public."Anime" USING btree ("bgmId")
  Anime                 | Anime_pkey                                                | CREATE UNIQUE INDEX "Anime_pkey" ON public."Anime" USING btree (id)
@@ -3900,7 +3900,7 @@ $ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit 
 
 exit=0
 $ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d restored
-        conrelid         |                     conname                     |                                               pg_get_constraintdef                                               
+        conrelid         |                     conname                     |                                               pg_get_constraintdef
 -------------------------+-------------------------------------------------+------------------------------------------------------------------------------------------------------------------
  "Anime"                 | Anime_pkey                                      | PRIMARY KEY (id)
  "AnimeCollection"       | AnimeCollection_finalPoolId_fkey                | FOREIGN KEY ("finalPoolId") REFERENCES "CustomPool"(id) ON DELETE SET NULL
@@ -4010,7 +4010,7 @@ $ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit 
  "UserTagPreference"     | UserTagPreference_userId_fkey                   | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
 (106 rows)
 
-       tablename       |                         indexname                         |                                                                                indexdef                                                                                
+       tablename       |                         indexname                         |                                                                                indexdef
 -----------------------+-----------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Anime                 | Anime_bgmId_key                                           | CREATE UNIQUE INDEX "Anime_bgmId_key" ON public."Anime" USING btree ("bgmId")
  Anime                 | Anime_pkey                                                | CREATE UNIQUE INDEX "Anime_pkey" ON public."Anime" USING btree (id)

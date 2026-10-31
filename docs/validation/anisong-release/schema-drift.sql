@@ -33,4 +33,3 @@ ALTER TABLE "CollectionSource" ADD CONSTRAINT "CollectionSource_seasonId_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "BattleSeasonArchive" ADD CONSTRAINT "BattleSeasonArchive_seasonId_fkey" FOREIGN KEY ("seasonId") REFERENCES "BattleSeason"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
