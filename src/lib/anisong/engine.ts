@@ -59,7 +59,17 @@ export function rankSongs(document: SongDocument) {
     for (const row of DEFAULT_TIER_CONFIG.rows) tiers[row.id] = tiers[row.id].filter(s => !ids.has(s.animeId));
     tiers[target].push(...group);
   }
-  for (const row of DEFAULT_TIER_CONFIG.rows) tiers[row.id].sort((a, b) => Number(b.manualLocked) - Number(a.manualLocked) || b.eloScore - a.eloScore || a.animeId.localeCompare(b.animeId));
+  for (const row of DEFAULT_TIER_CONFIG.rows) {
+    const saved = document.manualOrder?.[row.id];
+    const positions = new Map((Array.isArray(saved) ? saved : []).map((id, index) => [id, index]));
+    tiers[row.id].sort((a, b) => {
+      const ai = positions.get(a.animeId), bi = positions.get(b.animeId);
+      if (ai !== undefined && bi !== undefined) return ai - bi;
+      if (ai !== undefined) return -1;
+      if (bi !== undefined) return 1;
+      return Number(b.manualLocked) - Number(a.manualLocked) || b.eloScore - a.eloScore || a.animeId.localeCompare(b.animeId);
+    });
+  }
   return { scores: all, active, pending, hidden: all.filter(s => s.isHidden && selected.has(s.animeId)),
     excluded: all.filter(s => !selected.has(s.animeId)),
     tiers, progress };
