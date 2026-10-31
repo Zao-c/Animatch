@@ -1,4 +1,4 @@
-        conrelid         |                     conname                     |                                               pg_get_constraintdef                                               
+        conrelid         |                     conname                     |                                               pg_get_constraintdef
 -------------------------+-------------------------------------------------+------------------------------------------------------------------------------------------------------------------
  "Anime"                 | Anime_pkey                                      | PRIMARY KEY (id)
  "AnimeCollection"       | AnimeCollection_finalPoolId_fkey                | FOREIGN KEY ("finalPoolId") REFERENCES "CustomPool"(id) ON DELETE SET NULL
@@ -108,7 +108,7 @@
  "UserTagPreference"     | UserTagPreference_userId_fkey                   | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
 (106 rows)
 
-       tablename       |                         indexname                         |                                                                                indexdef                                                                                
+       tablename       |                         indexname                         |                                                                                indexdef
 -----------------------+-----------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Anime                 | Anime_bgmId_key                                           | CREATE UNIQUE INDEX "Anime_bgmId_key" ON public."Anime" USING btree ("bgmId")
  Anime                 | Anime_pkey                                                | CREATE UNIQUE INDEX "Anime_pkey" ON public."Anime" USING btree (id)
@@ -233,4 +233,3 @@
  UserTagPreference     | UserTagPreference_userId_poolId_runId_tag_key             | CREATE UNIQUE INDEX "UserTagPreference_userId_poolId_runId_tag_key" ON public."UserTagPreference" USING btree ("userId", "poolId", "runId", tag)
  _prisma_migrations    | _prisma_migrations_pkey                                   | CREATE UNIQUE INDEX _prisma_migrations_pkey ON public._prisma_migrations USING btree (id)
 (122 rows)
-
