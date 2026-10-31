@@ -101,6 +101,11 @@ initial 原文件含 UTF-8 BOM。将其 SQL 放入事务前，脚本用 `utf-8-s
 
 ```bash
 # NEW_DATABASE_URL 必须由操作者显式设置，不能复用默认生产连接。
+test -n "${NEW_DATABASE_URL:-}" || exit 1
+# 管理员先在独立会话核对数据库名、主机与备份，再在交互终端确认。
+test -t 0 || exit 1
+read -r -p '确认目标为全新独立空库，输入 INITIALIZE-EMPTY-ANIMATCH: ' confirmation
+[ "$confirmation" = "INITIALIZE-EMPTY-ANIMATCH" ] || exit 1
 # 在同一事务内拒绝已有表、视图、序列、外部表、分区表、枚举或其他用户类型，再执行 initial。
 python3 - <<'PY' | psql "$NEW_DATABASE_URL" -X -v ON_ERROR_STOP=1
 from pathlib import Path
@@ -195,3 +200,8 @@ Docker 中保留 `http://netease-api:3000`，宿主机本地进程显式覆盖 l
 没有删除测试或关闭 TypeScript 检查。历史迁移文件相对于验证基点没有变更。
 
 当前交付可审核的窄范围修复与初始化流程，不代表允许生产发布。生产账本 / 真实备份恢复、6 个既有 FK 差异处置、空库流程的人工审核仍需完成；真实历史数据验收按用户本轮回复暂缓。没有合并 PR #2–#5、推送 main 或部署生产。
+
+
+## 后续生产只读审核
+
+2026-10-31 后续已获得生产只读核验和隔离恢复授权。生产账本、实际备份恢复以及最终 Go / No-Go 结论以 [最终发布验收报告](anisong-final-release.md) 为准；本页前述“尚未核验”是上一轮当时状态。真实备份及日志仅存于仓库外的受限目录，没有提交 Git。
