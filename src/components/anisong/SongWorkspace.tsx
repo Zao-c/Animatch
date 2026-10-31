@@ -53,16 +53,17 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
   const endpoint = `/api/anisong/boards/${boardId}`;
   function navigate(next: Tab) {
     if (lock.current || importing || next === view) return;
-    if ((editing || batchOpen || bulkEditing || addMode !== "none" || itunesTarget) &&
-        !window.confirm("当前歌曲编辑或导入尚未完成，确定离开吗？")) return;
+    if ((editing || batchOpen || bulkEditing || addMode !== "none" || itunesTarget || renaming) &&
+        !window.confirm("当前歌曲编辑、导入或设置尚未完成，确定离开吗？")) return;
     cancelSongAudioPreload();
     window.dispatchEvent(new CustomEvent("anisong:play", { detail: null }));
     router.push(next === "library" ? "/anisong/" + boardId : "/anisong/" + boardId + "/" + next);
   }
   function chooseAddMode(next: "none" | "manual" | "batch" | "itunes" | "netease") {
     if (lock.current || busy || importing || conflict) return;
-    if ((editing || batchOpen || bulkEditing || addMode !== "none") &&
+    if ((editing || batchOpen || bulkEditing || addMode !== "none" || itunesTarget) &&
         !window.confirm("切换添加方式会放弃尚未保存的输入或待导入文件，确定吗？")) return;
+    setItunesTarget(null);
     setEditing(next === "manual" ? "new" : null);
     setBatchOpen(next === "batch");
     setBulkEditing(false);
@@ -85,14 +86,14 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
   useEffect(() => { setShareUrl(board?.shareToken ? `${window.location.origin}/anisong/share/${board.shareToken}` : ""); }, [board?.shareToken]);
   useEffect(() => () => cancelSongAudioPreload(), []);
   useEffect(() => {
-    if (!editing && !batchOpen && !bulkEditing && addMode === "none" && !itunesTarget && !busy && !importing) return;
+    if (!editing && !batchOpen && !bulkEditing && addMode === "none" && !itunesTarget && !renaming && !busy && !importing) return;
     return registerUnsavedChangesGuard(window, busy || importing ? "操作尚未完成，确定离开吗？" : "编辑或导入面板尚未收起，确定放弃待保存内容并离开吗？");
-  }, [editing, batchOpen, bulkEditing, addMode, itunesTarget, busy, importing]);
+  }, [editing, batchOpen, bulkEditing, addMode, itunesTarget, renaming, busy, importing]);
   function editTrack(next: SongTrack | "new" | null) {
     if (lock.current || importing) return;
     if (next === editing || (next && next !== "new" && editing && editing !== "new" && next.id === editing.id)) return;
-    if ((editing || batchOpen || bulkEditing || addMode !== "none") && !window.confirm("放弃当前未保存的歌曲编辑或导入操作？")) return;
-    setBatchOpen(false); setBulkEditing(false); setEditing(next); setAddOpen(Boolean(next)); setAddMode(next ? "manual" : "none");
+    if ((editing || batchOpen || bulkEditing || addMode !== "none" || itunesTarget) && !window.confirm("放弃当前未保存的歌曲编辑或导入操作？")) return;
+    setBatchOpen(false); setBulkEditing(false); setItunesTarget(null); setEditing(next); setAddOpen(Boolean(next)); setAddMode(next ? "manual" : "none");
   }
 
   async function mutate(input: Record<string, unknown>, form?: FormData): Promise<boolean> {
