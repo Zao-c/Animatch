@@ -156,7 +156,7 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
   }
   const disabled = busy || importing || conflict || loading || login;
   if (!board) return <div className="mx-auto max-w-4xl space-y-5"><Link href="/anisong" className="text-anime-cyan">← 音乐曲单</Link>{loading ? <p role="status">正在加载曲单…</p> : <div role="alert"><p>{error}</p>{login ? <Link href={`/login?next=${encodeURIComponent(`/anisong/${boardId}`)}`} className="text-anime-cyan underline">去登录</Link> : <AppButton onClick={() => void reload()}>重试</AppButton>}</div>}</div>;
-  return <div className="mx-auto max-w-6xl space-y-4">
+  return <div className={view === "match" ? "mx-auto w-full max-w-[90rem] space-y-4" : "mx-auto max-w-6xl space-y-4"}>
     {view === "match" ? <MatchHeading mode="music" title={board.title} backHref={"/anisong/" + boardId} description="先试听，再选择更喜欢的一首。点击封面或选择按钮会记录对决；播放按钮只负责试听。平局计入比较，跳过不改变评分；未听过的歌曲可在曲单中恢复。"
       context={<span className="text-slate-400">{ranking?.active.length} 首 · {ranking?.progress.effectiveComparisons} 次比较</span>}
       tools={<><span role="status" className="text-xs text-slate-400">{busy ? "正在处理…" : conflict ? "请重新载入" : notice || "进度已保存"}</span><AppButton variant="ghost" size="sm" disabled={disabled || !board.document.events.length} onClick={() => void mutate({ action: "undo" })}>撤回上一步</AppButton></>}

@@ -5,6 +5,7 @@ import { buildRankingProgress } from "@/lib/ranking-progress";
 import { buildTierList } from "@/lib/tier";
 import { DEFAULT_TIER_CONFIG } from "@/lib/tier-config";
 import type { SongDocument, SongTrack, SongSnapshot } from "./types";
+import { preferredSongCover } from "./cover-quality";
 
 export type SongScore = ScoreItem & { track: SongTrack; manualTier: string | null; manualLocked: boolean };
 
@@ -90,6 +91,6 @@ export function songSnapshot(title: string, document: SongDocument): SongSnapsho
     { id: "hidden", label: "未听过", color: "#475569", scores: ranking.hidden }];
   return { version: 1, title, capturedAt: new Date().toISOString(), comparisons: ranking.progress.effectiveComparisons,
     rows: rows.map(row => ({ id: row.id, label: row.label, color: row.color, songs: row.scores.map(s => ({
-      id: s.track.id, title: s.track.title, artist: s.track.artist, anime: s.track.anime, kind: s.track.kind, manual: s.manualLocked, coverUrl: s.track.coverUrl ?? null
+      id: s.track.id, title: s.track.title, artist: s.track.artist, anime: s.track.anime, kind: s.track.kind, manual: s.manualLocked, coverUrl: preferredSongCover(s.track.coverUrl)
     })) })) };
 }

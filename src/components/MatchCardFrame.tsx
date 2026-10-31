@@ -12,7 +12,7 @@ export function MatchCardFrame({ title, side, artwork, disabled, onPick, actionL
   className?: string; heroClassName?: string; playbackState?: "idle" | "loading" | "playing";
 }) {
   const label = actionLabel ?? (side === "left" ? "更喜欢左边" : "更喜欢右边");
-  return <article aria-busy={disabled} data-playback={playbackState} className={"flex min-w-0 flex-col rounded-2xl border bg-slate-950/35 p-1.5 transition-colors sm:p-2 " + (highlighted ? "border-anime-cyan/60 ring-2 ring-anime-cyan/20" : "border-white/10") + " " + className}>
+  return <article aria-busy={disabled} data-playback={playbackState} className={"flex min-w-0 flex-col rounded-2xl border bg-slate-950/35 p-1.5 transition-colors sm:p-2 " + (highlighted ? (mode === "music" ? "border-anime-cyan/60 ring-2 ring-anime-cyan/20" : "border-amber-200 ring-2 ring-amber-200/30") : "border-white/10") + " " + className}>
     <div className={"relative h-[clamp(13rem,40dvh,26rem)] w-full overflow-hidden rounded-xl bg-slate-950 sm:h-[clamp(22rem,62dvh,50rem)] " + heroClassName}>
       {artwork}
       <button type="button" disabled={disabled} onClick={onPick} aria-label={"选择" + (side === "left" ? "左边" : "右边") + "：" + title} className="absolute inset-0 z-10 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-cyan-200 disabled:cursor-wait" />
