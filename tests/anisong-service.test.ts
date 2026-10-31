@@ -1,14 +1,30 @@
+import type { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { addSongTrack, changeSongBoard, deleteSongBoard, ownedSongBoard } from "@/lib/anisong/service";
-import { emptySongDocument, type SongDocument, type SongTrack } from "@/lib/anisong/types";
+import { emptySongDocument, MAX_BOARD_AUDIO_BYTES, MAX_TRACKS, type SongDocument, type SongTrack } from "@/lib/anisong/types";
 const mocks = vi.hoisted(() => ({ findFirst: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn(), discardAudio: vi.fn() }));
 vi.mock("@/lib/db", () => ({ prisma: { songBoard: mocks } }));
 vi.mock("@/lib/anisong/audio-storage", () => ({ discardAudio: mocks.discardAudio }));
 const song = (id: string): SongTrack => ({ id, title: id, artist: "", anime: "", kind: "OP", year: null, quarter: null, tags: [], clipStart: 0, clipLength: 30, source: { kind: "none" } });
 const document = (): SongDocument => ({ ...emptySongDocument(), tracks: [song("a"), song("b")] });
-const board = (doc = document()) => ({ id: "board", ownerId: "owner", title: "test", revision: 3, document: doc, shareToken: null, snapshot: null, createdAt: new Date(), updatedAt: new Date() });
+const board = (doc = document()) => ({ id: "board", ownerId: "owner", title: "test", revision: 3, templateId: null, templateRevision: null, document: doc as unknown as Prisma.JsonValue, shareToken: null, snapshot: null, createdAt: new Date(), updatedAt: new Date() });
 beforeEach(() => { vi.resetAllMocks(); mocks.findFirst.mockResolvedValue(board()); mocks.updateMany.mockResolvedValue({ count: 1 }); mocks.deleteMany.mockResolvedValue({ count: 1 }); });
 describe("music board persistence", () => {
+  it("accepts the 65th and 1000th track, rejects the 1001st, and allows edits at capacity", async () => {
+    for (const count of [64, MAX_TRACKS - 1]) {
+      const doc = { ...emptySongDocument(), tracks: Array.from({ length: count }, (_, i) => song(`annual-${i}`)) };
+      const result = await addSongTrack(board(doc), 3, song("new-track"));
+      expect(result.document.tracks).toHaveLength(count + 1);
+    }
+    const full = { ...emptySongDocument(), tracks: Array.from({ length: MAX_TRACKS }, (_, i) => song(`annual-${i}`)) };
+    mocks.updateMany.mockClear();
+    await expect(addSongTrack(board(full), 3, song("overflow"))).rejects.toMatchObject({ statusCode: 400 });
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+    const result = await addSongTrack(board(full), 3, { ...full.tracks[0], title: "Edited" });
+    expect(result.document.tracks).toHaveLength(MAX_TRACKS);
+    expect(result.document.tracks[0].title).toBe("Edited");
+  });
+
   it("atomically changes selected metadata and preserves media, history, tiers and share snapshots", async () => {
     const doc = document(); doc.tracks.push(song("c"));
     doc.tracks[0].source = { kind: "upload", key: "kept.wav", mime: "audio/wav", bytes: 100 };
@@ -107,7 +123,7 @@ describe("music board persistence", () => {
     expect(mocks.discardAudio).toHaveBeenCalledWith("old.wav");
   });
   it("keeps old audio on replacement conflicts and enforces cumulative storage quota", async () => {
-    const doc = document(); doc.tracks[0].source = { kind: "upload", key: "old.wav", mime: "audio/wav", bytes: 250 * 1024 * 1024 };
+    const doc = document(); doc.tracks[0].source = { kind: "upload", key: "old.wav", mime: "audio/wav", bytes: MAX_BOARD_AUDIO_BYTES };
     mocks.findFirst.mockResolvedValue(board(doc));
     const current = await ownedSongBoard("owner", "board");
     const replacement = { ...doc.tracks[0], source: { kind: "upload" as const, key: "new.wav", mime: "audio/wav", bytes: 100 } };

@@ -77,7 +77,7 @@ export async function boundedBody(request: Request, limit: number): Promise<Arra
   return bytes.buffer;
 }
 export async function songJson(request: Request) {
-  const bytes = await boundedBody(request, 16 * 1024);
+  const bytes = await boundedBody(request, 128 * 1024);
   try { return JSON.parse(new TextDecoder().decode(bytes)) as unknown; }
   catch { throw new AppError("请求格式不正确", 400); }
 }

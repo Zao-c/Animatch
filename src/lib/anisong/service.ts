@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { AppError } from "@/lib/app-error";
 import { DEFAULT_TIER_CONFIG } from "@/lib/tier-config";
 import { rankSongs, songSnapshot } from "./engine";
-import { emptySongDocument, MAX_EVENTS, MAX_TRACKS, type SongBoardView, type SongDocument, type SongTrack, type SongDecision } from "./types";
+import { emptySongDocument, MAX_BOARD_AUDIO_BYTES, MAX_EVENTS, MAX_TRACKS, type SongBoardView, type SongDocument, type SongTrack, type SongDecision } from "./types";
 import { objectInput, revisionInput, textInput } from "./validation";
 import { discardAudio } from "./audio-storage";
 import { cleanSongCovers, songCoverReferences } from "./cover-storage";
@@ -61,7 +61,7 @@ export async function addSongTrack(board: StoredBoard, revision: number, track: 
   const previous = document.tracks.find(t => t.id === track.id);
   if (!previous && document.tracks.length >= MAX_TRACKS) throw new AppError(`每份曲单最多${MAX_TRACKS}首歌`, 400);
   const bytes = document.tracks.filter(t => t.id !== track.id).reduce((sum, t) => sum + (t.source.kind === "upload" ? t.source.bytes : 0), 0);
-  if (track.source.kind === "upload" && bytes + track.source.bytes > 250 * 1024 * 1024) throw new AppError("本曲单音频已达到250 MB上限", 400);
+  if (track.source.kind === "upload" && bytes + track.source.bytes > MAX_BOARD_AUDIO_BYTES) throw new AppError("本曲单音频已达到2 GB上限", 400);
   const result = await saveSongBoard(board, revision, { ...document,
     tracks: previous ? document.tracks.map(t => t.id === track.id ? track : t) : [...document.tracks, track] });
   if (previous?.source.kind === "upload" && (track.source.kind !== "upload" || track.source.key !== previous.source.key)) await discardAudio(previous.source.key);
