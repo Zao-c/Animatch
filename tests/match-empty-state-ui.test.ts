@@ -21,7 +21,7 @@ describe("match empty state UI", () => {
   it("distinguishes a refill failure from a legitimately exhausted queue", () => {
     expect(source).toContain("const [refillError, setRefillError]");
     expect(source).toContain("loadInitialQueue");
-    expect(source).toContain("queue.length < 3");
+    expect(source).toContain("queue.length < 5");
   });
 
   it("explains high-confidence and exhausted queues without implying the site broke", () => {

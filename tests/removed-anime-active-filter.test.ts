@@ -5,7 +5,7 @@ import { getRunTierList } from "../src/lib/tier-service";
 import { prisma } from "../src/lib/db";
 
 vi.mock("../src/lib/run-service", () => ({
-  assertRunAccess: vi.fn(),
+  assertRunAccess: vi.fn().mockResolvedValue({ matchExcludedAnimeIds: [] }),
   initializeScoresForRun: vi.fn()
 }));
 

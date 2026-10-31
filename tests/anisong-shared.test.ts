@@ -78,7 +78,12 @@ describe("public audio storage", () => {
   });
   it("restores a missing asset file while keeping its public reference", async () => {
     const sha256 = createHash("sha256").update(bytes).digest("hex"); const asset = { id: "existing", sha256, key: `${sha256}.wav`, bytes: 44, mime: "audio/wav", isPreview: false };
-    mocks.find.mockResolvedValue(asset); expect((await storePublicAudio(bytes)).id).toBe("existing"); expect(await readFile(path.join(directory, asset.key))).toEqual(Buffer.from(bytes)); expect(mocks.upsert).not.toHaveBeenCalled();
+    mocks.find.mockResolvedValue(asset);
+    mocks.update.mockImplementation(async ({ data }: any) => ({ ...asset, ...data }));
+    expect((await storePublicAudio(bytes)).id).toBe("existing");
+    expect(await readFile(path.join(directory, asset.key))).toEqual(Buffer.from(bytes));
+    expect(mocks.upsert).not.toHaveBeenCalled();
+    expect(mocks.update).toHaveBeenCalledWith({ where: { id: "existing" }, data: expect.objectContaining({ previewKey: asset.key, previewBytes: bytes.length }) });
   });
   it("rejects invalid files and full-pool writes", async () => {
     await expect(storePublicAudio(new Uint8Array(44))).rejects.toThrow("格式");
@@ -104,7 +109,7 @@ describe("public audio storage", () => {
     mocks.update.mockImplementation(async ({ data }: any) => ({ ...legacy, ...data }));
     const asset = await storePublicAudio(bytes);
     expect(asset).toMatchObject({ id: "legacy", key: legacy.key, storageProvider: "cos" });
-    expect(mocks.update).toHaveBeenCalledWith({ where: { id: "legacy" }, data: { storageProvider: "cos" } });
+    expect(mocks.update).toHaveBeenCalledWith({ where: { id: "legacy" }, data: expect.objectContaining({ storageProvider: "cos", previewKey: legacy.key, previewBytes: bytes.length }) });
   });
   it("builds the public audio URL from the configured COS origin", async () => {
     for (const [key, value] of Object.entries({ ANISONG_COS_SECRET_ID: "test-id", ANISONG_COS_SECRET_KEY: "test-key", ANISONG_COS_BUCKET: "audio-123", ANISONG_COS_REGION: "ap-guangzhou", ANISONG_COS_PREFIX: "AniMatch/audio-pool", ANISONG_COS_PUBLIC_BASE_URL: "https://audio-123.cos.ap-guangzhou.myqcloud.com" })) vi.stubEnv(key, value);

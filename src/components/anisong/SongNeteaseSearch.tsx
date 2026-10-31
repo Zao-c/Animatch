@@ -9,8 +9,8 @@ import { SongCover } from "./SongCover";
 const accountUrl = "/api/anisong/netease/account";
 const accountAction = <T,>(action: string, signal?: AbortSignal) => songRequest<T>(accountUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }), signal });
 
-export function SongNeteaseSearch({ tracks, disabled, onSave }: { tracks: SongTrack[]; disabled: boolean; onSave: (form: FormData) => Promise<boolean> }) {
-  const [open, setOpen] = useState(false);
+export function SongNeteaseSearch({ tracks, disabled, onSave, initialOpen = false }: { tracks: SongTrack[]; disabled: boolean; onSave: (form: FormData) => Promise<boolean>; initialOpen?: boolean }) {
+  const [open, setOpen] = useState(initialOpen);
   return <section className="rounded-2xl border border-white/10 bg-slate-950/30 p-4 sm:p-5">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">从网易云找歌</h2><p className="mt-1 text-xs text-slate-400">搜索歌曲和封面，加入曲单后试听、比较。</p></div><AppButton variant="secondary" disabled={disabled} onClick={() => setOpen(value => !value)}>{open ? "收起网易云搜索" : "打开网易云搜索"}</AppButton></div>
     {open && <SearchPanel tracks={tracks} disabled={disabled} onSave={onSave} />}

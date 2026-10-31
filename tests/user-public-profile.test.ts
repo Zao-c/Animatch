@@ -127,7 +127,7 @@ describe("AuthNav links to user profile", () => {
   const source = readFileSync("src/components/AuthNav.tsx", "utf8");
 
   it("username is wrapped in Link to /u/${username}", () => {
-    expect(source).toContain("href={user.username ? `/u/${user.username}`");
+    expect(source).toContain("user.username ? <Link href={`/u/${user.username}`}");
   });
 
   it("Link has hover styles", () => {

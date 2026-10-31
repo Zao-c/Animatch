@@ -5,8 +5,8 @@ import { songRequest } from "@/lib/anisong/client";
 import { KIND_LABELS, SONG_KINDS, type SongTrack } from "@/lib/anisong/types";
 import type { ItunesSong } from "@/lib/anisong/itunes/api";
 import { SongCover } from "./SongCover";
-export function SongItunesSearch({ track, disabled, onSelect, onRemove, onClose }: { track?: SongTrack; disabled: boolean; onSelect: (song: ItunesSong, metadata: FormData) => Promise<boolean>; onRemove?: () => Promise<boolean>; onClose?: () => void }) {
-  const [open, setOpen] = useState(Boolean(track));
+export function SongItunesSearch({ track, disabled, onSelect, onRemove, onClose, initialOpen = false }: { track?: SongTrack; disabled: boolean; onSelect: (song: ItunesSong, metadata: FormData) => Promise<boolean>; onRemove?: () => Promise<boolean>; onClose?: () => void; initialOpen?: boolean }) {
+  const [open, setOpen] = useState(Boolean(track) || initialOpen);
   const [query, setQuery] = useState(track ? `${track.title} ${track.artist}`.slice(0, 100) : "");
   const [country, setCountry] = useState(track?.itunes?.country || "JP");
   const [songs, setSongs] = useState<ItunesSong[]>([]), [searched, setSearched] = useState("");
