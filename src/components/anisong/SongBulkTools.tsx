@@ -1,5 +1,6 @@
 "use client";
 import { useState, type FormEvent } from "react";
+import { SongEditDrawer } from "./SongEditDrawer";
 import { AppButton } from "@/components/ui/AppButton";
 import { KIND_LABELS, SONG_KINDS, type SongTrack } from "@/lib/anisong/types";
 
@@ -56,7 +57,7 @@ export function SongBulkTools({ tracks, visible, selectedIds, hiddenIds, candida
     <div className="flex flex-wrap items-center justify-between gap-3"><span role="status" className="text-sm font-semibold">已选 {selected.length} 首</span><div className="flex flex-wrap gap-2"><AppButton type="button" size="sm" variant="ghost" disabled={disabled || open || !visible.length} onClick={() => onSelection(allVisible ? selectedIds.filter(id => !visible.some(t => t.id === id)) : [...new Set([...selectedIds, ...visible.map(t => t.id)])])}>{allVisible ? "取消选择筛选结果" : `全选筛选结果（${visible.length}）`}</AppButton><AppButton type="button" size="sm" variant="quiet" disabled={disabled || open || !selected.length} onClick={() => onSelection([])}>清空选择</AppButton></div></div>
     {outside > 0 && <p className="text-sm text-amber-200">已选歌曲中有 {outside} 首不在当前筛选结果中，批量操作仍会包含它们。<button type="button" disabled={disabled || open} className="ml-2 min-h-11 underline disabled:opacity-50" onClick={() => onSelection(selectedIds.filter(id => visible.some(t => t.id === id)))}>仅保留可见选择</button></p>}
     {unheard > 0 && <p className="text-xs leading-5 text-slate-400">已选歌曲中有 {unheard} 首标记为「未听过」；加入参赛范围后，仍需在歌曲卡片中恢复才能对决。</p>}
-    {open ? <BulkForm tracks={tracks} selected={selected} disabled={disabled} onSave={onSave} onClose={() => onOpen(false)} /> : <div className="flex flex-wrap gap-2">
+    {open ? <SongEditDrawer busy={disabled} onClose={() => { if (window.confirm("放弃未保存的批量编辑？")) onOpen(false); }}><BulkForm tracks={tracks} selected={selected} disabled={disabled} onSave={onSave} onClose={() => onOpen(false)} /></SongEditDrawer> : <div className="flex flex-wrap gap-2">
       <AppButton type="button" size="sm" disabled={disabled || !selected.length} onClick={() => onOpen(true)}>批量编辑信息</AppButton>
       <AppButton type="button" size="sm" variant="ghost" disabled={disabled || selected.length - unheard < 2} onClick={() => void onCandidates(selected.map(t => t.id), "only")}>仅用已选 {selected.length} 首对决</AppButton>
       <AppButton type="button" size="sm" variant="quiet" disabled={disabled || !addCount} onClick={() => void onCandidates(selected.map(t => t.id), "include")}>加入参赛范围（{addCount}）</AppButton>

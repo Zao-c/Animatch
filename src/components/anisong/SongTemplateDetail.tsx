@@ -18,7 +18,7 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
     catch (cause) { if (cause instanceof SongApiError && cause.status === 401) router.push(`/login?next=${encodeURIComponent(`/anisong/templates/${templateId}`)}`); else setError(cause instanceof Error ? cause.message : "开始失败"); }
     finally { lock.current = false; setBusy(false); }
   }
-  return <div className="mx-auto max-w-5xl space-y-6"><Link href="/anisong" className="text-sm text-anime-cyan">← 公共音乐曲单</Link>
+  return <div className="mx-auto w-full max-w-[90rem] space-y-6"><Link href="/anisong" className="text-sm text-anime-cyan">← 公共音乐曲单</Link>
     {error && <p role="alert" className="text-amber-200">{error}</p>}
     {!template ? !error && <p role="status">正在加载曲单…</p> : <>
       <header className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="break-words text-2xl font-bold sm:text-3xl">{template.title}</h1><p className="mt-3 text-sm text-slate-400">{template.trackCount} 首 · 创建者 {template.ownerName} · 版本 {template.revision}</p><p className="mt-2 text-xs leading-6 text-slate-500">可试听 {template.playableCount} 首 · 公共池 {template.poolCount} 首 · iTunes {template.itunesCount} 首。只需 AniMatch 账号保存个人进度，无需网易云账号。</p></div><AppButton disabled={busy} onClick={() => void start()}>{busy ? "正在准备…" : "开始 / 继续我的对决"}</AppButton></header>

@@ -23,7 +23,9 @@ describe("AniSong library focuses on the next user action", () => {
     expect(workspace).toContain('addMode === "netease" && <SongNeteaseSearch');
     expect(workspace).toContain('addMode === "itunes" && <SongItunesSearch');
     expect(workspace).toContain("addOpen && batchOpen && <SongBatchImport");
-    expect(workspace).toContain("editing && <SongForm");
+    expect(workspace).toContain("editing && <SongEditDrawer");
+    expect(workspace).toContain("<SongForm boardId={boardId}");
+    expect(workspace).not.toContain('editTrack(track); window.scrollTo');
     expect(workspace).toContain("itunesTarget && board.document.tracks.find");
     expect(workspace).toContain("切换添加方式会放弃尚未保存的输入");
   });

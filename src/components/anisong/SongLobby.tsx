@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { songRequest, SongApiError } from "@/lib/anisong/client";
 import type { SongBoardView } from "@/lib/anisong/types";
+import { SongPlaylistCard } from "./SongPlaylistCard";
+import { rankSongs } from "@/lib/anisong/engine";
 import { SongTemplateGallery } from "./SongTemplateGallery";
 
 export function SongLobby() {
@@ -24,6 +26,15 @@ export function SongLobby() {
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, []);
+  const [details, setDetails] = useState<Record<string, SongBoardView>>({});
+  useEffect(() => {
+    const controller = new AbortController(); let index = 0;
+    async function worker() { while (!controller.signal.aborted && index < boards.length) {
+      const board = boards[index++];
+      try { const value = await songRequest<SongBoardView>(`/api/anisong/boards/${board.id}`, { signal: controller.signal }); if (!controller.signal.aborted) setDetails(previous => ({ ...previous, [board.id]: value })); } catch { /* The card remains navigable when details are unavailable. */ }
+    } }
+    void Promise.all([worker(), worker(), worker()]); return () => controller.abort();
+  }, [boards]);
   async function create(event: FormEvent) {
     event.preventDefault();
     if (lock.current) return;
@@ -53,10 +64,10 @@ export function SongLobby() {
       </form>
       <div>
         <h2 className="mb-4 text-xl font-semibold">我的音乐曲单</h2>
-        {loading ? <p role="status" className="text-slate-400">正在加载曲单…</p> : boards.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-slate-400">第一份音乐榜单，从你喜欢的两首歌开始。</div> : <div className="grid gap-3">
-          {boards.map(board => <Link key={board.id} href={`/anisong/${board.id}`} className="group flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/30 p-5 hover:border-anime-cyan/40">
-            <span className="min-w-0"><span className="block break-words font-semibold">{board.title}</span><span className="mt-1 block text-xs text-slate-500">继续编辑与对决</span></span><span className="text-anime-cyan" aria-hidden>↗</span>
-          </Link>)}
+        {loading ? <p role="status" className="text-slate-400">正在加载曲单…</p> : boards.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-slate-400">第一份音乐榜单，从你喜欢的两首歌开始。</div> : <div className="grid gap-4 sm:grid-cols-2">
+          {boards.map(board => { const value = details[board.id]; const tracks = value?.document.tracks; return <SongPlaylistCard key={board.id} title={board.title} href={`/anisong/${board.id}`} covers={tracks?.map(t => t.coverUrl) ?? []} count={tracks?.length} playable={tracks?.filter(t => t.source.kind !== "none" || t.itunes).length} progress={value ? rankSongs(value.document).progress.effectiveComparisons : undefined}>
+            <Link className={appButtonClasses({ variant: "primary", className: "w-full" })} href={`/anisong/${board.id}/match`}>继续对决</Link><Link className="inline-flex min-h-9 items-center text-xs text-slate-400 hover:text-white" href={`/anisong/${board.id}`}>管理歌曲与参赛范围 →</Link>
+          </SongPlaylistCard>; })}
         </div>}
       </div>
     </section>}
