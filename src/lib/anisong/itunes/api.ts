@@ -2,6 +2,7 @@ import { fetch, type Dispatcher } from "undici";
 import { getDispatcher } from "@/lib/server/outbound-fetch";
 import { AppError } from "@/lib/app-error";
 import type { ItunesReference } from "../types";
+import { preferredSongCover } from "../cover-quality";
 export type ItunesSong = { reference: ItunesReference; album: string; coverUrl: string | null; hasPreview: boolean };
 type ItunesItem = ItunesSong & { previewUrl: string | null };
 const cache = new Map<string, { until: number; value: ItunesItem[] }>();
@@ -25,7 +26,7 @@ export function normalizeItunes(item: Record<string, unknown>, country: string):
   const storeUrl = appleUrl(item.trackViewUrl, ["music.apple.com", "itunes.apple.com"]);
   if (!storeUrl) return null;
   const previewUrl = appleUrl(item.previewUrl, ["itunes.apple.com", "mzstatic.com"]);
-  return { reference: { id: String(item.trackId), country, title: String(item.trackName || "未命名歌曲").slice(0, 120), artist: String(item.artistName || "").slice(0, 120), storeUrl }, album: String(item.collectionName || "").slice(0, 120), coverUrl: appleUrl(item.artworkUrl100, ["mzstatic.com"]), hasPreview: Boolean(previewUrl), previewUrl };
+  return { reference: { id: String(item.trackId), country, title: String(item.trackName || "未命名歌曲").slice(0, 120), artist: String(item.artistName || "").slice(0, 120), storeUrl }, album: String(item.collectionName || "").slice(0, 120), coverUrl: preferredSongCover(appleUrl(item.artworkUrl100, ["mzstatic.com"])), hasPreview: Boolean(previewUrl), previewUrl };
 }
 async function requestItunes(path: "search" | "lookup", params: Record<string, string>, country: string): Promise<ItunesItem[]> {
   const url = new URL(`https://itunes.apple.com/${path}`);

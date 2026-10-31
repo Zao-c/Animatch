@@ -1,5 +1,6 @@
 import { KIND_LABELS, type SongSnapshot } from "./types";
 import { downloadSongFile } from "./client";
+import { songCoverCandidates } from "./cover-quality";
 
 function loadCover(url: string, timeoutMs: number): Promise<HTMLImageElement | null> {
   return new Promise(resolve => {
@@ -18,6 +19,18 @@ function loadCover(url: string, timeoutMs: number): Promise<HTMLImageElement | n
   });
 }
 
+/** Prefer high-res Apple artwork for exports, but retain the stored low-res URL as fallback. */
+async function loadBestCover(url: string, timeoutMs: number): Promise<HTMLImageElement | null> {
+  const deadline = Date.now() + timeoutMs;
+  for (const candidate of songCoverCandidates(url)) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    const image = await loadCover(candidate, Math.min(4500, remaining));
+    if (image) return image;
+  }
+  return null;
+}
+
 export async function exportSongPng(snapshot: SongSnapshot) {
   await document.fonts.ready;
   const width = 1200, margin = 40, labelWidth = 110, cardWidth = 200, cardHeight = 258, coverSize = 176;
@@ -31,7 +44,7 @@ export async function exportSongPng(snapshot: SongSnapshot) {
     while (cursor < urls.length) {
       const url = urls[cursor++];
       const remaining = deadline - Date.now();
-      covers.set(url, remaining > 0 ? await loadCover(url, Math.min(8000, remaining)) : null);
+      covers.set(url, remaining > 0 ? await loadBestCover(url, Math.min(8000, remaining)) : null);
     }
   }));
   const heights = rows.map(row => Math.max(100, Math.ceil(row.songs.length / 5) * cardHeight));
