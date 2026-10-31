@@ -19,6 +19,7 @@ import { SongCover } from "./SongCover";
 import { SongMatchPanel } from "./SongMatchPanel";
 import { SongTierPanel } from "./SongTierPanel";
 import { MatchHeading } from "@/components/MatchPresentation";
+import { SongPlaybackPreferences } from "./SongPlaybackPreferences";
 import { registerUnsavedChangesGuard } from "@/lib/unsaved-changes-guard";
 import { createClientMutationId } from "@/lib/client-id";
 
@@ -175,21 +176,26 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
   }
   const disabled = busy || importing || conflict || loading || login;
   if (!board) return <div className="mx-auto max-w-4xl space-y-5"><Link href="/anisong" className="text-anime-cyan">← 音乐曲单</Link>{loading ? <p role="status">正在加载曲单…</p> : <div role="alert"><p>{error}</p>{login ? <Link href={`/login?next=${encodeURIComponent(`/anisong/${boardId}`)}`} className="text-anime-cyan underline">去登录</Link> : <AppButton onClick={() => void reload()}>重试</AppButton>}</div>}</div>;
-  return <div className={view === "match" ? "mx-auto w-full max-w-[90rem] space-y-4" : "mx-auto max-w-6xl space-y-4"}>
+  return <div className={view === "match" ? "mx-auto w-full max-w-[90rem]" : "mx-auto w-full max-w-[90rem] space-y-4"}>
     {view === "match" ? <MatchHeading mode="music" title={board.title} backHref={"/anisong/" + boardId} description="先试听，再选择更喜欢的一首。点击封面或选择按钮会记录对决；播放按钮只负责试听。平局计入比较，跳过不改变评分；未听过的歌曲可在曲单中恢复。"
       context={<span className="text-slate-400">{ranking?.active.length} 首 · {ranking?.progress.effectiveComparisons} 次比较</span>}
-      tools={<><span role="status" className="text-xs text-slate-400">{busy ? "正在处理…" : conflict ? "请重新载入" : notice || "进度已保存"}</span><AppButton variant="ghost" size="sm" disabled={disabled || !board.document.events.length} onClick={() => void mutate({ action: "undo" })}>撤回上一步</AppButton></>}
-    /> : <header className="flex flex-wrap items-start justify-between gap-4">
+      tools={<>
+        <Link href={"/anisong/" + boardId + "/tier"} className="inline-flex min-h-9 items-center rounded-xl border border-white/10 bg-white/5 px-3 text-xs font-semibold text-slate-200 hover:bg-white/10">查看 Tier</Link>
+        <Link href={"/anisong/" + boardId} className="inline-flex min-h-9 items-center rounded-xl border border-indigo-300/30 px-3 text-xs font-semibold text-indigo-100 hover:bg-white/5">本轮对决范围</Link>
+        <AppButton variant="quiet" size="sm" disabled={disabled || !board.document.events.length} onClick={() => void mutate({ action: "undo" })}>撤回上次选择</AppButton>
+        <details className="relative"><summary className="flex min-h-9 cursor-pointer items-center px-3 text-xs font-semibold text-slate-300">对决设置</summary><div className="absolute right-0 z-30 mt-3 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-white/10 bg-slate-950 p-3 shadow-xl"><SongPlaybackPreferences /><p className="mt-3 text-xs leading-6 text-slate-400">Q / E 试听或暂停左右歌曲，切换试听会自动暂停另一首。← / → 选择，↑ 平局，↓ 跳过；也支持 1 / 2 / 3 / 4。</p></div></details>
+      </>}
+    ><p className="mt-1.5 min-h-5 text-xs text-slate-500">{ranking?.progress.stageLabel} · 有效 {ranking?.progress.effectiveComparisons}/{ranking?.progress.highConfidenceTarget}</p></MatchHeading> : view === "tier" ? <header><div className="flex flex-wrap items-center justify-between gap-3"><span className="rounded-full border border-amber-200/30 bg-amber-200/10 px-2.5 py-1 text-xs font-semibold text-amber-100">我的 Tier List</span><span role="status" className="text-xs text-slate-400">{busy ? "正在处理…" : conflict ? "请重新载入确认进度" : notice || "进度已保存"}</span></div><h1 className="mt-3 break-words text-3xl font-black tracking-tight text-white sm:text-4xl">{board.title}</h1></header> : <header className="flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0"><Link href="/anisong" className="text-sm text-anime-cyan">← ANISONGMATCH</Link><h1 className="mt-2 break-words text-xl font-bold sm:text-2xl">{board.title}</h1><p className="mt-1 text-xs text-slate-400">{board.document.tracks.length} 首歌曲 · {ranking?.active.length} 首参与对决 · {ranking?.progress.effectiveComparisons} 次有效比较</p></div>
       <div className="flex items-center gap-3"><span role="status" className="text-xs text-slate-400">{busy ? "正在处理…" : conflict ? "请重新载入确认进度" : notice || "进度已保存"}</span></div>
     </header>}
-    {board.templateId && <p className="text-xs leading-6 text-slate-400">来自<Link href={`/anisong/templates/${board.templateId}`} className="mx-1 text-anime-cyan underline">公共曲单</Link>· 版本 {board.templateRevision} · 你的比较进度与其他玩家独立保存</p>}
+    {view !== "match" && board.templateId && <p className="text-xs leading-6 text-slate-400">来自<Link href={`/anisong/templates/${board.templateId}`} className="mx-1 text-anime-cyan underline">公共曲单</Link>· 版本 {board.templateRevision} · 你的比较进度与其他玩家独立保存</p>}
     {error && <div role="alert" className="space-y-3 rounded-xl border border-amber-300/30 bg-amber-300/5 p-4 text-sm text-amber-100"><p>{error}</p>{conflict && <><p>当前操作未确认。重新载入已保存进度后即可继续。</p><AppButton size="sm" onClick={() => void reload()} disabled={busy || loading}>重新载入</AppButton></>}{login && <Link href={`/login?next=${encodeURIComponent(`/anisong/${boardId}`)}`} className="underline">重新登录</Link>}</div>}
     {view === "library" && <section aria-label="开始音乐对决" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/30 p-4">
       <div><h2 className="font-bold">准备好就开始对决</h2><p className="mt-1 text-xs text-slate-400">已经选择 {ranking?.active.length ?? 0} 首歌曲。曲单管理与音乐对决分开，不会丢失之前的比较记录。</p></div>
       <div className="flex flex-wrap gap-2"><AppButton disabled={disabled || (ranking?.active.length ?? 0) < 2} onClick={() => navigate("match")}>开始 / 继续音乐对决</AppButton><AppButton variant="secondary" disabled={disabled} onClick={() => navigate("tier")}>我的 Tier List</AppButton></div>
     </section>}
-    {view === "tier" && <nav aria-label="音乐榜单导航" className="flex flex-wrap items-center gap-3 text-sm"><Link href={"/anisong/" + boardId} className="text-anime-cyan hover:underline">← 返回曲单</Link><Link href={"/anisong/" + boardId + "/match"} className="text-anime-cyan hover:underline">继续音乐对决 →</Link></nav>}
+
     {view === "library" && <section aria-label="曲单歌曲管理" className="space-y-5">
       <section aria-label="添加歌曲" className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/25 p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -225,22 +231,21 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
         onSave={(trackIds, patch) => mutate({ action: "bulkEdit", trackIds, patch })}
         onCandidates={async (trackIds, mode) => { const saved = await mutate(mode === "only" ? { action: "candidates", trackIds } : { action: "candidateSelection", trackIds, mode }); if (saved && mode === "only") navigate("match"); return saved; }} />}
       <div className="flex flex-wrap items-center gap-3"><AppButton variant="secondary" size="sm" disabled={disabled || Boolean(editing) || batchOpen || bulkEditing || addMode !== "none" || visibleMatchCount < 2} onClick={async () => { if (await mutate({ action: "candidates", trackIds: visibleTracks.map(t => t.id) })) navigate("match"); }}>用筛选的 {visibleTracks.length} 首开始对决</AppButton>{board.document.candidateIds !== null && <AppButton variant="ghost" size="sm" disabled={disabled || bulkEditing} onClick={() => void mutate({ action: "candidates", trackIds: null })}>恢复全曲单参赛</AppButton>}<span className="text-xs text-slate-500">分档仅使用参赛歌曲之间的比较；切换范围保留历史。</span></div>
-      {visibleTracks.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center"><p className="text-lg font-semibold">{board.document.tracks.length ? "没有符合筛选的歌曲" : "把舍不得跳过的歌放进来"}</p><p className="mt-1 text-xs text-slate-400">{board.document.tracks.length ? "试试其他季度、类型或关键词。" : "添加至少两首歌曲，就能开始第一场对决。"}</p></div> : <div className="grid gap-3 sm:grid-cols-2">
+      {visibleTracks.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center"><p className="text-lg font-semibold">{board.document.tracks.length ? "没有符合筛选的歌曲" : "把舍不得跳过的歌放进来"}</p><p className="mt-1 text-xs text-slate-400">{board.document.tracks.length ? "试试其他季度、类型或关键词。" : "添加至少两首歌曲，就能开始第一场对决。"}</p></div> : <div className="grid grid-cols-2 items-start gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
         {visibleTracks.map(track => {
           const score = ranking?.scores.find(s => s.animeId === track.id);
           const excluded = board.document.candidateIds !== null && !board.document.candidateIds.includes(track.id);
-          return <article key={playbackKey(track)} className="min-w-0 space-y-4 rounded-2xl border border-white/10 bg-slate-950/30 p-5">
-            <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs text-slate-300"><input type="checkbox" aria-label={`选择歌曲：${track.title}`} checked={selectedIds.includes(track.id)} disabled={disabled || bulkEditing || Boolean(editing) || batchOpen} className="h-4 w-4 accent-teal-300" onChange={e => setSelectedIds(previous => e.target.checked ? [...new Set([...previous, track.id])] : previous.filter(id => id !== track.id))} />选择歌曲</label>
-            <div className="flex items-start gap-3"><SongCover src={track.coverUrl} title={track.title} className="w-20" /><div className="min-w-0 flex-1"><h3 className="break-words font-semibold">{track.title}</h3><p className="mt-1 break-words text-sm text-slate-400">{track.artist || "歌手未填写"}</p></div><span className="rounded-md bg-anime-purple/10 px-2 py-1 text-xs text-anime-purple">{KIND_LABELS[track.kind]}</span></div>
-            <p className="break-words text-xs text-slate-400">{[track.anime, track.year, track.quarter ? ["冬季", "春季", "夏季", "秋季"][track.quarter - 1] : "", ...track.tags].filter(Boolean).join(" · ") || "可在编辑中补充动画、季度和风格"}</p>
-            <SongPlayer track={track} boardId={boardId} />
-            <div className="flex flex-wrap items-center gap-2 border-t border-white/5 pt-3">
+          return <article key={playbackKey(track)} className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/30">
+            <div className="relative"><SongCover src={track.coverUrl} title={track.title} className="w-full !rounded-none !border-0" /><label className="absolute left-2 top-2 flex min-h-9 cursor-pointer items-center gap-2 rounded-lg bg-slate-950/85 px-2 text-xs text-slate-300"><input type="checkbox" aria-label={`选择歌曲：${track.title}`} checked={selectedIds.includes(track.id)} disabled={disabled || bulkEditing || Boolean(editing) || batchOpen} className="h-4 w-4 accent-teal-300" onChange={e => setSelectedIds(previous => e.target.checked ? [...new Set([...previous, track.id])] : previous.filter(id => id !== track.id))} /><span className="sr-only">选择歌曲</span></label><span className="absolute right-2 top-2 rounded-md bg-slate-950/85 px-2 py-1 text-xs text-cyan-100">{KIND_LABELS[track.kind]}</span></div>
+            <div className="space-y-2 p-2"><h3 title={track.title} className="line-clamp-2 min-h-10 break-words text-sm font-semibold">{track.title}</h3><p className="truncate text-xs text-slate-400" title={track.artist}>{track.artist || "歌手未填写"}</p>
+            <SongPlayer compact track={track} boardId={boardId} />
+            <details className="text-xs text-slate-400"><summary className="min-h-9 cursor-pointer py-2">歌曲信息与管理</summary><p className="mb-2 break-words leading-6">{[track.anime, track.year, track.quarter ? ["冬季", "春季", "夏季", "秋季"][track.quarter - 1] : "", ...track.tags].filter(Boolean).join(" · ") || "可在编辑中补充动画、季度和风格"}</p><div className="flex flex-wrap items-center gap-2 border-t border-white/5 pt-2">
               <span className="mr-auto text-xs text-slate-500">{excluded ? "未参赛" : score?.isHidden ? "未听过" : `已比较 ${score?.compareCount ?? 0} 次`}</span>
               {score?.isHidden && <AppButton size="sm" variant="ghost" disabled={disabled || bulkEditing} onClick={() => void mutate({ action: "restore", trackId: track.id })}>恢复</AppButton>}
               <AppButton size="sm" variant="ghost" disabled={disabled} onClick={() => { editTrack(track); window.scrollTo({ top: 0, behavior: "smooth" }); }}>编辑</AppButton>
               <AppButton size="sm" variant="ghost" disabled={disabled || Boolean(editing) || batchOpen || bulkEditing} onClick={() => { if (addMode !== "none" && !window.confirm("切换到 iTunes 匹配会放弃当前导入状态，确定吗？")) return; setEditing(null); setBatchOpen(false); setAddMode("none"); setItunesTarget(track.id); window.scrollTo({ top: 0, behavior: "smooth" }); }}>{track.itunes ? "修改 iTunes 匹配" : "匹配 iTunes 备用源"}</AppButton>
               <AppButton size="sm" variant="ghost" disabled={disabled || bulkEditing} onClick={() => { if (window.confirm(`移除「${track.title}」及与它相关的对决记录？榜单将重新计算。`)) void mutate({ action: "remove", trackId: track.id }); }}>移除</AppButton>
-            </div>
+            </div></details></div>
           </article>;
         })}
       </div>}
@@ -256,7 +261,7 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
         </div>
       </details>
     </section>}
-    {view === "match" && ranking && <SongMatchPanel boardId={boardId} pair={pair} ranking={ranking} disabled={disabled} onVote={vote} onLibrary={() => navigate("library")} onTier={() => navigate("tier")} />}
+    {view === "match" && ranking && <SongMatchPanel boardId={boardId} pair={pair} ranking={ranking} disabled={disabled} onVote={vote} busy={busy} notice={conflict ? "请重新载入确认进度" : notice} onLibrary={() => navigate("library")} onTier={() => navigate("tier")} />}
     {view === "tier" && snapshot && <SongTierPanel board={board} snapshot={snapshot} disabled={disabled} shareUrl={shareUrl} onLayout={rows => mutate({ action: "tierLayout", rows })} onReset={() => mutate({ action: "tierReset" })} onExportPng={() => void exportPng()} onPublish={() => void mutate({ action: "publish" })} onUnpublish={() => void mutate({ action: "unpublish" })} onNotice={setNotice} onError={setError} />}
   </div>;
 }

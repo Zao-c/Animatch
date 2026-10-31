@@ -36,16 +36,11 @@ export function SongLobby() {
     } catch (e) { setError(e instanceof Error ? e.message : "创建失败"); }
     finally { lock.current = false; setBusy(false); }
   }
-  return <div className="mx-auto max-w-6xl space-y-10">
-    <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/40 p-6 sm:p-10">
-      <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full border-[40px] border-anime-cyan/5" />
-      <p className="text-sm font-semibold tracking-[0.25em] text-anime-cyan">ANISONGMATCH</p>
-      <h1 className="mt-4 text-4xl font-black leading-tight sm:text-5xl">这一季，<br />哪首歌让你舍不得跳过？</h1>
-      <p className="mt-5 max-w-xl leading-7 text-slate-300">收集喜欢的 OP、ED 和插入曲。听一段，选一首，<br className="hidden sm:block" />把一次次选择变成你的音乐 Tier List。</p>
-      <div className="mt-7 flex flex-wrap gap-2 text-xs text-slate-300">
-        {["01  选择公共曲单", "02  左右试听与对决", "03  生成个人分档"].map(text => <span key={text} className="rounded-full border border-white/10 px-4 py-2">{text}</span>)}
-      </div>
-    </section>
+  return <div className="mx-auto w-full max-w-[90rem] space-y-6">
+    <header className="flex flex-wrap items-end justify-between gap-4">
+      <div><h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">音乐对决</h1><p className="mt-3 text-sm leading-6 text-slate-400">选择曲单，试听 OP、ED 和插入曲，用对决生成你的音乐 Tier List。</p></div>
+      <p className="text-xs text-slate-400">{boards.length} 份我的曲单 · 每个人独立保存排名</p>
+    </header>
     <SongTemplateGallery />
     {error && <div role="alert" className="rounded-2xl border border-amber-300/20 bg-amber-300/5 p-4 text-amber-100">{error} {login && <Link className="underline" href="/login?next=%2Fanisong">去登录</Link>}</div>}
     {!login && <section className="grid gap-8 lg:grid-cols-[1fr_1.25fr]">

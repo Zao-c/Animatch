@@ -100,7 +100,7 @@ export function SongTierEditor({ snapshot, busy, onSave, onReset, onEditingChang
       <AppButton variant="ghost" disabled={busy || saving} onClick={() => void reset()}>恢复自动分档</AppButton>
     </div>
     {status && <p role="status" className="text-xs text-amber-200">{status}</p>}
-    <SongTierView snapshot={snapshot} busy={busy} />
+    <div role="region" aria-label="歌曲分层榜单" tabIndex={0} className="max-h-[70dvh] overflow-y-auto overscroll-contain pr-1"><SongTierView snapshot={snapshot} busy={busy} /></div>
   </div>;
 
   return <div className="space-y-3">
