@@ -10,6 +10,7 @@ import { discardAudio } from "./audio-storage";
 import { cleanSongCovers, songCoverReferences } from "./cover-storage";
 import type { SongSnapshot } from "./types";
 import { selectedSongIds, songBulkPatch, changeSongCandidates } from "./bulk";
+import { applySongTierLayout, resetSongTierLayout, SONG_EDITABLE_TIERS } from "./tier-layout";
 
 export async function ownedSongBoard(userId: string, id: string) {
   const board = await prisma.songBoard.findFirst({ where: { id, ownerId: userId } });
@@ -73,7 +74,7 @@ export async function changeSongBoard(userId: string, id: string, value: unknown
   const document = structuredClone(board.document) as unknown as SongDocument;
   // A target deleted by another tab is a revision conflict first. Returning 400
   // here would hide the reload action and strand a preserved bulk-edit draft.
-  if (["bulkEdit", "candidateSelection", "candidates"].includes(String(input.action)) && revision !== board.revision) {
+  if (["bulkEdit", "candidateSelection", "candidates", "tierLayout", "tierReset"].includes(String(input.action)) && revision !== board.revision) {
     throw new AppError("曲单已在其他页面更新，请重新载入后再操作", 409);
   }
   const extra: Parameters<typeof saveSongBoard>[3] = {};
@@ -127,6 +128,12 @@ export async function changeSongBoard(userId: string, id: string, value: unknown
       }
       break;
     }
+    case "tierLayout":
+      applySongTierLayout(document, input.rows);
+      break;
+    case "tierReset":
+      resetSongTierLayout(document);
+      break;
     case "rename": extra.title = textInput(input.title, "曲单名称", 80, true); break;
     case "candidates": {
       if (input.trackIds === null) document.candidateIds = null;
@@ -146,6 +153,9 @@ export async function changeSongBoard(userId: string, id: string, value: unknown
       if (document.candidateIds) document.candidateIds = document.candidateIds.filter(id => id !== track.id);
       document.events = document.events.filter(e => e.leftId !== track.id && e.rightId !== track.id);
       delete document.manualTiers[track.id];
+      if (document.manualOrder) for (const tierId of SONG_EDITABLE_TIERS) {
+        document.manualOrder[tierId] = (document.manualOrder[tierId] ?? []).filter(id => id !== track.id);
+      }
       break;
     }
     case "publish":

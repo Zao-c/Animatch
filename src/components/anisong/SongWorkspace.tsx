@@ -214,6 +214,6 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
       <div className="border-t border-white/10 pt-5"><AppButton variant="quiet" size="sm" disabled={disabled || Boolean(editing) || batchOpen || bulkEditing} onClick={() => void removeBoard()}>删除这份曲单</AppButton></div>
     </section>}
     {view === "match" && ranking && <SongMatchPanel boardId={boardId} pair={pair} ranking={ranking} disabled={disabled} onVote={vote} onLibrary={() => navigate("library")} onTier={() => navigate("tier")} />}
-    {view === "tier" && snapshot && <SongTierPanel board={board} snapshot={snapshot} disabled={disabled} shareUrl={shareUrl} onTier={(trackId, tier) => void mutate({ action: "tier", trackId, tier })} onExportPng={() => void exportPng()} onPublish={() => void mutate({ action: "publish" })} onUnpublish={() => void mutate({ action: "unpublish" })} onNotice={setNotice} onError={setError} />}
+    {view === "tier" && snapshot && <SongTierPanel board={board} snapshot={snapshot} disabled={disabled} shareUrl={shareUrl} onLayout={rows => mutate({ action: "tierLayout", rows })} onReset={() => mutate({ action: "tierReset" })} onExportPng={() => void exportPng()} onPublish={() => void mutate({ action: "publish" })} onUnpublish={() => void mutate({ action: "unpublish" })} onNotice={setNotice} onError={setError} />}
   </div>;
 }
