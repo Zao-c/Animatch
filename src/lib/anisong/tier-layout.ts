@@ -31,11 +31,11 @@ export function applySongTierLayout(document: SongDocument, value: unknown): voi
     }
   }
   if (seen.size !== baseline.size) throw new AppError("分档缺少歌曲，请重新载入", 400);
-  // Explicitly moved songs become manual placements; untouched automatic songs remain automatic.
+  // A saved tier layout is an explicit snapshot. Lock every visible placement:
+  // leaving auto items unlocked would re-percentile the remaining songs and drift
+  // away from the exact board the user saved.
   for (const tierId of SONG_EDITABLE_TIERS) {
-    for (const id of rows[tierId]) {
-      if (baseline.get(id) !== tierId) document.manualTiers[id] = tierId;
-    }
+    for (const id of rows[tierId]) document.manualTiers[id] = tierId;
   }
   // Do not lose previously saved ordering for excluded songs outside the current scope.
   const previous = document.manualOrder ?? {};
