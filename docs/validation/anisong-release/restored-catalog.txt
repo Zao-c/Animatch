@@ -1,0 +1,236 @@
+        conrelid         |                     conname                     |                                               pg_get_constraintdef                                               
+-------------------------+-------------------------------------------------+------------------------------------------------------------------------------------------------------------------
+ "Anime"                 | Anime_pkey                                      | PRIMARY KEY (id)
+ "AnimeCollection"       | AnimeCollection_finalPoolId_fkey                | FOREIGN KEY ("finalPoolId") REFERENCES "CustomPool"(id) ON DELETE SET NULL
+ "AnimeCollection"       | AnimeCollection_finalPoolId_key                 | UNIQUE ("finalPoolId")
+ "AnimeCollection"       | AnimeCollection_ownerId_fkey                    | FOREIGN KEY ("ownerId") REFERENCES "User"(id) ON DELETE CASCADE
+ "AnimeCollection"       | AnimeCollection_pkey                            | PRIMARY KEY (id)
+ "AnimeRecommendation"   | AnimeRecommendation_animeId_fkey                | FOREIGN KEY ("animeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "AnimeRecommendation"   | AnimeRecommendation_pkey                        | PRIMARY KEY (id)
+ "AnimeRecommendation"   | AnimeRecommendation_userId_fkey                 | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "AwardBallot"           | AwardBallot_ceremonyId_fkey                     | FOREIGN KEY ("ceremonyId") REFERENCES "AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardBallot"           | AwardBallot_pkey                                | PRIMARY KEY (id)
+ "AwardBallot"           | AwardBallot_userId_fkey                         | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardCeremony"         | AwardCeremony_ownerId_fkey                      | FOREIGN KEY ("ownerId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardCeremony"         | AwardCeremony_pkey                              | PRIMARY KEY (id)
+ "AwardCeremony"         | AwardCeremony_status_check                      | CHECK ((status = ANY (ARRAY['OPEN'::text, 'FROZEN'::text, 'PUBLISHED'::text, 'LIVE'::text, 'COMPLETED'::text])))
+ "AwardDecision"         | AwardDecision_ceremonyId_fkey                   | FOREIGN KEY ("ceremonyId") REFERENCES "AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardDecision"         | AwardDecision_method_check                      | CHECK ((method = ANY (ARRAY['VOTE'::text, 'DISCUSSION'::text, 'WITHHELD'::text])))
+ "AwardDecision"         | AwardDecision_pkey                              | PRIMARY KEY (id)
+ "AwardEventLog"         | AwardEventLog_ceremonyId_fkey                   | FOREIGN KEY ("ceremonyId") REFERENCES "AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardEventLog"         | AwardEventLog_pkey                              | PRIMARY KEY (id)
+ "AwardFinalVote"        | AwardFinalVote_pkey                             | PRIMARY KEY ("roundId", "userId")
+ "AwardFinalVote"        | AwardFinalVote_roundId_fkey                     | FOREIGN KEY ("roundId") REFERENCES "AwardRound"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardFinalVote"        | AwardFinalVote_userId_fkey                      | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "AwardMember"           | AwardMember_ceremonyId_fkey                     | FOREIGN KEY ("ceremonyId") REFERENCES "AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardMember"           | AwardMember_pkey                                | PRIMARY KEY ("ceremonyId", "userId")
+ "AwardMember"           | AwardMember_status_check                        | CHECK ((status = ANY (ARRAY['PENDING'::text, 'APPROVED'::text, 'REJECTED'::text])))
+ "AwardMember"           | AwardMember_userId_fkey                         | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardRound"            | AwardRound_ceremonyId_fkey                      | FOREIGN KEY ("ceremonyId") REFERENCES "AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardRound"            | AwardRound_pkey                                 | PRIMARY KEY (id)
+ "AwardRound"            | AwardRound_status_check                         | CHECK ((status = ANY (ARRAY['OPEN'::text, 'CLOSED'::text])))
+ "AwardStage"            | AwardStage_ceremonyId_fkey                      | FOREIGN KEY ("ceremonyId") REFERENCES "AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardStage"            | AwardStage_pkey                                 | PRIMARY KEY ("ceremonyId")
+ "BattleSeason"          | BattleSeason_createdByUserId_fkey               | FOREIGN KEY ("createdByUserId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "BattleSeason"          | BattleSeason_pkey                               | PRIMARY KEY (id)
+ "BattleSeason"          | BattleSeason_poolId_fkey                        | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "BattleSeasonArchive"   | BattleSeasonArchive_pkey                        | PRIMARY KEY ("seasonId")
+ "BattleSeasonArchive"   | BattleSeasonArchive_seasonId_fkey               | FOREIGN KEY ("seasonId") REFERENCES "BattleSeason"(id) ON DELETE CASCADE
+ "BattleSeasonUserScore" | BattleSeasonUserScore_animeId_fkey              | FOREIGN KEY ("animeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "BattleSeasonUserScore" | BattleSeasonUserScore_pkey                      | PRIMARY KEY (id)
+ "BattleSeasonUserScore" | BattleSeasonUserScore_poolId_fkey               | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "BattleSeasonUserScore" | BattleSeasonUserScore_seasonId_fkey             | FOREIGN KEY ("seasonId") REFERENCES "BattleSeason"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "BattleSeasonUserScore" | BattleSeasonUserScore_userId_fkey               | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "BattleVote"            | BattleVote_pkey                                 | PRIMARY KEY (id)
+ "BattleVote"            | BattleVote_seasonId_fkey                        | FOREIGN KEY ("seasonId") REFERENCES "BattleSeason"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "BattleVote"            | BattleVote_userId_fkey                          | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "CollectionSource"      | CollectionSource_collectionId_fkey              | FOREIGN KEY ("collectionId") REFERENCES "AnimeCollection"(id) ON DELETE CASCADE
+ "CollectionSource"      | CollectionSource_collectionId_quarter_phase_key | UNIQUE ("collectionId", quarter, phase)
+ "CollectionSource"      | CollectionSource_collectionId_seasonId_key      | UNIQUE ("collectionId", "seasonId")
+ "CollectionSource"      | CollectionSource_phase_check                    | CHECK ((phase = ANY (ARRAY['OPENING'::text, 'ENDING'::text])))
+ "CollectionSource"      | CollectionSource_pkey                           | PRIMARY KEY (id)
+ "CollectionSource"      | CollectionSource_poolId_fkey                    | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON DELETE CASCADE
+ "CollectionSource"      | CollectionSource_quarter_check                  | CHECK (((quarter >= 1) AND (quarter <= 4)))
+ "CollectionSource"      | CollectionSource_seasonId_fkey                  | FOREIGN KEY ("seasonId") REFERENCES "BattleSeason"(id) ON DELETE CASCADE
+ "CustomPool"            | CustomPool_creatorId_fkey                       | FOREIGN KEY ("creatorId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "CustomPool"            | CustomPool_pkey                                 | PRIMARY KEY (id)
+ "CustomPool"            | CustomPool_sourcePoolId_fkey                    | FOREIGN KEY ("sourcePoolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "ManualTierAdjustment"  | ManualTierAdjustment_animeId_fkey               | FOREIGN KEY ("animeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "ManualTierAdjustment"  | ManualTierAdjustment_pkey                       | PRIMARY KEY (id)
+ "ManualTierAdjustment"  | ManualTierAdjustment_poolId_fkey                | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "ManualTierAdjustment"  | ManualTierAdjustment_runId_fkey                 | FOREIGN KEY ("runId") REFERENCES "PersonalRun"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "ManualTierAdjustment"  | ManualTierAdjustment_userId_fkey                | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "ManualTierBoard"       | ManualTierBoard_ownerId_fkey                    | FOREIGN KEY ("ownerId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "ManualTierBoard"       | ManualTierBoard_pkey                            | PRIMARY KEY (id)
+ "ManualTierBoard"       | ManualTierBoard_poolId_fkey                     | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "PersonalRun"           | PersonalRun_pkey                                | PRIMARY KEY (id)
+ "PersonalRun"           | PersonalRun_poolId_fkey                         | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PersonalRun"           | PersonalRun_userId_fkey                         | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolAnime"             | PoolAnime_animeId_fkey                          | FOREIGN KEY ("animeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolAnime"             | PoolAnime_pkey                                  | PRIMARY KEY (id)
+ "PoolAnime"             | PoolAnime_poolId_fkey                           | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "PoolComparison"        | PoolComparison_leftAnimeId_fkey                 | FOREIGN KEY ("leftAnimeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolComparison"        | PoolComparison_loserAnimeId_fkey                | FOREIGN KEY ("loserAnimeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "PoolComparison"        | PoolComparison_pkey                             | PRIMARY KEY (id)
+ "PoolComparison"        | PoolComparison_poolId_fkey                      | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolComparison"        | PoolComparison_rightAnimeId_fkey                | FOREIGN KEY ("rightAnimeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolComparison"        | PoolComparison_runId_fkey                       | FOREIGN KEY ("runId") REFERENCES "PersonalRun"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolComparison"        | PoolComparison_userId_fkey                      | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolComparison"        | PoolComparison_winnerAnimeId_fkey               | FOREIGN KEY ("winnerAnimeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "PoolCreationRequest"   | PoolCreationRequest_pkey                        | PRIMARY KEY ("userId", "clientMutationId")
+ _prisma_migrations      | _prisma_migrations_pkey                         | PRIMARY KEY (id)
+ "RecalibrationSession"  | RecalibrationSession_pkey                       | PRIMARY KEY (id)
+ "SongAudioAsset"        | SongAudioAsset_pkey                             | PRIMARY KEY (id)
+ "SongBoard"             | SongBoard_ownerId_fkey                          | FOREIGN KEY ("ownerId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "SongBoard"             | SongBoard_pkey                                  | PRIMARY KEY (id)
+ "SongBoard"             | SongBoard_templateId_fkey                       | FOREIGN KEY ("templateId") REFERENCES "SongTemplate"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "SongTemplate"          | SongTemplate_ownerId_fkey                       | FOREIGN KEY ("ownerId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "SongTemplate"          | SongTemplate_pkey                               | PRIMARY KEY (id)
+ "SongTemplate"          | SongTemplate_sourceBoardId_fkey                 | FOREIGN KEY ("sourceBoardId") REFERENCES "SongBoard"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "TierShare"             | TierShare_pkey                                  | PRIMARY KEY (id)
+ "TierShare"             | TierShare_poolId_fkey                           | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "TierShare"             | TierShare_runId_fkey                            | FOREIGN KEY ("runId") REFERENCES "PersonalRun"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "User"                  | User_pkey                                       | PRIMARY KEY (id)
+ "UserAnimeStatus"       | UserAnimeStatus_animeId_fkey                    | FOREIGN KEY ("animeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserAnimeStatus"       | UserAnimeStatus_pkey                            | PRIMARY KEY (id)
+ "UserAnimeStatus"       | UserAnimeStatus_userId_fkey                     | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserPoolScore"         | UserPoolScore_animeId_fkey                      | FOREIGN KEY ("animeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserPoolScore"         | UserPoolScore_pkey                              | PRIMARY KEY (id)
+ "UserPoolScore"         | UserPoolScore_poolId_fkey                       | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserPoolScore"         | UserPoolScore_runId_fkey                        | FOREIGN KEY ("runId") REFERENCES "PersonalRun"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserPoolScore"         | UserPoolScore_userId_fkey                       | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserSimilarity"        | UserSimilarity_pkey                             | PRIMARY KEY (id)
+ "UserSimilarity"        | UserSimilarity_userAId_fkey                     | FOREIGN KEY ("userAId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserSimilarity"        | UserSimilarity_userBId_fkey                     | FOREIGN KEY ("userBId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserTagPreference"     | UserTagPreference_pkey                          | PRIMARY KEY (id)
+ "UserTagPreference"     | UserTagPreference_poolId_fkey                   | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "UserTagPreference"     | UserTagPreference_runId_fkey                    | FOREIGN KEY ("runId") REFERENCES "PersonalRun"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "UserTagPreference"     | UserTagPreference_userId_fkey                   | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+(106 rows)
+
+       tablename       |                         indexname                         |                                                                                indexdef                                                                                
+-----------------------+-----------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Anime                 | Anime_bgmId_key                                           | CREATE UNIQUE INDEX "Anime_bgmId_key" ON public."Anime" USING btree ("bgmId")
+ Anime                 | Anime_pkey                                                | CREATE UNIQUE INDEX "Anime_pkey" ON public."Anime" USING btree (id)
+ AnimeCollection       | AnimeCollection_finalPoolId_key                           | CREATE UNIQUE INDEX "AnimeCollection_finalPoolId_key" ON public."AnimeCollection" USING btree ("finalPoolId")
+ AnimeCollection       | AnimeCollection_ownerId_updatedAt_idx                     | CREATE INDEX "AnimeCollection_ownerId_updatedAt_idx" ON public."AnimeCollection" USING btree ("ownerId", "updatedAt")
+ AnimeCollection       | AnimeCollection_pkey                                      | CREATE UNIQUE INDEX "AnimeCollection_pkey" ON public."AnimeCollection" USING btree (id)
+ AnimeRecommendation   | AnimeRecommendation_pkey                                  | CREATE UNIQUE INDEX "AnimeRecommendation_pkey" ON public."AnimeRecommendation" USING btree (id)
+ AnimeRecommendation   | AnimeRecommendation_score_idx                             | CREATE INDEX "AnimeRecommendation_score_idx" ON public."AnimeRecommendation" USING btree (score)
+ AnimeRecommendation   | AnimeRecommendation_userId_animeId_key                    | CREATE UNIQUE INDEX "AnimeRecommendation_userId_animeId_key" ON public."AnimeRecommendation" USING btree ("userId", "animeId")
+ AnimeRecommendation   | AnimeRecommendation_userId_idx                            | CREATE INDEX "AnimeRecommendation_userId_idx" ON public."AnimeRecommendation" USING btree ("userId")
+ AwardBallot           | AwardBallot_ceremonyId_userId_key                         | CREATE UNIQUE INDEX "AwardBallot_ceremonyId_userId_key" ON public."AwardBallot" USING btree ("ceremonyId", "userId")
+ AwardBallot           | AwardBallot_pkey                                          | CREATE UNIQUE INDEX "AwardBallot_pkey" ON public."AwardBallot" USING btree (id)
+ AwardBallot           | AwardBallot_userId_idx                                    | CREATE INDEX "AwardBallot_userId_idx" ON public."AwardBallot" USING btree ("userId")
+ AwardCeremony         | AwardCeremony_ownerId_createdAt_idx                       | CREATE INDEX "AwardCeremony_ownerId_createdAt_idx" ON public."AwardCeremony" USING btree ("ownerId", "createdAt")
+ AwardCeremony         | AwardCeremony_pkey                                        | CREATE UNIQUE INDEX "AwardCeremony_pkey" ON public."AwardCeremony" USING btree (id)
+ AwardDecision         | AwardDecision_ceremonyId_awardId_key                      | CREATE UNIQUE INDEX "AwardDecision_ceremonyId_awardId_key" ON public."AwardDecision" USING btree ("ceremonyId", "awardId")
+ AwardDecision         | AwardDecision_pkey                                        | CREATE UNIQUE INDEX "AwardDecision_pkey" ON public."AwardDecision" USING btree (id)
+ AwardEventLog         | AwardEventLog_ceremonyId_createdAt_idx                    | CREATE INDEX "AwardEventLog_ceremonyId_createdAt_idx" ON public."AwardEventLog" USING btree ("ceremonyId", "createdAt")
+ AwardEventLog         | AwardEventLog_pkey                                        | CREATE UNIQUE INDEX "AwardEventLog_pkey" ON public."AwardEventLog" USING btree (id)
+ AwardFinalVote        | AwardFinalVote_pkey                                       | CREATE UNIQUE INDEX "AwardFinalVote_pkey" ON public."AwardFinalVote" USING btree ("roundId", "userId")
+ AwardFinalVote        | AwardFinalVote_userId_idx                                 | CREATE INDEX "AwardFinalVote_userId_idx" ON public."AwardFinalVote" USING btree ("userId")
+ AwardMember           | AwardMember_pkey                                          | CREATE UNIQUE INDEX "AwardMember_pkey" ON public."AwardMember" USING btree ("ceremonyId", "userId")
+ AwardMember           | AwardMember_userId_idx                                    | CREATE INDEX "AwardMember_userId_idx" ON public."AwardMember" USING btree ("userId")
+ AwardRound            | AwardRound_ceremonyId_awardId_number_key                  | CREATE UNIQUE INDEX "AwardRound_ceremonyId_awardId_number_key" ON public."AwardRound" USING btree ("ceremonyId", "awardId", number)
+ AwardRound            | AwardRound_ceremonyId_status_idx                          | CREATE INDEX "AwardRound_ceremonyId_status_idx" ON public."AwardRound" USING btree ("ceremonyId", status)
+ AwardRound            | AwardRound_one_open_per_ceremony                          | CREATE UNIQUE INDEX "AwardRound_one_open_per_ceremony" ON public."AwardRound" USING btree ("ceremonyId") WHERE (status = 'OPEN'::text)
+ AwardRound            | AwardRound_pkey                                           | CREATE UNIQUE INDEX "AwardRound_pkey" ON public."AwardRound" USING btree (id)
+ AwardStage            | AwardStage_pkey                                           | CREATE UNIQUE INDEX "AwardStage_pkey" ON public."AwardStage" USING btree ("ceremonyId")
+ BattleSeason          | BattleSeason_createdByUserId_idx                          | CREATE INDEX "BattleSeason_createdByUserId_idx" ON public."BattleSeason" USING btree ("createdByUserId")
+ BattleSeason          | BattleSeason_pkey                                         | CREATE UNIQUE INDEX "BattleSeason_pkey" ON public."BattleSeason" USING btree (id)
+ BattleSeason          | BattleSeason_poolId_idx                                   | CREATE INDEX "BattleSeason_poolId_idx" ON public."BattleSeason" USING btree ("poolId")
+ BattleSeason          | BattleSeason_status_idx                                   | CREATE INDEX "BattleSeason_status_idx" ON public."BattleSeason" USING btree (status)
+ BattleSeasonArchive   | BattleSeasonArchive_pkey                                  | CREATE UNIQUE INDEX "BattleSeasonArchive_pkey" ON public."BattleSeasonArchive" USING btree ("seasonId")
+ BattleSeasonUserScore | BattleSeasonUserScore_animeId_idx                         | CREATE INDEX "BattleSeasonUserScore_animeId_idx" ON public."BattleSeasonUserScore" USING btree ("animeId")
+ BattleSeasonUserScore | BattleSeasonUserScore_pkey                                | CREATE UNIQUE INDEX "BattleSeasonUserScore_pkey" ON public."BattleSeasonUserScore" USING btree (id)
+ BattleSeasonUserScore | BattleSeasonUserScore_poolId_idx                          | CREATE INDEX "BattleSeasonUserScore_poolId_idx" ON public."BattleSeasonUserScore" USING btree ("poolId")
+ BattleSeasonUserScore | BattleSeasonUserScore_seasonId_animeId_idx                | CREATE INDEX "BattleSeasonUserScore_seasonId_animeId_idx" ON public."BattleSeasonUserScore" USING btree ("seasonId", "animeId")
+ BattleSeasonUserScore | BattleSeasonUserScore_seasonId_eloScore_idx               | CREATE INDEX "BattleSeasonUserScore_seasonId_eloScore_idx" ON public."BattleSeasonUserScore" USING btree ("seasonId", "eloScore")
+ BattleSeasonUserScore | BattleSeasonUserScore_seasonId_userId_animeId_key         | CREATE UNIQUE INDEX "BattleSeasonUserScore_seasonId_userId_animeId_key" ON public."BattleSeasonUserScore" USING btree ("seasonId", "userId", "animeId")
+ BattleSeasonUserScore | BattleSeasonUserScore_seasonId_userId_idx                 | CREATE INDEX "BattleSeasonUserScore_seasonId_userId_idx" ON public."BattleSeasonUserScore" USING btree ("seasonId", "userId")
+ BattleSeasonUserScore | BattleSeasonUserScore_userId_idx                          | CREATE INDEX "BattleSeasonUserScore_userId_idx" ON public."BattleSeasonUserScore" USING btree ("userId")
+ BattleVote            | BattleVote_pkey                                           | CREATE UNIQUE INDEX "BattleVote_pkey" ON public."BattleVote" USING btree (id)
+ BattleVote            | BattleVote_poolId_idx                                     | CREATE INDEX "BattleVote_poolId_idx" ON public."BattleVote" USING btree ("poolId")
+ BattleVote            | BattleVote_seasonId_createdAt_idx                         | CREATE INDEX "BattleVote_seasonId_createdAt_idx" ON public."BattleVote" USING btree ("seasonId", "createdAt")
+ BattleVote            | BattleVote_seasonId_userId_clientMutationId_key           | CREATE UNIQUE INDEX "BattleVote_seasonId_userId_clientMutationId_key" ON public."BattleVote" USING btree ("seasonId", "userId", "clientMutationId")
+ BattleVote            | BattleVote_seasonId_userId_idx                            | CREATE INDEX "BattleVote_seasonId_userId_idx" ON public."BattleVote" USING btree ("seasonId", "userId")
+ BattleVote            | BattleVote_seasonId_userId_stepNumber_key                 | CREATE UNIQUE INDEX "BattleVote_seasonId_userId_stepNumber_key" ON public."BattleVote" USING btree ("seasonId", "userId", "stepNumber")
+ CollectionSource      | CollectionSource_collectionId_quarter_phase_key           | CREATE UNIQUE INDEX "CollectionSource_collectionId_quarter_phase_key" ON public."CollectionSource" USING btree ("collectionId", quarter, phase)
+ CollectionSource      | CollectionSource_collectionId_seasonId_key                | CREATE UNIQUE INDEX "CollectionSource_collectionId_seasonId_key" ON public."CollectionSource" USING btree ("collectionId", "seasonId")
+ CollectionSource      | CollectionSource_pkey                                     | CREATE UNIQUE INDEX "CollectionSource_pkey" ON public."CollectionSource" USING btree (id)
+ CustomPool            | CustomPool_creatorId_idx                                  | CREATE INDEX "CustomPool_creatorId_idx" ON public."CustomPool" USING btree ("creatorId")
+ CustomPool            | CustomPool_isOfficialDemo_idx                             | CREATE INDEX "CustomPool_isOfficialDemo_idx" ON public."CustomPool" USING btree ("isOfficialDemo")
+ CustomPool            | CustomPool_pkey                                           | CREATE UNIQUE INDEX "CustomPool_pkey" ON public."CustomPool" USING btree (id)
+ CustomPool            | CustomPool_status_idx                                     | CREATE INDEX "CustomPool_status_idx" ON public."CustomPool" USING btree (status)
+ CustomPool            | CustomPool_visibility_idx                                 | CREATE INDEX "CustomPool_visibility_idx" ON public."CustomPool" USING btree (visibility)
+ CustomPool            | CustomPool_visibility_status_idx                          | CREATE INDEX "CustomPool_visibility_status_idx" ON public."CustomPool" USING btree (visibility, status)
+ ManualTierAdjustment  | ManualTierAdjustment_animeId_idx                          | CREATE INDEX "ManualTierAdjustment_animeId_idx" ON public."ManualTierAdjustment" USING btree ("animeId")
+ ManualTierAdjustment  | ManualTierAdjustment_pkey                                 | CREATE UNIQUE INDEX "ManualTierAdjustment_pkey" ON public."ManualTierAdjustment" USING btree (id)
+ ManualTierAdjustment  | ManualTierAdjustment_userId_poolId_runId_idx              | CREATE INDEX "ManualTierAdjustment_userId_poolId_runId_idx" ON public."ManualTierAdjustment" USING btree ("userId", "poolId", "runId")
+ ManualTierBoard       | ManualTierBoard_ownerId_poolId_key                        | CREATE UNIQUE INDEX "ManualTierBoard_ownerId_poolId_key" ON public."ManualTierBoard" USING btree ("ownerId", "poolId")
+ ManualTierBoard       | ManualTierBoard_pkey                                      | CREATE UNIQUE INDEX "ManualTierBoard_pkey" ON public."ManualTierBoard" USING btree (id)
+ ManualTierBoard       | ManualTierBoard_shareToken_key                            | CREATE UNIQUE INDEX "ManualTierBoard_shareToken_key" ON public."ManualTierBoard" USING btree ("shareToken")
+ PersonalRun           | PersonalRun_pkey                                          | CREATE UNIQUE INDEX "PersonalRun_pkey" ON public."PersonalRun" USING btree (id)
+ PersonalRun           | PersonalRun_poolId_idx                                    | CREATE INDEX "PersonalRun_poolId_idx" ON public."PersonalRun" USING btree ("poolId")
+ PersonalRun           | PersonalRun_userId_poolId_idx                             | CREATE INDEX "PersonalRun_userId_poolId_idx" ON public."PersonalRun" USING btree ("userId", "poolId")
+ PoolAnime             | PoolAnime_animeId_idx                                     | CREATE INDEX "PoolAnime_animeId_idx" ON public."PoolAnime" USING btree ("animeId")
+ PoolAnime             | PoolAnime_pkey                                            | CREATE UNIQUE INDEX "PoolAnime_pkey" ON public."PoolAnime" USING btree (id)
+ PoolAnime             | PoolAnime_poolId_animeId_key                              | CREATE UNIQUE INDEX "PoolAnime_poolId_animeId_key" ON public."PoolAnime" USING btree ("poolId", "animeId")
+ PoolAnime             | PoolAnime_poolId_idx                                      | CREATE INDEX "PoolAnime_poolId_idx" ON public."PoolAnime" USING btree ("poolId")
+ PoolComparison        | PoolComparison_createdAt_idx                              | CREATE INDEX "PoolComparison_createdAt_idx" ON public."PoolComparison" USING btree ("createdAt")
+ PoolComparison        | PoolComparison_leftAnimeId_idx                            | CREATE INDEX "PoolComparison_leftAnimeId_idx" ON public."PoolComparison" USING btree ("leftAnimeId")
+ PoolComparison        | PoolComparison_mode_idx                                   | CREATE INDEX "PoolComparison_mode_idx" ON public."PoolComparison" USING btree (mode)
+ PoolComparison        | PoolComparison_pairKey_idx                                | CREATE INDEX "PoolComparison_pairKey_idx" ON public."PoolComparison" USING btree ("pairKey")
+ PoolComparison        | PoolComparison_pkey                                       | CREATE UNIQUE INDEX "PoolComparison_pkey" ON public."PoolComparison" USING btree (id)
+ PoolComparison        | PoolComparison_poolId_runId_createdAt_idx                 | CREATE INDEX "PoolComparison_poolId_runId_createdAt_idx" ON public."PoolComparison" USING btree ("poolId", "runId", "createdAt")
+ PoolComparison        | PoolComparison_rightAnimeId_idx                           | CREATE INDEX "PoolComparison_rightAnimeId_idx" ON public."PoolComparison" USING btree ("rightAnimeId")
+ PoolComparison        | PoolComparison_userId_clientMutationId_key                | CREATE UNIQUE INDEX "PoolComparison_userId_clientMutationId_key" ON public."PoolComparison" USING btree ("userId", "clientMutationId")
+ PoolComparison        | PoolComparison_userId_poolId_runId_createdAt_idx          | CREATE INDEX "PoolComparison_userId_poolId_runId_createdAt_idx" ON public."PoolComparison" USING btree ("userId", "poolId", "runId", "createdAt")
+ PoolComparison        | PoolComparison_userId_poolId_runId_idx                    | CREATE INDEX "PoolComparison_userId_poolId_runId_idx" ON public."PoolComparison" USING btree ("userId", "poolId", "runId")
+ PoolComparison        | PoolComparison_userId_poolId_runId_undoneAt_createdAt_idx | CREATE INDEX "PoolComparison_userId_poolId_runId_undoneAt_createdAt_idx" ON public."PoolComparison" USING btree ("userId", "poolId", "runId", "undoneAt", "createdAt")
+ PoolCreationRequest   | PoolCreationRequest_pkey                                  | CREATE UNIQUE INDEX "PoolCreationRequest_pkey" ON public."PoolCreationRequest" USING btree ("userId", "clientMutationId")
+ PoolCreationRequest   | PoolCreationRequest_poolId_idx                            | CREATE INDEX "PoolCreationRequest_poolId_idx" ON public."PoolCreationRequest" USING btree ("poolId")
+ RecalibrationSession  | RecalibrationSession_pkey                                 | CREATE UNIQUE INDEX "RecalibrationSession_pkey" ON public."RecalibrationSession" USING btree (id)
+ RecalibrationSession  | RecalibrationSession_status_idx                           | CREATE INDEX "RecalibrationSession_status_idx" ON public."RecalibrationSession" USING btree (status)
+ RecalibrationSession  | RecalibrationSession_userId_poolId_runId_idx              | CREATE INDEX "RecalibrationSession_userId_poolId_runId_idx" ON public."RecalibrationSession" USING btree ("userId", "poolId", "runId")
+ SongAudioAsset        | SongAudioAsset_key_key                                    | CREATE UNIQUE INDEX "SongAudioAsset_key_key" ON public."SongAudioAsset" USING btree (key)
+ SongAudioAsset        | SongAudioAsset_pkey                                       | CREATE UNIQUE INDEX "SongAudioAsset_pkey" ON public."SongAudioAsset" USING btree (id)
+ SongAudioAsset        | SongAudioAsset_sha256_key                                 | CREATE UNIQUE INDEX "SongAudioAsset_sha256_key" ON public."SongAudioAsset" USING btree (sha256)
+ SongBoard             | SongBoard_ownerId_templateId_key                          | CREATE UNIQUE INDEX "SongBoard_ownerId_templateId_key" ON public."SongBoard" USING btree ("ownerId", "templateId")
+ SongBoard             | SongBoard_ownerId_updatedAt_idx                           | CREATE INDEX "SongBoard_ownerId_updatedAt_idx" ON public."SongBoard" USING btree ("ownerId", "updatedAt")
+ SongBoard             | SongBoard_pkey                                            | CREATE UNIQUE INDEX "SongBoard_pkey" ON public."SongBoard" USING btree (id)
+ SongBoard             | SongBoard_shareToken_key                                  | CREATE UNIQUE INDEX "SongBoard_shareToken_key" ON public."SongBoard" USING btree ("shareToken")
+ SongTemplate          | SongTemplate_active_updatedAt_idx                         | CREATE INDEX "SongTemplate_active_updatedAt_idx" ON public."SongTemplate" USING btree (active, "updatedAt")
+ SongTemplate          | SongTemplate_pkey                                         | CREATE UNIQUE INDEX "SongTemplate_pkey" ON public."SongTemplate" USING btree (id)
+ SongTemplate          | SongTemplate_sourceBoardId_key                            | CREATE UNIQUE INDEX "SongTemplate_sourceBoardId_key" ON public."SongTemplate" USING btree ("sourceBoardId")
+ TierShare             | TierShare_createdAt_idx                                   | CREATE INDEX "TierShare_createdAt_idx" ON public."TierShare" USING btree ("createdAt")
+ TierShare             | TierShare_pkey                                            | CREATE UNIQUE INDEX "TierShare_pkey" ON public."TierShare" USING btree (id)
+ TierShare             | TierShare_poolId_idx                                      | CREATE INDEX "TierShare_poolId_idx" ON public."TierShare" USING btree ("poolId")
+ TierShare             | TierShare_runId_idx                                       | CREATE INDEX "TierShare_runId_idx" ON public."TierShare" USING btree ("runId")
+ TierShare             | TierShare_token_key                                       | CREATE UNIQUE INDEX "TierShare_token_key" ON public."TierShare" USING btree (token)
+ User                  | User_email_key                                            | CREATE UNIQUE INDEX "User_email_key" ON public."User" USING btree (email)
+ User                  | User_pkey                                                 | CREATE UNIQUE INDEX "User_pkey" ON public."User" USING btree (id)
+ User                  | User_username_key                                         | CREATE UNIQUE INDEX "User_username_key" ON public."User" USING btree (username)
+ UserAnimeStatus       | UserAnimeStatus_animeId_idx                               | CREATE INDEX "UserAnimeStatus_animeId_idx" ON public."UserAnimeStatus" USING btree ("animeId")
+ UserAnimeStatus       | UserAnimeStatus_pkey                                      | CREATE UNIQUE INDEX "UserAnimeStatus_pkey" ON public."UserAnimeStatus" USING btree (id)
+ UserAnimeStatus       | UserAnimeStatus_status_idx                                | CREATE INDEX "UserAnimeStatus_status_idx" ON public."UserAnimeStatus" USING btree (status)
+ UserAnimeStatus       | UserAnimeStatus_userId_animeId_key                        | CREATE UNIQUE INDEX "UserAnimeStatus_userId_animeId_key" ON public."UserAnimeStatus" USING btree ("userId", "animeId")
+ UserAnimeStatus       | UserAnimeStatus_userId_idx                                | CREATE INDEX "UserAnimeStatus_userId_idx" ON public."UserAnimeStatus" USING btree ("userId")
+ UserPoolScore         | UserPoolScore_animeId_idx                                 | CREATE INDEX "UserPoolScore_animeId_idx" ON public."UserPoolScore" USING btree ("animeId")
+ UserPoolScore         | UserPoolScore_pkey                                        | CREATE UNIQUE INDEX "UserPoolScore_pkey" ON public."UserPoolScore" USING btree (id)
+ UserPoolScore         | UserPoolScore_poolId_runId_idx                            | CREATE INDEX "UserPoolScore_poolId_runId_idx" ON public."UserPoolScore" USING btree ("poolId", "runId")
+ UserPoolScore         | UserPoolScore_userId_poolId_runId_animeId_key             | CREATE UNIQUE INDEX "UserPoolScore_userId_poolId_runId_animeId_key" ON public."UserPoolScore" USING btree ("userId", "poolId", "runId", "animeId")
+ UserPoolScore         | UserPoolScore_userId_poolId_runId_idx                     | CREATE INDEX "UserPoolScore_userId_poolId_runId_idx" ON public."UserPoolScore" USING btree ("userId", "poolId", "runId")
+ UserSimilarity        | UserSimilarity_pkey                                       | CREATE UNIQUE INDEX "UserSimilarity_pkey" ON public."UserSimilarity" USING btree (id)
+ UserSimilarity        | UserSimilarity_similarityScore_idx                        | CREATE INDEX "UserSimilarity_similarityScore_idx" ON public."UserSimilarity" USING btree ("similarityScore")
+ UserSimilarity        | UserSimilarity_userAId_idx                                | CREATE INDEX "UserSimilarity_userAId_idx" ON public."UserSimilarity" USING btree ("userAId")
+ UserSimilarity        | UserSimilarity_userAId_userBId_scopeType_scopeId_key      | CREATE UNIQUE INDEX "UserSimilarity_userAId_userBId_scopeType_scopeId_key" ON public."UserSimilarity" USING btree ("userAId", "userBId", "scopeType", "scopeId")
+ UserSimilarity        | UserSimilarity_userBId_idx                                | CREATE INDEX "UserSimilarity_userBId_idx" ON public."UserSimilarity" USING btree ("userBId")
+ UserTagPreference     | UserTagPreference_pkey                                    | CREATE UNIQUE INDEX "UserTagPreference_pkey" ON public."UserTagPreference" USING btree (id)
+ UserTagPreference     | UserTagPreference_tag_idx                                 | CREATE INDEX "UserTagPreference_tag_idx" ON public."UserTagPreference" USING btree (tag)
+ UserTagPreference     | UserTagPreference_userId_idx                              | CREATE INDEX "UserTagPreference_userId_idx" ON public."UserTagPreference" USING btree ("userId")
+ UserTagPreference     | UserTagPreference_userId_poolId_runId_tag_key             | CREATE UNIQUE INDEX "UserTagPreference_userId_poolId_runId_tag_key" ON public."UserTagPreference" USING btree ("userId", "poolId", "runId", tag)
+ _prisma_migrations    | _prisma_migrations_pkey                                   | CREATE UNIQUE INDEX _prisma_migrations_pkey ON public._prisma_migrations USING btree (id)
+(122 rows)
+
