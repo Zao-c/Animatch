@@ -1,8 +1,9 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppButton } from "@/components/ui/AppButton";
-import { songRequest, SongApiError, downloadSongFile } from "@/lib/anisong/client";
+import { songRequest, SongApiError } from "@/lib/anisong/client";
 import { nextSongPair, rankSongs, songSnapshot } from "@/lib/anisong/engine";
 import { cancelSongAudioPreload, preloadSongAudioPair } from "@/lib/anisong/preload-playback";
 import { exportSongPng } from "@/lib/anisong/export";
@@ -11,23 +12,22 @@ import { SongForm } from "./SongForm";
 import { SongBatchImport } from "./SongBatchImport";
 import { SongNeteaseSearch } from "./SongNeteaseSearch";
 import { SongItunesSearch } from "./SongItunesSearch";
-import { SongPlaybackPreferences } from "./SongPlaybackPreferences";
 import { SongTemplatePublisher, type TemplatePublishResult } from "./SongTemplatePublisher";
 import { SongBulkTools } from "./SongBulkTools";
 import { SongPlayer } from "./SongPlayer";
-import { SongTierView } from "./SongTierView";
 import { SongCover } from "./SongCover";
-import { SongMatchCard } from "./SongMatchCard";
-import { MatchArena, MatchHeading } from "@/components/MatchPresentation";
+import { SongMatchPanel } from "./SongMatchPanel";
+import { SongTierPanel } from "./SongTierPanel";
+import { MatchHeading } from "@/components/MatchPresentation";
 import { registerUnsavedChangesGuard } from "@/lib/unsaved-changes-guard";
 import { createClientMutationId } from "@/lib/client-id";
 
 type Tab = "library" | "match" | "tier";
 // Keep buffered media while the same recording remains in a subsequent round.
 const playbackKey = (track: SongTrack) => JSON.stringify([track.id, track.source, track.itunes, track.clipStart, track.clipLength]);
-export function SongWorkspace({ boardId }: { boardId: string }) {
+export function SongWorkspace({ boardId, view = "library" }: { boardId: string; view?: Tab }) {
+  const router = useRouter();
   const [board, setBoard] = useState<SongBoardView | null>(null);
-  const [tab, setTab] = useState<Tab>("library");
   const [busy, setBusy] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
   const [bulkEditing, setBulkEditing] = useState(false);
@@ -49,15 +49,13 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
   const [renaming, setRenaming] = useState(false);
   const lock = useRef(false);
   const endpoint = `/api/anisong/boards/${boardId}`;
-  function changeTab(next: Tab) {
-    if (lock.current || importing) return;
-    if (next !== tab && (editing || batchOpen || bulkEditing) && !window.confirm("编辑或导入面板尚未收起，要放弃待保存内容并切换吗？")) return;
-    if (next !== tab) { setEditing(null); setBatchOpen(false); setBulkEditing(false); }
+  function navigate(next: Tab) {
+    if (lock.current || importing || next === view) return;
+    if ((editing || batchOpen || bulkEditing) &&
+        !window.confirm("当前歌曲编辑或导入尚未完成，确定离开吗？")) return;
     cancelSongAudioPreload();
-    setTab(next);
-    const url = new URL(window.location.href); url.searchParams.set("view", next);
-    window.history.replaceState(window.history.state, "", url);
     window.dispatchEvent(new CustomEvent("anisong:play", { detail: null }));
+    router.push(next === "library" ? "/anisong/" + boardId : "/anisong/" + boardId + "/" + next);
   }
   const reload = useCallback(async () => {
     setLoading(true);
@@ -65,11 +63,7 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
     catch (e) { setError(e instanceof Error ? e.message : "加载失败"); setLogin(e instanceof SongApiError && e.status === 401); }
     finally { setLoading(false); }
   }, [endpoint]);
-  useEffect(() => {
-    const view = new URLSearchParams(window.location.search).get("view");
-    if (view === "library" || view === "match" || view === "tier") setTab(view);
-    void reload();
-  }, [reload]);
+  useEffect(() => { void reload(); }, [reload]);
   useEffect(() => { setShareUrl(board?.shareToken ? `${window.location.origin}/anisong/share/${board.shareToken}` : ""); }, [board?.shareToken]);
   useEffect(() => () => cancelSongAudioPreload(), []);
   useEffect(() => {
@@ -138,7 +132,7 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
   };
   useEffect(() => {
     function keyboard(e: KeyboardEvent) {
-      if (tab !== "match" || !pair || busy || conflict || loading || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+      if (view !== "match" || !pair || busy || conflict || loading || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
       const target = e.target as HTMLElement;
       if (target.closest("input, textarea, select, button, a, summary, [contenteditable]:not([contenteditable=false])")) return;
       const result = ({ ArrowLeft: "LEFT_WIN", ArrowRight: "RIGHT_WIN", ArrowUp: "DRAW", ArrowDown: "SKIP", "1": "LEFT_WIN", "2": "RIGHT_WIN", "3": "DRAW", "4": "SKIP" } as Record<string, SongDecision>)[e.key];
@@ -163,7 +157,7 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
   const disabled = busy || importing || conflict || loading || login;
   if (!board) return <div className="mx-auto max-w-4xl space-y-5"><Link href="/anisong" className="text-anime-cyan">← 音乐曲单</Link>{loading ? <p role="status">正在加载曲单…</p> : <div role="alert"><p>{error}</p>{login ? <Link href={`/login?next=${encodeURIComponent(`/anisong/${boardId}`)}`} className="text-anime-cyan underline">去登录</Link> : <AppButton onClick={() => void reload()}>重试</AppButton>}</div>}</div>;
   return <div className="mx-auto max-w-6xl space-y-4">
-    {tab === "match" ? <MatchHeading mode="music" title={board.title} backHref="/anisong" description="先试听，再选择更喜欢的一首。点击封面或选择按钮会记录对决；播放按钮只负责试听。平局计入比较，跳过不改变评分；未听过的歌曲可在曲单中恢复。"
+    {view === "match" ? <MatchHeading mode="music" title={board.title} backHref={"/anisong/" + boardId} description="先试听，再选择更喜欢的一首。点击封面或选择按钮会记录对决；播放按钮只负责试听。平局计入比较，跳过不改变评分；未听过的歌曲可在曲单中恢复。"
       context={<span className="text-slate-400">{ranking?.active.length} 首 · {ranking?.progress.effectiveComparisons} 次比较</span>}
       tools={<><span role="status" className="text-xs text-slate-400">{busy ? "正在处理…" : conflict ? "请重新载入" : notice || "进度已保存"}</span><AppButton variant="ghost" size="sm" disabled={disabled || !board.document.events.length} onClick={() => void mutate({ action: "undo" })}>撤回上一步</AppButton></>}
     /> : <header className="flex flex-wrap items-start justify-between gap-4">
@@ -171,13 +165,14 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
       <div className="flex items-center gap-3"><span role="status" className="text-xs text-slate-400">{busy ? "正在处理…" : conflict ? "请重新载入确认进度" : notice || "进度已保存"}</span><AppButton variant="ghost" size="sm" disabled={disabled} onClick={() => setRenaming(!renaming)}>改名</AppButton></div>
     </header>}
     {board.templateId && <p className="text-xs leading-6 text-slate-400">来自<Link href={`/anisong/templates/${board.templateId}`} className="mx-1 text-anime-cyan underline">公共曲单</Link>· 版本 {board.templateRevision} · 你的比较进度与其他玩家独立保存</p>}
-    <SongPlaybackPreferences />
     {renaming && <form className="flex gap-3" onSubmit={async e => { e.preventDefault(); const data = new FormData(e.currentTarget); if (await mutate({ action: "rename", title: data.get("title") })) setRenaming(false); }}><input aria-label="曲单名称" name="title" defaultValue={board.title} maxLength={80} required className="anime-field" /><AppButton type="submit" disabled={disabled}>保存</AppButton></form>}
     {error && <div role="alert" className="space-y-3 rounded-xl border border-amber-300/30 bg-amber-300/5 p-4 text-sm text-amber-100"><p>{error}</p>{conflict && <><p>当前操作未确认。重新载入已保存进度后即可继续。</p><AppButton size="sm" onClick={() => void reload()} disabled={busy || loading}>重新载入</AppButton></>}{login && <Link href={`/login?next=${encodeURIComponent(`/anisong/${boardId}`)}`} className="underline">重新登录</Link>}</div>}
-    <div role="tablist" aria-label="音乐曲单视图" className="grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-slate-950/30 p-1.5">
-      {([["library", "曲单"], ["match", "音乐对决"], ["tier", "Tier List"]] as const).map(([key, label]) => <button key={key} id={`tab-${key}`} role="tab" disabled={busy || importing} aria-selected={tab === key} aria-controls={`panel-${key}`} className={`min-h-12 rounded-xl px-3 text-sm font-semibold ${tab === key ? "bg-anime-cyan text-slate-950" : "text-slate-300 hover:bg-white/5"}`} onClick={() => changeTab(key)}>{label}</button>)}
-    </div>
-    {tab === "library" && <section role="tabpanel" id="panel-library" aria-labelledby="tab-library" className="space-y-5">
+    {view === "library" && <section aria-label="开始音乐对决" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/30 p-4">
+      <div><h2 className="font-bold">准备好就开始对决</h2><p className="mt-1 text-xs text-slate-400">已经选择 {ranking?.active.length ?? 0} 首歌曲。曲单管理与音乐对决分开，不会丢失之前的比较记录。</p></div>
+      <div className="flex flex-wrap gap-2"><AppButton disabled={disabled || (ranking?.active.length ?? 0) < 2} onClick={() => navigate("match")}>开始 / 继续音乐对决</AppButton><AppButton variant="secondary" disabled={disabled} onClick={() => navigate("tier")}>我的 Tier List</AppButton></div>
+    </section>}
+    {view === "tier" && <nav aria-label="音乐榜单导航" className="flex flex-wrap items-center gap-3 text-sm"><Link href={"/anisong/" + boardId} className="text-anime-cyan hover:underline">← 返回曲单</Link><Link href={"/anisong/" + boardId + "/match"} className="text-anime-cyan hover:underline">继续音乐对决 →</Link></nav>}
+    {view === "library" && <section aria-label="曲单歌曲管理" className="space-y-5">
       <SongTemplatePublisher board={board} disabled={disabled || Boolean(editing) || batchOpen || bulkEditing} onPublish={confirmed => auxiliary<TemplatePublishResult>("template", { shareAudioConfirmed: confirmed })} />
       {itunesTarget && board.document.tracks.find(t => t.id === itunesTarget) && <SongItunesSearch key={itunesTarget} track={board.document.tracks.find(t => t.id === itunesTarget)} disabled={disabled} onClose={() => setItunesTarget(null)} onSelect={async song => Boolean(await auxiliary<SongBoardView>("itunes", { trackId: itunesTarget, itunesId: song.reference.id, country: song.reference.country }))} onRemove={async () => Boolean(await auxiliary<SongBoardView>("itunes", { trackId: itunesTarget, remove: true }))} />}
       <SongNeteaseSearch tracks={board.document.tracks} disabled={disabled || Boolean(editing) || batchOpen || bulkEditing} onSave={data => mutate({}, data)} />
@@ -195,8 +190,8 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
       <div className="rounded-xl border border-white/10 px-4 py-3 text-sm text-slate-300">当前参赛范围：{board.document.candidateIds === null ? `全曲单 ${board.document.tracks.length} 首（新加入的歌曲也参赛）` : `自选 ${board.document.candidateIds.length} 首`}<span className="ml-2 text-xs text-slate-400">可对决 {ranking?.active.length ?? 0} 首 · 未听过 {ranking?.hidden.length ?? 0} 首</span></div>
       {(board.document.tracks.length > 0 || bulkEditing) && <SongBulkTools tracks={board.document.tracks} visible={visibleTracks} selectedIds={selectedIds} hiddenIds={ranking?.scores.filter(score => score.isHidden).map(score => score.animeId) ?? []} candidateIds={board.document.candidateIds} disabled={disabled || Boolean(editing) || batchOpen} open={bulkEditing} onOpen={setBulkEditing} onSelection={setSelectedIds}
         onSave={(trackIds, patch) => mutate({ action: "bulkEdit", trackIds, patch })}
-        onCandidates={async (trackIds, mode) => { const saved = await mutate(mode === "only" ? { action: "candidates", trackIds } : { action: "candidateSelection", trackIds, mode }); if (saved && mode === "only") changeTab("match"); return saved; }} />}
-      <div className="flex flex-wrap items-center gap-3"><AppButton variant="secondary" size="sm" disabled={disabled || Boolean(editing) || batchOpen || bulkEditing || visibleMatchCount < 2} onClick={async () => { if (await mutate({ action: "candidates", trackIds: visibleTracks.map(t => t.id) })) changeTab("match"); }}>用筛选的 {visibleTracks.length} 首开始对决</AppButton>{board.document.candidateIds !== null && <AppButton variant="ghost" size="sm" disabled={disabled || bulkEditing} onClick={() => void mutate({ action: "candidates", trackIds: null })}>恢复全曲单参赛</AppButton>}<span className="text-xs text-slate-500">分档仅使用参赛歌曲之间的比较；切换范围保留历史。</span></div>
+        onCandidates={async (trackIds, mode) => { const saved = await mutate(mode === "only" ? { action: "candidates", trackIds } : { action: "candidateSelection", trackIds, mode }); if (saved && mode === "only") navigate("match"); return saved; }} />}
+      <div className="flex flex-wrap items-center gap-3"><AppButton variant="secondary" size="sm" disabled={disabled || Boolean(editing) || batchOpen || bulkEditing || visibleMatchCount < 2} onClick={async () => { if (await mutate({ action: "candidates", trackIds: visibleTracks.map(t => t.id) })) navigate("match"); }}>用筛选的 {visibleTracks.length} 首开始对决</AppButton>{board.document.candidateIds !== null && <AppButton variant="ghost" size="sm" disabled={disabled || bulkEditing} onClick={() => void mutate({ action: "candidates", trackIds: null })}>恢复全曲单参赛</AppButton>}<span className="text-xs text-slate-500">分档仅使用参赛歌曲之间的比较；切换范围保留历史。</span></div>
       {visibleTracks.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center"><p className="text-lg font-semibold">{board.document.tracks.length ? "没有符合筛选的歌曲" : "把舍不得跳过的歌放进来"}</p><p className="mt-1 text-xs text-slate-400">{board.document.tracks.length ? "试试其他季度、类型或关键词。" : "添加至少两首歌曲，就能开始第一场对决。"}</p></div> : <div className="grid gap-3 sm:grid-cols-2">
         {visibleTracks.map(track => {
           const score = ranking?.scores.find(s => s.animeId === track.id);
@@ -218,22 +213,7 @@ export function SongWorkspace({ boardId }: { boardId: string }) {
       </div>}
       <div className="border-t border-white/10 pt-5"><AppButton variant="quiet" size="sm" disabled={disabled || Boolean(editing) || batchOpen || bulkEditing} onClick={() => void removeBoard()}>删除这份曲单</AppButton></div>
     </section>}
-    {tab === "match" && <section role="tabpanel" id="panel-match" aria-labelledby="tab-match" className="space-y-6">
-      <h2 className="text-center text-sm font-semibold text-slate-300">哪首更让你心动？先试听，再选择。</h2>
-      {pair ? <>
-        <div className="mx-auto max-w-4xl"><MatchArena
-          left={<SongMatchCard key={playbackKey(pair.left)} track={pair.left} boardId={boardId} side="left" disabled={disabled} onPick={() => vote("LEFT_WIN")} onUnheard={() => vote("LEFT_UNSEEN")} />}
-          right={<SongMatchCard key={playbackKey(pair.right)} track={pair.right} boardId={boardId} side="right" disabled={disabled} onPick={() => vote("RIGHT_WIN")} onUnheard={() => vote("RIGHT_UNSEEN")} />}
-        /></div>
-        <div className="flex justify-center gap-3"><AppButton variant="secondary" disabled={disabled} onClick={() => vote("DRAW")}>一样喜欢</AppButton><AppButton variant="ghost" disabled={disabled} onClick={() => vote("SKIP")}>跳过这组</AppButton></div>
-        <p className="text-center text-xs leading-6 text-slate-500"><span className="block text-slate-400">Q / E 试听或暂停左右歌曲 · 切换试听会自动暂停另一首</span>← / → 选左右 · ↑ 平局 · ↓ 跳过（也支持 1 / 2 / 3 / 4）</p>
-      </> : <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center"><p>参与对决的歌曲不足两首。</p><p className="mt-2 text-sm text-slate-400">添加歌曲、调整参赛范围，或恢复「未听过」的歌。</p><AppButton className="mt-5" onClick={() => changeTab("library")}>管理曲单</AppButton></div>}
-      {ranking && <div className="rounded-2xl border border-white/10 p-5"><div className="flex justify-between gap-3 text-sm"><span>{ranking.progress.stage === "EMPTY" ? "等待开始" : ranking.progress.stageLabel}</span><button className="text-anime-cyan" onClick={() => changeTab("tier")}>查看当前 Tier List →</button></div><progress aria-label="对决进度" value={ranking.progress.progressRatio} max={1} className="mt-3 h-2 w-full accent-teal-300" /><p className="mt-2 text-xs text-slate-400">{ranking.progress.remainingToNextStage > 0 ? `再比较 ${ranking.progress.remainingToNextStage} 次，${ranking.progress.nextTargetLabel}。` : "可以继续比较，或查看榜单。"}进度是比较次数参考，不代表统计置信度。</p></div>}
-    </section>}
-    {tab === "tier" && snapshot && <section role="tabpanel" id="panel-tier" aria-labelledby="tab-tier" className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-xl font-semibold">我的音乐 Tier List</h2><p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">自动档位反映当前曲单内的相对偏好。可以手动分档，比较分数和历史会保留；选回「自动分档」即可恢复。</p></div><div className="flex flex-wrap gap-2"><AppButton variant="secondary" disabled={disabled} onClick={() => void exportPng()}>导出 PNG</AppButton><AppButton variant="ghost" disabled={disabled} onClick={() => downloadSongFile(`${board.title.replace(/[\\/:*?"<>|]/g, "_")}-TierList.json`, new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" }))}>导出榜单 JSON</AppButton></div></div>
-      <SongTierView snapshot={snapshot} busy={disabled} onTier={(trackId, tier) => void mutate({ action: "tier", trackId, tier })} />
-      <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/30 p-5"><h3 className="font-semibold">分享这一刻的榜单</h3><p className="text-sm text-slate-400">公开快照包含歌曲封面、信息与分档，不包含音频。继续对决不会改变已分享的快照。</p><div className="flex flex-wrap gap-2"><AppButton disabled={disabled} onClick={() => void mutate({ action: "publish" })}>{board.shareToken ? "更新分享快照" : "生成分享链接"}</AppButton>{board.shareToken && <AppButton variant="ghost" disabled={disabled} onClick={() => void mutate({ action: "unpublish" })}>关闭分享</AppButton>}</div>{shareUrl && <div className="flex flex-wrap items-center gap-3"><input readOnly aria-label="分享链接" value={shareUrl} className="anime-field min-w-0 flex-1" onFocus={e => e.target.select()} /><AppButton variant="secondary" onClick={async () => { try { await navigator.clipboard.writeText(shareUrl); setNotice("分享链接已复制"); } catch { setError("复制失败，请选中链接手动复制。"); } }}>复制</AppButton><Link href={`/anisong/share/${board.shareToken}`} target="_blank" className="text-sm text-anime-cyan underline">查看快照</Link></div>}</div>
-    </section>}
+    {view === "match" && ranking && <SongMatchPanel boardId={boardId} pair={pair} ranking={ranking} disabled={disabled} onVote={vote} onLibrary={() => navigate("library")} onTier={() => navigate("tier")} />}
+    {view === "tier" && snapshot && <SongTierPanel board={board} snapshot={snapshot} disabled={disabled} shareUrl={shareUrl} onTier={(trackId, tier) => void mutate({ action: "tier", trackId, tier })} onExportPng={() => void exportPng()} onPublish={() => void mutate({ action: "publish" })} onUnpublish={() => void mutate({ action: "unpublish" })} onNotice={setNotice} onError={setError} />}
   </div>;
 }
