@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { boundedBody, detectAudio, parseAudioRange } from "@/lib/anisong/audio-storage";
+import { boundedBody, detectAudio, parseAudioRange, songJson } from "@/lib/anisong/audio-storage";
 import { audioUrlInput, trackInput } from "@/lib/anisong/validation";
 describe("music media boundary", () => {
+  it("accepts a complete annual layout but still bounds oversized JSON", async () => {
+    const rows = { s: Array.from({ length: 1000 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12,"0")}`), a: [], b: [], c: [], d: [], pending: [] };
+    const input = { revision: 1, action: "tierLayout", rows };
+    expect(await songJson(new Request("https://example.com", { method: "PATCH", body: JSON.stringify(input) }))).toEqual(input);
+    await expect(songJson(new Request("https://example.com", { method: "PATCH", body: "x".repeat(128 * 1024 + 1) }))).rejects.toMatchObject({ statusCode: 413 });
+  });
+
   it("handles browser byte ranges, including suffix and open-ended seeks", () => {
     expect(parseAudioRange(null, 100)).toBeNull();
     expect(parseAudioRange("bytes=0-1", 100)).toEqual({ start: 0, end: 1 });

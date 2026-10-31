@@ -49,6 +49,7 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
   const [detailId, setDetailId] = useState<string | null>(null);
   const [editing, setEditing] = useState<SongTrack | "new" | null>(null);
   const [itunesTarget, setItunesTarget] = useState<string | null>(null);
+  const [libraryPage, setLibraryPage] = useState(0);
   const [libraryTab, setLibraryTab] = useState<"wall" | "range" | "settings">("wall");
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState("");
@@ -146,6 +147,10 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
     (!kind || t.kind === kind) && (!year || String(t.year) === year) && (!quarter || String(t.quarter) === quarter) &&
     (!search.trim() || [t.title, t.artist, t.anime, ...t.tags].some(s => s.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())))
   ) ?? [], [board, search, kind, year, quarter]);
+  useEffect(() => { setLibraryPage(0); }, [search, kind, year, quarter]);
+  const libraryPages = Math.max(1, Math.ceil(visibleTracks.length / 48));
+  const currentLibraryPage = Math.min(libraryPage, libraryPages - 1);
+  const pageTracks = visibleTracks.slice(currentLibraryPage * 48, (currentLibraryPage + 1) * 48);
   const visibleMatchCount = visibleTracks.filter(t => !ranking?.scores.find(score => score.animeId === t.id)?.isHidden).length;
   const vote = (result: SongDecision) => {
     if (!pair) return;
@@ -169,7 +174,7 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
   async function exportPng() {
     if (!snapshot || lock.current) return;
     lock.current = true; setBusy(true); setError("");
-    try { const result = await exportSongPng(snapshot); setNotice(result.missingCovers ? `已导出；${result.missingCovers} 张封面未能载入，可上传本地封面后重试。` : "带封面的榜单已导出"); } catch (e) { setError(e instanceof Error ? e.message : "导出失败"); } finally { lock.current = false; setBusy(false); }
+    try { const result = await exportSongPng(snapshot); setNotice(result.missingCovers ? `已导出；${result.missingCovers} 张封面未能载入，可上传本地封面后重试。` : result.pages > 1 ? `榜单已分为 ${result.pages} 张 PNG 导出，请允许浏览器下载多个文件。` : "带封面的榜单已导出"); } catch (e) { setError(e instanceof Error ? e.message : "导出失败"); } finally { lock.current = false; setBusy(false); }
   }
   async function removeBoard() {
     if (!board || lock.current || !window.confirm(`永久删除「${board.title}」、上传音频和对决记录？分享链接也会失效。`)) return;
@@ -252,7 +257,7 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
       <div className="flex flex-wrap items-center gap-3"><AppButton variant="secondary" size="sm" disabled={disabled || Boolean(editing) || batchOpen || bulkEditing || addMode !== "none" || visibleMatchCount < 2} onClick={async () => { if (await mutate({ action: "candidates", trackIds: visibleTracks.map(t => t.id) })) navigate("match"); }}>用筛选的 {visibleTracks.length} 首开始对决</AppButton>{board.document.candidateIds !== null && <AppButton variant="ghost" size="sm" disabled={disabled || bulkEditing} onClick={() => void mutate({ action: "candidates", trackIds: null })}>恢复全曲单参赛</AppButton>}<span className="text-xs text-slate-500">分档仅使用参赛歌曲之间的比较；切换范围保留历史。</span></div>
       </>}
       {visibleTracks.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center"><p className="text-lg font-semibold">{board.document.tracks.length ? "没有符合筛选的歌曲" : "把舍不得跳过的歌放进来"}</p><p className="mt-1 text-xs text-slate-400">{board.document.tracks.length ? "试试其他季度、类型或关键词。" : "添加至少两首歌曲，就能开始第一场对决。"}</p></div> : <div className="grid grid-cols-2 items-start gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-        {visibleTracks.map(track => {
+        {pageTracks.map(track => {
           const score = ranking?.scores.find(s => s.animeId === track.id);
           const excluded = board.document.candidateIds !== null && !board.document.candidateIds.includes(track.id);
           return <article key={playbackKey(track)} className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/30">
@@ -263,6 +268,7 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
           </article>;
         })}
       </div>}
+      {libraryPages > 1 && <div className="flex items-center justify-between gap-2 border-t border-white/10 pt-3 text-xs text-slate-400"><span>{visibleTracks.length} 首 · 第 {currentLibraryPage + 1} / {libraryPages} 页</span><div className="flex gap-2"><AppButton size="sm" disabled={currentLibraryPage === 0} onClick={() => setLibraryPage(currentLibraryPage - 1)}>上一页</AppButton><AppButton size="sm" disabled={currentLibraryPage >= libraryPages - 1} onClick={() => setLibraryPage(currentLibraryPage + 1)}>下一页</AppButton></div></div>}
       </AppCard>}
       {libraryTab === "settings" && <AppCard role="tabpanel" id="song-library-panel" aria-labelledby="song-library-tab-settings" className="p-4 sm:p-5">
         <h2 className="text-xl font-bold">曲单设置与公共发布</h2>

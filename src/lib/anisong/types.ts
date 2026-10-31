@@ -1,8 +1,9 @@
 export const SONG_KINDS = ["OP", "ED", "INSERT", "OTHER"] as const;
 export type SongKind = typeof SONG_KINDS[number];
 export const KIND_LABELS: Record<SongKind, string> = { OP: "OP", ED: "ED", INSERT: "插入曲", OTHER: "其他" };
-export const MAX_TRACKS = 64;
+export const MAX_TRACKS = 1000;
 export const MAX_EVENTS = 5000;
+export const MAX_BOARD_AUDIO_BYTES = 2 * 1024 * 1024 * 1024;
 export const MAX_AUDIO_BYTES = 20 * 1024 * 1024;
 export const MAX_SONG_COVER_BYTES = 5 * 1024 * 1024;
 export type SongSource =

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AppButton } from "@/components/ui/AppButton";
-import { KIND_LABELS, MAX_AUDIO_BYTES, MAX_TRACKS, SONG_KINDS, type SongTrack } from "@/lib/anisong/types";
+import { KIND_LABELS, MAX_BOARD_AUDIO_BYTES, MAX_AUDIO_BYTES, MAX_TRACKS, SONG_KINDS, type SongTrack } from "@/lib/anisong/types";
 
 import { readLocalSongMetadata } from "@/lib/anisong/metadata-reader";
 import { filenameMetadata } from "@/lib/anisong/metadata";
@@ -34,7 +34,7 @@ export function SongBatchImport({ tracks, disabled, onSave, onRunning, onCancel,
     for (const file of Array.from(files)) {
       if (!/\.(mp3|m4a|wav|ogg|flac)$/i.test(file.name) || !file.size || file.size > MAX_AUDIO_BYTES) { rejected.push(`${file.name}：需为支持的音频且不超过20 MB`); continue; }
       if (next.some(i => i.file.name === file.name && i.file.size === file.size && i.file.lastModified === file.lastModified)) continue;
-      if (next.filter(i => i.status !== "done" && !doneKeys.has(i.key)).length >= MAX_TRACKS - tracks.length) { rejected.push(`${file.name}：曲单最多64首`); continue; }
+      if (next.filter(i => i.status !== "done" && !doneKeys.has(i.key)).length >= MAX_TRACKS - tracks.length) { rejected.push(`${file.name}：曲单最多${MAX_TRACKS}首`); continue; }
       next.push({ key: createClientUuid(), file, ...filenameMetadata(file.name), cover: null, note: "等待读取文件信息…", status: "queued" });
     }
     setItems(next); setMessage(rejected.join("；"));
@@ -54,7 +54,7 @@ export function SongBatchImport({ tracks, disabled, onSave, onRunning, onCancel,
     if (active.current || disabled || !pending.length) return;
     if (pending.length > MAX_TRACKS - tracks.length) { setMessage("剩余名额不足，请移除部分待导入歌曲。"); return; }
     const totalBytes = tracks.reduce((sum, track) => sum + (track.source.kind === "upload" ? track.source.bytes : 0), 0) + pending.reduce((sum, item) => sum + item.file.size, 0);
-    if (totalBytes > 250 * 1024 * 1024) { setMessage("这些文件加上曲单已有音频超过250 MB，请移除部分待导入文件。"); return; }
+    if (totalBytes > MAX_BOARD_AUDIO_BYTES) { setMessage("这些文件加上曲单已有音频超过2 GB，请移除部分待导入文件。"); return; }
     if (pending.some(duplicate) && !window.confirm("曲单或待导入列表中有同名、同歌手歌曲，仍要导入这些文件吗？")) return;
     const common = new FormData(e.currentTarget);
     // Freeze each request before starting: a retry must represent the same song.
@@ -84,7 +84,7 @@ export function SongBatchImport({ tracks, disabled, onSave, onRunning, onCancel,
   }
   return <form onSubmit={submit} className="space-y-4 rounded-2xl border border-anime-cyan/20 bg-slate-950/50 p-4 sm:p-6">
     <h2 className="text-lg font-semibold">批量导入本地音频</h2>
-    <p className="text-sm leading-6 text-slate-400">自动读取本地文件中的歌名、歌手和封面，导入前可修改。支持 MP3 / M4A / WAV / OGG / FLAC，每首20 MB以内；曲单音频合计250 MB以内。</p>
+    <p className="text-sm leading-6 text-slate-400">自动读取本地文件中的歌名、歌手和封面，导入前可修改。支持 MP3 / M4A / WAV / OGG / FLAC，每首20 MB以内；曲单音频合计2 GB以内。</p>
     <fieldset disabled={reading || running || disabled} className="min-w-0 space-y-4">
       <label className="block text-sm">选择音频文件<input type="file" multiple accept=".mp3,.m4a,.wav,.ogg,.flac" className="mt-2 block w-full min-w-0 text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-white" onChange={e => { void choose(e.target.files); e.target.value = ""; }} /></label>
       <div className="grid gap-3 sm:grid-cols-3">
