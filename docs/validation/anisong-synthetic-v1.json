@@ -1,0 +1,79 @@
+{
+  "document": {
+    "version": 1,
+    "tracks": [
+      {
+        "id": "legacy-op",
+        "title": "Legacy OP",
+        "artist": "Synthetic QA",
+        "anime": "Synthetic series",
+        "kind": "OP",
+        "year": 2023,
+        "quarter": 4,
+        "tags": [],
+        "clipStart": 0,
+        "clipLength": 30,
+        "source": {
+          "kind": "upload",
+          "key": "11111111-1111-4111-8111-111111111111.wav",
+          "mime": "audio/wav",
+          "bytes": 176478
+        },
+        "coverUrl": "https://p1.music.126.net/synthetic-fixture.jpg"
+      },
+      {
+        "id": "legacy-ed",
+        "title": "Legacy ED",
+        "artist": "Synthetic QA",
+        "anime": "Synthetic series",
+        "kind": "ED",
+        "year": 2023,
+        "quarter": 4,
+        "tags": [],
+        "clipStart": 0,
+        "clipLength": 30,
+        "source": {
+          "kind": "netease",
+          "id": "123456"
+        },
+        "coverUrl": "https://p1.music.126.net/synthetic-fixture.jpg"
+      }
+    ],
+    "events": [
+      {
+        "id": "legacy-vote",
+        "leftId": "legacy-op",
+        "rightId": "legacy-ed",
+        "result": "LEFT_WIN"
+      }
+    ],
+    "manualTiers": {
+      "legacy-op": "s"
+    },
+    "candidateIds": null
+  },
+  "snapshot": {
+    "version": 1,
+    "title": "Synthetic legacy snapshot",
+    "capturedAt": "2026-10-29T00:00:00.000Z",
+    "comparisons": 1,
+    "rows": [
+      {
+        "id": "s",
+        "label": "S",
+        "color": "#fb7185",
+        "songs": [
+          {
+            "id": "legacy-op",
+            "title": "Legacy OP",
+            "artist": "Synthetic QA",
+            "anime": "Synthetic series",
+            "kind": "OP",
+            "manual": true,
+            "coverUrl": "https://p1.music.126.net/synthetic-fixture.jpg"
+          }
+        ]
+      }
+    ]
+  }
+}

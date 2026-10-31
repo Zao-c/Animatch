@@ -68,3 +68,15 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d --bui
 - 在公网地址通过临时验收账号完成真实搜索、封面导入、45秒MP3试听解码与播放、390像素布局、二维码生成/轮询和断开连接。验收账号、曲单及其空凭据文件已清理。
 - 生产 Node 20 Docker 构建包含 TypeScript / ESLint 检查并通过；网易云接口与应用健康检查通过。生产验收记录位于 `output/anisong-netease/production-verification.json`。
 - 用户入口：`http://182.61.136.105:3000/anisong`。在自己的 AniMatch 账号内打开曲单，展开网易云搜索，再点击「扫码连接网易云」。
+
+## 宿主机开发与 Docker 地址
+
+Compose 内的 AniMatch 使用 `http://netease-api:3000`。宿主机启动本地 Next.js 时，显式设置 `NETEASE_API_URL=http://127.0.0.1:3301`；Docker 服务名通常无法在宿主机解析，会产生 DNS 错误。不要因此修改生产 Compose 的服务名。
+
+匿名连通性及真实音频探针：
+
+```bash
+NETEASE_API_URL=http://127.0.0.1:3301 pnpm exec tsx scripts/diagnose-netease.ts
+```
+
+探针不读取个人 Cookie，不输出音频 URL 或上游正文。故障分类与本次真实调查结果见[发布前验收记录](anisong-migration-release.md)。
