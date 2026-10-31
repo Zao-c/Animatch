@@ -359,3 +359,7 @@ textarea:focus {
   .song-player-controls { flex-direction: row; gap: .75rem; }
   .song-player-caption { display: inline; }
 }
+
+@container song-player (min-width: 140px) {
+  .song-player-compact .song-player-controls { flex-direction: row; gap: .5rem; }
+}

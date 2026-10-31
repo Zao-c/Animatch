@@ -2,8 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppButton } from "@/components/ui/AppButton";
 import { registerUnsavedChangesGuard } from "@/lib/unsaved-changes-guard";
-import { KIND_LABELS, type SongSnapshot } from "@/lib/anisong/types";
-import { SongCover } from "./SongCover";
+import { type SongSnapshot } from "@/lib/anisong/types";
 import { SongTierView } from "./SongTierView";
 
 const TIERS = ["s", "a", "b", "c", "d"] as const;
@@ -37,6 +36,8 @@ export function SongTierEditor({ snapshot, busy, onSave, onReset, onEditingChang
   onSave: (rows: Rows) => Promise<boolean>; onReset: () => Promise<boolean>;
   onEditingChange?: (editing: boolean) => void;
 }) {
+  const [compact, setCompact] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [rows, setRows] = useState<Rows>(() => snapshotRows(snapshot));
@@ -63,6 +64,7 @@ export function SongTierEditor({ snapshot, busy, onSave, onReset, onEditingChang
   function toggleEditing(next: boolean) {
     if (next) { setRows(snapshotRows(snapshot)); setUndoStack([]); setStatus(""); }
     else { setDragSource(null); setStatus(""); }
+    setSelectedId(null);
     setEditing(next);
     onEditingChange?.(next);
   }
@@ -94,66 +96,36 @@ export function SongTierEditor({ snapshot, busy, onSave, onReset, onEditingChang
     finally { setSaving(false); }
   }
 
-  if (!editing) return <div className="space-y-3">
-    <div className="flex flex-wrap gap-2">
-      <AppButton disabled={busy || saving} onClick={() => toggleEditing(true)}>编辑 Tier 排序</AppButton>
-      <AppButton variant="ghost" disabled={busy || saving} onClick={() => void reset()}>恢复自动分档</AppButton>
-    </div>
-    {status && <p role="status" className="text-xs text-amber-200">{status}</p>}
-    <div role="region" aria-label="歌曲分层榜单" tabIndex={0} className="max-h-[70dvh] overflow-y-auto overscroll-contain pr-1"><SongTierView snapshot={snapshot} busy={busy} /></div>
-  </div>;
-
+  const displaySnapshot: SongSnapshot = editing ? { ...snapshot, rows: snapshot.rows.map(row => ({ ...row, songs: (rows[row.id] ?? []).map(id => songs.get(id)).filter((song): song is Song => Boolean(song)) })) } : snapshot;
+  const selectedRow = selectedId ? Object.keys(rows).find(id => rows[id].includes(selectedId)) : undefined;
+  const selectedIndex = selectedRow && selectedId ? rows[selectedRow].indexOf(selectedId) : -1;
+  const locked = busy || saving;
+  function cancelEditing() {
+    if (undoStack.length && !window.confirm("放弃尚未保存的排序调整？")) return;
+    toggleEditing(false);
+  }
   return <div className="space-y-3">
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-anime-cyan/25 bg-slate-950/35 p-3">
-      <div>
-        <p className="font-semibold">正在编辑音乐 Tier List</p>
-        <p className="mt-1 text-xs text-slate-400">电脑拖动歌曲到档位或其他歌曲前；手机用分档选择和前移、后移。更改不会修改 Elo。</p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <AppButton variant="ghost" disabled={busy || saving || !undoStack.length} onClick={() => { const prev = undoStack.at(-1); if (!prev) return; setRows(prev); setUndoStack(stack => stack.slice(0,-1)); setStatus("已撤销上一次未保存的移动"); }}>撤销移动</AppButton>
-        <AppButton disabled={busy || saving || !undoStack.length} onClick={() => void save()}>{saving ? "保存中…" : "保存排序"}</AppButton>
-        <AppButton variant="ghost" disabled={busy || saving} onClick={() => toggleEditing(false)}>取消编辑</AppButton>
-      </div>
-    </div>
-    {status && <p role="status" className="text-xs text-slate-300">{status}</p>}
-    <div className="overflow-hidden rounded-2xl border border-white/10">
-      {snapshot.rows.map(row => {
-        const movable = TIERS.some(tier => tier === row.id);
-        const rowSongs = (rows[row.id] ?? []).map(id => songs.get(id)).filter((song): song is Song => Boolean(song));
-        return <div key={row.id} className="grid min-h-24 grid-cols-[64px_minmax(0,1fr)] border-b border-white/10 last:border-b-0 sm:grid-cols-[96px_minmax(0,1fr)]">
-          <div style={{ backgroundColor: row.color }} className="flex items-center justify-center px-2 text-center text-xl font-black text-slate-950 sm:text-2xl">{row.label}</div>
-          <div className={"flex min-h-24 flex-wrap items-start gap-2 p-3 " + (movable ? "bg-slate-950/25" : "bg-slate-950/45")}
-            onDragOver={event => { if (movable && dragSource) event.preventDefault(); }}
-            onDrop={event => { event.preventDefault(); if (dragSource && movable) move(dragSource, row.id); setDragSource(null); }}>
-            {rowSongs.length ? rowSongs.map((song, index) => <article key={song.id}
-              draggable={!busy && !saving && row.id !== "hidden"}
-              onDragStart={event => { setDragSource(song.id); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", song.id); }}
-              onDragEnd={() => setDragSource(null)}
-              onDragOver={event => { if (movable && dragSource && dragSource !== song.id) event.preventDefault(); }}
-              onDrop={event => { event.stopPropagation(); event.preventDefault(); if (dragSource && movable) move(dragSource, row.id, song.id); setDragSource(null); }}
-              className="w-[calc(50%-4px)] min-w-0 rounded-xl border border-white/10 bg-slate-800/70 p-2 sm:w-40">
-              <SongCover src={song.coverUrl} title={song.title} className="mb-2 w-full" />
-              <p className="break-words text-sm font-semibold">{song.title}</p>
-              <p className="mt-1 break-words text-xs text-slate-400">{song.artist || "歌手未填写"}</p>
-              <p className="mt-1 break-words text-xs text-anime-cyan">{KIND_LABELS[song.kind]}{song.anime ? " · " + song.anime : ""}</p>
-              {row.id !== "hidden" && <div className="mt-2 space-y-2">
-                <select aria-label={song.title + " 移动到档位"} value={row.id} disabled={busy || saving} className="anime-field w-full text-xs" onChange={event => move(song.id, event.target.value)}>
-                  {row.id === "pending" && <option value="pending">待比较</option>}
-                  {snapshot.rows.filter(r => TIERS.some(t => t === r.id)).map(target => <option value={target.id} key={target.id}>{target.label}</option>)}
-                </select>
-                {movable && <div className="flex gap-1">
-                  <button type="button" disabled={busy || saving || index === 0} onClick={() => move(song.id, row.id, rowSongs[index-1]?.id)} className="min-h-9 flex-1 rounded-md border border-white/15 text-xs disabled:opacity-30">↑ 前移</button>
-                  <button type="button" disabled={busy || saving || index >= rowSongs.length-1} onClick={() => move(rowSongs[index+1].id, row.id, song.id)} className="min-h-9 flex-1 rounded-md border border-white/15 text-xs disabled:opacity-30">↓ 后移</button>
-                </div>}
-              </div>}
-            </article>) : <span className="self-center text-sm text-slate-500">{movable ? "拖动歌曲到这里" : "暂无歌曲"}</span>}
-          </div>
-        </div>;
-      })}
-    </div>
     <div className="flex flex-wrap gap-2">
-      <AppButton disabled={busy || saving || !undoStack.length} onClick={() => void save()}>保存排序</AppButton>
-      <AppButton variant="ghost" disabled={busy || saving} onClick={() => toggleEditing(false)}>取消编辑</AppButton>
+      {!editing ? <AppButton size="sm" variant="secondary" disabled={locked} onClick={() => toggleEditing(true)}>调整排序</AppButton> : <>
+        <AppButton size="sm" variant="primary" disabled={locked || !undoStack.length} onClick={() => void save()}>{saving ? "保存中…" : "保存排序"}</AppButton>
+        <AppButton size="sm" variant="secondary" disabled={locked || !undoStack.length} onClick={() => { const prev = undoStack.at(-1); if (!prev) return; setRows(prev); setUndoStack(stack => stack.slice(0,-1)); setStatus("已撤销上一次移动"); }}>撤销移动</AppButton>
+        <AppButton size="sm" variant="quiet" disabled={locked} onClick={cancelEditing}>取消编辑</AppButton>
+      </>}
+      <AppButton size="sm" variant="secondary" aria-pressed={!compact} onClick={() => setCompact(value => !value)}>{compact ? "切换大图详情" : "切换紧凑总览"}</AppButton>
+      {!editing && <AppButton size="sm" variant="quiet" disabled={locked} onClick={() => void reset()}>恢复自动分档</AppButton>}
+    </div>
+    {editing && <div className="sticky top-2 z-10 space-y-2 rounded-xl border border-anime-cyan/25 bg-slate-950/95 p-3">
+      <p className="text-xs text-slate-300">拖动封面跨档或调整顺序；也可点选歌曲，再使用下方控件。</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="min-w-0 max-w-48 truncate text-xs text-cyan-100">{selectedId ? songs.get(selectedId)?.title : "请选择歌曲"}</span>
+        <select aria-label="选中歌曲移动到档位" disabled={locked || !selectedId} value={TIERS.some(id => id === selectedRow) ? selectedRow : ""} className="anime-field !w-auto text-xs" onChange={event => { if (selectedId) move(selectedId, event.target.value); }}><option value="" disabled>移动到…</option>{TIERS.map(id => <option key={id} value={id}>{id.toUpperCase()}</option>)}</select>
+        <AppButton size="sm" variant="secondary" disabled={locked || !selectedId || !selectedRow || selectedIndex <= 0 || !TIERS.some(id => id === selectedRow)} onClick={() => { if (selectedId && selectedRow) move(selectedId, selectedRow, rows[selectedRow][selectedIndex - 1]); }}>前移</AppButton>
+        <AppButton size="sm" variant="secondary" disabled={locked || !selectedId || !selectedRow || selectedIndex >= rows[selectedRow].length - 1 || !TIERS.some(id => id === selectedRow)} onClick={() => { if (selectedId && selectedRow) move(rows[selectedRow][selectedIndex + 1], selectedRow, selectedId); }}>后移</AppButton>
+      </div>
+    </div>}
+    {status && <p role="status" className="text-xs text-slate-300">{status}</p>}
+    <div role="region" aria-label="歌曲分层榜单" tabIndex={0} className="max-h-[70dvh] overflow-y-auto overscroll-contain pr-1">
+      <SongTierView snapshot={displaySnapshot} busy={locked} compact={compact} editing={editing} selectedId={selectedId} dragSource={dragSource} onSelect={setSelectedId} onDragSource={setDragSource} onMove={move} />
     </div>
   </div>;
 }

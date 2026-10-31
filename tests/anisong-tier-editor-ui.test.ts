@@ -3,12 +3,17 @@ import { describe, expect, it } from "vitest";
 
 describe("Anisong tier editor contract", () => {
   const editor = readFileSync("src/components/anisong/SongTierEditor.tsx", "utf8");
+  const view = readFileSync("src/components/anisong/SongTierView.tsx", "utf8");
   const panel = readFileSync("src/components/anisong/SongTierPanel.tsx", "utf8");
   const service = readFileSync("src/lib/anisong/service.ts", "utf8");
   it("has drag, touch alternatives, undo and explicit save/cancel", () => {
-    expect(editor).toContain("draggable=");
-    expect(editor).toContain("onDragOver");
-    expect(editor).toContain("onDrop");
+    expect(view).toMatch(/^"use client";/);
+    expect(view).toContain("draggable=");
+    expect(view).toContain("onDragOver");
+    expect(view).toContain("onDrop");
+    expect(editor).toContain("<SongTierView snapshot={displaySnapshot}");
+    expect(editor).toContain("放弃尚未保存的排序调整");
+    expect(editor).toContain("调整排序");
     expect(editor).toContain("撤销移动");
     expect(editor).toContain("前移");
     expect(editor).toContain("后移");

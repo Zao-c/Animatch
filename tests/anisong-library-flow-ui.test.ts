@@ -12,7 +12,11 @@ describe("AniSong library focuses on the next user action", () => {
   it("places entry and candidates ahead of settings and public publishing", () => {
     expect(workspace).toContain("＋ 添加歌曲");
     expect(workspace).toContain("选择参与对决的歌曲");
-    expect(workspace).toContain("开始 / 继续音乐对决");
+    expect(workspace).toContain("继续音乐对决");
+    expect(workspace).toContain('variant="primary" size="lg" className="w-full"');
+    expect(workspace).toContain('libraryTab === "range"');
+    expect(workspace).toContain('libraryTab === "settings"');
+    expect(workspace).not.toContain("准备好就开始对决");
     expect(workspace.indexOf("选择参与对决的歌曲")).toBeLessThan(workspace.indexOf("曲单设置与公共发布"));
     expect(workspace.indexOf("曲单设置与公共发布")).toBeLessThan(workspace.indexOf("<SongTemplatePublisher board={board}"));
     expect(lobby).toContain("创建自己的音乐曲单");
