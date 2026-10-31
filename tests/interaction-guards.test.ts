@@ -26,7 +26,7 @@ function sliceBetween(source: string, start: string, end: string): string {
 }
 
 describe("batch selection card (BUG 5)", () => {
-  const cardSource = sliceBetween(poolDetailSource, "function PoolAnimeCard(", "function BangumiResultCard(");
+  const cardSource = sliceBetween(poolDetailSource, "function PoolAnimeCard(", "function PoolAnimeDisplayPanel(");
 
   it("exposes a single toggle control for the whole card", () => {
     expect(cardSource).toContain('role={batchMode ? "button" : undefined}');

@@ -35,7 +35,7 @@ describe("Quick import service", () => {
 
   it("supports YEAR mode", () => {
     expect(source).toContain('params.mode === "YEAR"');
-    expect(source).toContain("where.year = params.year");
+    expect(source).toContain("animeYearFilter(rangeMode ? params.yearFrom : params.year, rangeMode ? params.yearTo : params.year)");
   });
 
   it("supports TAG mode", () => {
@@ -96,9 +96,9 @@ describe("Quick import service", () => {
 
   it("createPool respects selected preview candidates", () => {
     expect(source).toContain("selectedAnimeIds?: string[]");
-    expect(source).toContain("filterCandidatesBySelectedIds");
-    expect(source).toContain("selected.has(candidate.animeId)");
-    expect(source).toContain("selectedCandidates.map((c) => c.animeId)");
+    expect(source).toContain("[...new Set(params.selectedAnimeIds.map((id) => id.trim()))]");
+    expect(source).toContain("id: { in: selectedIds }");
+    expect(source).toContain("const missing = selectedIds.filter((id) => !byId.has(id))");
   });
 
   it("createPool with PUB/PRIV visibility", () => {

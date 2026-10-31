@@ -40,10 +40,10 @@ describe("P1 match arena UI", () => {
 
   it("keeps the match cards side by side on mobile", () => {
     expect(presentationSource).toContain(
-      "grid-cols-[minmax(0,1fr)_24px_minmax(0,1fr)]"
+      "grid-cols-[minmax(0,1fr)_20px_minmax(0,1fr)]"
     );
-    expect(presentationSource).toContain("sm:grid-cols-[minmax(0,1fr)_48px_minmax(0,1fr)]");
-    expect(presentationSource).toContain("sm:gap-4");
+    expect(presentationSource).toContain("sm:grid-cols-[minmax(0,1fr)_40px_minmax(0,1fr)]");
+    expect(presentationSource).toContain("sm:gap-3");
   });
 
   it("maps keyboard shortcuts and ignores editable targets", () => {

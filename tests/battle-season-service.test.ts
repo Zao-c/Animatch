@@ -66,7 +66,7 @@ describe("Season service permissions and limits", () => {
     expect(source).toContain("MAX_VOTE_WRITE_ATTEMPTS");
     expect(source).toContain("Prisma.TransactionIsolationLevel.Serializable");
     expect(source).toContain("findExistingBattleVoteResult");
-    expect(source).toContain("toVoteResult(existingVote, season.maxVotesPerUser)");
+    expect(source).toContain("return toVoteResult(tx, seasonId, userId, existingVote)");
     expect(source).toContain("isClientMutationConflict");
     expect(source).toContain("VOTE_LIMIT_REACHED");
     expect(source).toContain("DAILY_VOTE_LIMIT_REACHED");
@@ -362,8 +362,8 @@ describe("Season pages", () => {
     expect(source).toContain("handleMarkUnseen");
     expect(source).toContain("createVoteMutationId");
     expect(source).toContain("clientMutationId");
-    expect(source).toContain("serverHiddenAnimeIds");
-    expect(source).toContain("nextSkippedPairKeys.add(seasonMatchPairKey(currentPair))");
+    expect(source).toContain("const serverHidden = new Set(d.currentUserState?.hiddenAnimeIds ?? [])");
+    expect(source).toContain("new Set(skippedPairKeys).add(seasonMatchPairKey(currentPair))");
   });
 });
 
