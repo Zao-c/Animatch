@@ -1,0 +1,4144 @@
+$ docker run -d --rm --name anisong-release-a7ea4730cf --tmpfs /var/lib/postgresql/data -e POSTGRES_USER=audit -e POSTGRES_PASSWORD=local-audit-only -p 127.0.0.1::5432 postgres:16
+9cd6b30d5649a84b47e97e69da68930c5ca1f88b8fc3a362fcf56352e5213c8b
+
+exit=0
+$ docker port anisong-release-a7ea4730cf 5432/tcp
+127.0.0.1:32770
+
+exit=0
+$ docker exec anisong-release-a7ea4730cf pg_isready -U audit
+/var/run/postgresql:5432 - no response
+
+exit=2
+$ docker exec anisong-release-a7ea4730cf pg_isready -U audit
+/var/run/postgresql:5432 - no response
+
+exit=2
+$ docker exec anisong-release-a7ea4730cf pg_isready -U audit
+/var/run/postgresql:5432 - accepting connections
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d postgres
+CREATE DATABASE
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d postgres
+CREATE DATABASE
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d postgres
+CREATE DATABASE
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d postgres
+CREATE DATABASE
+
+exit=0
+$ pnpm exec prisma migrate deploy
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "broken", schema "public" at "127.0.0.1:32770"
+
+24 migrations found in prisma/migrations
+
+Applying migration `20250617000000_add_tier_config`
+Environment variables loaded from .env
+Error: P3018
+
+A migration failed to apply. New migrations cannot be applied before the error is recovered from. Read more about how to resolve migration issues in a production database: https://pris.ly/d/migrate-resolve
+
+Migration name: 20250617000000_add_tier_config
+
+Database error code: 42P01
+
+Database error:
+ERROR: relation "CustomPool" does not exist
+
+DbError { severity: "ERROR", parsed_severity: Some(Error), code: SqlState(E42P01), message: "relation \"CustomPool\" does not exist", detail: None, hint: None, position: None, where_: None, schema: None, table: None, column: None, datatype: None, constraint: None, file: Some("namespace.c"), line: Some(434), routine: Some("RangeVarGetRelidExtended") }
+
+
+
+exit=1
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d fresh
+BEGIN
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20260608182702_initial_migration
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "fresh", schema "public" at "127.0.0.1:32770"
+
+Migration 20260608182702_initial_migration marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ pnpm exec prisma migrate deploy
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "fresh", schema "public" at "127.0.0.1:32770"
+
+24 migrations found in prisma/migrations
+
+Applying migration `20250617000000_add_tier_config`
+Applying migration `20260610183500_add_anime_local_fields`
+Applying migration `20260611024223_add_pool_anime_display_overrides`
+Applying migration `20260611194500_add_tier_shares`
+Applying migration `20260612020500_strengthen_pool_comparisons`
+Applying migration `20260613093000_add_tiermaker_import_source_type`
+Applying migration `20260614171500_add_pool_comparison_undo`
+Applying migration `20260614193000_add_public_pool_foundation`
+Applying migration `20260618000000_add_battle_seasons`
+Applying migration `20260623000000_add_battle_season_user_scores`
+Applying migration `20260624000000_add_battle_vote_client_mutation_id`
+Applying migration `20260704093000_add_anime_cached_cover`
+Applying migration `20260704103000_track_cached_cover_source`
+Applying migration `20260923000000_annual_taste`
+Applying migration `20261007080000_manual_tier_boards`
+Applying migration `20261011060000_award_nominations`
+Applying migration `20261014000000_award_live`
+Applying migration `20261026120000_personal_match_candidates`
+Applying migration `20261026130000_pool_creation_requests`
+Applying migration `20261029000000_anisongmatch`
+Applying migration `20261030090000_shared_song_templates`
+Applying migration `20261030120000_anisong_cos_audio`
+Applying migration `20261030133000_anisong_preview_audio`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 20250617000000_add_tier_config/
+    └─ migration.sql
+  └─ 20260610183500_add_anime_local_fields/
+    └─ migration.sql
+  └─ 20260611024223_add_pool_anime_display_overrides/
+    └─ migration.sql
+  └─ 20260611194500_add_tier_shares/
+    └─ migration.sql
+  └─ 20260612020500_strengthen_pool_comparisons/
+    └─ migration.sql
+  └─ 20260613093000_add_tiermaker_import_source_type/
+    └─ migration.sql
+  └─ 20260614171500_add_pool_comparison_undo/
+    └─ migration.sql
+  └─ 20260614193000_add_public_pool_foundation/
+    └─ migration.sql
+  └─ 20260618000000_add_battle_seasons/
+    └─ migration.sql
+  └─ 20260623000000_add_battle_season_user_scores/
+    └─ migration.sql
+  └─ 20260624000000_add_battle_vote_client_mutation_id/
+    └─ migration.sql
+  └─ 20260704093000_add_anime_cached_cover/
+    └─ migration.sql
+  └─ 20260704103000_track_cached_cover_source/
+    └─ migration.sql
+  └─ 20260923000000_annual_taste/
+    └─ migration.sql
+  └─ 20261007080000_manual_tier_boards/
+    └─ migration.sql
+  └─ 20261011060000_award_nominations/
+    └─ migration.sql
+  └─ 20261014000000_award_live/
+    └─ migration.sql
+  └─ 20261026120000_personal_match_candidates/
+    └─ migration.sql
+  └─ 20261026130000_pool_creation_requests/
+    └─ migration.sql
+  └─ 20261029000000_anisongmatch/
+    └─ migration.sql
+  └─ 20261030090000_shared_song_templates/
+    └─ migration.sql
+  └─ 20261030120000_anisong_cos_audio/
+    └─ migration.sql
+  └─ 20261030133000_anisong_preview_audio/
+    └─ migration.sql
+      
+All migrations have been successfully applied.
+Environment variables loaded from .env
+
+exit=0
+$ pnpm exec prisma migrate status
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "fresh", schema "public" at "127.0.0.1:32770"
+
+24 migrations found in prisma/migrations
+
+Database schema is up to date!
+Environment variables loaded from .env
+
+exit=0
+$ pnpm exec prisma migrate deploy
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "fresh", schema "public" at "127.0.0.1:32770"
+
+24 migrations found in prisma/migrations
+
+
+No pending migrations to apply.
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20260608182702_initial_migration
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20260608182702_initial_migration marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+ALTER TABLE
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20250617000000_add_tier_config
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20250617000000_add_tier_config marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+UPDATE 0
+UPDATE 0
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE INDEX
+COMMIT
+NOTICE:  column "titleJa" of relation "Anime" already exists, skipping
+NOTICE:  column "titleEn" of relation "Anime" already exists, skipping
+NOTICE:  column "thumbnailUrl" of relation "Anime" already exists, skipping
+NOTICE:  column "aliases" of relation "Anime" already exists, skipping
+NOTICE:  column "year" of relation "Anime" already exists, skipping
+NOTICE:  column "season" of relation "Anime" already exists, skipping
+NOTICE:  column "animeType" of relation "Anime" already exists, skipping
+NOTICE:  column "episodes" of relation "Anime" already exists, skipping
+NOTICE:  column "status" of relation "Anime" already exists, skipping
+NOTICE:  column "studios" of relation "Anime" already exists, skipping
+NOTICE:  column "externalLinks" of relation "Anime" already exists, skipping
+NOTICE:  column "source" of relation "Anime" already exists, skipping
+NOTICE:  column "sourceId" of relation "Anime" already exists, skipping
+NOTICE:  relation "Anime_bgmId_key" already exists, skipping
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20260610183500_add_anime_local_fields
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20260610183500_add_anime_local_fields marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20260611024223_add_pool_anime_display_overrides
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20260611024223_add_pool_anime_display_overrides marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20260611194500_add_tier_shares
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20260611194500_add_tier_shares marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20260612020500_strengthen_pool_comparisons
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20260612020500_strengthen_pool_comparisons marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+DO
+CREATE TYPE
+ALTER TABLE
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20260613093000_add_tiermaker_import_source_type
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20260613093000_add_tiermaker_import_source_type marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+ALTER TABLE
+ALTER TABLE
+CREATE INDEX
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20260614171500_add_pool_comparison_undo
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20260614171500_add_pool_comparison_undo marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+ALTER TABLE
+CREATE INDEX
+CREATE INDEX
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20260614193000_add_public_pool_foundation
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20260614193000_add_public_pool_foundation marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20260618000000_add_battle_seasons
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20260618000000_add_battle_seasons marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20260623000000_add_battle_season_user_scores
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20260623000000_add_battle_season_user_scores marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+ALTER TABLE
+CREATE INDEX
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20260624000000_add_battle_vote_client_mutation_id
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20260624000000_add_battle_vote_client_mutation_id marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20260704093000_add_anime_cached_cover
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20260704093000_add_anime_cached_cover marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+ALTER TABLE
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20260704103000_track_cached_cover_source
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20260704103000_track_cached_cover_source marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+ALTER TABLE
+ALTER TABLE
+UPDATE 0
+CREATE TABLE
+CREATE INDEX
+CREATE TABLE
+CREATE TABLE
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20260923000000_annual_taste
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20260923000000_annual_taste marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20261007080000_manual_tier_boards
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20261007080000_manual_tier_boards marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20261011060000_award_nominations
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20261011060000_award_nominations marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20261014000000_award_live
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20261014000000_award_live marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+ALTER TABLE
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20261026120000_personal_match_candidates
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20261026120000_personal_match_candidates marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+CREATE TABLE
+CREATE INDEX
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20261026130000_pool_creation_requests
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20261026130000_pool_creation_requests marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+BEGIN
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+COMMIT
+
+exit=0
+$ pnpm exec prisma migrate resolve --applied 20261029000000_anisongmatch
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "old", schema "public" at "127.0.0.1:32770"
+
+Migration 20261029000000_anisongmatch marked as applied.
+
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+INSERT 0 1
+INSERT 0 1
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d old
+       id        |                                                                                                                                                                                                                                                                                                                                                                                                                                     document                                                                                                                                                                                                                                                                                                                                                                                                                                      |      shareToken       |                                                                                                                                                                                      snapshot                                                                                                                                                                                      
+-----------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ legacy-sentinel | {"events": [{"id": "legacy-vote", "leftId": "legacy-op", "result": "LEFT_WIN", "rightId": "legacy-ed"}], "tracks": [{"id": "legacy-op", "kind": "OP", "tags": [], "year": 2023, "anime": "Synthetic series", "title": "Legacy OP", "artist": "Synthetic QA", "source": {"key": "11111111-1111-4111-8111-111111111111.wav", "kind": "upload", "mime": "audio/wav", "bytes": 176478}, "quarter": 4, "coverUrl": "https://p1.music.126.net/synthetic-fixture.jpg", "clipStart": 0, "clipLength": 30}, {"id": "legacy-ed", "kind": "ED", "tags": [], "year": 2023, "anime": "Synthetic series", "title": "Legacy ED", "artist": "Synthetic QA", "source": {"id": "123456", "kind": "netease"}, "quarter": 4, "coverUrl": "https://p1.music.126.net/synthetic-fixture.jpg", "clipStart": 0, "clipLength": 30}], "version": 1, "manualTiers": {"legacy-op": "s"}, "candidateIds": null} | legacy-sentinel-share | {"rows": [{"id": "s", "color": "#fb7185", "label": "S", "songs": [{"id": "legacy-op", "kind": "OP", "anime": "Synthetic series", "title": "Legacy OP", "artist": "Synthetic QA", "manual": true, "coverUrl": "https://p1.music.126.net/synthetic-fixture.jpg"}]}], "title": "Synthetic legacy snapshot", "version": 1, "capturedAt": "2026-10-29T00:00:00.000Z", "comparisons": 1}
+(1 row)
+
+
+exit=0
+$ docker exec anisong-release-a7ea4730cf pg_dump -U audit -d old --no-owner --no-privileges
+--
+-- PostgreSQL database dump
+--
+
+\restrict ZLaDxzSv2UCrGSxfiSY4gFhbxTEpR9id7K8DXHZD6g89IibzIZlv1aTbwBAFPGO
+
+-- Dumped from database version 16.14 (Debian 16.14-1.pgdg13+1)
+-- Dumped by pg_dump version 16.14 (Debian 16.14-1.pgdg13+1)
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- Name: AnimeSourceType; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public."AnimeSourceType" AS ENUM (
+    'BANGUMI',
+    'MANAMI',
+    'CUSTOM_UPLOAD',
+    'MANUAL',
+    'DEMO',
+    'TIERMAKER_IMPORT'
+);
+
+
+--
+-- Name: BattleSeasonMode; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public."BattleSeasonMode" AS ENUM (
+    'CLASSIC',
+    'BIAS'
+);
+
+
+--
+-- Name: BattleSeasonStatus; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public."BattleSeasonStatus" AS ENUM (
+    'DRAFT',
+    'ACTIVE',
+    'ENDED'
+);
+
+
+--
+-- Name: BattleVoteType; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public."BattleVoteType" AS ENUM (
+    'NORMAL',
+    'BIAS'
+);
+
+
+--
+-- Name: PersonalRunStatus; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public."PersonalRunStatus" AS ENUM (
+    'ACTIVE',
+    'ARCHIVED',
+    'DELETED'
+);
+
+
+--
+-- Name: PoolComparisonMode; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public."PoolComparisonMode" AS ENUM (
+    'NORMAL',
+    'RECALIBRATE',
+    'FOCUS_RECALIBRATE',
+    'RANGE_RECALIBRATE'
+);
+
+
+--
+-- Name: PoolComparisonResult; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public."PoolComparisonResult" AS ENUM (
+    'LEFT_WIN',
+    'RIGHT_WIN',
+    'DRAW',
+    'SKIP',
+    'LEFT_UNSEEN',
+    'RIGHT_UNSEEN',
+    'BOTH_UNSEEN'
+);
+
+
+--
+-- Name: PoolStatus; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public."PoolStatus" AS ENUM (
+    'DRAFT',
+    'PUBLISHED',
+    'LOCKED',
+    'ARCHIVED'
+);
+
+
+--
+-- Name: RecalibrationSessionStatus; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public."RecalibrationSessionStatus" AS ENUM (
+    'ACTIVE',
+    'COMPLETED',
+    'CANCELLED'
+);
+
+
+--
+-- Name: RecalibrationSessionType; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public."RecalibrationSessionType" AS ENUM (
+    'SMART',
+    'RANGE',
+    'FOCUS'
+);
+
+
+--
+-- Name: RecommendationFeedback; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public."RecommendationFeedback" AS ENUM (
+    'NONE',
+    'INTERESTED',
+    'NOT_INTERESTED',
+    'WATCHED',
+    'ADDED_TO_POOL',
+    'DISMISSED'
+);
+
+
+--
+-- Name: Visibility; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public."Visibility" AS ENUM (
+    'PRIVATE',
+    'UNLISTED',
+    'PUBLIC'
+);
+
+
+--
+-- Name: WatchStatus; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public."WatchStatus" AS ENUM (
+    'UNKNOWN',
+    'UNSEEN',
+    'WATCHING',
+    'WATCHED',
+    'DROPPED',
+    'INTERESTED',
+    'NOT_INTERESTED'
+);
+
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: Anime; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."Anime" (
+    id text NOT NULL,
+    "bgmId" integer,
+    title text NOT NULL,
+    "titleCn" text,
+    "titleJa" text,
+    "titleEn" text,
+    summary text,
+    "imageUrl" text,
+    "imageSmallUrl" text,
+    "imageMediumUrl" text,
+    "imageLargeUrl" text,
+    "thumbnailUrl" text,
+    "airDate" timestamp(3) without time zone,
+    "bangumiRank" integer,
+    "bangumiScore" double precision,
+    "bangumiVotes" integer,
+    tags text[],
+    aliases text[] DEFAULT ARRAY[]::text[],
+    year integer,
+    season text,
+    "animeType" text,
+    episodes integer,
+    status text,
+    studios text[] DEFAULT ARRAY[]::text[],
+    "externalLinks" text[] DEFAULT ARRAY[]::text[],
+    source public."AnimeSourceType" DEFAULT 'BANGUMI'::public."AnimeSourceType" NOT NULL,
+    "sourceId" text,
+    "rawJson" jsonb,
+    "fetchedAt" timestamp(3) without time zone,
+    "imageStatus" text DEFAULT 'UNKNOWN'::text NOT NULL,
+    "imageCheckedAt" timestamp(3) without time zone,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
+    "deletedAt" timestamp(3) without time zone,
+    "cachedCoverUrl" text,
+    "cachedCoverKey" text,
+    "cachedCoverWidth" integer,
+    "cachedCoverHeight" integer,
+    "cachedCoverFormat" text,
+    "cachedCoverBytes" integer,
+    "cachedCoverAt" timestamp(3) without time zone,
+    "cachedCoverSourceUrl" text,
+    "cachedCoverContentHash" text
+);
+
+
+--
+-- Name: AnimeCollection; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."AnimeCollection" (
+    id text NOT NULL,
+    "ownerId" text NOT NULL,
+    title text NOT NULL,
+    year integer NOT NULL,
+    "finalPoolId" text,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+--
+-- Name: AnimeRecommendation; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."AnimeRecommendation" (
+    id text NOT NULL,
+    "userId" text NOT NULL,
+    "animeId" text NOT NULL,
+    score double precision NOT NULL,
+    "reasonJson" jsonb NOT NULL,
+    feedback public."RecommendationFeedback" DEFAULT 'NONE'::public."RecommendationFeedback" NOT NULL,
+    source text DEFAULT 'MIXED'::text NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+--
+-- Name: AwardBallot; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."AwardBallot" (
+    id text NOT NULL,
+    "ceremonyId" text NOT NULL,
+    "userId" text NOT NULL,
+    draft jsonb NOT NULL,
+    submitted jsonb,
+    revision integer DEFAULT 1 NOT NULL,
+    "submittedAt" timestamp(3) without time zone,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+--
+-- Name: AwardCeremony; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."AwardCeremony" (
+    id text NOT NULL,
+    "ownerId" text NOT NULL,
+    title text NOT NULL,
+    year integer NOT NULL,
+    description text DEFAULT ''::text NOT NULL,
+    deadline timestamp(3) without time zone NOT NULL,
+    status text DEFAULT 'OPEN'::text NOT NULL,
+    revision integer DEFAULT 0 NOT NULL,
+    awards jsonb NOT NULL,
+    shortlist jsonb DEFAULT '{}'::jsonb NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
+    "accessMode" text DEFAULT 'LINK'::text NOT NULL,
+    eligibility jsonb DEFAULT '{}'::jsonb NOT NULL,
+    merges jsonb DEFAULT '[]'::jsonb NOT NULL,
+    "nominationMode" text DEFAULT 'ASSISTED'::text NOT NULL,
+    "publishedSnapshot" jsonb,
+    CONSTRAINT "AwardCeremony_status_check" CHECK ((status = ANY (ARRAY['OPEN'::text, 'FROZEN'::text, 'PUBLISHED'::text, 'LIVE'::text, 'COMPLETED'::text])))
+);
+
+
+--
+-- Name: AwardDecision; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."AwardDecision" (
+    id text NOT NULL,
+    "ceremonyId" text NOT NULL,
+    "awardId" text NOT NULL,
+    method text NOT NULL,
+    winners jsonb NOT NULL,
+    "roundId" text,
+    reason text DEFAULT ''::text NOT NULL,
+    "confirmedAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "revealedAt" timestamp(3) without time zone,
+    CONSTRAINT "AwardDecision_method_check" CHECK ((method = ANY (ARRAY['VOTE'::text, 'DISCUSSION'::text, 'WITHHELD'::text])))
+);
+
+
+--
+-- Name: AwardEventLog; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."AwardEventLog" (
+    id text NOT NULL,
+    "ceremonyId" text NOT NULL,
+    "actorId" text NOT NULL,
+    action text NOT NULL,
+    detail jsonb NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: AwardFinalVote; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."AwardFinalVote" (
+    "roundId" text NOT NULL,
+    "userId" text NOT NULL,
+    "candidateKey" text,
+    revision integer DEFAULT 1 NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+--
+-- Name: AwardMember; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."AwardMember" (
+    "ceremonyId" text NOT NULL,
+    "userId" text NOT NULL,
+    status text DEFAULT 'PENDING'::text NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT "AwardMember_status_check" CHECK ((status = ANY (ARRAY['PENDING'::text, 'APPROVED'::text, 'REJECTED'::text])))
+);
+
+
+--
+-- Name: AwardRound; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."AwardRound" (
+    id text NOT NULL,
+    "ceremonyId" text NOT NULL,
+    "awardId" text NOT NULL,
+    number integer NOT NULL,
+    status text DEFAULT 'OPEN'::text NOT NULL,
+    candidates jsonb NOT NULL,
+    tally jsonb,
+    "openedAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "closedAt" timestamp(3) without time zone,
+    CONSTRAINT "AwardRound_status_check" CHECK ((status = ANY (ARRAY['OPEN'::text, 'CLOSED'::text])))
+);
+
+
+--
+-- Name: AwardStage; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."AwardStage" (
+    "ceremonyId" text NOT NULL,
+    "awardId" text,
+    scene text DEFAULT 'WAITING'::text NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+--
+-- Name: BattleSeason; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."BattleSeason" (
+    id text NOT NULL,
+    "poolId" text NOT NULL,
+    title text NOT NULL,
+    description text,
+    mode public."BattleSeasonMode" DEFAULT 'CLASSIC'::public."BattleSeasonMode" NOT NULL,
+    status public."BattleSeasonStatus" DEFAULT 'DRAFT'::public."BattleSeasonStatus" NOT NULL,
+    "startsAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "endsAt" timestamp(3) without time zone,
+    "maxVotesPerUser" integer DEFAULT 50 NOT NULL,
+    "maxVotesPerUserPerDay" integer,
+    "biasVotesPerUser" integer DEFAULT 3 NOT NULL,
+    "createdByUserId" text NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+--
+-- Name: BattleSeasonArchive; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."BattleSeasonArchive" (
+    "seasonId" text NOT NULL,
+    version text DEFAULT 'season-elo-v1'::text NOT NULL,
+    "capturedAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    payload jsonb NOT NULL
+);
+
+
+--
+-- Name: BattleSeasonUserScore; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."BattleSeasonUserScore" (
+    id text NOT NULL,
+    "seasonId" text NOT NULL,
+    "poolId" text NOT NULL,
+    "userId" text NOT NULL,
+    "animeId" text NOT NULL,
+    "eloScore" double precision DEFAULT 1500 NOT NULL,
+    uncertainty double precision DEFAULT 350 NOT NULL,
+    "compareCount" integer DEFAULT 0 NOT NULL,
+    "winCount" integer DEFAULT 0 NOT NULL,
+    "lossCount" integer DEFAULT 0 NOT NULL,
+    "biasWinCount" integer DEFAULT 0 NOT NULL,
+    "unseenCount" integer DEFAULT 0 NOT NULL,
+    "isHidden" boolean DEFAULT false NOT NULL,
+    "lastVotedAt" timestamp(3) without time zone,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+--
+-- Name: BattleVote; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."BattleVote" (
+    id text NOT NULL,
+    "seasonId" text NOT NULL,
+    "poolId" text NOT NULL,
+    "userId" text NOT NULL,
+    "leftAnimeId" text NOT NULL,
+    "rightAnimeId" text NOT NULL,
+    "winnerAnimeId" text NOT NULL,
+    "loserAnimeId" text NOT NULL,
+    "voteType" public."BattleVoteType" DEFAULT 'NORMAL'::public."BattleVoteType" NOT NULL,
+    weight integer DEFAULT 1 NOT NULL,
+    "stepNumber" integer NOT NULL,
+    "beforeWinnerScore" integer DEFAULT 0 NOT NULL,
+    "afterWinnerScore" integer DEFAULT 0 NOT NULL,
+    "beforeLoserScore" integer DEFAULT 0 NOT NULL,
+    "afterLoserScore" integer DEFAULT 0 NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "beforeWinnerElo" double precision,
+    "afterWinnerElo" double precision,
+    "beforeLoserElo" double precision,
+    "afterLoserElo" double precision,
+    "clientMutationId" text
+);
+
+
+--
+-- Name: CollectionSource; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."CollectionSource" (
+    id text NOT NULL,
+    "collectionId" text NOT NULL,
+    "poolId" text NOT NULL,
+    "seasonId" text NOT NULL,
+    quarter integer NOT NULL,
+    phase text NOT NULL,
+    CONSTRAINT "CollectionSource_phase_check" CHECK ((phase = ANY (ARRAY['OPENING'::text, 'ENDING'::text]))),
+    CONSTRAINT "CollectionSource_quarter_check" CHECK (((quarter >= 1) AND (quarter <= 4)))
+);
+
+
+--
+-- Name: CustomPool; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."CustomPool" (
+    id text NOT NULL,
+    "creatorId" text NOT NULL,
+    name text NOT NULL,
+    description text,
+    "coverUrl" text,
+    visibility public."Visibility" DEFAULT 'PRIVATE'::public."Visibility" NOT NULL,
+    status public."PoolStatus" DEFAULT 'DRAFT'::public."PoolStatus" NOT NULL,
+    tags text[],
+    "sourcePoolId" text,
+    "affectsGlobalTaste" boolean DEFAULT true NOT NULL,
+    "cloneCount" integer DEFAULT 0 NOT NULL,
+    "useCount" integer DEFAULT 0 NOT NULL,
+    "likeCount" integer DEFAULT 0 NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
+    "publishedAt" timestamp(3) without time zone,
+    "deletedAt" timestamp(3) without time zone,
+    "tierConfig" jsonb,
+    "allowPublicEdit" boolean DEFAULT false NOT NULL,
+    "allowCommunityMatch" boolean DEFAULT false NOT NULL,
+    "isOfficialDemo" boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: ManualTierAdjustment; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."ManualTierAdjustment" (
+    id text NOT NULL,
+    "userId" text NOT NULL,
+    "poolId" text NOT NULL,
+    "runId" text NOT NULL,
+    "animeId" text NOT NULL,
+    "fromTier" text,
+    "toTier" text NOT NULL,
+    "fromRank" integer,
+    "toRank" integer,
+    "eloScoreAtAdjustment" double precision NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+--
+-- Name: ManualTierBoard; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."ManualTierBoard" (
+    id text NOT NULL,
+    "ownerId" text NOT NULL,
+    "poolId" text NOT NULL,
+    title text NOT NULL,
+    layout jsonb NOT NULL,
+    revision integer DEFAULT 1 NOT NULL,
+    "shareToken" text,
+    "sharedSnapshot" jsonb,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+--
+-- Name: PersonalRun; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."PersonalRun" (
+    id text NOT NULL,
+    "userId" text NOT NULL,
+    "poolId" text NOT NULL,
+    name text DEFAULT '默认榜单'::text NOT NULL,
+    status public."PersonalRunStatus" DEFAULT 'ACTIVE'::public."PersonalRunStatus" NOT NULL,
+    "isDefault" boolean DEFAULT true NOT NULL,
+    "algorithmVersion" text DEFAULT 'elo-v1'::text NOT NULL,
+    "pairingVersion" text DEFAULT 'active-v1'::text NOT NULL,
+    "tierRuleVersion" text DEFAULT 'percentile-v1'::text NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
+    "deletedAt" timestamp(3) without time zone,
+    "matchExcludedAnimeIds" text[] DEFAULT ARRAY[]::text[] NOT NULL
+);
+
+
+--
+-- Name: PoolAnime; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."PoolAnime" (
+    id text NOT NULL,
+    "poolId" text NOT NULL,
+    "animeId" text NOT NULL,
+    "position" integer NOT NULL,
+    note text,
+    "initialElo" double precision DEFAULT 1500 NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
+    "displayTitleOverride" text,
+    "coverUrlOverride" text,
+    "animeTypeOverride" text,
+    "tagsOverride" text[] DEFAULT ARRAY[]::text[] NOT NULL,
+    "overrideNote" text,
+    "overrideUpdatedAt" timestamp(3) without time zone
+);
+
+
+--
+-- Name: PoolComparison; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."PoolComparison" (
+    id text NOT NULL,
+    "userId" text NOT NULL,
+    "poolId" text NOT NULL,
+    "runId" text NOT NULL,
+    "leftAnimeId" text NOT NULL,
+    "rightAnimeId" text NOT NULL,
+    "winnerAnimeId" text,
+    "loserAnimeId" text,
+    result public."PoolComparisonResult" NOT NULL,
+    mode public."PoolComparisonMode" DEFAULT 'NORMAL'::public."PoolComparisonMode" NOT NULL,
+    "pairKey" text NOT NULL,
+    "isEffective" boolean DEFAULT true NOT NULL,
+    "leftSeen" boolean,
+    "rightSeen" boolean,
+    "leftEloBefore" double precision,
+    "leftEloAfter" double precision,
+    "rightEloBefore" double precision,
+    "rightEloAfter" double precision,
+    "algorithmVersion" text DEFAULT 'elo-v1'::text NOT NULL,
+    "pairingVersion" text DEFAULT 'active-v1'::text NOT NULL,
+    "tierRuleVersion" text DEFAULT 'percentile-v1'::text NOT NULL,
+    "clientMutationId" text NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
+    "leftPosition" integer,
+    "rightPosition" integer,
+    "leftKFactor" double precision,
+    "rightKFactor" double precision,
+    "expectedLeft" double precision,
+    "expectedRight" double precision,
+    "deltaLeft" double precision,
+    "deltaRight" double precision,
+    "leftScore10Before" double precision,
+    "leftScore10After" double precision,
+    "rightScore10Before" double precision,
+    "rightScore10After" double precision,
+    "undoneAt" timestamp(3) without time zone,
+    "undoneByUserId" text
+);
+
+
+--
+-- Name: PoolCreationRequest; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."PoolCreationRequest" (
+    "userId" text NOT NULL,
+    "clientMutationId" text NOT NULL,
+    "requestHash" text NOT NULL,
+    "poolId" text NOT NULL,
+    result jsonb NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: RecalibrationSession; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."RecalibrationSession" (
+    id text NOT NULL,
+    "userId" text NOT NULL,
+    "poolId" text NOT NULL,
+    "runId" text NOT NULL,
+    type public."RecalibrationSessionType" NOT NULL,
+    status public."RecalibrationSessionStatus" DEFAULT 'ACTIVE'::public."RecalibrationSessionStatus" NOT NULL,
+    "targetTier" text,
+    "targetAnimeIds" text[],
+    "plannedCount" integer NOT NULL,
+    "completedCount" integer DEFAULT 0 NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+--
+-- Name: SongBoard; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."SongBoard" (
+    id text NOT NULL,
+    "ownerId" text NOT NULL,
+    title text NOT NULL,
+    revision integer DEFAULT 1 NOT NULL,
+    document jsonb NOT NULL,
+    "shareToken" text,
+    snapshot jsonb,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+--
+-- Name: TierShare; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."TierShare" (
+    id text NOT NULL,
+    token text NOT NULL,
+    "poolId" text NOT NULL,
+    "runId" text NOT NULL,
+    title text NOT NULL,
+    description text,
+    "tierLabels" jsonb NOT NULL,
+    snapshot jsonb NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+--
+-- Name: User; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."User" (
+    id text NOT NULL,
+    email text,
+    name text,
+    image text,
+    username text,
+    "profileVisibility" public."Visibility" DEFAULT 'PUBLIC'::public."Visibility" NOT NULL,
+    "allowTasteMatching" boolean DEFAULT false NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
+    "deletedAt" timestamp(3) without time zone,
+    "tasteProfilePublic" boolean DEFAULT false NOT NULL,
+    "authVersion" integer DEFAULT 0 NOT NULL,
+    "passwordHash" text,
+    "recoveryExpiresAt" timestamp(3) without time zone,
+    "recoveryHash" text
+);
+
+
+--
+-- Name: UserAnimeStatus; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."UserAnimeStatus" (
+    id text NOT NULL,
+    "userId" text NOT NULL,
+    "animeId" text NOT NULL,
+    status public."WatchStatus" DEFAULT 'UNKNOWN'::public."WatchStatus" NOT NULL,
+    "unseenCount" integer DEFAULT 0 NOT NULL,
+    "skipCount" integer DEFAULT 0 NOT NULL,
+    source text,
+    "firstMarkedAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "lastMarkedAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+--
+-- Name: UserPoolScore; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."UserPoolScore" (
+    id text NOT NULL,
+    "userId" text NOT NULL,
+    "poolId" text NOT NULL,
+    "runId" text NOT NULL,
+    "animeId" text NOT NULL,
+    "eloScore" double precision DEFAULT 1500 NOT NULL,
+    uncertainty double precision DEFAULT 350 NOT NULL,
+    "compareCount" integer DEFAULT 0 NOT NULL,
+    "winCount" integer DEFAULT 0 NOT NULL,
+    "lossCount" integer DEFAULT 0 NOT NULL,
+    "drawCount" integer DEFAULT 0 NOT NULL,
+    "unseenCount" integer DEFAULT 0 NOT NULL,
+    "skipCount" integer DEFAULT 0 NOT NULL,
+    "isHidden" boolean DEFAULT false NOT NULL,
+    "manualTier" text,
+    "manualRank" integer,
+    "manualLocked" boolean DEFAULT false NOT NULL,
+    "lastComparedAt" timestamp(3) without time zone,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+--
+-- Name: UserSimilarity; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."UserSimilarity" (
+    id text NOT NULL,
+    "userAId" text NOT NULL,
+    "userBId" text NOT NULL,
+    "scopeType" text DEFAULT 'GLOBAL'::text NOT NULL,
+    "scopeId" text,
+    "similarityScore" double precision NOT NULL,
+    "confidenceScore" double precision NOT NULL,
+    "commonAnimeCount" integer NOT NULL,
+    "rankSimilarity" double precision,
+    "tagSimilarity" double precision,
+    "topAgreementAnimeIds" text[],
+    "topDisagreementAnimeIds" text[],
+    "calculatedAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+--
+-- Name: UserTagPreference; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."UserTagPreference" (
+    id text NOT NULL,
+    "userId" text NOT NULL,
+    "poolId" text,
+    "runId" text,
+    tag text NOT NULL,
+    score double precision DEFAULT 0 NOT NULL,
+    wins integer DEFAULT 0 NOT NULL,
+    losses integer DEFAULT 0 NOT NULL,
+    "seenCount" integer DEFAULT 0 NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+--
+-- Name: _prisma_migrations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public._prisma_migrations (
+    id character varying(36) NOT NULL,
+    checksum character varying(64) NOT NULL,
+    finished_at timestamp with time zone,
+    migration_name character varying(255) NOT NULL,
+    logs text,
+    rolled_back_at timestamp with time zone,
+    started_at timestamp with time zone DEFAULT now() NOT NULL,
+    applied_steps_count integer DEFAULT 0 NOT NULL
+);
+
+
+--
+-- Data for Name: Anime; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."Anime" (id, "bgmId", title, "titleCn", "titleJa", "titleEn", summary, "imageUrl", "imageSmallUrl", "imageMediumUrl", "imageLargeUrl", "thumbnailUrl", "airDate", "bangumiRank", "bangumiScore", "bangumiVotes", tags, aliases, year, season, "animeType", episodes, status, studios, "externalLinks", source, "sourceId", "rawJson", "fetchedAt", "imageStatus", "imageCheckedAt", "createdAt", "updatedAt", "deletedAt", "cachedCoverUrl", "cachedCoverKey", "cachedCoverWidth", "cachedCoverHeight", "cachedCoverFormat", "cachedCoverBytes", "cachedCoverAt", "cachedCoverSourceUrl", "cachedCoverContentHash") FROM stdin;
+\.
+
+
+--
+-- Data for Name: AnimeCollection; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."AnimeCollection" (id, "ownerId", title, year, "finalPoolId", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: AnimeRecommendation; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."AnimeRecommendation" (id, "userId", "animeId", score, "reasonJson", feedback, source, "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: AwardBallot; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."AwardBallot" (id, "ceremonyId", "userId", draft, submitted, revision, "submittedAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: AwardCeremony; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."AwardCeremony" (id, "ownerId", title, year, description, deadline, status, revision, awards, shortlist, "createdAt", "updatedAt", "accessMode", eligibility, merges, "nominationMode", "publishedSnapshot") FROM stdin;
+\.
+
+
+--
+-- Data for Name: AwardDecision; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."AwardDecision" (id, "ceremonyId", "awardId", method, winners, "roundId", reason, "confirmedAt", "revealedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: AwardEventLog; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."AwardEventLog" (id, "ceremonyId", "actorId", action, detail, "createdAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: AwardFinalVote; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."AwardFinalVote" ("roundId", "userId", "candidateKey", revision, "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: AwardMember; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."AwardMember" ("ceremonyId", "userId", status, "createdAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: AwardRound; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."AwardRound" (id, "ceremonyId", "awardId", number, status, candidates, tally, "openedAt", "closedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: AwardStage; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."AwardStage" ("ceremonyId", "awardId", scene, "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: BattleSeason; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."BattleSeason" (id, "poolId", title, description, mode, status, "startsAt", "endsAt", "maxVotesPerUser", "maxVotesPerUserPerDay", "biasVotesPerUser", "createdByUserId", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: BattleSeasonArchive; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."BattleSeasonArchive" ("seasonId", version, "capturedAt", payload) FROM stdin;
+\.
+
+
+--
+-- Data for Name: BattleSeasonUserScore; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."BattleSeasonUserScore" (id, "seasonId", "poolId", "userId", "animeId", "eloScore", uncertainty, "compareCount", "winCount", "lossCount", "biasWinCount", "unseenCount", "isHidden", "lastVotedAt", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: BattleVote; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."BattleVote" (id, "seasonId", "poolId", "userId", "leftAnimeId", "rightAnimeId", "winnerAnimeId", "loserAnimeId", "voteType", weight, "stepNumber", "beforeWinnerScore", "afterWinnerScore", "beforeLoserScore", "afterLoserScore", "createdAt", "beforeWinnerElo", "afterWinnerElo", "beforeLoserElo", "afterLoserElo", "clientMutationId") FROM stdin;
+\.
+
+
+--
+-- Data for Name: CollectionSource; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."CollectionSource" (id, "collectionId", "poolId", "seasonId", quarter, phase) FROM stdin;
+\.
+
+
+--
+-- Data for Name: CustomPool; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."CustomPool" (id, "creatorId", name, description, "coverUrl", visibility, status, tags, "sourcePoolId", "affectsGlobalTaste", "cloneCount", "useCount", "likeCount", "createdAt", "updatedAt", "publishedAt", "deletedAt", "tierConfig", "allowPublicEdit", "allowCommunityMatch", "isOfficialDemo") FROM stdin;
+\.
+
+
+--
+-- Data for Name: ManualTierAdjustment; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."ManualTierAdjustment" (id, "userId", "poolId", "runId", "animeId", "fromTier", "toTier", "fromRank", "toRank", "eloScoreAtAdjustment", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: ManualTierBoard; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."ManualTierBoard" (id, "ownerId", "poolId", title, layout, revision, "shareToken", "sharedSnapshot", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: PersonalRun; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."PersonalRun" (id, "userId", "poolId", name, status, "isDefault", "algorithmVersion", "pairingVersion", "tierRuleVersion", "createdAt", "updatedAt", "deletedAt", "matchExcludedAnimeIds") FROM stdin;
+\.
+
+
+--
+-- Data for Name: PoolAnime; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."PoolAnime" (id, "poolId", "animeId", "position", note, "initialElo", "createdAt", "updatedAt", "displayTitleOverride", "coverUrlOverride", "animeTypeOverride", "tagsOverride", "overrideNote", "overrideUpdatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: PoolComparison; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."PoolComparison" (id, "userId", "poolId", "runId", "leftAnimeId", "rightAnimeId", "winnerAnimeId", "loserAnimeId", result, mode, "pairKey", "isEffective", "leftSeen", "rightSeen", "leftEloBefore", "leftEloAfter", "rightEloBefore", "rightEloAfter", "algorithmVersion", "pairingVersion", "tierRuleVersion", "clientMutationId", "createdAt", "updatedAt", "leftPosition", "rightPosition", "leftKFactor", "rightKFactor", "expectedLeft", "expectedRight", "deltaLeft", "deltaRight", "leftScore10Before", "leftScore10After", "rightScore10Before", "rightScore10After", "undoneAt", "undoneByUserId") FROM stdin;
+\.
+
+
+--
+-- Data for Name: PoolCreationRequest; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."PoolCreationRequest" ("userId", "clientMutationId", "requestHash", "poolId", result, "createdAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: RecalibrationSession; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."RecalibrationSession" (id, "userId", "poolId", "runId", type, status, "targetTier", "targetAnimeIds", "plannedCount", "completedCount", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: SongBoard; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."SongBoard" (id, "ownerId", title, revision, document, "shareToken", snapshot, "createdAt", "updatedAt") FROM stdin;
+legacy-sentinel	release-sentinel	Isolated synthetic legacy record	1	{"events": [{"id": "legacy-vote", "leftId": "legacy-op", "result": "LEFT_WIN", "rightId": "legacy-ed"}], "tracks": [{"id": "legacy-op", "kind": "OP", "tags": [], "year": 2023, "anime": "Synthetic series", "title": "Legacy OP", "artist": "Synthetic QA", "source": {"key": "11111111-1111-4111-8111-111111111111.wav", "kind": "upload", "mime": "audio/wav", "bytes": 176478}, "quarter": 4, "coverUrl": "https://p1.music.126.net/synthetic-fixture.jpg", "clipStart": 0, "clipLength": 30}, {"id": "legacy-ed", "kind": "ED", "tags": [], "year": 2023, "anime": "Synthetic series", "title": "Legacy ED", "artist": "Synthetic QA", "source": {"id": "123456", "kind": "netease"}, "quarter": 4, "coverUrl": "https://p1.music.126.net/synthetic-fixture.jpg", "clipStart": 0, "clipLength": 30}], "version": 1, "manualTiers": {"legacy-op": "s"}, "candidateIds": null}	legacy-sentinel-share	{"rows": [{"id": "s", "color": "#fb7185", "label": "S", "songs": [{"id": "legacy-op", "kind": "OP", "anime": "Synthetic series", "title": "Legacy OP", "artist": "Synthetic QA", "manual": true, "coverUrl": "https://p1.music.126.net/synthetic-fixture.jpg"}]}], "title": "Synthetic legacy snapshot", "version": 1, "capturedAt": "2026-10-29T00:00:00.000Z", "comparisons": 1}	2026-10-31 14:58:16.394	2026-10-31 14:58:16.394
+\.
+
+
+--
+-- Data for Name: TierShare; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."TierShare" (id, token, "poolId", "runId", title, description, "tierLabels", snapshot, "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: User; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."User" (id, email, name, image, username, "profileVisibility", "allowTasteMatching", "createdAt", "updatedAt", "deletedAt", "tasteProfilePublic", "authVersion", "passwordHash", "recoveryExpiresAt", "recoveryHash") FROM stdin;
+release-sentinel	\N	\N	\N	\N	PUBLIC	f	2026-10-31 14:58:16.393	2026-10-31 14:58:16.393	\N	f	0	\N	\N	\N
+\.
+
+
+--
+-- Data for Name: UserAnimeStatus; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."UserAnimeStatus" (id, "userId", "animeId", status, "unseenCount", "skipCount", source, "firstMarkedAt", "lastMarkedAt", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: UserPoolScore; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."UserPoolScore" (id, "userId", "poolId", "runId", "animeId", "eloScore", uncertainty, "compareCount", "winCount", "lossCount", "drawCount", "unseenCount", "skipCount", "isHidden", "manualTier", "manualRank", "manualLocked", "lastComparedAt", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: UserSimilarity; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."UserSimilarity" (id, "userAId", "userBId", "scopeType", "scopeId", "similarityScore", "confidenceScore", "commonAnimeCount", "rankSimilarity", "tagSimilarity", "topAgreementAnimeIds", "topDisagreementAnimeIds", "calculatedAt", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: UserTagPreference; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."UserTagPreference" (id, "userId", "poolId", "runId", tag, score, wins, losses, "seenCount", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: _prisma_migrations; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public._prisma_migrations (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count) FROM stdin;
+416f7b83-54ff-493a-90b1-3ad14d9614be	f16d1f24769c89a41c519d61430742e62cc6966a30df589238ada3341d7bffff	2026-10-31 14:56:41.439261+00	20260608182702_initial_migration		\N	2026-10-31 14:56:41.439261+00	0
+d843ccd6-96d9-4e60-a10f-ebdfd554af45	b9bca8ac3b7ee9127b4c59e06860d421c3d4437abf20756ac9eb37adb370b8c7	2026-10-31 14:56:47.904956+00	20250617000000_add_tier_config		\N	2026-10-31 14:56:47.904956+00	0
+421a66d0-83b2-45b0-9b7b-a98688495ee5	ef498a87a14eaa18267d82d303c40d7ca5c647f8717c9b9ab4a9deca997b18c0	2026-10-31 14:56:54.534184+00	20260610183500_add_anime_local_fields		\N	2026-10-31 14:56:54.534184+00	0
+5eae5758-82c8-4fe3-a1ac-47bf1445d01e	7b5455d55a9fdffd659071616a34506b902810c1908736b365dae5105af401b7	2026-10-31 14:57:01.401983+00	20260611024223_add_pool_anime_display_overrides		\N	2026-10-31 14:57:01.401983+00	0
+07b60f7e-77c2-4af0-844d-d72c7bf6c17a	6a0301baf8289952b89ce601cc21af9bcee72382d9c62bcd6ab91039b6bec452	2026-10-31 14:57:08.3114+00	20260611194500_add_tier_shares		\N	2026-10-31 14:57:08.3114+00	0
+1e282a05-d764-42d5-8c42-5369245e234e	9efb54b6657bc6bda86d1c3e8a6326248a541603bcd5b3041e4dd9495c0a51de	2026-10-31 14:57:15.008323+00	20260612020500_strengthen_pool_comparisons		\N	2026-10-31 14:57:15.008323+00	0
+b645eac5-65db-4835-8b35-0c42748d3e2b	c649452cb0ec6c6a98f854b77243c5a7fcd0d914f5d7780b78106552239674a1	2026-10-31 14:57:21.349205+00	20260613093000_add_tiermaker_import_source_type		\N	2026-10-31 14:57:21.349205+00	0
+bbc483c7-0ac8-49ea-bfff-1d4cb41569d7	cec0dbcea9bef6fd1588cd524aa7464c74fffb66016f608bcad4b45777aba9be	2026-10-31 14:57:28.265195+00	20260614171500_add_pool_comparison_undo		\N	2026-10-31 14:57:28.265195+00	0
+eb7ef311-3663-4b63-84c3-dd1c677ec80b	99d7b6ab010539cc6cc4fb3661512b5f87abf24e1f2f06712295f67b5304b80e	2026-10-31 14:57:32.735904+00	20260614193000_add_public_pool_foundation		\N	2026-10-31 14:57:32.735904+00	0
+798b0601-e1a4-43ee-b458-4244606042c3	9ce51c93da3c15f8e5fc76c242b64e0b2a2f697ec0adaf7aafd951c43e217f6b	2026-10-31 14:57:36.158868+00	20260618000000_add_battle_seasons		\N	2026-10-31 14:57:36.158868+00	0
+b1c8e530-0a87-4743-89dd-dda4989e9702	2c175690e7dbeb16860f4717b98636024303e1064645cb6f76ebf43583ed6c73	2026-10-31 14:57:39.880595+00	20260623000000_add_battle_season_user_scores		\N	2026-10-31 14:57:39.880595+00	0
+f1f4a07a-537e-4ef6-94ca-8f271a30f180	16393dbe0f659e4c5fbf1b0233194e6f9967777775ab610f917237b42a9eb26f	2026-10-31 14:57:43.907296+00	20260624000000_add_battle_vote_client_mutation_id		\N	2026-10-31 14:57:43.907296+00	0
+4087ccde-ebcc-4a52-a3f6-c2836d2472e6	50a590c86532dc8cfe725bce88e439547995b3a378db1f3f891b97ce51cd149b	2026-10-31 14:57:47.92668+00	20260704093000_add_anime_cached_cover		\N	2026-10-31 14:57:47.92668+00	0
+ac84c5d9-d6ce-4a93-bbe7-8c0b4b3f5208	e72a3d1853eed7329662305ad5dedb87dc9991b9887a9fe6d57725bd22a22bbd	2026-10-31 14:57:51.808158+00	20260704103000_track_cached_cover_source		\N	2026-10-31 14:57:51.808158+00	0
+35058679-d841-4a9d-ab94-451355b0a2d8	8287d51043f9892c63b724209d96ef1fa7c7f0c0af886fb917acf2559dd82eac	2026-10-31 14:57:55.837174+00	20260923000000_annual_taste		\N	2026-10-31 14:57:55.837174+00	0
+37ef7aef-0b45-4da6-84f4-e85228a30b49	82b34fe8603807c391ee4f1a9e9324bc6f5c42a01e17576b9bc9ebc8ab223317	2026-10-31 14:57:59.472189+00	20261007080000_manual_tier_boards		\N	2026-10-31 14:57:59.472189+00	0
+5a275cf9-a98a-4f79-bdaf-65b1d5322618	d150e9120500edbb36d851df97b314119f1631fa446d3ea0ac733e6a21eed203	2026-10-31 14:58:03.308849+00	20261011060000_award_nominations		\N	2026-10-31 14:58:03.308849+00	0
+afebbf63-e33e-44e5-a471-668c00bf129d	7c271ca82926dce00c20b03e850358072c70362f6f1c4e520e28de4e2cc76872	2026-10-31 14:58:06.95214+00	20261014000000_award_live		\N	2026-10-31 14:58:06.95214+00	0
+3da0fc61-b5e7-4655-ad9e-ea3c2a02e415	345b262110105c6087765f7b53d576db14ec3591bb15531f72581e902da0d4a0	2026-10-31 14:58:10.557133+00	20261026120000_personal_match_candidates		\N	2026-10-31 14:58:10.557133+00	0
+e6f5156d-f12e-4d12-a282-5dedd3fad208	29b936dd6e80c8fd13de6b7585c27861af3a6ab4b03554aa56783b6f6cf61dea	2026-10-31 14:58:14.162868+00	20261026130000_pool_creation_requests		\N	2026-10-31 14:58:14.162868+00	0
+8242f0c9-05a7-412f-b375-4c7f0948fb01	36cbfdcbcd79fe768e403296fefff3b2356ba656f8d1bd48d728fa6b1652e951	2026-10-31 14:58:16.262188+00	20261029000000_anisongmatch		\N	2026-10-31 14:58:16.262188+00	0
+\.
+
+
+--
+-- Name: AnimeCollection AnimeCollection_finalPoolId_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AnimeCollection"
+    ADD CONSTRAINT "AnimeCollection_finalPoolId_key" UNIQUE ("finalPoolId");
+
+
+--
+-- Name: AnimeCollection AnimeCollection_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AnimeCollection"
+    ADD CONSTRAINT "AnimeCollection_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: AnimeRecommendation AnimeRecommendation_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AnimeRecommendation"
+    ADD CONSTRAINT "AnimeRecommendation_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: Anime Anime_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."Anime"
+    ADD CONSTRAINT "Anime_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: AwardBallot AwardBallot_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardBallot"
+    ADD CONSTRAINT "AwardBallot_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: AwardCeremony AwardCeremony_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardCeremony"
+    ADD CONSTRAINT "AwardCeremony_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: AwardDecision AwardDecision_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardDecision"
+    ADD CONSTRAINT "AwardDecision_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: AwardEventLog AwardEventLog_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardEventLog"
+    ADD CONSTRAINT "AwardEventLog_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: AwardFinalVote AwardFinalVote_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardFinalVote"
+    ADD CONSTRAINT "AwardFinalVote_pkey" PRIMARY KEY ("roundId", "userId");
+
+
+--
+-- Name: AwardMember AwardMember_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardMember"
+    ADD CONSTRAINT "AwardMember_pkey" PRIMARY KEY ("ceremonyId", "userId");
+
+
+--
+-- Name: AwardRound AwardRound_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardRound"
+    ADD CONSTRAINT "AwardRound_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: AwardStage AwardStage_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardStage"
+    ADD CONSTRAINT "AwardStage_pkey" PRIMARY KEY ("ceremonyId");
+
+
+--
+-- Name: BattleSeasonArchive BattleSeasonArchive_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."BattleSeasonArchive"
+    ADD CONSTRAINT "BattleSeasonArchive_pkey" PRIMARY KEY ("seasonId");
+
+
+--
+-- Name: BattleSeasonUserScore BattleSeasonUserScore_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."BattleSeasonUserScore"
+    ADD CONSTRAINT "BattleSeasonUserScore_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: BattleSeason BattleSeason_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."BattleSeason"
+    ADD CONSTRAINT "BattleSeason_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: BattleVote BattleVote_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."BattleVote"
+    ADD CONSTRAINT "BattleVote_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: CollectionSource CollectionSource_collectionId_quarter_phase_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."CollectionSource"
+    ADD CONSTRAINT "CollectionSource_collectionId_quarter_phase_key" UNIQUE ("collectionId", quarter, phase);
+
+
+--
+-- Name: CollectionSource CollectionSource_collectionId_seasonId_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."CollectionSource"
+    ADD CONSTRAINT "CollectionSource_collectionId_seasonId_key" UNIQUE ("collectionId", "seasonId");
+
+
+--
+-- Name: CollectionSource CollectionSource_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."CollectionSource"
+    ADD CONSTRAINT "CollectionSource_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: CustomPool CustomPool_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."CustomPool"
+    ADD CONSTRAINT "CustomPool_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: ManualTierAdjustment ManualTierAdjustment_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."ManualTierAdjustment"
+    ADD CONSTRAINT "ManualTierAdjustment_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: ManualTierBoard ManualTierBoard_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."ManualTierBoard"
+    ADD CONSTRAINT "ManualTierBoard_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: PersonalRun PersonalRun_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."PersonalRun"
+    ADD CONSTRAINT "PersonalRun_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: PoolAnime PoolAnime_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."PoolAnime"
+    ADD CONSTRAINT "PoolAnime_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: PoolComparison PoolComparison_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."PoolComparison"
+    ADD CONSTRAINT "PoolComparison_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: PoolCreationRequest PoolCreationRequest_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."PoolCreationRequest"
+    ADD CONSTRAINT "PoolCreationRequest_pkey" PRIMARY KEY ("userId", "clientMutationId");
+
+
+--
+-- Name: RecalibrationSession RecalibrationSession_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."RecalibrationSession"
+    ADD CONSTRAINT "RecalibrationSession_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: SongBoard SongBoard_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."SongBoard"
+    ADD CONSTRAINT "SongBoard_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: TierShare TierShare_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."TierShare"
+    ADD CONSTRAINT "TierShare_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: UserAnimeStatus UserAnimeStatus_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."UserAnimeStatus"
+    ADD CONSTRAINT "UserAnimeStatus_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: UserPoolScore UserPoolScore_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."UserPoolScore"
+    ADD CONSTRAINT "UserPoolScore_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: UserSimilarity UserSimilarity_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."UserSimilarity"
+    ADD CONSTRAINT "UserSimilarity_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: UserTagPreference UserTagPreference_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."UserTagPreference"
+    ADD CONSTRAINT "UserTagPreference_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: User User_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."User"
+    ADD CONSTRAINT "User_pkey" PRIMARY KEY (id);
+
+
+--
+-- Name: _prisma_migrations _prisma_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public._prisma_migrations
+    ADD CONSTRAINT _prisma_migrations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: AnimeCollection_ownerId_updatedAt_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "AnimeCollection_ownerId_updatedAt_idx" ON public."AnimeCollection" USING btree ("ownerId", "updatedAt");
+
+
+--
+-- Name: AnimeRecommendation_score_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "AnimeRecommendation_score_idx" ON public."AnimeRecommendation" USING btree (score);
+
+
+--
+-- Name: AnimeRecommendation_userId_animeId_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "AnimeRecommendation_userId_animeId_key" ON public."AnimeRecommendation" USING btree ("userId", "animeId");
+
+
+--
+-- Name: AnimeRecommendation_userId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "AnimeRecommendation_userId_idx" ON public."AnimeRecommendation" USING btree ("userId");
+
+
+--
+-- Name: Anime_bgmId_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "Anime_bgmId_key" ON public."Anime" USING btree ("bgmId");
+
+
+--
+-- Name: AwardBallot_ceremonyId_userId_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "AwardBallot_ceremonyId_userId_key" ON public."AwardBallot" USING btree ("ceremonyId", "userId");
+
+
+--
+-- Name: AwardBallot_userId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "AwardBallot_userId_idx" ON public."AwardBallot" USING btree ("userId");
+
+
+--
+-- Name: AwardCeremony_ownerId_createdAt_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "AwardCeremony_ownerId_createdAt_idx" ON public."AwardCeremony" USING btree ("ownerId", "createdAt");
+
+
+--
+-- Name: AwardDecision_ceremonyId_awardId_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "AwardDecision_ceremonyId_awardId_key" ON public."AwardDecision" USING btree ("ceremonyId", "awardId");
+
+
+--
+-- Name: AwardEventLog_ceremonyId_createdAt_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "AwardEventLog_ceremonyId_createdAt_idx" ON public."AwardEventLog" USING btree ("ceremonyId", "createdAt");
+
+
+--
+-- Name: AwardFinalVote_userId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "AwardFinalVote_userId_idx" ON public."AwardFinalVote" USING btree ("userId");
+
+
+--
+-- Name: AwardMember_userId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "AwardMember_userId_idx" ON public."AwardMember" USING btree ("userId");
+
+
+--
+-- Name: AwardRound_ceremonyId_awardId_number_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "AwardRound_ceremonyId_awardId_number_key" ON public."AwardRound" USING btree ("ceremonyId", "awardId", number);
+
+
+--
+-- Name: AwardRound_ceremonyId_status_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "AwardRound_ceremonyId_status_idx" ON public."AwardRound" USING btree ("ceremonyId", status);
+
+
+--
+-- Name: AwardRound_one_open_per_ceremony; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "AwardRound_one_open_per_ceremony" ON public."AwardRound" USING btree ("ceremonyId") WHERE (status = 'OPEN'::text);
+
+
+--
+-- Name: BattleSeasonUserScore_animeId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "BattleSeasonUserScore_animeId_idx" ON public."BattleSeasonUserScore" USING btree ("animeId");
+
+
+--
+-- Name: BattleSeasonUserScore_poolId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "BattleSeasonUserScore_poolId_idx" ON public."BattleSeasonUserScore" USING btree ("poolId");
+
+
+--
+-- Name: BattleSeasonUserScore_seasonId_animeId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "BattleSeasonUserScore_seasonId_animeId_idx" ON public."BattleSeasonUserScore" USING btree ("seasonId", "animeId");
+
+
+--
+-- Name: BattleSeasonUserScore_seasonId_eloScore_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "BattleSeasonUserScore_seasonId_eloScore_idx" ON public."BattleSeasonUserScore" USING btree ("seasonId", "eloScore");
+
+
+--
+-- Name: BattleSeasonUserScore_seasonId_userId_animeId_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "BattleSeasonUserScore_seasonId_userId_animeId_key" ON public."BattleSeasonUserScore" USING btree ("seasonId", "userId", "animeId");
+
+
+--
+-- Name: BattleSeasonUserScore_seasonId_userId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "BattleSeasonUserScore_seasonId_userId_idx" ON public."BattleSeasonUserScore" USING btree ("seasonId", "userId");
+
+
+--
+-- Name: BattleSeasonUserScore_userId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "BattleSeasonUserScore_userId_idx" ON public."BattleSeasonUserScore" USING btree ("userId");
+
+
+--
+-- Name: BattleSeason_createdByUserId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "BattleSeason_createdByUserId_idx" ON public."BattleSeason" USING btree ("createdByUserId");
+
+
+--
+-- Name: BattleSeason_poolId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "BattleSeason_poolId_idx" ON public."BattleSeason" USING btree ("poolId");
+
+
+--
+-- Name: BattleSeason_status_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "BattleSeason_status_idx" ON public."BattleSeason" USING btree (status);
+
+
+--
+-- Name: BattleVote_poolId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "BattleVote_poolId_idx" ON public."BattleVote" USING btree ("poolId");
+
+
+--
+-- Name: BattleVote_seasonId_createdAt_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "BattleVote_seasonId_createdAt_idx" ON public."BattleVote" USING btree ("seasonId", "createdAt");
+
+
+--
+-- Name: BattleVote_seasonId_userId_clientMutationId_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "BattleVote_seasonId_userId_clientMutationId_key" ON public."BattleVote" USING btree ("seasonId", "userId", "clientMutationId");
+
+
+--
+-- Name: BattleVote_seasonId_userId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "BattleVote_seasonId_userId_idx" ON public."BattleVote" USING btree ("seasonId", "userId");
+
+
+--
+-- Name: BattleVote_seasonId_userId_stepNumber_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "BattleVote_seasonId_userId_stepNumber_key" ON public."BattleVote" USING btree ("seasonId", "userId", "stepNumber");
+
+
+--
+-- Name: CustomPool_creatorId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "CustomPool_creatorId_idx" ON public."CustomPool" USING btree ("creatorId");
+
+
+--
+-- Name: CustomPool_isOfficialDemo_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "CustomPool_isOfficialDemo_idx" ON public."CustomPool" USING btree ("isOfficialDemo");
+
+
+--
+-- Name: CustomPool_status_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "CustomPool_status_idx" ON public."CustomPool" USING btree (status);
+
+
+--
+-- Name: CustomPool_visibility_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "CustomPool_visibility_idx" ON public."CustomPool" USING btree (visibility);
+
+
+--
+-- Name: CustomPool_visibility_status_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "CustomPool_visibility_status_idx" ON public."CustomPool" USING btree (visibility, status);
+
+
+--
+-- Name: ManualTierAdjustment_animeId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "ManualTierAdjustment_animeId_idx" ON public."ManualTierAdjustment" USING btree ("animeId");
+
+
+--
+-- Name: ManualTierAdjustment_userId_poolId_runId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "ManualTierAdjustment_userId_poolId_runId_idx" ON public."ManualTierAdjustment" USING btree ("userId", "poolId", "runId");
+
+
+--
+-- Name: ManualTierBoard_ownerId_poolId_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "ManualTierBoard_ownerId_poolId_key" ON public."ManualTierBoard" USING btree ("ownerId", "poolId");
+
+
+--
+-- Name: ManualTierBoard_shareToken_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "ManualTierBoard_shareToken_key" ON public."ManualTierBoard" USING btree ("shareToken");
+
+
+--
+-- Name: PersonalRun_poolId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "PersonalRun_poolId_idx" ON public."PersonalRun" USING btree ("poolId");
+
+
+--
+-- Name: PersonalRun_userId_poolId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "PersonalRun_userId_poolId_idx" ON public."PersonalRun" USING btree ("userId", "poolId");
+
+
+--
+-- Name: PoolAnime_animeId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "PoolAnime_animeId_idx" ON public."PoolAnime" USING btree ("animeId");
+
+
+--
+-- Name: PoolAnime_poolId_animeId_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "PoolAnime_poolId_animeId_key" ON public."PoolAnime" USING btree ("poolId", "animeId");
+
+
+--
+-- Name: PoolAnime_poolId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "PoolAnime_poolId_idx" ON public."PoolAnime" USING btree ("poolId");
+
+
+--
+-- Name: PoolComparison_createdAt_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "PoolComparison_createdAt_idx" ON public."PoolComparison" USING btree ("createdAt");
+
+
+--
+-- Name: PoolComparison_leftAnimeId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "PoolComparison_leftAnimeId_idx" ON public."PoolComparison" USING btree ("leftAnimeId");
+
+
+--
+-- Name: PoolComparison_mode_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "PoolComparison_mode_idx" ON public."PoolComparison" USING btree (mode);
+
+
+--
+-- Name: PoolComparison_pairKey_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "PoolComparison_pairKey_idx" ON public."PoolComparison" USING btree ("pairKey");
+
+
+--
+-- Name: PoolComparison_poolId_runId_createdAt_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "PoolComparison_poolId_runId_createdAt_idx" ON public."PoolComparison" USING btree ("poolId", "runId", "createdAt");
+
+
+--
+-- Name: PoolComparison_rightAnimeId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "PoolComparison_rightAnimeId_idx" ON public."PoolComparison" USING btree ("rightAnimeId");
+
+
+--
+-- Name: PoolComparison_userId_clientMutationId_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "PoolComparison_userId_clientMutationId_key" ON public."PoolComparison" USING btree ("userId", "clientMutationId");
+
+
+--
+-- Name: PoolComparison_userId_poolId_runId_createdAt_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "PoolComparison_userId_poolId_runId_createdAt_idx" ON public."PoolComparison" USING btree ("userId", "poolId", "runId", "createdAt");
+
+
+--
+-- Name: PoolComparison_userId_poolId_runId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "PoolComparison_userId_poolId_runId_idx" ON public."PoolComparison" USING btree ("userId", "poolId", "runId");
+
+
+--
+-- Name: PoolComparison_userId_poolId_runId_undoneAt_createdAt_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "PoolComparison_userId_poolId_runId_undoneAt_createdAt_idx" ON public."PoolComparison" USING btree ("userId", "poolId", "runId", "undoneAt", "createdAt");
+
+
+--
+-- Name: PoolCreationRequest_poolId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "PoolCreationRequest_poolId_idx" ON public."PoolCreationRequest" USING btree ("poolId");
+
+
+--
+-- Name: RecalibrationSession_status_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "RecalibrationSession_status_idx" ON public."RecalibrationSession" USING btree (status);
+
+
+--
+-- Name: RecalibrationSession_userId_poolId_runId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "RecalibrationSession_userId_poolId_runId_idx" ON public."RecalibrationSession" USING btree ("userId", "poolId", "runId");
+
+
+--
+-- Name: SongBoard_ownerId_updatedAt_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "SongBoard_ownerId_updatedAt_idx" ON public."SongBoard" USING btree ("ownerId", "updatedAt");
+
+
+--
+-- Name: SongBoard_shareToken_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "SongBoard_shareToken_key" ON public."SongBoard" USING btree ("shareToken");
+
+
+--
+-- Name: TierShare_createdAt_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "TierShare_createdAt_idx" ON public."TierShare" USING btree ("createdAt");
+
+
+--
+-- Name: TierShare_poolId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "TierShare_poolId_idx" ON public."TierShare" USING btree ("poolId");
+
+
+--
+-- Name: TierShare_runId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "TierShare_runId_idx" ON public."TierShare" USING btree ("runId");
+
+
+--
+-- Name: TierShare_token_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "TierShare_token_key" ON public."TierShare" USING btree (token);
+
+
+--
+-- Name: UserAnimeStatus_animeId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "UserAnimeStatus_animeId_idx" ON public."UserAnimeStatus" USING btree ("animeId");
+
+
+--
+-- Name: UserAnimeStatus_status_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "UserAnimeStatus_status_idx" ON public."UserAnimeStatus" USING btree (status);
+
+
+--
+-- Name: UserAnimeStatus_userId_animeId_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "UserAnimeStatus_userId_animeId_key" ON public."UserAnimeStatus" USING btree ("userId", "animeId");
+
+
+--
+-- Name: UserAnimeStatus_userId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "UserAnimeStatus_userId_idx" ON public."UserAnimeStatus" USING btree ("userId");
+
+
+--
+-- Name: UserPoolScore_animeId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "UserPoolScore_animeId_idx" ON public."UserPoolScore" USING btree ("animeId");
+
+
+--
+-- Name: UserPoolScore_poolId_runId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "UserPoolScore_poolId_runId_idx" ON public."UserPoolScore" USING btree ("poolId", "runId");
+
+
+--
+-- Name: UserPoolScore_userId_poolId_runId_animeId_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "UserPoolScore_userId_poolId_runId_animeId_key" ON public."UserPoolScore" USING btree ("userId", "poolId", "runId", "animeId");
+
+
+--
+-- Name: UserPoolScore_userId_poolId_runId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "UserPoolScore_userId_poolId_runId_idx" ON public."UserPoolScore" USING btree ("userId", "poolId", "runId");
+
+
+--
+-- Name: UserSimilarity_similarityScore_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "UserSimilarity_similarityScore_idx" ON public."UserSimilarity" USING btree ("similarityScore");
+
+
+--
+-- Name: UserSimilarity_userAId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "UserSimilarity_userAId_idx" ON public."UserSimilarity" USING btree ("userAId");
+
+
+--
+-- Name: UserSimilarity_userAId_userBId_scopeType_scopeId_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "UserSimilarity_userAId_userBId_scopeType_scopeId_key" ON public."UserSimilarity" USING btree ("userAId", "userBId", "scopeType", "scopeId");
+
+
+--
+-- Name: UserSimilarity_userBId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "UserSimilarity_userBId_idx" ON public."UserSimilarity" USING btree ("userBId");
+
+
+--
+-- Name: UserTagPreference_tag_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "UserTagPreference_tag_idx" ON public."UserTagPreference" USING btree (tag);
+
+
+--
+-- Name: UserTagPreference_userId_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "UserTagPreference_userId_idx" ON public."UserTagPreference" USING btree ("userId");
+
+
+--
+-- Name: UserTagPreference_userId_poolId_runId_tag_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "UserTagPreference_userId_poolId_runId_tag_key" ON public."UserTagPreference" USING btree ("userId", "poolId", "runId", tag);
+
+
+--
+-- Name: User_email_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "User_email_key" ON public."User" USING btree (email);
+
+
+--
+-- Name: User_username_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX "User_username_key" ON public."User" USING btree (username);
+
+
+--
+-- Name: AnimeCollection AnimeCollection_finalPoolId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AnimeCollection"
+    ADD CONSTRAINT "AnimeCollection_finalPoolId_fkey" FOREIGN KEY ("finalPoolId") REFERENCES public."CustomPool"(id) ON DELETE SET NULL;
+
+
+--
+-- Name: AnimeCollection AnimeCollection_ownerId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AnimeCollection"
+    ADD CONSTRAINT "AnimeCollection_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES public."User"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: AnimeRecommendation AnimeRecommendation_animeId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AnimeRecommendation"
+    ADD CONSTRAINT "AnimeRecommendation_animeId_fkey" FOREIGN KEY ("animeId") REFERENCES public."Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: AnimeRecommendation AnimeRecommendation_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AnimeRecommendation"
+    ADD CONSTRAINT "AnimeRecommendation_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: AwardBallot AwardBallot_ceremonyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardBallot"
+    ADD CONSTRAINT "AwardBallot_ceremonyId_fkey" FOREIGN KEY ("ceremonyId") REFERENCES public."AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: AwardBallot AwardBallot_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardBallot"
+    ADD CONSTRAINT "AwardBallot_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: AwardCeremony AwardCeremony_ownerId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardCeremony"
+    ADD CONSTRAINT "AwardCeremony_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: AwardDecision AwardDecision_ceremonyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardDecision"
+    ADD CONSTRAINT "AwardDecision_ceremonyId_fkey" FOREIGN KEY ("ceremonyId") REFERENCES public."AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: AwardEventLog AwardEventLog_ceremonyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardEventLog"
+    ADD CONSTRAINT "AwardEventLog_ceremonyId_fkey" FOREIGN KEY ("ceremonyId") REFERENCES public."AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: AwardFinalVote AwardFinalVote_roundId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardFinalVote"
+    ADD CONSTRAINT "AwardFinalVote_roundId_fkey" FOREIGN KEY ("roundId") REFERENCES public."AwardRound"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: AwardFinalVote AwardFinalVote_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardFinalVote"
+    ADD CONSTRAINT "AwardFinalVote_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: AwardMember AwardMember_ceremonyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardMember"
+    ADD CONSTRAINT "AwardMember_ceremonyId_fkey" FOREIGN KEY ("ceremonyId") REFERENCES public."AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: AwardMember AwardMember_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardMember"
+    ADD CONSTRAINT "AwardMember_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: AwardRound AwardRound_ceremonyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardRound"
+    ADD CONSTRAINT "AwardRound_ceremonyId_fkey" FOREIGN KEY ("ceremonyId") REFERENCES public."AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: AwardStage AwardStage_ceremonyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AwardStage"
+    ADD CONSTRAINT "AwardStage_ceremonyId_fkey" FOREIGN KEY ("ceremonyId") REFERENCES public."AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: BattleSeasonArchive BattleSeasonArchive_seasonId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."BattleSeasonArchive"
+    ADD CONSTRAINT "BattleSeasonArchive_seasonId_fkey" FOREIGN KEY ("seasonId") REFERENCES public."BattleSeason"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: BattleSeasonUserScore BattleSeasonUserScore_animeId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."BattleSeasonUserScore"
+    ADD CONSTRAINT "BattleSeasonUserScore_animeId_fkey" FOREIGN KEY ("animeId") REFERENCES public."Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: BattleSeasonUserScore BattleSeasonUserScore_poolId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."BattleSeasonUserScore"
+    ADD CONSTRAINT "BattleSeasonUserScore_poolId_fkey" FOREIGN KEY ("poolId") REFERENCES public."CustomPool"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: BattleSeasonUserScore BattleSeasonUserScore_seasonId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."BattleSeasonUserScore"
+    ADD CONSTRAINT "BattleSeasonUserScore_seasonId_fkey" FOREIGN KEY ("seasonId") REFERENCES public."BattleSeason"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: BattleSeasonUserScore BattleSeasonUserScore_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."BattleSeasonUserScore"
+    ADD CONSTRAINT "BattleSeasonUserScore_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: BattleSeason BattleSeason_createdByUserId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."BattleSeason"
+    ADD CONSTRAINT "BattleSeason_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: BattleSeason BattleSeason_poolId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."BattleSeason"
+    ADD CONSTRAINT "BattleSeason_poolId_fkey" FOREIGN KEY ("poolId") REFERENCES public."CustomPool"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: BattleVote BattleVote_seasonId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."BattleVote"
+    ADD CONSTRAINT "BattleVote_seasonId_fkey" FOREIGN KEY ("seasonId") REFERENCES public."BattleSeason"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: BattleVote BattleVote_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."BattleVote"
+    ADD CONSTRAINT "BattleVote_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: CollectionSource CollectionSource_collectionId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."CollectionSource"
+    ADD CONSTRAINT "CollectionSource_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES public."AnimeCollection"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: CollectionSource CollectionSource_poolId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."CollectionSource"
+    ADD CONSTRAINT "CollectionSource_poolId_fkey" FOREIGN KEY ("poolId") REFERENCES public."CustomPool"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: CollectionSource CollectionSource_seasonId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."CollectionSource"
+    ADD CONSTRAINT "CollectionSource_seasonId_fkey" FOREIGN KEY ("seasonId") REFERENCES public."BattleSeason"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: CustomPool CustomPool_creatorId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."CustomPool"
+    ADD CONSTRAINT "CustomPool_creatorId_fkey" FOREIGN KEY ("creatorId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: CustomPool CustomPool_sourcePoolId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."CustomPool"
+    ADD CONSTRAINT "CustomPool_sourcePoolId_fkey" FOREIGN KEY ("sourcePoolId") REFERENCES public."CustomPool"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: ManualTierAdjustment ManualTierAdjustment_animeId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."ManualTierAdjustment"
+    ADD CONSTRAINT "ManualTierAdjustment_animeId_fkey" FOREIGN KEY ("animeId") REFERENCES public."Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: ManualTierAdjustment ManualTierAdjustment_poolId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."ManualTierAdjustment"
+    ADD CONSTRAINT "ManualTierAdjustment_poolId_fkey" FOREIGN KEY ("poolId") REFERENCES public."CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: ManualTierAdjustment ManualTierAdjustment_runId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."ManualTierAdjustment"
+    ADD CONSTRAINT "ManualTierAdjustment_runId_fkey" FOREIGN KEY ("runId") REFERENCES public."PersonalRun"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: ManualTierAdjustment ManualTierAdjustment_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."ManualTierAdjustment"
+    ADD CONSTRAINT "ManualTierAdjustment_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: ManualTierBoard ManualTierBoard_ownerId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."ManualTierBoard"
+    ADD CONSTRAINT "ManualTierBoard_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: ManualTierBoard ManualTierBoard_poolId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."ManualTierBoard"
+    ADD CONSTRAINT "ManualTierBoard_poolId_fkey" FOREIGN KEY ("poolId") REFERENCES public."CustomPool"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: PersonalRun PersonalRun_poolId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."PersonalRun"
+    ADD CONSTRAINT "PersonalRun_poolId_fkey" FOREIGN KEY ("poolId") REFERENCES public."CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: PersonalRun PersonalRun_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."PersonalRun"
+    ADD CONSTRAINT "PersonalRun_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: PoolAnime PoolAnime_animeId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."PoolAnime"
+    ADD CONSTRAINT "PoolAnime_animeId_fkey" FOREIGN KEY ("animeId") REFERENCES public."Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: PoolAnime PoolAnime_poolId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."PoolAnime"
+    ADD CONSTRAINT "PoolAnime_poolId_fkey" FOREIGN KEY ("poolId") REFERENCES public."CustomPool"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: PoolComparison PoolComparison_leftAnimeId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."PoolComparison"
+    ADD CONSTRAINT "PoolComparison_leftAnimeId_fkey" FOREIGN KEY ("leftAnimeId") REFERENCES public."Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: PoolComparison PoolComparison_loserAnimeId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."PoolComparison"
+    ADD CONSTRAINT "PoolComparison_loserAnimeId_fkey" FOREIGN KEY ("loserAnimeId") REFERENCES public."Anime"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: PoolComparison PoolComparison_poolId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."PoolComparison"
+    ADD CONSTRAINT "PoolComparison_poolId_fkey" FOREIGN KEY ("poolId") REFERENCES public."CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: PoolComparison PoolComparison_rightAnimeId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."PoolComparison"
+    ADD CONSTRAINT "PoolComparison_rightAnimeId_fkey" FOREIGN KEY ("rightAnimeId") REFERENCES public."Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: PoolComparison PoolComparison_runId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."PoolComparison"
+    ADD CONSTRAINT "PoolComparison_runId_fkey" FOREIGN KEY ("runId") REFERENCES public."PersonalRun"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: PoolComparison PoolComparison_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."PoolComparison"
+    ADD CONSTRAINT "PoolComparison_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: PoolComparison PoolComparison_winnerAnimeId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."PoolComparison"
+    ADD CONSTRAINT "PoolComparison_winnerAnimeId_fkey" FOREIGN KEY ("winnerAnimeId") REFERENCES public."Anime"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: SongBoard SongBoard_ownerId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."SongBoard"
+    ADD CONSTRAINT "SongBoard_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: TierShare TierShare_poolId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."TierShare"
+    ADD CONSTRAINT "TierShare_poolId_fkey" FOREIGN KEY ("poolId") REFERENCES public."CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: TierShare TierShare_runId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."TierShare"
+    ADD CONSTRAINT "TierShare_runId_fkey" FOREIGN KEY ("runId") REFERENCES public."PersonalRun"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: UserAnimeStatus UserAnimeStatus_animeId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."UserAnimeStatus"
+    ADD CONSTRAINT "UserAnimeStatus_animeId_fkey" FOREIGN KEY ("animeId") REFERENCES public."Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: UserAnimeStatus UserAnimeStatus_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."UserAnimeStatus"
+    ADD CONSTRAINT "UserAnimeStatus_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: UserPoolScore UserPoolScore_animeId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."UserPoolScore"
+    ADD CONSTRAINT "UserPoolScore_animeId_fkey" FOREIGN KEY ("animeId") REFERENCES public."Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: UserPoolScore UserPoolScore_poolId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."UserPoolScore"
+    ADD CONSTRAINT "UserPoolScore_poolId_fkey" FOREIGN KEY ("poolId") REFERENCES public."CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: UserPoolScore UserPoolScore_runId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."UserPoolScore"
+    ADD CONSTRAINT "UserPoolScore_runId_fkey" FOREIGN KEY ("runId") REFERENCES public."PersonalRun"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: UserPoolScore UserPoolScore_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."UserPoolScore"
+    ADD CONSTRAINT "UserPoolScore_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: UserSimilarity UserSimilarity_userAId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."UserSimilarity"
+    ADD CONSTRAINT "UserSimilarity_userAId_fkey" FOREIGN KEY ("userAId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: UserSimilarity UserSimilarity_userBId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."UserSimilarity"
+    ADD CONSTRAINT "UserSimilarity_userBId_fkey" FOREIGN KEY ("userBId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: UserTagPreference UserTagPreference_poolId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."UserTagPreference"
+    ADD CONSTRAINT "UserTagPreference_poolId_fkey" FOREIGN KEY ("poolId") REFERENCES public."CustomPool"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: UserTagPreference UserTagPreference_runId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."UserTagPreference"
+    ADD CONSTRAINT "UserTagPreference_runId_fkey" FOREIGN KEY ("runId") REFERENCES public."PersonalRun"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: UserTagPreference UserTagPreference_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."UserTagPreference"
+    ADD CONSTRAINT "UserTagPreference_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."User"(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- PostgreSQL database dump complete
+--
+
+\unrestrict ZLaDxzSv2UCrGSxfiSY4gFhbxTEpR9id7K8DXHZD6g89IibzIZlv1aTbwBAFPGO
+
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d restored
+SET
+SET
+SET
+SET
+SET
+ set_config 
+------------
+ 
+(1 row)
+
+SET
+SET
+SET
+SET
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+SET
+SET
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 1
+COPY 0
+COPY 1
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 21
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+
+exit=0
+$ pnpm exec prisma migrate deploy
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "restored", schema "public" at "127.0.0.1:32770"
+
+24 migrations found in prisma/migrations
+
+Applying migration `20261030090000_shared_song_templates`
+Applying migration `20261030120000_anisong_cos_audio`
+Applying migration `20261030133000_anisong_preview_audio`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 20261030090000_shared_song_templates/
+    └─ migration.sql
+  └─ 20261030120000_anisong_cos_audio/
+    └─ migration.sql
+  └─ 20261030133000_anisong_preview_audio/
+    └─ migration.sql
+      
+All migrations have been successfully applied.
+Environment variables loaded from .env
+
+exit=0
+$ pnpm exec prisma migrate status
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "restored", schema "public" at "127.0.0.1:32770"
+
+24 migrations found in prisma/migrations
+
+Database schema is up to date!
+Environment variables loaded from .env
+
+exit=0
+$ pnpm exec prisma migrate deploy
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "restored", schema "public" at "127.0.0.1:32770"
+
+24 migrations found in prisma/migrations
+
+
+No pending migrations to apply.
+Environment variables loaded from .env
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d restored
+       id        |                                                                                                                                                                                                                                                                                                                                                                                                                                     document                                                                                                                                                                                                                                                                                                                                                                                                                                      |      shareToken       |                                                                                                                                                                                      snapshot                                                                                                                                                                                      
+-----------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ legacy-sentinel | {"events": [{"id": "legacy-vote", "leftId": "legacy-op", "result": "LEFT_WIN", "rightId": "legacy-ed"}], "tracks": [{"id": "legacy-op", "kind": "OP", "tags": [], "year": 2023, "anime": "Synthetic series", "title": "Legacy OP", "artist": "Synthetic QA", "source": {"key": "11111111-1111-4111-8111-111111111111.wav", "kind": "upload", "mime": "audio/wav", "bytes": 176478}, "quarter": 4, "coverUrl": "https://p1.music.126.net/synthetic-fixture.jpg", "clipStart": 0, "clipLength": 30}, {"id": "legacy-ed", "kind": "ED", "tags": [], "year": 2023, "anime": "Synthetic series", "title": "Legacy ED", "artist": "Synthetic QA", "source": {"id": "123456", "kind": "netease"}, "quarter": 4, "coverUrl": "https://p1.music.126.net/synthetic-fixture.jpg", "clipStart": 0, "clipLength": 30}], "version": 1, "manualTiers": {"legacy-op": "s"}, "candidateIds": null} | legacy-sentinel-share | {"rows": [{"id": "s", "color": "#fb7185", "label": "S", "songs": [{"id": "legacy-op", "kind": "OP", "anime": "Synthetic series", "title": "Legacy OP", "artist": "Synthetic QA", "manual": true, "coverUrl": "https://p1.music.126.net/synthetic-fixture.jpg"}]}], "title": "Synthetic legacy snapshot", "version": 1, "capturedAt": "2026-10-29T00:00:00.000Z", "comparisons": 1}
+(1 row)
+
+
+exit=0
+$ pnpm exec prisma migrate diff --from-url postgresql://audit:local-audit-only@127.0.0.1:32770/fresh --to-url postgresql://audit:local-audit-only@127.0.0.1:32770/restored --exit-code
+No difference detected.
+
+
+exit=0
+$ pnpm exec prisma migrate diff --from-url postgresql://audit:local-audit-only@127.0.0.1:32770/fresh --to-schema-datamodel prisma/schema.prisma --script
+-- DropForeignKey
+ALTER TABLE "AnimeCollection" DROP CONSTRAINT "AnimeCollection_finalPoolId_fkey";
+
+-- DropForeignKey
+ALTER TABLE "AnimeCollection" DROP CONSTRAINT "AnimeCollection_ownerId_fkey";
+
+-- DropForeignKey
+ALTER TABLE "BattleSeasonArchive" DROP CONSTRAINT "BattleSeasonArchive_seasonId_fkey";
+
+-- DropForeignKey
+ALTER TABLE "CollectionSource" DROP CONSTRAINT "CollectionSource_collectionId_fkey";
+
+-- DropForeignKey
+ALTER TABLE "CollectionSource" DROP CONSTRAINT "CollectionSource_poolId_fkey";
+
+-- DropForeignKey
+ALTER TABLE "CollectionSource" DROP CONSTRAINT "CollectionSource_seasonId_fkey";
+
+-- AddForeignKey
+ALTER TABLE "AnimeCollection" ADD CONSTRAINT "AnimeCollection_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AnimeCollection" ADD CONSTRAINT "AnimeCollection_finalPoolId_fkey" FOREIGN KEY ("finalPoolId") REFERENCES "CustomPool"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CollectionSource" ADD CONSTRAINT "CollectionSource_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "AnimeCollection"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CollectionSource" ADD CONSTRAINT "CollectionSource_poolId_fkey" FOREIGN KEY ("poolId") REFERENCES "CustomPool"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CollectionSource" ADD CONSTRAINT "CollectionSource_seasonId_fkey" FOREIGN KEY ("seasonId") REFERENCES "BattleSeason"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "BattleSeasonArchive" ADD CONSTRAINT "BattleSeasonArchive_seasonId_fkey" FOREIGN KEY ("seasonId") REFERENCES "BattleSeason"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d fresh
+        conrelid         |                     conname                     |                                               pg_get_constraintdef                                               
+-------------------------+-------------------------------------------------+------------------------------------------------------------------------------------------------------------------
+ "Anime"                 | Anime_pkey                                      | PRIMARY KEY (id)
+ "AnimeCollection"       | AnimeCollection_finalPoolId_fkey                | FOREIGN KEY ("finalPoolId") REFERENCES "CustomPool"(id) ON DELETE SET NULL
+ "AnimeCollection"       | AnimeCollection_finalPoolId_key                 | UNIQUE ("finalPoolId")
+ "AnimeCollection"       | AnimeCollection_ownerId_fkey                    | FOREIGN KEY ("ownerId") REFERENCES "User"(id) ON DELETE CASCADE
+ "AnimeCollection"       | AnimeCollection_pkey                            | PRIMARY KEY (id)
+ "AnimeRecommendation"   | AnimeRecommendation_animeId_fkey                | FOREIGN KEY ("animeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "AnimeRecommendation"   | AnimeRecommendation_pkey                        | PRIMARY KEY (id)
+ "AnimeRecommendation"   | AnimeRecommendation_userId_fkey                 | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "AwardBallot"           | AwardBallot_ceremonyId_fkey                     | FOREIGN KEY ("ceremonyId") REFERENCES "AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardBallot"           | AwardBallot_pkey                                | PRIMARY KEY (id)
+ "AwardBallot"           | AwardBallot_userId_fkey                         | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardCeremony"         | AwardCeremony_ownerId_fkey                      | FOREIGN KEY ("ownerId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardCeremony"         | AwardCeremony_pkey                              | PRIMARY KEY (id)
+ "AwardCeremony"         | AwardCeremony_status_check                      | CHECK ((status = ANY (ARRAY['OPEN'::text, 'FROZEN'::text, 'PUBLISHED'::text, 'LIVE'::text, 'COMPLETED'::text])))
+ "AwardDecision"         | AwardDecision_ceremonyId_fkey                   | FOREIGN KEY ("ceremonyId") REFERENCES "AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardDecision"         | AwardDecision_method_check                      | CHECK ((method = ANY (ARRAY['VOTE'::text, 'DISCUSSION'::text, 'WITHHELD'::text])))
+ "AwardDecision"         | AwardDecision_pkey                              | PRIMARY KEY (id)
+ "AwardEventLog"         | AwardEventLog_ceremonyId_fkey                   | FOREIGN KEY ("ceremonyId") REFERENCES "AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardEventLog"         | AwardEventLog_pkey                              | PRIMARY KEY (id)
+ "AwardFinalVote"        | AwardFinalVote_pkey                             | PRIMARY KEY ("roundId", "userId")
+ "AwardFinalVote"        | AwardFinalVote_roundId_fkey                     | FOREIGN KEY ("roundId") REFERENCES "AwardRound"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardFinalVote"        | AwardFinalVote_userId_fkey                      | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "AwardMember"           | AwardMember_ceremonyId_fkey                     | FOREIGN KEY ("ceremonyId") REFERENCES "AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardMember"           | AwardMember_pkey                                | PRIMARY KEY ("ceremonyId", "userId")
+ "AwardMember"           | AwardMember_status_check                        | CHECK ((status = ANY (ARRAY['PENDING'::text, 'APPROVED'::text, 'REJECTED'::text])))
+ "AwardMember"           | AwardMember_userId_fkey                         | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardRound"            | AwardRound_ceremonyId_fkey                      | FOREIGN KEY ("ceremonyId") REFERENCES "AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardRound"            | AwardRound_pkey                                 | PRIMARY KEY (id)
+ "AwardRound"            | AwardRound_status_check                         | CHECK ((status = ANY (ARRAY['OPEN'::text, 'CLOSED'::text])))
+ "AwardStage"            | AwardStage_ceremonyId_fkey                      | FOREIGN KEY ("ceremonyId") REFERENCES "AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardStage"            | AwardStage_pkey                                 | PRIMARY KEY ("ceremonyId")
+ "BattleSeason"          | BattleSeason_createdByUserId_fkey               | FOREIGN KEY ("createdByUserId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "BattleSeason"          | BattleSeason_pkey                               | PRIMARY KEY (id)
+ "BattleSeason"          | BattleSeason_poolId_fkey                        | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "BattleSeasonArchive"   | BattleSeasonArchive_pkey                        | PRIMARY KEY ("seasonId")
+ "BattleSeasonArchive"   | BattleSeasonArchive_seasonId_fkey               | FOREIGN KEY ("seasonId") REFERENCES "BattleSeason"(id) ON DELETE CASCADE
+ "BattleSeasonUserScore" | BattleSeasonUserScore_animeId_fkey              | FOREIGN KEY ("animeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "BattleSeasonUserScore" | BattleSeasonUserScore_pkey                      | PRIMARY KEY (id)
+ "BattleSeasonUserScore" | BattleSeasonUserScore_poolId_fkey               | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "BattleSeasonUserScore" | BattleSeasonUserScore_seasonId_fkey             | FOREIGN KEY ("seasonId") REFERENCES "BattleSeason"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "BattleSeasonUserScore" | BattleSeasonUserScore_userId_fkey               | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "BattleVote"            | BattleVote_pkey                                 | PRIMARY KEY (id)
+ "BattleVote"            | BattleVote_seasonId_fkey                        | FOREIGN KEY ("seasonId") REFERENCES "BattleSeason"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "BattleVote"            | BattleVote_userId_fkey                          | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "CollectionSource"      | CollectionSource_collectionId_fkey              | FOREIGN KEY ("collectionId") REFERENCES "AnimeCollection"(id) ON DELETE CASCADE
+ "CollectionSource"      | CollectionSource_collectionId_quarter_phase_key | UNIQUE ("collectionId", quarter, phase)
+ "CollectionSource"      | CollectionSource_collectionId_seasonId_key      | UNIQUE ("collectionId", "seasonId")
+ "CollectionSource"      | CollectionSource_phase_check                    | CHECK ((phase = ANY (ARRAY['OPENING'::text, 'ENDING'::text])))
+ "CollectionSource"      | CollectionSource_pkey                           | PRIMARY KEY (id)
+ "CollectionSource"      | CollectionSource_poolId_fkey                    | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON DELETE CASCADE
+ "CollectionSource"      | CollectionSource_quarter_check                  | CHECK (((quarter >= 1) AND (quarter <= 4)))
+ "CollectionSource"      | CollectionSource_seasonId_fkey                  | FOREIGN KEY ("seasonId") REFERENCES "BattleSeason"(id) ON DELETE CASCADE
+ "CustomPool"            | CustomPool_creatorId_fkey                       | FOREIGN KEY ("creatorId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "CustomPool"            | CustomPool_pkey                                 | PRIMARY KEY (id)
+ "CustomPool"            | CustomPool_sourcePoolId_fkey                    | FOREIGN KEY ("sourcePoolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "ManualTierAdjustment"  | ManualTierAdjustment_animeId_fkey               | FOREIGN KEY ("animeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "ManualTierAdjustment"  | ManualTierAdjustment_pkey                       | PRIMARY KEY (id)
+ "ManualTierAdjustment"  | ManualTierAdjustment_poolId_fkey                | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "ManualTierAdjustment"  | ManualTierAdjustment_runId_fkey                 | FOREIGN KEY ("runId") REFERENCES "PersonalRun"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "ManualTierAdjustment"  | ManualTierAdjustment_userId_fkey                | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "ManualTierBoard"       | ManualTierBoard_ownerId_fkey                    | FOREIGN KEY ("ownerId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "ManualTierBoard"       | ManualTierBoard_pkey                            | PRIMARY KEY (id)
+ "ManualTierBoard"       | ManualTierBoard_poolId_fkey                     | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "PersonalRun"           | PersonalRun_pkey                                | PRIMARY KEY (id)
+ "PersonalRun"           | PersonalRun_poolId_fkey                         | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PersonalRun"           | PersonalRun_userId_fkey                         | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolAnime"             | PoolAnime_animeId_fkey                          | FOREIGN KEY ("animeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolAnime"             | PoolAnime_pkey                                  | PRIMARY KEY (id)
+ "PoolAnime"             | PoolAnime_poolId_fkey                           | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "PoolComparison"        | PoolComparison_leftAnimeId_fkey                 | FOREIGN KEY ("leftAnimeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolComparison"        | PoolComparison_loserAnimeId_fkey                | FOREIGN KEY ("loserAnimeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "PoolComparison"        | PoolComparison_pkey                             | PRIMARY KEY (id)
+ "PoolComparison"        | PoolComparison_poolId_fkey                      | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolComparison"        | PoolComparison_rightAnimeId_fkey                | FOREIGN KEY ("rightAnimeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolComparison"        | PoolComparison_runId_fkey                       | FOREIGN KEY ("runId") REFERENCES "PersonalRun"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolComparison"        | PoolComparison_userId_fkey                      | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolComparison"        | PoolComparison_winnerAnimeId_fkey               | FOREIGN KEY ("winnerAnimeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "PoolCreationRequest"   | PoolCreationRequest_pkey                        | PRIMARY KEY ("userId", "clientMutationId")
+ _prisma_migrations      | _prisma_migrations_pkey                         | PRIMARY KEY (id)
+ "RecalibrationSession"  | RecalibrationSession_pkey                       | PRIMARY KEY (id)
+ "SongAudioAsset"        | SongAudioAsset_pkey                             | PRIMARY KEY (id)
+ "SongBoard"             | SongBoard_ownerId_fkey                          | FOREIGN KEY ("ownerId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "SongBoard"             | SongBoard_pkey                                  | PRIMARY KEY (id)
+ "SongBoard"             | SongBoard_templateId_fkey                       | FOREIGN KEY ("templateId") REFERENCES "SongTemplate"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "SongTemplate"          | SongTemplate_ownerId_fkey                       | FOREIGN KEY ("ownerId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "SongTemplate"          | SongTemplate_pkey                               | PRIMARY KEY (id)
+ "SongTemplate"          | SongTemplate_sourceBoardId_fkey                 | FOREIGN KEY ("sourceBoardId") REFERENCES "SongBoard"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "TierShare"             | TierShare_pkey                                  | PRIMARY KEY (id)
+ "TierShare"             | TierShare_poolId_fkey                           | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "TierShare"             | TierShare_runId_fkey                            | FOREIGN KEY ("runId") REFERENCES "PersonalRun"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "User"                  | User_pkey                                       | PRIMARY KEY (id)
+ "UserAnimeStatus"       | UserAnimeStatus_animeId_fkey                    | FOREIGN KEY ("animeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserAnimeStatus"       | UserAnimeStatus_pkey                            | PRIMARY KEY (id)
+ "UserAnimeStatus"       | UserAnimeStatus_userId_fkey                     | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserPoolScore"         | UserPoolScore_animeId_fkey                      | FOREIGN KEY ("animeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserPoolScore"         | UserPoolScore_pkey                              | PRIMARY KEY (id)
+ "UserPoolScore"         | UserPoolScore_poolId_fkey                       | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserPoolScore"         | UserPoolScore_runId_fkey                        | FOREIGN KEY ("runId") REFERENCES "PersonalRun"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserPoolScore"         | UserPoolScore_userId_fkey                       | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserSimilarity"        | UserSimilarity_pkey                             | PRIMARY KEY (id)
+ "UserSimilarity"        | UserSimilarity_userAId_fkey                     | FOREIGN KEY ("userAId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserSimilarity"        | UserSimilarity_userBId_fkey                     | FOREIGN KEY ("userBId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserTagPreference"     | UserTagPreference_pkey                          | PRIMARY KEY (id)
+ "UserTagPreference"     | UserTagPreference_poolId_fkey                   | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "UserTagPreference"     | UserTagPreference_runId_fkey                    | FOREIGN KEY ("runId") REFERENCES "PersonalRun"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "UserTagPreference"     | UserTagPreference_userId_fkey                   | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+(106 rows)
+
+       tablename       |                         indexname                         |                                                                                indexdef                                                                                
+-----------------------+-----------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Anime                 | Anime_bgmId_key                                           | CREATE UNIQUE INDEX "Anime_bgmId_key" ON public."Anime" USING btree ("bgmId")
+ Anime                 | Anime_pkey                                                | CREATE UNIQUE INDEX "Anime_pkey" ON public."Anime" USING btree (id)
+ AnimeCollection       | AnimeCollection_finalPoolId_key                           | CREATE UNIQUE INDEX "AnimeCollection_finalPoolId_key" ON public."AnimeCollection" USING btree ("finalPoolId")
+ AnimeCollection       | AnimeCollection_ownerId_updatedAt_idx                     | CREATE INDEX "AnimeCollection_ownerId_updatedAt_idx" ON public."AnimeCollection" USING btree ("ownerId", "updatedAt")
+ AnimeCollection       | AnimeCollection_pkey                                      | CREATE UNIQUE INDEX "AnimeCollection_pkey" ON public."AnimeCollection" USING btree (id)
+ AnimeRecommendation   | AnimeRecommendation_pkey                                  | CREATE UNIQUE INDEX "AnimeRecommendation_pkey" ON public."AnimeRecommendation" USING btree (id)
+ AnimeRecommendation   | AnimeRecommendation_score_idx                             | CREATE INDEX "AnimeRecommendation_score_idx" ON public."AnimeRecommendation" USING btree (score)
+ AnimeRecommendation   | AnimeRecommendation_userId_animeId_key                    | CREATE UNIQUE INDEX "AnimeRecommendation_userId_animeId_key" ON public."AnimeRecommendation" USING btree ("userId", "animeId")
+ AnimeRecommendation   | AnimeRecommendation_userId_idx                            | CREATE INDEX "AnimeRecommendation_userId_idx" ON public."AnimeRecommendation" USING btree ("userId")
+ AwardBallot           | AwardBallot_ceremonyId_userId_key                         | CREATE UNIQUE INDEX "AwardBallot_ceremonyId_userId_key" ON public."AwardBallot" USING btree ("ceremonyId", "userId")
+ AwardBallot           | AwardBallot_pkey                                          | CREATE UNIQUE INDEX "AwardBallot_pkey" ON public."AwardBallot" USING btree (id)
+ AwardBallot           | AwardBallot_userId_idx                                    | CREATE INDEX "AwardBallot_userId_idx" ON public."AwardBallot" USING btree ("userId")
+ AwardCeremony         | AwardCeremony_ownerId_createdAt_idx                       | CREATE INDEX "AwardCeremony_ownerId_createdAt_idx" ON public."AwardCeremony" USING btree ("ownerId", "createdAt")
+ AwardCeremony         | AwardCeremony_pkey                                        | CREATE UNIQUE INDEX "AwardCeremony_pkey" ON public."AwardCeremony" USING btree (id)
+ AwardDecision         | AwardDecision_ceremonyId_awardId_key                      | CREATE UNIQUE INDEX "AwardDecision_ceremonyId_awardId_key" ON public."AwardDecision" USING btree ("ceremonyId", "awardId")
+ AwardDecision         | AwardDecision_pkey                                        | CREATE UNIQUE INDEX "AwardDecision_pkey" ON public."AwardDecision" USING btree (id)
+ AwardEventLog         | AwardEventLog_ceremonyId_createdAt_idx                    | CREATE INDEX "AwardEventLog_ceremonyId_createdAt_idx" ON public."AwardEventLog" USING btree ("ceremonyId", "createdAt")
+ AwardEventLog         | AwardEventLog_pkey                                        | CREATE UNIQUE INDEX "AwardEventLog_pkey" ON public."AwardEventLog" USING btree (id)
+ AwardFinalVote        | AwardFinalVote_pkey                                       | CREATE UNIQUE INDEX "AwardFinalVote_pkey" ON public."AwardFinalVote" USING btree ("roundId", "userId")
+ AwardFinalVote        | AwardFinalVote_userId_idx                                 | CREATE INDEX "AwardFinalVote_userId_idx" ON public."AwardFinalVote" USING btree ("userId")
+ AwardMember           | AwardMember_pkey                                          | CREATE UNIQUE INDEX "AwardMember_pkey" ON public."AwardMember" USING btree ("ceremonyId", "userId")
+ AwardMember           | AwardMember_userId_idx                                    | CREATE INDEX "AwardMember_userId_idx" ON public."AwardMember" USING btree ("userId")
+ AwardRound            | AwardRound_ceremonyId_awardId_number_key                  | CREATE UNIQUE INDEX "AwardRound_ceremonyId_awardId_number_key" ON public."AwardRound" USING btree ("ceremonyId", "awardId", number)
+ AwardRound            | AwardRound_ceremonyId_status_idx                          | CREATE INDEX "AwardRound_ceremonyId_status_idx" ON public."AwardRound" USING btree ("ceremonyId", status)
+ AwardRound            | AwardRound_one_open_per_ceremony                          | CREATE UNIQUE INDEX "AwardRound_one_open_per_ceremony" ON public."AwardRound" USING btree ("ceremonyId") WHERE (status = 'OPEN'::text)
+ AwardRound            | AwardRound_pkey                                           | CREATE UNIQUE INDEX "AwardRound_pkey" ON public."AwardRound" USING btree (id)
+ AwardStage            | AwardStage_pkey                                           | CREATE UNIQUE INDEX "AwardStage_pkey" ON public."AwardStage" USING btree ("ceremonyId")
+ BattleSeason          | BattleSeason_createdByUserId_idx                          | CREATE INDEX "BattleSeason_createdByUserId_idx" ON public."BattleSeason" USING btree ("createdByUserId")
+ BattleSeason          | BattleSeason_pkey                                         | CREATE UNIQUE INDEX "BattleSeason_pkey" ON public."BattleSeason" USING btree (id)
+ BattleSeason          | BattleSeason_poolId_idx                                   | CREATE INDEX "BattleSeason_poolId_idx" ON public."BattleSeason" USING btree ("poolId")
+ BattleSeason          | BattleSeason_status_idx                                   | CREATE INDEX "BattleSeason_status_idx" ON public."BattleSeason" USING btree (status)
+ BattleSeasonArchive   | BattleSeasonArchive_pkey                                  | CREATE UNIQUE INDEX "BattleSeasonArchive_pkey" ON public."BattleSeasonArchive" USING btree ("seasonId")
+ BattleSeasonUserScore | BattleSeasonUserScore_animeId_idx                         | CREATE INDEX "BattleSeasonUserScore_animeId_idx" ON public."BattleSeasonUserScore" USING btree ("animeId")
+ BattleSeasonUserScore | BattleSeasonUserScore_pkey                                | CREATE UNIQUE INDEX "BattleSeasonUserScore_pkey" ON public."BattleSeasonUserScore" USING btree (id)
+ BattleSeasonUserScore | BattleSeasonUserScore_poolId_idx                          | CREATE INDEX "BattleSeasonUserScore_poolId_idx" ON public."BattleSeasonUserScore" USING btree ("poolId")
+ BattleSeasonUserScore | BattleSeasonUserScore_seasonId_animeId_idx                | CREATE INDEX "BattleSeasonUserScore_seasonId_animeId_idx" ON public."BattleSeasonUserScore" USING btree ("seasonId", "animeId")
+ BattleSeasonUserScore | BattleSeasonUserScore_seasonId_eloScore_idx               | CREATE INDEX "BattleSeasonUserScore_seasonId_eloScore_idx" ON public."BattleSeasonUserScore" USING btree ("seasonId", "eloScore")
+ BattleSeasonUserScore | BattleSeasonUserScore_seasonId_userId_animeId_key         | CREATE UNIQUE INDEX "BattleSeasonUserScore_seasonId_userId_animeId_key" ON public."BattleSeasonUserScore" USING btree ("seasonId", "userId", "animeId")
+ BattleSeasonUserScore | BattleSeasonUserScore_seasonId_userId_idx                 | CREATE INDEX "BattleSeasonUserScore_seasonId_userId_idx" ON public."BattleSeasonUserScore" USING btree ("seasonId", "userId")
+ BattleSeasonUserScore | BattleSeasonUserScore_userId_idx                          | CREATE INDEX "BattleSeasonUserScore_userId_idx" ON public."BattleSeasonUserScore" USING btree ("userId")
+ BattleVote            | BattleVote_pkey                                           | CREATE UNIQUE INDEX "BattleVote_pkey" ON public."BattleVote" USING btree (id)
+ BattleVote            | BattleVote_poolId_idx                                     | CREATE INDEX "BattleVote_poolId_idx" ON public."BattleVote" USING btree ("poolId")
+ BattleVote            | BattleVote_seasonId_createdAt_idx                         | CREATE INDEX "BattleVote_seasonId_createdAt_idx" ON public."BattleVote" USING btree ("seasonId", "createdAt")
+ BattleVote            | BattleVote_seasonId_userId_clientMutationId_key           | CREATE UNIQUE INDEX "BattleVote_seasonId_userId_clientMutationId_key" ON public."BattleVote" USING btree ("seasonId", "userId", "clientMutationId")
+ BattleVote            | BattleVote_seasonId_userId_idx                            | CREATE INDEX "BattleVote_seasonId_userId_idx" ON public."BattleVote" USING btree ("seasonId", "userId")
+ BattleVote            | BattleVote_seasonId_userId_stepNumber_key                 | CREATE UNIQUE INDEX "BattleVote_seasonId_userId_stepNumber_key" ON public."BattleVote" USING btree ("seasonId", "userId", "stepNumber")
+ CollectionSource      | CollectionSource_collectionId_quarter_phase_key           | CREATE UNIQUE INDEX "CollectionSource_collectionId_quarter_phase_key" ON public."CollectionSource" USING btree ("collectionId", quarter, phase)
+ CollectionSource      | CollectionSource_collectionId_seasonId_key                | CREATE UNIQUE INDEX "CollectionSource_collectionId_seasonId_key" ON public."CollectionSource" USING btree ("collectionId", "seasonId")
+ CollectionSource      | CollectionSource_pkey                                     | CREATE UNIQUE INDEX "CollectionSource_pkey" ON public."CollectionSource" USING btree (id)
+ CustomPool            | CustomPool_creatorId_idx                                  | CREATE INDEX "CustomPool_creatorId_idx" ON public."CustomPool" USING btree ("creatorId")
+ CustomPool            | CustomPool_isOfficialDemo_idx                             | CREATE INDEX "CustomPool_isOfficialDemo_idx" ON public."CustomPool" USING btree ("isOfficialDemo")
+ CustomPool            | CustomPool_pkey                                           | CREATE UNIQUE INDEX "CustomPool_pkey" ON public."CustomPool" USING btree (id)
+ CustomPool            | CustomPool_status_idx                                     | CREATE INDEX "CustomPool_status_idx" ON public."CustomPool" USING btree (status)
+ CustomPool            | CustomPool_visibility_idx                                 | CREATE INDEX "CustomPool_visibility_idx" ON public."CustomPool" USING btree (visibility)
+ CustomPool            | CustomPool_visibility_status_idx                          | CREATE INDEX "CustomPool_visibility_status_idx" ON public."CustomPool" USING btree (visibility, status)
+ ManualTierAdjustment  | ManualTierAdjustment_animeId_idx                          | CREATE INDEX "ManualTierAdjustment_animeId_idx" ON public."ManualTierAdjustment" USING btree ("animeId")
+ ManualTierAdjustment  | ManualTierAdjustment_pkey                                 | CREATE UNIQUE INDEX "ManualTierAdjustment_pkey" ON public."ManualTierAdjustment" USING btree (id)
+ ManualTierAdjustment  | ManualTierAdjustment_userId_poolId_runId_idx              | CREATE INDEX "ManualTierAdjustment_userId_poolId_runId_idx" ON public."ManualTierAdjustment" USING btree ("userId", "poolId", "runId")
+ ManualTierBoard       | ManualTierBoard_ownerId_poolId_key                        | CREATE UNIQUE INDEX "ManualTierBoard_ownerId_poolId_key" ON public."ManualTierBoard" USING btree ("ownerId", "poolId")
+ ManualTierBoard       | ManualTierBoard_pkey                                      | CREATE UNIQUE INDEX "ManualTierBoard_pkey" ON public."ManualTierBoard" USING btree (id)
+ ManualTierBoard       | ManualTierBoard_shareToken_key                            | CREATE UNIQUE INDEX "ManualTierBoard_shareToken_key" ON public."ManualTierBoard" USING btree ("shareToken")
+ PersonalRun           | PersonalRun_pkey                                          | CREATE UNIQUE INDEX "PersonalRun_pkey" ON public."PersonalRun" USING btree (id)
+ PersonalRun           | PersonalRun_poolId_idx                                    | CREATE INDEX "PersonalRun_poolId_idx" ON public."PersonalRun" USING btree ("poolId")
+ PersonalRun           | PersonalRun_userId_poolId_idx                             | CREATE INDEX "PersonalRun_userId_poolId_idx" ON public."PersonalRun" USING btree ("userId", "poolId")
+ PoolAnime             | PoolAnime_animeId_idx                                     | CREATE INDEX "PoolAnime_animeId_idx" ON public."PoolAnime" USING btree ("animeId")
+ PoolAnime             | PoolAnime_pkey                                            | CREATE UNIQUE INDEX "PoolAnime_pkey" ON public."PoolAnime" USING btree (id)
+ PoolAnime             | PoolAnime_poolId_animeId_key                              | CREATE UNIQUE INDEX "PoolAnime_poolId_animeId_key" ON public."PoolAnime" USING btree ("poolId", "animeId")
+ PoolAnime             | PoolAnime_poolId_idx                                      | CREATE INDEX "PoolAnime_poolId_idx" ON public."PoolAnime" USING btree ("poolId")
+ PoolComparison        | PoolComparison_createdAt_idx                              | CREATE INDEX "PoolComparison_createdAt_idx" ON public."PoolComparison" USING btree ("createdAt")
+ PoolComparison        | PoolComparison_leftAnimeId_idx                            | CREATE INDEX "PoolComparison_leftAnimeId_idx" ON public."PoolComparison" USING btree ("leftAnimeId")
+ PoolComparison        | PoolComparison_mode_idx                                   | CREATE INDEX "PoolComparison_mode_idx" ON public."PoolComparison" USING btree (mode)
+ PoolComparison        | PoolComparison_pairKey_idx                                | CREATE INDEX "PoolComparison_pairKey_idx" ON public."PoolComparison" USING btree ("pairKey")
+ PoolComparison        | PoolComparison_pkey                                       | CREATE UNIQUE INDEX "PoolComparison_pkey" ON public."PoolComparison" USING btree (id)
+ PoolComparison        | PoolComparison_poolId_runId_createdAt_idx                 | CREATE INDEX "PoolComparison_poolId_runId_createdAt_idx" ON public."PoolComparison" USING btree ("poolId", "runId", "createdAt")
+ PoolComparison        | PoolComparison_rightAnimeId_idx                           | CREATE INDEX "PoolComparison_rightAnimeId_idx" ON public."PoolComparison" USING btree ("rightAnimeId")
+ PoolComparison        | PoolComparison_userId_clientMutationId_key                | CREATE UNIQUE INDEX "PoolComparison_userId_clientMutationId_key" ON public."PoolComparison" USING btree ("userId", "clientMutationId")
+ PoolComparison        | PoolComparison_userId_poolId_runId_createdAt_idx          | CREATE INDEX "PoolComparison_userId_poolId_runId_createdAt_idx" ON public."PoolComparison" USING btree ("userId", "poolId", "runId", "createdAt")
+ PoolComparison        | PoolComparison_userId_poolId_runId_idx                    | CREATE INDEX "PoolComparison_userId_poolId_runId_idx" ON public."PoolComparison" USING btree ("userId", "poolId", "runId")
+ PoolComparison        | PoolComparison_userId_poolId_runId_undoneAt_createdAt_idx | CREATE INDEX "PoolComparison_userId_poolId_runId_undoneAt_createdAt_idx" ON public."PoolComparison" USING btree ("userId", "poolId", "runId", "undoneAt", "createdAt")
+ PoolCreationRequest   | PoolCreationRequest_pkey                                  | CREATE UNIQUE INDEX "PoolCreationRequest_pkey" ON public."PoolCreationRequest" USING btree ("userId", "clientMutationId")
+ PoolCreationRequest   | PoolCreationRequest_poolId_idx                            | CREATE INDEX "PoolCreationRequest_poolId_idx" ON public."PoolCreationRequest" USING btree ("poolId")
+ RecalibrationSession  | RecalibrationSession_pkey                                 | CREATE UNIQUE INDEX "RecalibrationSession_pkey" ON public."RecalibrationSession" USING btree (id)
+ RecalibrationSession  | RecalibrationSession_status_idx                           | CREATE INDEX "RecalibrationSession_status_idx" ON public."RecalibrationSession" USING btree (status)
+ RecalibrationSession  | RecalibrationSession_userId_poolId_runId_idx              | CREATE INDEX "RecalibrationSession_userId_poolId_runId_idx" ON public."RecalibrationSession" USING btree ("userId", "poolId", "runId")
+ SongAudioAsset        | SongAudioAsset_key_key                                    | CREATE UNIQUE INDEX "SongAudioAsset_key_key" ON public."SongAudioAsset" USING btree (key)
+ SongAudioAsset        | SongAudioAsset_pkey                                       | CREATE UNIQUE INDEX "SongAudioAsset_pkey" ON public."SongAudioAsset" USING btree (id)
+ SongAudioAsset        | SongAudioAsset_sha256_key                                 | CREATE UNIQUE INDEX "SongAudioAsset_sha256_key" ON public."SongAudioAsset" USING btree (sha256)
+ SongBoard             | SongBoard_ownerId_templateId_key                          | CREATE UNIQUE INDEX "SongBoard_ownerId_templateId_key" ON public."SongBoard" USING btree ("ownerId", "templateId")
+ SongBoard             | SongBoard_ownerId_updatedAt_idx                           | CREATE INDEX "SongBoard_ownerId_updatedAt_idx" ON public."SongBoard" USING btree ("ownerId", "updatedAt")
+ SongBoard             | SongBoard_pkey                                            | CREATE UNIQUE INDEX "SongBoard_pkey" ON public."SongBoard" USING btree (id)
+ SongBoard             | SongBoard_shareToken_key                                  | CREATE UNIQUE INDEX "SongBoard_shareToken_key" ON public."SongBoard" USING btree ("shareToken")
+ SongTemplate          | SongTemplate_active_updatedAt_idx                         | CREATE INDEX "SongTemplate_active_updatedAt_idx" ON public."SongTemplate" USING btree (active, "updatedAt")
+ SongTemplate          | SongTemplate_pkey                                         | CREATE UNIQUE INDEX "SongTemplate_pkey" ON public."SongTemplate" USING btree (id)
+ SongTemplate          | SongTemplate_sourceBoardId_key                            | CREATE UNIQUE INDEX "SongTemplate_sourceBoardId_key" ON public."SongTemplate" USING btree ("sourceBoardId")
+ TierShare             | TierShare_createdAt_idx                                   | CREATE INDEX "TierShare_createdAt_idx" ON public."TierShare" USING btree ("createdAt")
+ TierShare             | TierShare_pkey                                            | CREATE UNIQUE INDEX "TierShare_pkey" ON public."TierShare" USING btree (id)
+ TierShare             | TierShare_poolId_idx                                      | CREATE INDEX "TierShare_poolId_idx" ON public."TierShare" USING btree ("poolId")
+ TierShare             | TierShare_runId_idx                                       | CREATE INDEX "TierShare_runId_idx" ON public."TierShare" USING btree ("runId")
+ TierShare             | TierShare_token_key                                       | CREATE UNIQUE INDEX "TierShare_token_key" ON public."TierShare" USING btree (token)
+ User                  | User_email_key                                            | CREATE UNIQUE INDEX "User_email_key" ON public."User" USING btree (email)
+ User                  | User_pkey                                                 | CREATE UNIQUE INDEX "User_pkey" ON public."User" USING btree (id)
+ User                  | User_username_key                                         | CREATE UNIQUE INDEX "User_username_key" ON public."User" USING btree (username)
+ UserAnimeStatus       | UserAnimeStatus_animeId_idx                               | CREATE INDEX "UserAnimeStatus_animeId_idx" ON public."UserAnimeStatus" USING btree ("animeId")
+ UserAnimeStatus       | UserAnimeStatus_pkey                                      | CREATE UNIQUE INDEX "UserAnimeStatus_pkey" ON public."UserAnimeStatus" USING btree (id)
+ UserAnimeStatus       | UserAnimeStatus_status_idx                                | CREATE INDEX "UserAnimeStatus_status_idx" ON public."UserAnimeStatus" USING btree (status)
+ UserAnimeStatus       | UserAnimeStatus_userId_animeId_key                        | CREATE UNIQUE INDEX "UserAnimeStatus_userId_animeId_key" ON public."UserAnimeStatus" USING btree ("userId", "animeId")
+ UserAnimeStatus       | UserAnimeStatus_userId_idx                                | CREATE INDEX "UserAnimeStatus_userId_idx" ON public."UserAnimeStatus" USING btree ("userId")
+ UserPoolScore         | UserPoolScore_animeId_idx                                 | CREATE INDEX "UserPoolScore_animeId_idx" ON public."UserPoolScore" USING btree ("animeId")
+ UserPoolScore         | UserPoolScore_pkey                                        | CREATE UNIQUE INDEX "UserPoolScore_pkey" ON public."UserPoolScore" USING btree (id)
+ UserPoolScore         | UserPoolScore_poolId_runId_idx                            | CREATE INDEX "UserPoolScore_poolId_runId_idx" ON public."UserPoolScore" USING btree ("poolId", "runId")
+ UserPoolScore         | UserPoolScore_userId_poolId_runId_animeId_key             | CREATE UNIQUE INDEX "UserPoolScore_userId_poolId_runId_animeId_key" ON public."UserPoolScore" USING btree ("userId", "poolId", "runId", "animeId")
+ UserPoolScore         | UserPoolScore_userId_poolId_runId_idx                     | CREATE INDEX "UserPoolScore_userId_poolId_runId_idx" ON public."UserPoolScore" USING btree ("userId", "poolId", "runId")
+ UserSimilarity        | UserSimilarity_pkey                                       | CREATE UNIQUE INDEX "UserSimilarity_pkey" ON public."UserSimilarity" USING btree (id)
+ UserSimilarity        | UserSimilarity_similarityScore_idx                        | CREATE INDEX "UserSimilarity_similarityScore_idx" ON public."UserSimilarity" USING btree ("similarityScore")
+ UserSimilarity        | UserSimilarity_userAId_idx                                | CREATE INDEX "UserSimilarity_userAId_idx" ON public."UserSimilarity" USING btree ("userAId")
+ UserSimilarity        | UserSimilarity_userAId_userBId_scopeType_scopeId_key      | CREATE UNIQUE INDEX "UserSimilarity_userAId_userBId_scopeType_scopeId_key" ON public."UserSimilarity" USING btree ("userAId", "userBId", "scopeType", "scopeId")
+ UserSimilarity        | UserSimilarity_userBId_idx                                | CREATE INDEX "UserSimilarity_userBId_idx" ON public."UserSimilarity" USING btree ("userBId")
+ UserTagPreference     | UserTagPreference_pkey                                    | CREATE UNIQUE INDEX "UserTagPreference_pkey" ON public."UserTagPreference" USING btree (id)
+ UserTagPreference     | UserTagPreference_tag_idx                                 | CREATE INDEX "UserTagPreference_tag_idx" ON public."UserTagPreference" USING btree (tag)
+ UserTagPreference     | UserTagPreference_userId_idx                              | CREATE INDEX "UserTagPreference_userId_idx" ON public."UserTagPreference" USING btree ("userId")
+ UserTagPreference     | UserTagPreference_userId_poolId_runId_tag_key             | CREATE UNIQUE INDEX "UserTagPreference_userId_poolId_runId_tag_key" ON public."UserTagPreference" USING btree ("userId", "poolId", "runId", tag)
+ _prisma_migrations    | _prisma_migrations_pkey                                   | CREATE UNIQUE INDEX _prisma_migrations_pkey ON public._prisma_migrations USING btree (id)
+(122 rows)
+
+
+exit=0
+$ docker exec -i anisong-release-a7ea4730cf psql -X -v ON_ERROR_STOP=1 -U audit -d restored
+        conrelid         |                     conname                     |                                               pg_get_constraintdef                                               
+-------------------------+-------------------------------------------------+------------------------------------------------------------------------------------------------------------------
+ "Anime"                 | Anime_pkey                                      | PRIMARY KEY (id)
+ "AnimeCollection"       | AnimeCollection_finalPoolId_fkey                | FOREIGN KEY ("finalPoolId") REFERENCES "CustomPool"(id) ON DELETE SET NULL
+ "AnimeCollection"       | AnimeCollection_finalPoolId_key                 | UNIQUE ("finalPoolId")
+ "AnimeCollection"       | AnimeCollection_ownerId_fkey                    | FOREIGN KEY ("ownerId") REFERENCES "User"(id) ON DELETE CASCADE
+ "AnimeCollection"       | AnimeCollection_pkey                            | PRIMARY KEY (id)
+ "AnimeRecommendation"   | AnimeRecommendation_animeId_fkey                | FOREIGN KEY ("animeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "AnimeRecommendation"   | AnimeRecommendation_pkey                        | PRIMARY KEY (id)
+ "AnimeRecommendation"   | AnimeRecommendation_userId_fkey                 | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "AwardBallot"           | AwardBallot_ceremonyId_fkey                     | FOREIGN KEY ("ceremonyId") REFERENCES "AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardBallot"           | AwardBallot_pkey                                | PRIMARY KEY (id)
+ "AwardBallot"           | AwardBallot_userId_fkey                         | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardCeremony"         | AwardCeremony_ownerId_fkey                      | FOREIGN KEY ("ownerId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardCeremony"         | AwardCeremony_pkey                              | PRIMARY KEY (id)
+ "AwardCeremony"         | AwardCeremony_status_check                      | CHECK ((status = ANY (ARRAY['OPEN'::text, 'FROZEN'::text, 'PUBLISHED'::text, 'LIVE'::text, 'COMPLETED'::text])))
+ "AwardDecision"         | AwardDecision_ceremonyId_fkey                   | FOREIGN KEY ("ceremonyId") REFERENCES "AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardDecision"         | AwardDecision_method_check                      | CHECK ((method = ANY (ARRAY['VOTE'::text, 'DISCUSSION'::text, 'WITHHELD'::text])))
+ "AwardDecision"         | AwardDecision_pkey                              | PRIMARY KEY (id)
+ "AwardEventLog"         | AwardEventLog_ceremonyId_fkey                   | FOREIGN KEY ("ceremonyId") REFERENCES "AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardEventLog"         | AwardEventLog_pkey                              | PRIMARY KEY (id)
+ "AwardFinalVote"        | AwardFinalVote_pkey                             | PRIMARY KEY ("roundId", "userId")
+ "AwardFinalVote"        | AwardFinalVote_roundId_fkey                     | FOREIGN KEY ("roundId") REFERENCES "AwardRound"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardFinalVote"        | AwardFinalVote_userId_fkey                      | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "AwardMember"           | AwardMember_ceremonyId_fkey                     | FOREIGN KEY ("ceremonyId") REFERENCES "AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardMember"           | AwardMember_pkey                                | PRIMARY KEY ("ceremonyId", "userId")
+ "AwardMember"           | AwardMember_status_check                        | CHECK ((status = ANY (ARRAY['PENDING'::text, 'APPROVED'::text, 'REJECTED'::text])))
+ "AwardMember"           | AwardMember_userId_fkey                         | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardRound"            | AwardRound_ceremonyId_fkey                      | FOREIGN KEY ("ceremonyId") REFERENCES "AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardRound"            | AwardRound_pkey                                 | PRIMARY KEY (id)
+ "AwardRound"            | AwardRound_status_check                         | CHECK ((status = ANY (ARRAY['OPEN'::text, 'CLOSED'::text])))
+ "AwardStage"            | AwardStage_ceremonyId_fkey                      | FOREIGN KEY ("ceremonyId") REFERENCES "AwardCeremony"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "AwardStage"            | AwardStage_pkey                                 | PRIMARY KEY ("ceremonyId")
+ "BattleSeason"          | BattleSeason_createdByUserId_fkey               | FOREIGN KEY ("createdByUserId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "BattleSeason"          | BattleSeason_pkey                               | PRIMARY KEY (id)
+ "BattleSeason"          | BattleSeason_poolId_fkey                        | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "BattleSeasonArchive"   | BattleSeasonArchive_pkey                        | PRIMARY KEY ("seasonId")
+ "BattleSeasonArchive"   | BattleSeasonArchive_seasonId_fkey               | FOREIGN KEY ("seasonId") REFERENCES "BattleSeason"(id) ON DELETE CASCADE
+ "BattleSeasonUserScore" | BattleSeasonUserScore_animeId_fkey              | FOREIGN KEY ("animeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "BattleSeasonUserScore" | BattleSeasonUserScore_pkey                      | PRIMARY KEY (id)
+ "BattleSeasonUserScore" | BattleSeasonUserScore_poolId_fkey               | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "BattleSeasonUserScore" | BattleSeasonUserScore_seasonId_fkey             | FOREIGN KEY ("seasonId") REFERENCES "BattleSeason"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "BattleSeasonUserScore" | BattleSeasonUserScore_userId_fkey               | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "BattleVote"            | BattleVote_pkey                                 | PRIMARY KEY (id)
+ "BattleVote"            | BattleVote_seasonId_fkey                        | FOREIGN KEY ("seasonId") REFERENCES "BattleSeason"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "BattleVote"            | BattleVote_userId_fkey                          | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "CollectionSource"      | CollectionSource_collectionId_fkey              | FOREIGN KEY ("collectionId") REFERENCES "AnimeCollection"(id) ON DELETE CASCADE
+ "CollectionSource"      | CollectionSource_collectionId_quarter_phase_key | UNIQUE ("collectionId", quarter, phase)
+ "CollectionSource"      | CollectionSource_collectionId_seasonId_key      | UNIQUE ("collectionId", "seasonId")
+ "CollectionSource"      | CollectionSource_phase_check                    | CHECK ((phase = ANY (ARRAY['OPENING'::text, 'ENDING'::text])))
+ "CollectionSource"      | CollectionSource_pkey                           | PRIMARY KEY (id)
+ "CollectionSource"      | CollectionSource_poolId_fkey                    | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON DELETE CASCADE
+ "CollectionSource"      | CollectionSource_quarter_check                  | CHECK (((quarter >= 1) AND (quarter <= 4)))
+ "CollectionSource"      | CollectionSource_seasonId_fkey                  | FOREIGN KEY ("seasonId") REFERENCES "BattleSeason"(id) ON DELETE CASCADE
+ "CustomPool"            | CustomPool_creatorId_fkey                       | FOREIGN KEY ("creatorId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "CustomPool"            | CustomPool_pkey                                 | PRIMARY KEY (id)
+ "CustomPool"            | CustomPool_sourcePoolId_fkey                    | FOREIGN KEY ("sourcePoolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "ManualTierAdjustment"  | ManualTierAdjustment_animeId_fkey               | FOREIGN KEY ("animeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "ManualTierAdjustment"  | ManualTierAdjustment_pkey                       | PRIMARY KEY (id)
+ "ManualTierAdjustment"  | ManualTierAdjustment_poolId_fkey                | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "ManualTierAdjustment"  | ManualTierAdjustment_runId_fkey                 | FOREIGN KEY ("runId") REFERENCES "PersonalRun"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "ManualTierAdjustment"  | ManualTierAdjustment_userId_fkey                | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "ManualTierBoard"       | ManualTierBoard_ownerId_fkey                    | FOREIGN KEY ("ownerId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "ManualTierBoard"       | ManualTierBoard_pkey                            | PRIMARY KEY (id)
+ "ManualTierBoard"       | ManualTierBoard_poolId_fkey                     | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "PersonalRun"           | PersonalRun_pkey                                | PRIMARY KEY (id)
+ "PersonalRun"           | PersonalRun_poolId_fkey                         | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PersonalRun"           | PersonalRun_userId_fkey                         | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolAnime"             | PoolAnime_animeId_fkey                          | FOREIGN KEY ("animeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolAnime"             | PoolAnime_pkey                                  | PRIMARY KEY (id)
+ "PoolAnime"             | PoolAnime_poolId_fkey                           | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "PoolComparison"        | PoolComparison_leftAnimeId_fkey                 | FOREIGN KEY ("leftAnimeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolComparison"        | PoolComparison_loserAnimeId_fkey                | FOREIGN KEY ("loserAnimeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "PoolComparison"        | PoolComparison_pkey                             | PRIMARY KEY (id)
+ "PoolComparison"        | PoolComparison_poolId_fkey                      | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolComparison"        | PoolComparison_rightAnimeId_fkey                | FOREIGN KEY ("rightAnimeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolComparison"        | PoolComparison_runId_fkey                       | FOREIGN KEY ("runId") REFERENCES "PersonalRun"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolComparison"        | PoolComparison_userId_fkey                      | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "PoolComparison"        | PoolComparison_winnerAnimeId_fkey               | FOREIGN KEY ("winnerAnimeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "PoolCreationRequest"   | PoolCreationRequest_pkey                        | PRIMARY KEY ("userId", "clientMutationId")
+ _prisma_migrations      | _prisma_migrations_pkey                         | PRIMARY KEY (id)
+ "RecalibrationSession"  | RecalibrationSession_pkey                       | PRIMARY KEY (id)
+ "SongAudioAsset"        | SongAudioAsset_pkey                             | PRIMARY KEY (id)
+ "SongBoard"             | SongBoard_ownerId_fkey                          | FOREIGN KEY ("ownerId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "SongBoard"             | SongBoard_pkey                                  | PRIMARY KEY (id)
+ "SongBoard"             | SongBoard_templateId_fkey                       | FOREIGN KEY ("templateId") REFERENCES "SongTemplate"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "SongTemplate"          | SongTemplate_ownerId_fkey                       | FOREIGN KEY ("ownerId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+ "SongTemplate"          | SongTemplate_pkey                               | PRIMARY KEY (id)
+ "SongTemplate"          | SongTemplate_sourceBoardId_fkey                 | FOREIGN KEY ("sourceBoardId") REFERENCES "SongBoard"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "TierShare"             | TierShare_pkey                                  | PRIMARY KEY (id)
+ "TierShare"             | TierShare_poolId_fkey                           | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "TierShare"             | TierShare_runId_fkey                            | FOREIGN KEY ("runId") REFERENCES "PersonalRun"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "User"                  | User_pkey                                       | PRIMARY KEY (id)
+ "UserAnimeStatus"       | UserAnimeStatus_animeId_fkey                    | FOREIGN KEY ("animeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserAnimeStatus"       | UserAnimeStatus_pkey                            | PRIMARY KEY (id)
+ "UserAnimeStatus"       | UserAnimeStatus_userId_fkey                     | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserPoolScore"         | UserPoolScore_animeId_fkey                      | FOREIGN KEY ("animeId") REFERENCES "Anime"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserPoolScore"         | UserPoolScore_pkey                              | PRIMARY KEY (id)
+ "UserPoolScore"         | UserPoolScore_poolId_fkey                       | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserPoolScore"         | UserPoolScore_runId_fkey                        | FOREIGN KEY ("runId") REFERENCES "PersonalRun"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserPoolScore"         | UserPoolScore_userId_fkey                       | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserSimilarity"        | UserSimilarity_pkey                             | PRIMARY KEY (id)
+ "UserSimilarity"        | UserSimilarity_userAId_fkey                     | FOREIGN KEY ("userAId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserSimilarity"        | UserSimilarity_userBId_fkey                     | FOREIGN KEY ("userBId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ "UserTagPreference"     | UserTagPreference_pkey                          | PRIMARY KEY (id)
+ "UserTagPreference"     | UserTagPreference_poolId_fkey                   | FOREIGN KEY ("poolId") REFERENCES "CustomPool"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "UserTagPreference"     | UserTagPreference_runId_fkey                    | FOREIGN KEY ("runId") REFERENCES "PersonalRun"(id) ON UPDATE CASCADE ON DELETE SET NULL
+ "UserTagPreference"     | UserTagPreference_userId_fkey                   | FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+(106 rows)
+
+       tablename       |                         indexname                         |                                                                                indexdef                                                                                
+-----------------------+-----------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Anime                 | Anime_bgmId_key                                           | CREATE UNIQUE INDEX "Anime_bgmId_key" ON public."Anime" USING btree ("bgmId")
+ Anime                 | Anime_pkey                                                | CREATE UNIQUE INDEX "Anime_pkey" ON public."Anime" USING btree (id)
+ AnimeCollection       | AnimeCollection_finalPoolId_key                           | CREATE UNIQUE INDEX "AnimeCollection_finalPoolId_key" ON public."AnimeCollection" USING btree ("finalPoolId")
+ AnimeCollection       | AnimeCollection_ownerId_updatedAt_idx                     | CREATE INDEX "AnimeCollection_ownerId_updatedAt_idx" ON public."AnimeCollection" USING btree ("ownerId", "updatedAt")
+ AnimeCollection       | AnimeCollection_pkey                                      | CREATE UNIQUE INDEX "AnimeCollection_pkey" ON public."AnimeCollection" USING btree (id)
+ AnimeRecommendation   | AnimeRecommendation_pkey                                  | CREATE UNIQUE INDEX "AnimeRecommendation_pkey" ON public."AnimeRecommendation" USING btree (id)
+ AnimeRecommendation   | AnimeRecommendation_score_idx                             | CREATE INDEX "AnimeRecommendation_score_idx" ON public."AnimeRecommendation" USING btree (score)
+ AnimeRecommendation   | AnimeRecommendation_userId_animeId_key                    | CREATE UNIQUE INDEX "AnimeRecommendation_userId_animeId_key" ON public."AnimeRecommendation" USING btree ("userId", "animeId")
+ AnimeRecommendation   | AnimeRecommendation_userId_idx                            | CREATE INDEX "AnimeRecommendation_userId_idx" ON public."AnimeRecommendation" USING btree ("userId")
+ AwardBallot           | AwardBallot_ceremonyId_userId_key                         | CREATE UNIQUE INDEX "AwardBallot_ceremonyId_userId_key" ON public."AwardBallot" USING btree ("ceremonyId", "userId")
+ AwardBallot           | AwardBallot_pkey                                          | CREATE UNIQUE INDEX "AwardBallot_pkey" ON public."AwardBallot" USING btree (id)
+ AwardBallot           | AwardBallot_userId_idx                                    | CREATE INDEX "AwardBallot_userId_idx" ON public."AwardBallot" USING btree ("userId")
+ AwardCeremony         | AwardCeremony_ownerId_createdAt_idx                       | CREATE INDEX "AwardCeremony_ownerId_createdAt_idx" ON public."AwardCeremony" USING btree ("ownerId", "createdAt")
+ AwardCeremony         | AwardCeremony_pkey                                        | CREATE UNIQUE INDEX "AwardCeremony_pkey" ON public."AwardCeremony" USING btree (id)
+ AwardDecision         | AwardDecision_ceremonyId_awardId_key                      | CREATE UNIQUE INDEX "AwardDecision_ceremonyId_awardId_key" ON public."AwardDecision" USING btree ("ceremonyId", "awardId")
+ AwardDecision         | AwardDecision_pkey                                        | CREATE UNIQUE INDEX "AwardDecision_pkey" ON public."AwardDecision" USING btree (id)
+ AwardEventLog         | AwardEventLog_ceremonyId_createdAt_idx                    | CREATE INDEX "AwardEventLog_ceremonyId_createdAt_idx" ON public."AwardEventLog" USING btree ("ceremonyId", "createdAt")
+ AwardEventLog         | AwardEventLog_pkey                                        | CREATE UNIQUE INDEX "AwardEventLog_pkey" ON public."AwardEventLog" USING btree (id)
+ AwardFinalVote        | AwardFinalVote_pkey                                       | CREATE UNIQUE INDEX "AwardFinalVote_pkey" ON public."AwardFinalVote" USING btree ("roundId", "userId")
+ AwardFinalVote        | AwardFinalVote_userId_idx                                 | CREATE INDEX "AwardFinalVote_userId_idx" ON public."AwardFinalVote" USING btree ("userId")
+ AwardMember           | AwardMember_pkey                                          | CREATE UNIQUE INDEX "AwardMember_pkey" ON public."AwardMember" USING btree ("ceremonyId", "userId")
+ AwardMember           | AwardMember_userId_idx                                    | CREATE INDEX "AwardMember_userId_idx" ON public."AwardMember" USING btree ("userId")
+ AwardRound            | AwardRound_ceremonyId_awardId_number_key                  | CREATE UNIQUE INDEX "AwardRound_ceremonyId_awardId_number_key" ON public."AwardRound" USING btree ("ceremonyId", "awardId", number)
+ AwardRound            | AwardRound_ceremonyId_status_idx                          | CREATE INDEX "AwardRound_ceremonyId_status_idx" ON public."AwardRound" USING btree ("ceremonyId", status)
+ AwardRound            | AwardRound_one_open_per_ceremony                          | CREATE UNIQUE INDEX "AwardRound_one_open_per_ceremony" ON public."AwardRound" USING btree ("ceremonyId") WHERE (status = 'OPEN'::text)
+ AwardRound            | AwardRound_pkey                                           | CREATE UNIQUE INDEX "AwardRound_pkey" ON public."AwardRound" USING btree (id)
+ AwardStage            | AwardStage_pkey                                           | CREATE UNIQUE INDEX "AwardStage_pkey" ON public."AwardStage" USING btree ("ceremonyId")
+ BattleSeason          | BattleSeason_createdByUserId_idx                          | CREATE INDEX "BattleSeason_createdByUserId_idx" ON public."BattleSeason" USING btree ("createdByUserId")
+ BattleSeason          | BattleSeason_pkey                                         | CREATE UNIQUE INDEX "BattleSeason_pkey" ON public."BattleSeason" USING btree (id)
+ BattleSeason          | BattleSeason_poolId_idx                                   | CREATE INDEX "BattleSeason_poolId_idx" ON public."BattleSeason" USING btree ("poolId")
+ BattleSeason          | BattleSeason_status_idx                                   | CREATE INDEX "BattleSeason_status_idx" ON public."BattleSeason" USING btree (status)
+ BattleSeasonArchive   | BattleSeasonArchive_pkey                                  | CREATE UNIQUE INDEX "BattleSeasonArchive_pkey" ON public."BattleSeasonArchive" USING btree ("seasonId")
+ BattleSeasonUserScore | BattleSeasonUserScore_animeId_idx                         | CREATE INDEX "BattleSeasonUserScore_animeId_idx" ON public."BattleSeasonUserScore" USING btree ("animeId")
+ BattleSeasonUserScore | BattleSeasonUserScore_pkey                                | CREATE UNIQUE INDEX "BattleSeasonUserScore_pkey" ON public."BattleSeasonUserScore" USING btree (id)
+ BattleSeasonUserScore | BattleSeasonUserScore_poolId_idx                          | CREATE INDEX "BattleSeasonUserScore_poolId_idx" ON public."BattleSeasonUserScore" USING btree ("poolId")
+ BattleSeasonUserScore | BattleSeasonUserScore_seasonId_animeId_idx                | CREATE INDEX "BattleSeasonUserScore_seasonId_animeId_idx" ON public."BattleSeasonUserScore" USING btree ("seasonId", "animeId")
+ BattleSeasonUserScore | BattleSeasonUserScore_seasonId_eloScore_idx               | CREATE INDEX "BattleSeasonUserScore_seasonId_eloScore_idx" ON public."BattleSeasonUserScore" USING btree ("seasonId", "eloScore")
+ BattleSeasonUserScore | BattleSeasonUserScore_seasonId_userId_animeId_key         | CREATE UNIQUE INDEX "BattleSeasonUserScore_seasonId_userId_animeId_key" ON public."BattleSeasonUserScore" USING btree ("seasonId", "userId", "animeId")
+ BattleSeasonUserScore | BattleSeasonUserScore_seasonId_userId_idx                 | CREATE INDEX "BattleSeasonUserScore_seasonId_userId_idx" ON public."BattleSeasonUserScore" USING btree ("seasonId", "userId")
+ BattleSeasonUserScore | BattleSeasonUserScore_userId_idx                          | CREATE INDEX "BattleSeasonUserScore_userId_idx" ON public."BattleSeasonUserScore" USING btree ("userId")
+ BattleVote            | BattleVote_pkey                                           | CREATE UNIQUE INDEX "BattleVote_pkey" ON public."BattleVote" USING btree (id)
+ BattleVote            | BattleVote_poolId_idx                                     | CREATE INDEX "BattleVote_poolId_idx" ON public."BattleVote" USING btree ("poolId")
+ BattleVote            | BattleVote_seasonId_createdAt_idx                         | CREATE INDEX "BattleVote_seasonId_createdAt_idx" ON public."BattleVote" USING btree ("seasonId", "createdAt")
+ BattleVote            | BattleVote_seasonId_userId_clientMutationId_key           | CREATE UNIQUE INDEX "BattleVote_seasonId_userId_clientMutationId_key" ON public."BattleVote" USING btree ("seasonId", "userId", "clientMutationId")
+ BattleVote            | BattleVote_seasonId_userId_idx                            | CREATE INDEX "BattleVote_seasonId_userId_idx" ON public."BattleVote" USING btree ("seasonId", "userId")
+ BattleVote            | BattleVote_seasonId_userId_stepNumber_key                 | CREATE UNIQUE INDEX "BattleVote_seasonId_userId_stepNumber_key" ON public."BattleVote" USING btree ("seasonId", "userId", "stepNumber")
+ CollectionSource      | CollectionSource_collectionId_quarter_phase_key           | CREATE UNIQUE INDEX "CollectionSource_collectionId_quarter_phase_key" ON public."CollectionSource" USING btree ("collectionId", quarter, phase)
+ CollectionSource      | CollectionSource_collectionId_seasonId_key                | CREATE UNIQUE INDEX "CollectionSource_collectionId_seasonId_key" ON public."CollectionSource" USING btree ("collectionId", "seasonId")
+ CollectionSource      | CollectionSource_pkey                                     | CREATE UNIQUE INDEX "CollectionSource_pkey" ON public."CollectionSource" USING btree (id)
+ CustomPool            | CustomPool_creatorId_idx                                  | CREATE INDEX "CustomPool_creatorId_idx" ON public."CustomPool" USING btree ("creatorId")
+ CustomPool            | CustomPool_isOfficialDemo_idx                             | CREATE INDEX "CustomPool_isOfficialDemo_idx" ON public."CustomPool" USING btree ("isOfficialDemo")
+ CustomPool            | CustomPool_pkey                                           | CREATE UNIQUE INDEX "CustomPool_pkey" ON public."CustomPool" USING btree (id)
+ CustomPool            | CustomPool_status_idx                                     | CREATE INDEX "CustomPool_status_idx" ON public."CustomPool" USING btree (status)
+ CustomPool            | CustomPool_visibility_idx                                 | CREATE INDEX "CustomPool_visibility_idx" ON public."CustomPool" USING btree (visibility)
+ CustomPool            | CustomPool_visibility_status_idx                          | CREATE INDEX "CustomPool_visibility_status_idx" ON public."CustomPool" USING btree (visibility, status)
+ ManualTierAdjustment  | ManualTierAdjustment_animeId_idx                          | CREATE INDEX "ManualTierAdjustment_animeId_idx" ON public."ManualTierAdjustment" USING btree ("animeId")
+ ManualTierAdjustment  | ManualTierAdjustment_pkey                                 | CREATE UNIQUE INDEX "ManualTierAdjustment_pkey" ON public."ManualTierAdjustment" USING btree (id)
+ ManualTierAdjustment  | ManualTierAdjustment_userId_poolId_runId_idx              | CREATE INDEX "ManualTierAdjustment_userId_poolId_runId_idx" ON public."ManualTierAdjustment" USING btree ("userId", "poolId", "runId")
+ ManualTierBoard       | ManualTierBoard_ownerId_poolId_key                        | CREATE UNIQUE INDEX "ManualTierBoard_ownerId_poolId_key" ON public."ManualTierBoard" USING btree ("ownerId", "poolId")
+ ManualTierBoard       | ManualTierBoard_pkey                                      | CREATE UNIQUE INDEX "ManualTierBoard_pkey" ON public."ManualTierBoard" USING btree (id)
+ ManualTierBoard       | ManualTierBoard_shareToken_key                            | CREATE UNIQUE INDEX "ManualTierBoard_shareToken_key" ON public."ManualTierBoard" USING btree ("shareToken")
+ PersonalRun           | PersonalRun_pkey                                          | CREATE UNIQUE INDEX "PersonalRun_pkey" ON public."PersonalRun" USING btree (id)
+ PersonalRun           | PersonalRun_poolId_idx                                    | CREATE INDEX "PersonalRun_poolId_idx" ON public."PersonalRun" USING btree ("poolId")
+ PersonalRun           | PersonalRun_userId_poolId_idx                             | CREATE INDEX "PersonalRun_userId_poolId_idx" ON public."PersonalRun" USING btree ("userId", "poolId")
+ PoolAnime             | PoolAnime_animeId_idx                                     | CREATE INDEX "PoolAnime_animeId_idx" ON public."PoolAnime" USING btree ("animeId")
+ PoolAnime             | PoolAnime_pkey                                            | CREATE UNIQUE INDEX "PoolAnime_pkey" ON public."PoolAnime" USING btree (id)
+ PoolAnime             | PoolAnime_poolId_animeId_key                              | CREATE UNIQUE INDEX "PoolAnime_poolId_animeId_key" ON public."PoolAnime" USING btree ("poolId", "animeId")
+ PoolAnime             | PoolAnime_poolId_idx                                      | CREATE INDEX "PoolAnime_poolId_idx" ON public."PoolAnime" USING btree ("poolId")
+ PoolComparison        | PoolComparison_createdAt_idx                              | CREATE INDEX "PoolComparison_createdAt_idx" ON public."PoolComparison" USING btree ("createdAt")
+ PoolComparison        | PoolComparison_leftAnimeId_idx                            | CREATE INDEX "PoolComparison_leftAnimeId_idx" ON public."PoolComparison" USING btree ("leftAnimeId")
+ PoolComparison        | PoolComparison_mode_idx                                   | CREATE INDEX "PoolComparison_mode_idx" ON public."PoolComparison" USING btree (mode)
+ PoolComparison        | PoolComparison_pairKey_idx                                | CREATE INDEX "PoolComparison_pairKey_idx" ON public."PoolComparison" USING btree ("pairKey")
+ PoolComparison        | PoolComparison_pkey                                       | CREATE UNIQUE INDEX "PoolComparison_pkey" ON public."PoolComparison" USING btree (id)
+ PoolComparison        | PoolComparison_poolId_runId_createdAt_idx                 | CREATE INDEX "PoolComparison_poolId_runId_createdAt_idx" ON public."PoolComparison" USING btree ("poolId", "runId", "createdAt")
+ PoolComparison        | PoolComparison_rightAnimeId_idx                           | CREATE INDEX "PoolComparison_rightAnimeId_idx" ON public."PoolComparison" USING btree ("rightAnimeId")
+ PoolComparison        | PoolComparison_userId_clientMutationId_key                | CREATE UNIQUE INDEX "PoolComparison_userId_clientMutationId_key" ON public."PoolComparison" USING btree ("userId", "clientMutationId")
+ PoolComparison        | PoolComparison_userId_poolId_runId_createdAt_idx          | CREATE INDEX "PoolComparison_userId_poolId_runId_createdAt_idx" ON public."PoolComparison" USING btree ("userId", "poolId", "runId", "createdAt")
+ PoolComparison        | PoolComparison_userId_poolId_runId_idx                    | CREATE INDEX "PoolComparison_userId_poolId_runId_idx" ON public."PoolComparison" USING btree ("userId", "poolId", "runId")
+ PoolComparison        | PoolComparison_userId_poolId_runId_undoneAt_createdAt_idx | CREATE INDEX "PoolComparison_userId_poolId_runId_undoneAt_createdAt_idx" ON public."PoolComparison" USING btree ("userId", "poolId", "runId", "undoneAt", "createdAt")
+ PoolCreationRequest   | PoolCreationRequest_pkey                                  | CREATE UNIQUE INDEX "PoolCreationRequest_pkey" ON public."PoolCreationRequest" USING btree ("userId", "clientMutationId")
+ PoolCreationRequest   | PoolCreationRequest_poolId_idx                            | CREATE INDEX "PoolCreationRequest_poolId_idx" ON public."PoolCreationRequest" USING btree ("poolId")
+ RecalibrationSession  | RecalibrationSession_pkey                                 | CREATE UNIQUE INDEX "RecalibrationSession_pkey" ON public."RecalibrationSession" USING btree (id)
+ RecalibrationSession  | RecalibrationSession_status_idx                           | CREATE INDEX "RecalibrationSession_status_idx" ON public."RecalibrationSession" USING btree (status)
+ RecalibrationSession  | RecalibrationSession_userId_poolId_runId_idx              | CREATE INDEX "RecalibrationSession_userId_poolId_runId_idx" ON public."RecalibrationSession" USING btree ("userId", "poolId", "runId")
+ SongAudioAsset        | SongAudioAsset_key_key                                    | CREATE UNIQUE INDEX "SongAudioAsset_key_key" ON public."SongAudioAsset" USING btree (key)
+ SongAudioAsset        | SongAudioAsset_pkey                                       | CREATE UNIQUE INDEX "SongAudioAsset_pkey" ON public."SongAudioAsset" USING btree (id)
+ SongAudioAsset        | SongAudioAsset_sha256_key                                 | CREATE UNIQUE INDEX "SongAudioAsset_sha256_key" ON public."SongAudioAsset" USING btree (sha256)
+ SongBoard             | SongBoard_ownerId_templateId_key                          | CREATE UNIQUE INDEX "SongBoard_ownerId_templateId_key" ON public."SongBoard" USING btree ("ownerId", "templateId")
+ SongBoard             | SongBoard_ownerId_updatedAt_idx                           | CREATE INDEX "SongBoard_ownerId_updatedAt_idx" ON public."SongBoard" USING btree ("ownerId", "updatedAt")
+ SongBoard             | SongBoard_pkey                                            | CREATE UNIQUE INDEX "SongBoard_pkey" ON public."SongBoard" USING btree (id)
+ SongBoard             | SongBoard_shareToken_key                                  | CREATE UNIQUE INDEX "SongBoard_shareToken_key" ON public."SongBoard" USING btree ("shareToken")
+ SongTemplate          | SongTemplate_active_updatedAt_idx                         | CREATE INDEX "SongTemplate_active_updatedAt_idx" ON public."SongTemplate" USING btree (active, "updatedAt")
+ SongTemplate          | SongTemplate_pkey                                         | CREATE UNIQUE INDEX "SongTemplate_pkey" ON public."SongTemplate" USING btree (id)
+ SongTemplate          | SongTemplate_sourceBoardId_key                            | CREATE UNIQUE INDEX "SongTemplate_sourceBoardId_key" ON public."SongTemplate" USING btree ("sourceBoardId")
+ TierShare             | TierShare_createdAt_idx                                   | CREATE INDEX "TierShare_createdAt_idx" ON public."TierShare" USING btree ("createdAt")
+ TierShare             | TierShare_pkey                                            | CREATE UNIQUE INDEX "TierShare_pkey" ON public."TierShare" USING btree (id)
+ TierShare             | TierShare_poolId_idx                                      | CREATE INDEX "TierShare_poolId_idx" ON public."TierShare" USING btree ("poolId")
+ TierShare             | TierShare_runId_idx                                       | CREATE INDEX "TierShare_runId_idx" ON public."TierShare" USING btree ("runId")
+ TierShare             | TierShare_token_key                                       | CREATE UNIQUE INDEX "TierShare_token_key" ON public."TierShare" USING btree (token)
+ User                  | User_email_key                                            | CREATE UNIQUE INDEX "User_email_key" ON public."User" USING btree (email)
+ User                  | User_pkey                                                 | CREATE UNIQUE INDEX "User_pkey" ON public."User" USING btree (id)
+ User                  | User_username_key                                         | CREATE UNIQUE INDEX "User_username_key" ON public."User" USING btree (username)
+ UserAnimeStatus       | UserAnimeStatus_animeId_idx                               | CREATE INDEX "UserAnimeStatus_animeId_idx" ON public."UserAnimeStatus" USING btree ("animeId")
+ UserAnimeStatus       | UserAnimeStatus_pkey                                      | CREATE UNIQUE INDEX "UserAnimeStatus_pkey" ON public."UserAnimeStatus" USING btree (id)
+ UserAnimeStatus       | UserAnimeStatus_status_idx                                | CREATE INDEX "UserAnimeStatus_status_idx" ON public."UserAnimeStatus" USING btree (status)
+ UserAnimeStatus       | UserAnimeStatus_userId_animeId_key                        | CREATE UNIQUE INDEX "UserAnimeStatus_userId_animeId_key" ON public."UserAnimeStatus" USING btree ("userId", "animeId")
+ UserAnimeStatus       | UserAnimeStatus_userId_idx                                | CREATE INDEX "UserAnimeStatus_userId_idx" ON public."UserAnimeStatus" USING btree ("userId")
+ UserPoolScore         | UserPoolScore_animeId_idx                                 | CREATE INDEX "UserPoolScore_animeId_idx" ON public."UserPoolScore" USING btree ("animeId")
+ UserPoolScore         | UserPoolScore_pkey                                        | CREATE UNIQUE INDEX "UserPoolScore_pkey" ON public."UserPoolScore" USING btree (id)
+ UserPoolScore         | UserPoolScore_poolId_runId_idx                            | CREATE INDEX "UserPoolScore_poolId_runId_idx" ON public."UserPoolScore" USING btree ("poolId", "runId")
+ UserPoolScore         | UserPoolScore_userId_poolId_runId_animeId_key             | CREATE UNIQUE INDEX "UserPoolScore_userId_poolId_runId_animeId_key" ON public."UserPoolScore" USING btree ("userId", "poolId", "runId", "animeId")
+ UserPoolScore         | UserPoolScore_userId_poolId_runId_idx                     | CREATE INDEX "UserPoolScore_userId_poolId_runId_idx" ON public."UserPoolScore" USING btree ("userId", "poolId", "runId")
+ UserSimilarity        | UserSimilarity_pkey                                       | CREATE UNIQUE INDEX "UserSimilarity_pkey" ON public."UserSimilarity" USING btree (id)
+ UserSimilarity        | UserSimilarity_similarityScore_idx                        | CREATE INDEX "UserSimilarity_similarityScore_idx" ON public."UserSimilarity" USING btree ("similarityScore")
+ UserSimilarity        | UserSimilarity_userAId_idx                                | CREATE INDEX "UserSimilarity_userAId_idx" ON public."UserSimilarity" USING btree ("userAId")
+ UserSimilarity        | UserSimilarity_userAId_userBId_scopeType_scopeId_key      | CREATE UNIQUE INDEX "UserSimilarity_userAId_userBId_scopeType_scopeId_key" ON public."UserSimilarity" USING btree ("userAId", "userBId", "scopeType", "scopeId")
+ UserSimilarity        | UserSimilarity_userBId_idx                                | CREATE INDEX "UserSimilarity_userBId_idx" ON public."UserSimilarity" USING btree ("userBId")
+ UserTagPreference     | UserTagPreference_pkey                                    | CREATE UNIQUE INDEX "UserTagPreference_pkey" ON public."UserTagPreference" USING btree (id)
+ UserTagPreference     | UserTagPreference_tag_idx                                 | CREATE INDEX "UserTagPreference_tag_idx" ON public."UserTagPreference" USING btree (tag)
+ UserTagPreference     | UserTagPreference_userId_idx                              | CREATE INDEX "UserTagPreference_userId_idx" ON public."UserTagPreference" USING btree ("userId")
+ UserTagPreference     | UserTagPreference_userId_poolId_runId_tag_key             | CREATE UNIQUE INDEX "UserTagPreference_userId_poolId_runId_tag_key" ON public."UserTagPreference" USING btree ("userId", "poolId", "runId", tag)
+ _prisma_migrations    | _prisma_migrations_pkey                                   | CREATE UNIQUE INDEX _prisma_migrations_pkey ON public._prisma_migrations USING btree (id)
+(122 rows)
+
+
+exit=0
+$ docker stop anisong-release-a7ea4730cf
+anisong-release-a7ea4730cf
+
+exit=0
