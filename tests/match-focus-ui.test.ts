@@ -6,6 +6,7 @@ describe("match focus UI", () => {
   const duelSource = readFileSync("src/components/DuelAnimeCard.tsx", "utf8");
 
   const presentation = readFileSync("src/components/MatchPresentation.tsx", "utf8");
+  const cardFrame = readFileSync("src/components/MatchCardFrame.tsx", "utf8");
 
   it("keeps the primary pair ahead of the detailed progress card", () => {
     const pairGrid = matchSource.indexOf('<MatchArena');
@@ -37,6 +38,7 @@ describe("match focus UI", () => {
     expect(duelSource).not.toContain("tabIndex={disabled ? -1 : 0}");
     expect(duelSource).not.toContain("onKeyDown={(event) => {");
     expect(duelSource).toContain('<MatchChoiceCard');
-    expect(presentation).toContain("onClick={onPick}");
+    expect(presentation).toContain("<MatchCardFrame");
+    expect(cardFrame).toContain("onClick={onPick}");
   });
 });

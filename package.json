@@ -17,7 +17,8 @@
     "dev:setup": "pnpm prisma generate && pnpm prisma migrate dev",
     "deploy:check": "bash scripts/deploy-check.sh",
     "anime:import:manami": "npx tsx scripts/import-manami-anime.ts",
-    "covers:cache-cos": "tsx scripts/cache-covers-to-cos.ts"
+    "covers:cache-cos": "tsx scripts/cache-covers-to-cos.ts",
+    "anisong:audio:previews": "tsx scripts/migrate-anisong-audio-previews.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",
@@ -25,6 +26,7 @@
     "cheerio": "^1.2.0",
     "cos-nodejs-sdk-v5": "^2.15.4",
     "html-to-image": "^1.11.13",
+    "music-metadata": "11.16.1",
     "next": "^14.2.23",
     "next-auth": "^4.24.11",
     "react": "^18.3.1",

@@ -18,6 +18,7 @@ Next.js 14 · React 18 · TypeScript · Prisma 6 · PostgreSQL
 - **自由排榜**：直接拖拽封面，支持批量选择、点选分档、自定义档位和撤销。
 - **保存与分享**：草稿恢复、覆盖冲突保护、PNG 导出、公开快照链接。保存草稿不会自动更新已分享的内容。
 - **社区玩法**：匿名聚合榜单、赛季投票、年度组合与年度大赏；个人排序独立保存。
+- **AnisongMatch**：在 `/anisong` 创建音乐曲单，按季度、OP / ED、风格筛选，自有音频批量导入并预览文件内的歌名、歌手与封面，也可用 HTTPS 直链试听；支持网易云搜歌、封面导入、按用户扫码连接及试听地址刷新；支持公共曲单与去重音频池、iTunes 搜索及备用音源匹配、来源偏好和超时自动降级，每人独立保存进度；支持多选批量修改动画与季度、调整参赛范围、保存前选取试听片段、手动封面上传与带图榜单。对决生成 Tier List，支持撤回、手动分档、PNG 导出和不含音频的分享快照。
 
 ## 截图
 
@@ -91,6 +92,10 @@ docs/             设计、部署与变更记录
 - [对决流水与计分边界](docs/comparison-ledger.md)
 - [UI / UX 问题清单](docs/ui-ux-audit-2026-10-24.md)
 - [界面精简与截图记录](docs/minimal-ui-readme-2026-10-27.md)
+- [AnisongMatch：功能、验证与第三方音源待办](docs/anisongmatch-2026-10-29.md)
+- [AnisongMatch：免费音乐 UI 验收素材与上传步骤](docs/anisong-demo-music.md)
+- [AnisongMatch：网易云搜索、扫码连接与部署](docs/anisong-netease.md)
+- [AnisongMatch：公共曲单、音频池、iTunes 备用源与缓存](docs/anisong-shared-audio.md)
 
 已有生产数据库使用 `pnpm exec prisma migrate deploy` 升级；部署前按部署文档备份。
 

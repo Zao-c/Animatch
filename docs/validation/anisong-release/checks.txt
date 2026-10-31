@@ -1,0 +1,13 @@
+pnpm test: exit 0
+ Test Files  159 passed (159)
+      Tests  1687 passed (1687)
+   Start at  22:54:38
+   Duration  170.76s (transform 9.94s, setup 0ms, collect 44.33s, tests 18.15s, environment 94ms, prepare 36.71s)
+
+
+pnpm lint: exit 0, no warnings or errors
+pnpm exec tsc --noEmit: exit 0 (rerun after adding diagnostic script)
+pnpm build: exit 0
+git diff --check: exit 0
+
+NetEase focused regression rerun: 31 passed, exit 0

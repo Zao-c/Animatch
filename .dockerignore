@@ -23,6 +23,9 @@ output
 screenshots
 mihomo-upload
 data/image-cache
+data/netease-accounts
+data/anisong-audio
+data/anisong-public-audio
 data/anime-offline-database*
 animatch-*.bundle
 *.docx

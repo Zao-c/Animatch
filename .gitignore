@@ -24,6 +24,7 @@ data/anime-offline-database*.json
 data/anime-offline-database*.jsonl
 data/anime-offline-database*.zst
 data/image-cache/
+data/anisong-audio/
 public/uploads/anime-covers/*
 !public/uploads/anime-covers/.gitkeep
 public/uploads/custom-items/*
@@ -33,3 +34,5 @@ mihomo-upload/
 screenshots/
 output/
 .playwright-cli/
+data/netease-accounts/
+data/anisong-public-audio/

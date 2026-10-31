@@ -88,7 +88,10 @@ describe("pool management UI", () => {
   });
 
   it("turns pool creation into an onboarding flow", () => {
-    expect(newPoolSource).toContain("#add-anime");
+    expect(newPoolSource).toContain('aria-label="创建方式"');
+    expect(newPoolSource).toContain("Bangumi 批量导入");
+    expect(newPoolSource).toContain("手动创建");
+    expect(newPoolSource).toContain("<QuickImportPanel");
   });
 
   it("shows archived pools as read-only on detail while keeping restore available", () => {

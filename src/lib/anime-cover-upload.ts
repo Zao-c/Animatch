@@ -139,6 +139,8 @@ export async function saveCustomItemUpload({
 }
 
 export async function deleteLocalAnimeCoverIfPresent(value: string | null | undefined) {
+  // Shared music artwork can be referenced by many public templates and runs.
+  if (value?.startsWith(`${ANIME_COVER_UPLOAD_PUBLIC_PREFIX}shared-song-`)) return;
   const filePath = value === undefined || value === null ? null : localAnimeCoverPublicPathToFilePath(value);
 
   if (filePath === null) {
