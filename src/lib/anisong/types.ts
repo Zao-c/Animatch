@@ -39,6 +39,8 @@ export type SongDocument = {
   tracks: SongTrack[];
   events: SongEvent[];
   manualTiers: Record<string, string>;
+  /** Explicit order within each Tier; optional for legacy v1 boards. */
+  manualOrder?: Record<string, string[]>;
   candidateIds: string[] | null;
 };
 export type SongBoardView = {
