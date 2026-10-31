@@ -1,0 +1,19 @@
+{
+  "failureMessage": "网易云服务地址无法解析，请管理员检查服务地址及 Docker 网络。可继续使用 iTunes、公共音频池或本地音频。",
+  "itunesCount": 20,
+  "audio": [
+    {
+      "paused": false,
+      "readyState": 4,
+      "time": 3.294711,
+      "error": null
+    },
+    {
+      "paused": true,
+      "readyState": 0,
+      "time": 0,
+      "error": null
+    }
+  ],
+  "pageErrors": []
+}

@@ -52,7 +52,38 @@ describe("NetEase adapter", () => {
   });
   it("turns upstream failure into a music-specific message without exposing it", async () => {
     fetcher.mockRejectedValue(new Error("secret upstream details"));
-    await expect(searchNetease("a", "")).rejects.toMatchObject({ statusCode: 502, message: "网易云服务连接失败或超时，请稍后重试" });
+    await expect(searchNetease("a", "")).rejects.toMatchObject({ statusCode: 502, code: "NETEASE_NETWORK", message: "网易云服务连接失败，请稍后重试。可继续使用 iTunes、公共音频池或本地音频。" });
+  });
+  it.each([
+    ["EAI_AGAIN", "NETEASE_DNS", 503],
+    ["ENOTFOUND", "NETEASE_DNS", 503],
+    ["ECONNREFUSED", "NETEASE_CONNECTION", 503],
+  ])("classifies %s without leaking upstream details", async (cause, code, statusCode) => {
+    fetcher.mockRejectedValue(new TypeError("MUSIC_U=secret", { cause: { code: cause } }));
+    await expect(searchNetease("a", "")).rejects.toMatchObject({ code, statusCode });
+    await expect(searchNetease("a", "")).rejects.not.toThrow("secret");
+  });
+  it("distinguishes timeouts", async () => {
+    fetcher.mockRejectedValue(new DOMException("secret", "TimeoutError"));
+    await expect(searchNetease("a", "")).rejects.toMatchObject({ code: "NETEASE_TIMEOUT", statusCode: 504 });
+  });
+  it.each([[401, "NETEASE_ACCESS"], [403, "NETEASE_ACCESS"], [429, "NETEASE_RATE_LIMIT"], [500, "NETEASE_HTTP"]])("classifies HTTP %s", async (status, code) => {
+    fetcher.mockImplementation(async () => new Response("MUSIC_U=secret", { status }));
+    await expect(searchNetease("a", "")).rejects.toMatchObject({ code });
+    await expect(searchNetease("a", "")).rejects.not.toThrow("secret");
+  });
+  it.each(["not JSON", "null", "[]", '{"code":200}', '{"code":200,"result":{"songs":{}}}'])("rejects malformed search responses: %s", async body => {
+    fetcher.mockImplementation(async () => new Response(body));
+    await expect(searchNetease("a", "")).rejects.toMatchObject({ code: "NETEASE_JSON", statusCode: 502 });
+  });
+  it.each([[301, "NETEASE_ACCESS"], [403, "NETEASE_ACCESS"], [460, "NETEASE_RATE_LIMIT"]])("classifies provider code %s", async (code, failure) => {
+    fetcher.mockImplementation(async () => response({ code, message: "secret" }));
+    await expect(searchNetease("a", "")).rejects.toMatchObject({ code: failure });
+  });
+  it("rejects invalid configuration before fetching", async () => {
+    vi.stubEnv("NETEASE_API_URL", "file:///secret");
+    await expect(searchNetease("a", "")).rejects.toMatchObject({ code: "NETEASE_CONFIGURATION" });
+    expect(fetcher).not.toHaveBeenCalled();
   });
   it("supports disabled deployments without a failing account panel", async () => {
     vi.stubEnv("NETEASE_API_URL", ""); expect(await accountStatus("owner")).toEqual({ enabled: false, connected: false });
