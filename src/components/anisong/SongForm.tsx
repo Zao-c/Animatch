@@ -63,11 +63,12 @@ export function SongForm({ track, boardId, busy, onSave, onCancel }: {
     if (await onSave(data)) form.reset();
   }
   const field = (name: string, label: string, value: string | number, placeholder = "", required = false) => <label className="block text-sm">{label}<input name={name} {...(name === "title" ? { value: title, onChange: (e: React.ChangeEvent<HTMLInputElement>) => { touched.current.title = true; setTitle(e.target.value); } } : name === "artist" ? { value: artist, onChange: (e: React.ChangeEvent<HTMLInputElement>) => { touched.current.artist = true; setArtist(e.target.value); } } : { defaultValue: value })} placeholder={placeholder} required={required} maxLength={120} className="anime-field mt-1.5" /></label>;
-  return <form onSubmit={submit} className="rounded-2xl border border-anime-cyan/20 bg-slate-950/50 p-5 sm:p-6">
+  return <form onSubmit={submit} className="p-4 sm:p-5">
     <fieldset disabled={busy} className="space-y-5">
       <legend className="mb-4 text-lg font-semibold">{track ? "编辑歌曲" : "添加歌曲"}</legend>
+      <h3 className="text-sm font-semibold text-slate-300">基础信息</h3>
       <div className="flex flex-col gap-4 rounded-xl border border-white/10 p-4 sm:flex-row">
-        <SongCover src={preview || coverUrl} title={track?.title || "歌曲"} className="w-28 sm:w-36" eager />
+        <SongCover src={preview || coverUrl} title={track?.title || "歌曲"} className="w-20 sm:w-24" eager />
         <div className="min-w-0 flex-1 space-y-3">
           <label className="block text-sm">上传歌曲封面<input ref={coverInput} name="cover" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={e => { touched.current.cover = true; setCoverFile(e.target.files?.[0] ?? null); }} className="mt-2 block w-full min-w-0 text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-white" /></label>
           <input type="hidden" name="coverUrl" value={coverUrl} />
@@ -84,7 +85,7 @@ export function SongForm({ track, boardId, busy, onSave, onCancel }: {
         <label className="text-sm">季度<select name="quarter" defaultValue={track?.quarter ?? ""} className="anime-field mt-1.5"><option value="">未指定</option>{["冬季 · 1月", "春季 · 4月", "夏季 · 7月", "秋季 · 10月"].map((q, i) => <option key={q} value={i + 1}>{q}</option>)}</select></label>
       </div>
       <label className="block text-sm">风格标签<input name="tags" defaultValue={track?.tags.join(", ") ?? ""} maxLength={160} placeholder="摇滚, 治愈, 电音（逗号分隔）" className="anime-field mt-1.5" /></label>
-      <div className="space-y-4 rounded-xl border border-white/10 p-4">
+      <details className="rounded-xl border border-white/10 p-3"><summary className="min-h-11 cursor-pointer font-semibold">高级设置 / 音源与试听</summary><div className="space-y-4 pt-3">
         <label className="block text-sm">上传音频<input ref={audioInput} name="file" type="file" accept=".mp3,.m4a,.wav,.ogg,.flac,audio/*" onChange={e => { const file = e.target.files?.[0] ?? null; if (file && (!file.size || file.size > MAX_AUDIO_BYTES)) { setError("音频不能为空，且不能超过20 MB"); e.target.value = ""; setAudioFile(null); return; } setError(""); setAudioFile(file); if (file) setAudioUrl(""); }} className="mt-2 block w-full min-w-0 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-white" /></label>
         <p className="text-xs text-slate-400">MP3 / M4A / WAV / OGG / FLAC，每首最多20 MB。{!removeAudio && track?.source.kind === "upload" ? "已保存音频，不选文件则保留。" : ""}</p>
         <label className="block text-sm">或填写 HTTPS 音频直链<input name="audioUrl" type="url" value={audioUrl} onChange={e => { setAudioUrl(e.target.value); if (e.target.value) { setAudioFile(null); if (audioInput.current) audioInput.current.value = ""; } }} placeholder="https://…/song.mp3" maxLength={2048} className="anime-field mt-1.5" /></label>
@@ -95,12 +96,12 @@ export function SongForm({ track, boardId, busy, onSave, onCancel }: {
         {(audioFile || audioUrl || (!removeAudio && track && track.source.kind !== "none")) && <AppButton type="button" size="sm" variant="quiet" onClick={() => { setAudioFile(null); setAudioUrl(""); setRemoveAudio(true); if (audioInput.current) audioInput.current.value = ""; }}>移除音频</AppButton>}
         {removeAudio && !audioFile && !audioUrl && <p className="text-xs text-amber-200">保存后将移除音频，歌曲信息和对决记录会保留。</p>}
         <p className="text-xs text-slate-500">请使用你有权使用的音频。平台歌曲页面链接不能直接播放；也可以暂不添加音频。</p>
-      </div>
       {reading && <div role="status" className="flex flex-wrap items-center gap-3 text-sm"><span>正在读取本地歌名、歌手和封面…</span><AppButton type="button" variant="quiet" onClick={() => { reader.current?.abort(); setReading(false); setMetadataNote("已跳过自动读取，可手动填写"); }}>跳过自动读取</AppButton></div>}
       {metadataNote && <p role="status" className="text-xs leading-5 text-slate-400">{metadataNote}；已填写或手动修改的内容会保留。</p>}
       <SongClipEditor src={previewSource} initialStart={track?.source.kind === "itunes" ? 0 : track?.clipStart} initialLength={track?.clipLength} remote={!removeAudio && (track?.source.kind === "netease" || track?.source.kind === "itunes")} />
+      </div></details>
       {error && <p role="alert" className="text-sm text-amber-200">{error}</p>}
-      <div className="flex gap-3"><AppButton type="submit" disabled={reading}>{busy ? "正在保存…" : track ? "保存歌曲" : "添加到曲单"}</AppButton><AppButton type="button" variant="ghost" onClick={onCancel}>收起</AppButton></div>
+      <div className="sticky bottom-0 z-10 flex gap-3 border-t border-white/10 bg-slate-950 py-3"><AppButton type="submit" disabled={reading}>{busy ? "正在保存…" : track ? "保存歌曲" : "添加到曲单"}</AppButton><AppButton type="button" variant="ghost" onClick={onCancel}>取消</AppButton></div>
     </fieldset>
   </form>;
 }
