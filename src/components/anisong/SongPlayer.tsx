@@ -103,7 +103,7 @@ export function SongPlayer({ track, boardId, shortcut, disabled = false, onPlayb
     void tryProvider(0, token, restart);
   }
   if (!hasAudio) return <p className="rounded-xl border border-dashed border-white/15 p-3 text-xs leading-5 text-slate-400">尚未添加音频，可凭印象选择或在曲单中补充。</p>;
-  return <div className={`song-player space-y-1 rounded-xl border p-2 transition-colors ${compact ? "bg-slate-950/90 shadow-lg backdrop-blur-xl" : "sm:p-3"} ${playing || loading ? "border-anime-cyan/30 bg-anime-cyan/5" : compact ? "border-white/15" : "border-white/10 bg-slate-950/30"}`}>
+  return <div className={`song-player space-y-1 rounded-xl border p-2 transition-colors ${compact ? "song-player-compact bg-slate-950/90" : "sm:p-3"} ${playing || loading ? "border-anime-cyan/30 bg-anime-cyan/5" : compact ? "border-white/15" : "border-white/10 bg-slate-950/30"}`}>
     <audio ref={audio} preload="none"
       onLoadedMetadata={event => { const element = event.currentTarget; if (element.currentSrc !== attempt.current.activeUrl) return; setDuration(Number.isFinite(element.duration) ? element.duration : null); if (active.current.start >= element.duration) { advance("试听起点超出音频长度，请编辑调整"); } else element.currentTime = active.current.start; }}
       onPlay={event => { if (!wanted.current || event.currentTarget.currentSrc !== attempt.current.activeUrl) { event.currentTarget.pause(); return; } window.dispatchEvent(new CustomEvent(PLAY_EVENT, { detail: event.currentTarget })); setPlaying(true); }}
