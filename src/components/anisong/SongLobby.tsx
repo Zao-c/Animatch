@@ -50,11 +50,11 @@ export function SongLobby() {
     {error && <div role="alert" className="rounded-2xl border border-amber-300/20 bg-amber-300/5 p-4 text-amber-100">{error} {login && <Link className="underline" href="/login?next=%2Fanisong">去登录</Link>}</div>}
     {!login && <section className="grid gap-8 lg:grid-cols-[1fr_1.25fr]">
       <form onSubmit={create} className="space-y-4 rounded-3xl border border-white/10 bg-slate-950/30 p-6">
-        <h2 className="text-xl font-semibold">创建与发布曲单</h2>
-        <p className="text-sm leading-6 text-slate-400">例如「2026 秋季 OP」「摇滚 ED 精选」。每份曲单最多64首，可上传文件、使用音频直链或平台搜索。建好后发布，让其他人直接复用。</p>
+        <h2 className="text-xl font-semibold">创建自己的音乐曲单</h2>
+        <p className="text-sm leading-6 text-slate-400">例如「2026 秋季 OP」「摇滚 ED 精选」。先创建曲单，再添加歌曲、选择参赛范围，就能开始对决。</p>
         <label className="block text-sm">曲单名称<input required maxLength={80} className="anime-field mt-2" placeholder="2026 秋季 OP / ED" value={title} onChange={e => setTitle(e.target.value)} /></label>
         <AppButton type="submit" disabled={busy || loading}>{busy ? "正在创建…" : "创建曲单"}</AppButton>
-        <p className="text-xs leading-5 text-slate-500">编辑中的曲单默认仅自己可见。「发布公共曲单」会公开歌曲和可用音频；「分享榜单」只公开封面、歌曲信息与分档。</p>
+        <p className="text-xs leading-5 text-slate-500">新曲单默认仅自己可见。公共发布位于曲单设置中，个人 Tier List 分享是独立操作。</p>
       </form>
       <div>
         <h2 className="mb-4 text-xl font-semibold">我的音乐曲单</h2>

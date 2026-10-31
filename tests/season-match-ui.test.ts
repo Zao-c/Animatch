@@ -5,6 +5,7 @@ describe("season match UI", () => {
   const source = readFileSync("src/app/pools/[poolId]/seasons/[seasonId]/match/page.tsx", "utf8");
 
   const presentation = readFileSync("src/components/MatchPresentation.tsx", "utf8");
+  const cardFrame = readFileSync("src/components/MatchCardFrame.tsx", "utf8");
 
   it("uses AnimeCover fallback behavior instead of raw next image", () => {
     expect(presentation).toContain("<AnimeCover");
@@ -14,14 +15,14 @@ describe("season match UI", () => {
   });
 
   it("keeps the title overlay light so covers remain primary", () => {
-    expect(presentation).toContain("作品信息与说明");
-    expect(presentation).toContain("mt-auto");
-    expect(presentation).toContain("line-clamp-2");
+    expect(presentation).toContain("作品详情");
+    expect(cardFrame).toContain("mt-auto");
+    expect(cardFrame).toContain("line-clamp-2");
   });
 
   it("lets users roll to another pair without submitting a vote", () => {
     expect(source).toContain("const handleRollPair = useCallback");
-    expect(source).toContain("const filteredQueue = filterSeasonQueue(queue, nextSkippedPairKeys, unseenAnimeIds)");
+    expect(source).toContain("const filtered = filterSeasonQueue(queue.slice(currentIndex + 1), skipped, unseenAnimeIds)");
   });
 
   it("tracks skipped pair ids locally to avoid repeating same pairs", () => {
@@ -29,7 +30,7 @@ describe("season match UI", () => {
     expect(source).toContain("filterSeasonQueue");
     expect(source).toContain("seasonMatchPairKey");
     expect(source).toContain("skippedPairs.has(seasonMatchPairKey(item))");
-    expect(source).toContain("nextSkippedPairKeys.add(seasonMatchPairKey(currentPair))");
+    expect(source).toContain("new Set(skippedPairKeys).add(seasonMatchPairKey(currentPair))");
     expect(source).toContain("setQueue(filtered)");
   });
 
@@ -41,9 +42,9 @@ describe("season match UI", () => {
   });
 
   it("loads another queue batch after voting through the prefetched pairs", () => {
-    expect(source).toContain("shouldLoadNextBatch");
-    expect(source).toContain("currentIndex >= queue.length - 1");
-    expect(source).toContain("result.votesRemaining <= 0 || shouldLoadNextBatch");
+    expect(source).toContain(
+      "if (previous || !canSubmitSeasonVote(nextDetail) || currentIndex >= queue.length - 1) await fetchData(skipped);"
+    );
   });
 
   it("shows hint when no more new pairs after rolling", () => {
@@ -105,7 +106,8 @@ describe("season match UI", () => {
     expect(source).toContain("LEFT_UNSEEN");
     expect(source).toContain("RIGHT_UNSEEN");
     expect(source).toContain("BOTH_UNSEEN");
-    expect(source).toContain("writeSeasonUnseenAnimeIds");
+    expect(source).toContain("setSeasonAnimeHidden(poolId, seasonId");
+    expect(source).toContain("hiddenAnimeIds: result.hiddenAnimeIds");
     expect(source).toContain("hiddenAnimeIds.has(item.left.animeId)");
     expect(source).toContain("hiddenAnimeIds.has(item.right.animeId)");
     const preHandleUnseen = source.indexOf("const handleMarkUnseen = useCallback");
@@ -123,7 +125,7 @@ describe("season match UI", () => {
     expect(source).toContain("setError(null);");
     expect(source).toContain("loading && detail === null");
     expect(source).toContain("error && detail === null");
-    expect(source).toContain("void fetchData(skippedPairKeys, unseenAnimeIds)");
+    expect(source).toContain("void fetchData(skippedPairKeys)");
     expect(source).toContain("error ? (");
   });
 });
