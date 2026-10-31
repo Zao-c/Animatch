@@ -1,7 +1,7 @@
 "use client";
 import type { SongDecision, SongTrack } from "@/lib/anisong/types";
 import { rankSongs, nextSongPair } from "@/lib/anisong/engine";
-import { MatchArena } from "@/components/MatchPresentation";
+import { MatchArena, MatchActionBar } from "@/components/MatchPresentation";
 import { AppButton } from "@/components/ui/AppButton";
 import { SongMatchCard } from "./SongMatchCard";
 import { SongPlaybackPreferences } from "./SongPlaybackPreferences";
@@ -20,16 +20,16 @@ export function SongMatchPanel({ boardId, pair, ranking, disabled, onVote, onLib
       <div className="mt-3"><SongPlaybackPreferences /></div>
     </details>
     {pair ? <>
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto w-full max-w-[90rem]">
         <MatchArena mode="music"
           left={<SongMatchCard key={playbackKey(pair.left)} track={pair.left} boardId={boardId} side="left" disabled={disabled} onPick={() => onVote("LEFT_WIN")} onUnheard={() => onVote("LEFT_UNSEEN")} />}
           right={<SongMatchCard key={playbackKey(pair.right)} track={pair.right} boardId={boardId} side="right" disabled={disabled} onPick={() => onVote("RIGHT_WIN")} onUnheard={() => onVote("RIGHT_UNSEEN")} />}
         />
       </div>
-      <div className="flex flex-wrap justify-center gap-3">
-        <AppButton variant="secondary" disabled={disabled} onClick={() => onVote("DRAW")}>一样喜欢</AppButton>
-        <AppButton variant="ghost" disabled={disabled} onClick={() => onVote("SKIP")}>跳过这组</AppButton>
-      </div>
+      <MatchActionBar columnsClassName="grid-cols-2">
+        <AppButton variant="ghost" disabled={disabled} onClick={() => onVote("DRAW")}><kbd aria-hidden="true">↑</kbd><span className="ml-2">差不多</span></AppButton>
+        <AppButton variant="ghost" disabled={disabled} onClick={() => onVote("SKIP")}><kbd aria-hidden="true">↓</kbd><span className="ml-2">跳过 / 换一组</span></AppButton>
+      </MatchActionBar>
       <p className="text-center text-xs leading-6 text-slate-500">
         <span className="block text-slate-400">Q / E 试听或暂停左右歌曲 · 切换试听会自动暂停另一首</span>
         ← / → 选左右 · ↑ 平局 · ↓ 跳过（也支持 1 / 2 / 3 / 4）
