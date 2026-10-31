@@ -23,7 +23,15 @@ describe("AniSong library focuses on the next user action", () => {
     expect(workspace).toContain('addMode === "netease" && <SongNeteaseSearch');
     expect(workspace).toContain('addMode === "itunes" && <SongItunesSearch');
     expect(workspace).toContain("addOpen && batchOpen && <SongBatchImport");
-    expect(workspace).toContain("editing && <SongEditDrawer");
+    expect(workspace).toContain('addOpen || editing || itunesTarget || detailId');
+    const drawerStart = workspace.indexOf('<SongEditDrawer title=');
+    const drawerEnd = workspace.indexOf('</SongEditDrawer>', drawerStart);
+    for (const task of ['<SongNeteaseSearch', '<SongItunesSearch', '<SongBatchImport', '<SongForm']) {
+      expect(workspace.indexOf(task, drawerStart)).toBeGreaterThan(drawerStart);
+      expect(workspace.indexOf(task, drawerStart)).toBeLessThan(drawerEnd);
+    }
+    expect(workspace).not.toContain('歌曲信息与管理');
+    expect(workspace).not.toContain('window.scrollTo');
     expect(workspace).toContain("<SongForm boardId={boardId}");
     expect(workspace).not.toContain('editTrack(track); window.scrollTo');
     expect(workspace).toContain("itunesTarget && board.document.tracks.find");

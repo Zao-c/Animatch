@@ -73,7 +73,7 @@ export function SongForm({ track, boardId, busy, onSave, onCancel }: {
           <label className="block text-sm">上传歌曲封面<input ref={coverInput} name="cover" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={e => { touched.current.cover = true; setCoverFile(e.target.files?.[0] ?? null); }} className="mt-2 block w-full min-w-0 text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-white" /></label>
           <input type="hidden" name="coverUrl" value={coverUrl} />
           <label className="block text-sm">或填写封面图片地址<input value={coverUrl.startsWith("/uploads/") ? "" : coverUrl} onChange={e => { touched.current.cover = true; setCoverUrl(e.target.value); setCoverFile(null); if (coverInput.current) coverInput.current.value = ""; }} maxLength={2048} placeholder={coverUrl.startsWith("/uploads/") ? "已保存上传的封面，也可换成图片地址" : "https://…/cover.jpg"} className="anime-field mt-1.5" /></label>
-          <div className="flex flex-wrap items-center gap-3"><p className="text-xs leading-5 text-slate-400">专辑封面或动画海报均可，最大5 MB。</p>{(coverUrl || coverFile) && <AppButton type="button" size="sm" variant="quiet" onClick={() => { touched.current.cover = true; setCoverUrl(""); setCoverFile(null); if (coverInput.current) coverInput.current.value = ""; }}>移除封面</AppButton>}</div>
+          <div className="flex flex-wrap items-center gap-3"><p className="text-xs leading-5 text-slate-400">专辑封面或动画海报均可，最大5 MB。</p>{(coverUrl || coverFile) && <AppButton data-dirties type="button" size="sm" variant="quiet" onClick={() => { touched.current.cover = true; setCoverUrl(""); setCoverFile(null); if (coverInput.current) coverInput.current.value = ""; }}>移除封面</AppButton>}</div>
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -93,7 +93,7 @@ export function SongForm({ track, boardId, busy, onSave, onCancel }: {
         {!removeAudio && track?.source.kind === "netease" && <p className="text-sm text-anime-cyan">已关联网易云音源，保存信息会保留关联。可上传文件替换；平台试听请在保存后使用曲单播放器。</p>}
         {!removeAudio && track?.source.kind === "pool" && <p className="text-sm text-anime-cyan">正在使用公共音频池。修改信息不会重新下载；上传文件可替换当前曲目的音源。</p>}
         {!removeAudio && track?.source.kind === "itunes" && <p className="text-sm text-anime-cyan">正在使用 iTunes 外部试听。平台片段从0秒开始；可上传文件，发布后补充公共音频。</p>}
-        {(audioFile || audioUrl || (!removeAudio && track && track.source.kind !== "none")) && <AppButton type="button" size="sm" variant="quiet" onClick={() => { setAudioFile(null); setAudioUrl(""); setRemoveAudio(true); if (audioInput.current) audioInput.current.value = ""; }}>移除音频</AppButton>}
+        {(audioFile || audioUrl || (!removeAudio && track && track.source.kind !== "none")) && <AppButton data-dirties type="button" size="sm" variant="quiet" onClick={() => { setAudioFile(null); setAudioUrl(""); setRemoveAudio(true); if (audioInput.current) audioInput.current.value = ""; }}>移除音频</AppButton>}
         {removeAudio && !audioFile && !audioUrl && <p className="text-xs text-amber-200">保存后将移除音频，歌曲信息和对决记录会保留。</p>}
         <p className="text-xs text-slate-500">请使用你有权使用的音频。平台歌曲页面链接不能直接播放；也可以暂不添加音频。</p>
       {reading && <div role="status" className="flex flex-wrap items-center gap-3 text-sm"><span>正在读取本地歌名、歌手和封面…</span><AppButton type="button" variant="quiet" onClick={() => { reader.current?.abort(); setReading(false); setMetadataNote("已跳过自动读取，可手动填写"); }}>跳过自动读取</AppButton></div>}

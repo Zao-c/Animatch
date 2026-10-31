@@ -9,9 +9,9 @@ import { LocalSongCover } from "./LocalSongCover";
 import { createClientUuid } from "@/lib/client-id";
 
 type Item = { key: string; file: File; title: string; artist: string; cover: Blob | null; note: string; status: "queued" | "uploading" | "done" | "failed"; data?: FormData };
-export function SongBatchImport({ tracks, disabled, onSave, onRunning, onCancel }: {
+export function SongBatchImport({ tracks, disabled, onSave, onRunning, onCancel, onPendingChange }: {
   tracks: SongTrack[]; disabled: boolean; onSave: (data: FormData) => Promise<boolean>;
-  onRunning: (running: boolean) => void; onCancel: (hasPending: boolean) => void;
+  onRunning: (running: boolean) => void; onCancel: (hasPending: boolean) => void; onPendingChange?: (pending: boolean) => void;
 }) {
   const [items, setItems] = useState<Item[]>([]);
   const [reading, setReading] = useState(false);
@@ -25,6 +25,7 @@ export function SongBatchImport({ tracks, disabled, onSave, onRunning, onCancel 
   useEffect(() => () => { stop.current = true; reader.current?.abort(); }, []);
   const doneKeys = new Set(tracks.flatMap(t => t.importKey ? [t.importKey] : []));
   const pending = items.filter(item => item.status !== "done" && !doneKeys.has(item.key));
+  useEffect(() => { onPendingChange?.(pending.length > 0); }, [pending.length, onPendingChange]);
   const duplicate = (item: Item) => !item.data && [...tracks, ...items.filter(i => i.key !== item.key)].some(t => t.title.trim().toLocaleLowerCase() === item.title.trim().toLocaleLowerCase() && t.artist.trim().toLocaleLowerCase() === item.artist.trim().toLocaleLowerCase());
   async function choose(files: FileList | null) {
     if (!files || active.current) return;
