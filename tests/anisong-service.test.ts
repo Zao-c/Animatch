@@ -124,4 +124,46 @@ describe("music board persistence", () => {
     await deleteSongBoard("owner", "board", { revision: 3 });
     expect(mocks.deleteMany).toHaveBeenCalledWith({ where: { id: "board", ownerId: "owner", revision: 3 } });
   });
+  it("persists a complete tier order atomically and preserves voting history", async () => {
+    const doc = document();
+    doc.events.push({ id: "vote", leftId: "a", rightId: "b", result: "LEFT_WIN" });
+    mocks.findFirst.mockResolvedValue(board(doc));
+    const ranking = (await import("@/lib/anisong/engine")).rankSongs(doc);
+    const rows = Object.fromEntries([
+      ...["s", "a", "b", "c", "d"].map(tier => [tier, ranking.tiers[tier].map(s => s.animeId)]),
+      ["pending", ranking.pending.map(s => s.animeId)]
+    ]) as Record<string, string[]>;
+    for (const ids of Object.values(rows)) {
+      const index = ids.indexOf("b");
+      if (index !== -1) ids.splice(index, 1);
+    }
+    rows.s.unshift("b");
+    const result = await changeSongBoard("owner", "board", { revision: 3, action: "tierLayout", rows });
+    expect(result.document.events).toEqual(doc.events);
+    expect(result.document.manualTiers.a).toBe("s");
+    expect(result.document.manualTiers.b).toBe("s");
+    expect(result.document.manualOrder?.s).toEqual(["b", "a"]);
+    expect(mocks.updateMany.mock.calls[0][0].where.revision).toBe(3);
+    expect(mocks.updateMany.mock.calls[0][0].data).not.toHaveProperty("snapshot");
+  });
+  it("rejects stale tier edits before validating removed song IDs", async () => {
+    await expect(changeSongBoard("owner", "board", { revision: 2, action: "tierLayout", rows: { s: ["missing"] } }))
+      .rejects.toMatchObject({ statusCode: 409 });
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+  });
+  it("resets tier edits without touching scores and preserves excluded overrides", async () => {
+    const doc = document();
+    doc.tracks.push(song("c"));
+    doc.candidateIds = ["a", "b"];
+    doc.manualTiers = { a: "a", c: "s" };
+    doc.manualOrder = { a: ["a"], s: ["c"] };
+    doc.events.push({ id: "vote", leftId: "a", rightId: "b", result: "DRAW" });
+    mocks.findFirst.mockResolvedValue(board(doc));
+    const result = await changeSongBoard("owner", "board", { revision: 3, action: "tierReset" });
+    expect(result.document.manualTiers).toEqual({ c: "s" });
+    expect(result.document.manualOrder?.s).toEqual(["c"]);
+    expect(result.document.events).toEqual(doc.events);
+    expect(result.document.candidateIds).toEqual(["a", "b"]);
+  });
+
 });
