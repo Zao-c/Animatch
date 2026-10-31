@@ -7,7 +7,7 @@ import { usePlaybackPreferences } from "./SongPlaybackPreferences";
 const PLAY_EVENT = "anisong:play";
 const timestamp = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 export type PlaybackState = "idle" | "loading" | "playing";
-export function SongPlayer({ track, boardId, shortcut, disabled = false, onPlaybackChange }: { track: SongTrack; boardId: string; shortcut?: "q" | "e"; disabled?: boolean; onPlaybackChange?: (state: PlaybackState) => void }) {
+export function SongPlayer({ track, boardId, shortcut, disabled = false, onPlaybackChange, compact = false }: { compact?: boolean; track: SongTrack; boardId: string; shortcut?: "q" | "e"; disabled?: boolean; onPlaybackChange?: (state: PlaybackState) => void }) {
   const audio = useRef<HTMLAudioElement>(null);
   const wanted = useRef(false), generation = useRef(0);
   const resolution = useRef<AbortController | null>(null);
@@ -102,7 +102,7 @@ export function SongPlayer({ track, boardId, shortcut, disabled = false, onPlayb
     void tryProvider(0, token, restart);
   }
   if (!hasAudio) return <p className="rounded-xl border border-dashed border-white/15 p-3 text-xs leading-5 text-slate-400">尚未添加音频，可凭印象选择或在曲单中补充。</p>;
-  return <div className={`space-y-2 rounded-xl border p-2 transition-colors sm:p-3 ${playing || loading ? "border-anime-cyan/30 bg-anime-cyan/5" : "border-white/10 bg-slate-950/30"}`}>
+  return <div className={`space-y-2 rounded-xl border p-2 transition-colors ${compact ? "bg-slate-950/90 shadow-lg backdrop-blur-xl" : "sm:p-3"} ${playing || loading ? "border-anime-cyan/30 bg-anime-cyan/5" : compact ? "border-white/15" : "border-white/10 bg-slate-950/30"}`}>
     <audio ref={audio} preload="none"
       onLoadedMetadata={event => { const element = event.currentTarget; if (element.currentSrc !== attempt.current.activeUrl) return; setDuration(Number.isFinite(element.duration) ? element.duration : null); if (active.current.start >= element.duration) { advance("试听起点超出音频长度，请编辑调整"); } else element.currentTime = active.current.start; }}
       onPlay={event => { if (!wanted.current || event.currentTarget.currentSrc !== attempt.current.activeUrl) { event.currentTarget.pause(); return; } window.dispatchEvent(new CustomEvent(PLAY_EVENT, { detail: event.currentTarget })); setPlaying(true); }}
@@ -112,12 +112,15 @@ export function SongPlayer({ track, boardId, shortcut, disabled = false, onPlayb
       onPause={() => setPlaying(false)} onEnded={() => { wanted.current = false; clearTimer(); setLoading(false); setPlaying(false); }}
       onError={event => { if (wanted.current && !attempt.current.resolving && event.currentTarget.error) advance("音频加载失败"); }}
       onTimeUpdate={event => { const element = event.currentTarget; const boundary = Math.min(active.current.start + active.current.length, Number.isFinite(element.duration) ? element.duration : Infinity); setElapsed(Math.max(0, Math.min(active.current.length, element.currentTime - active.current.start))); if (element.currentTime >= boundary) { wanted.current = false; clearTimer(); element.pause(); setLoading(false); } }} />
-    <div className="flex items-center gap-2 sm:gap-3">
-      <button type="button" disabled={disabled} onClick={() => toggle()} aria-label={`${playing || loading ? "暂停" : "试听"} ${track.title}`} aria-keyshortcuts={shortcut} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-anime-cyan/40 bg-anime-cyan/10 text-lg text-anime-cyan hover:bg-anime-cyan/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-200 disabled:opacity-40">{loading ? "…" : playing ? "Ⅱ" : "▶"}</button>
-      <label className="min-w-0 flex-1 text-[10px] text-slate-400 sm:text-xs"><span className="flex flex-wrap justify-between gap-x-1"><span>{loading ? "正在加载" : playing ? "正在试听" : "试听片段"}</span><span className="whitespace-nowrap tabular-nums">{timestamp(elapsed)} / {timestamp(length)}</span></span>
+    <div className={compact ? "flex flex-col items-center gap-1 sm:flex-row sm:gap-3" : "flex items-center gap-2 sm:gap-3"}>
+      <button type="button" disabled={disabled} onClick={() => toggle()} aria-label={`${playing || loading ? "暂停" : "试听"} ${track.title}`} aria-keyshortcuts={shortcut} className={`flex ${compact ? "h-9 w-9 sm:h-11 sm:w-11" : "h-11 w-11"} shrink-0 items-center justify-center rounded-full border border-anime-cyan/40 bg-anime-cyan/10 text-lg text-anime-cyan hover:bg-anime-cyan/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-200 disabled:opacity-40`}>{loading ? "…" : playing ? "Ⅱ" : "▶"}</button>
+      <label className="w-full min-w-0 flex-1 text-[10px] text-slate-400 sm:text-xs"><span className="flex flex-wrap justify-between gap-x-1"><span className={compact ? "hidden sm:inline" : ""}>{loading ? "正在加载" : playing ? "正在试听" : "试听片段"}</span><span className="whitespace-nowrap tabular-nums">{timestamp(elapsed)} / {timestamp(length)}</span></span>
         <input aria-label={`${track.title} 试听进度`} className="mt-2 h-2 w-full accent-teal-300" type="range" min={0} max={length} step={0.1} value={Math.min(elapsed, length)} disabled={duration === null} onChange={event => { if (audio.current) { audio.current.currentTime = clip.start + Number(event.target.value); setElapsed(Number(event.target.value)); } }} />
       </label>
     </div>
+    <details open={compact ? undefined : true} className={compact ? "relative" : ""}>
+      <summary className={compact ? "min-h-6 cursor-pointer text-right text-[10px] text-slate-400" : "hidden"} aria-label="音量与音源详情">音源详情</summary>
+      <div className={compact ? "absolute inset-x-0 bottom-full z-30 mb-3 space-y-2 rounded-xl border border-white/15 bg-slate-950 p-3 shadow-xl" : "space-y-2"}>
     <div className="flex flex-wrap items-start justify-between gap-x-2 text-xs text-slate-400">
       <button type="button" disabled={disabled || loading} aria-label={`重播片段 ${track.title}`} onClick={() => toggle(true)} className="min-h-9 text-left hover:text-anime-cyan disabled:opacity-40">↺ 重播</button>
       <details className="min-w-0 flex-1 text-right"><summary className="min-h-9 cursor-pointer py-2">音量</summary><input aria-label={`${track.title} 音量`} type="range" min={0} max={1} step={0.05} value={volume} className="h-8 w-full min-w-0 accent-teal-300" onChange={event => { const value = Number(event.target.value); window.dispatchEvent(new CustomEvent("anisong:volume", { detail: value })); try { localStorage.setItem("anisong.volume", String(value)); } catch { /* Optional preference storage. */ } }} /></details>
@@ -125,6 +128,8 @@ export function SongPlayer({ track, boardId, shortcut, disabled = false, onPlayb
     <p className="text-[10px] leading-5 text-slate-400">{provider ? AUDIO_PROVIDER_LABELS[provider] : track.source.kind === "pool" ? "公共音频池" : track.source.kind === "itunes" ? "iTunes" : "原音源"}{trial ? " · 平台试听片段" : ""}</p>
     {track.source.kind === "netease" && <a href={`https://music.163.com/#/song?id=${track.source.id}`} target="_blank" rel="noreferrer" className="block text-[10px] text-slate-400 underline">网易云音乐 ↗</a>}
     {storeUrl && <p className="text-[10px] leading-5 text-slate-400"><a href={storeUrl} target="_blank" rel="noreferrer" className="underline hover:text-anime-cyan">在 iTunes 中查看 ↗</a>{provider === "itunes" && <span className="block">provided courtesy of iTunes</span>}</p>}
+      </div>
+    </details>
     {notice && <p role="status" className="text-[10px] leading-5 text-cyan-200">{notice}</p>}
     {error && <p role="alert" className="text-xs leading-5 text-amber-200">{error}</p>}
   </div>;
