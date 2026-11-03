@@ -3,13 +3,15 @@ import { ok, fromError } from "@/lib/api-response";
 import { prisma } from "@/lib/db";
 import { createSongBoard } from "@/lib/anisong/service";
 import { songJson } from "@/lib/anisong/audio-storage";
+import { songBoardSummary } from "@/lib/anisong/summary";
 export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const user = await requireCurrentUser();
     const boards = await prisma.songBoard.findMany({ where: { ownerId: user.id }, orderBy: { updatedAt: "desc" },
-      select: { id: true, title: true, updatedAt: true } });
-    return ok({ boards }, { headers: { "Cache-Control": "private, no-store" } });
+      select: { id: true, title: true, updatedAt: true, templateId: true, document: true } });
+    // Return only card summaries; do not require one full-board API call per card.
+    return ok({ boards: boards.map(songBoardSummary) }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (e) { return fromError(e); }
 }
 export async function POST(request: Request) {
