@@ -26,7 +26,10 @@ export async function GET(_request: Request, { params }: { params: { templateId:
     // One contribution per account; song identity must still match the current public version.
     const byOwner = new Map<string, SongDocument>();
     if (source) byOwner.set(source.ownerId, source.document as unknown as SongDocument);
-    for (const run of runs) if (!byOwner.has(run.ownerId)) byOwner.set(run.ownerId, run.document as unknown as SongDocument);
+    for (const run of runs) {
+      const doc = run.document as unknown as SongDocument;
+      if (!byOwner.has(run.ownerId) || (byOwner.get(run.ownerId)?.events.length ?? 0) < doc.events.length) byOwner.set(run.ownerId, doc);
+    }
     const scores = new Map<string, { totalElo: number; participants: number; comparisons: number; track: SongTrack }>(
       publicDoc.tracks.map(track => [track.id, { track, totalElo: 0, participants: 0, comparisons: 0 }])
     );

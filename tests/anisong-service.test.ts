@@ -1,15 +1,16 @@
 import type { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { addSongTrack, changeSongBoard, deleteSongBoard, ownedSongBoard } from "@/lib/anisong/service";
+import { addSongTrack, changeSongBoard, createSongBoard, deleteSongBoard, ownedSongBoard } from "@/lib/anisong/service";
 import { emptySongDocument, MAX_BOARD_AUDIO_BYTES, MAX_TRACKS, type SongDocument, type SongTrack } from "@/lib/anisong/types";
 const mocks = vi.hoisted(() => ({
   findFirst: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn(), discardAudio: vi.fn(),
+  boardCreate: vi.fn(), boardCount: vi.fn(), templateCreate: vi.fn(),
   templateFind: vi.fn(), templateUpdate: vi.fn(), templateDelete: vi.fn()
 }));
 vi.mock("@/lib/db", () => {
   const prisma = {
-    songBoard: mocks,
-    songTemplate: { findUnique: mocks.templateFind, update: mocks.templateUpdate, deleteMany: mocks.templateDelete },
+    songBoard: { ...mocks, create: mocks.boardCreate, count: mocks.boardCount },
+    songTemplate: { findUnique: mocks.templateFind, update: mocks.templateUpdate, deleteMany: mocks.templateDelete, create: mocks.templateCreate },
     $transaction: async (callback: (tx: unknown) => Promise<unknown>) => callback(prisma)
   };
   return { prisma };
@@ -18,8 +19,16 @@ vi.mock("@/lib/anisong/audio-storage", () => ({ discardAudio: mocks.discardAudio
 const song = (id: string): SongTrack => ({ id, title: id, artist: "", anime: "", kind: "OP", year: null, quarter: null, tags: [], clipStart: 0, clipLength: 30, source: { kind: "none" } });
 const document = (): SongDocument => ({ ...emptySongDocument(), tracks: [song("a"), song("b")] });
 const board = (doc = document()) => ({ id: "board", ownerId: "owner", title: "test", revision: 3, templateId: null, templateRevision: null, document: doc as unknown as Prisma.JsonValue, shareToken: null, snapshot: null, createdAt: new Date(), updatedAt: new Date() });
-beforeEach(() => { vi.resetAllMocks(); mocks.findFirst.mockResolvedValue(board()); mocks.updateMany.mockResolvedValue({ count: 1 }); mocks.deleteMany.mockResolvedValue({ count: 1 }); mocks.templateFind.mockResolvedValue(null); mocks.templateDelete.mockResolvedValue({ count: 0 }); });
+beforeEach(() => { vi.resetAllMocks(); mocks.findFirst.mockResolvedValue(board()); mocks.updateMany.mockResolvedValue({ count: 1 }); mocks.deleteMany.mockResolvedValue({ count: 1 }); mocks.boardCount.mockResolvedValue(0); mocks.boardCreate.mockResolvedValue(board(emptySongDocument())); mocks.templateCreate.mockResolvedValue({ id: "public" }); mocks.templateFind.mockResolvedValue(null); mocks.templateDelete.mockResolvedValue({ count: 0 }); });
 describe("music board persistence", () => {
+  it("defaults to public metadata but supports opt-out during creation", async () => {
+    await createSongBoard("owner", { title: "我的OP" });
+    expect(mocks.templateCreate).toHaveBeenCalledOnce();
+    expect(mocks.templateCreate.mock.calls[0][0].data).toMatchObject({ title: "我的OP", ownerId: "owner", sourceBoardId: "board" });
+    mocks.templateCreate.mockClear();
+    await createSongBoard("owner", { title: "私人曲单", isPublic: false });
+    expect(mocks.templateCreate).not.toHaveBeenCalled();
+  });
   it("accepts the 65th and 1000th track, rejects the 1001st, and allows edits at capacity", async () => {
     for (const count of [64, MAX_TRACKS - 1]) {
       const doc = { ...emptySongDocument(), tracks: Array.from({ length: count }, (_, i) => song(`annual-${i}`)) };

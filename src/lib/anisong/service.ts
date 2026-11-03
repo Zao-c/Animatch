@@ -44,10 +44,11 @@ export async function deleteSongBoard(userId: string, id: string, value: unknown
   const board = await ownedSongBoard(userId, id);
   if (revision !== board.revision) throw new AppError("曲单已更新，请重新载入后删除", 409);
   await prisma.$transaction(async transaction => {
+    // Delete the template before its source; onDelete:SetNull otherwise orphans it.
+    // A revision conflict rolls the entire transaction back.
+    await transaction.songTemplate.deleteMany({ where: { sourceBoardId: id } });
     const removed = await transaction.songBoard.deleteMany({ where: { id, ownerId: userId, revision } });
     if (removed.count !== 1) throw new AppError("曲单已更新，请重新载入后删除", 409);
-    // Removing the source also withdraws its public listing; existing personal runs remain.
-    await transaction.songTemplate.deleteMany({ where: { sourceBoardId: id } });
   });
   const document = board.document as unknown as SongDocument;
   await Promise.all(document.tracks.map(t => t.source.kind === "upload" ? discardAudio(t.source.key) : Promise.resolve()));
