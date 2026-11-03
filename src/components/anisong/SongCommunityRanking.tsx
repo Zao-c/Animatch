@@ -10,8 +10,13 @@ export function SongCommunityRanking({ templateId }: { templateId: string | null
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [mode, setMode] = useState<"ranking" | "tier">("ranking");
+  const [search, setSearch] = useState("");
+  const [visibleLimit, setVisibleLimit] = useState(30);
+  const searchTerm = search.trim().toLocaleLowerCase();
+  const filteredRows = (data?.rows ?? []).filter(song => !searchTerm ||
+    [song.title, song.artist, song.anime].join(" ").toLocaleLowerCase().includes(searchTerm));
   useEffect(() => {
-    setData(null); setError("");
+    setData(null); setError(""); setSearch(""); setVisibleLimit(30);
     if (!templateId) return;
     const controller = new AbortController(); setLoading(true);
     songRequest<CommunityData>(`/api/anisong/templates/${templateId}/community-ranking`, { signal: controller.signal })
@@ -31,8 +36,16 @@ export function SongCommunityRanking({ templateId }: { templateId: string | null
       {data.provisional && <p className="rounded-lg border border-amber-300/20 bg-amber-300/5 p-3 text-xs text-amber-100">目前参与样本较少，排名仅供参考；人数增加后将更稳定。</p>}
       {data.sampled && <p className="text-xs text-slate-400">当前只统计最近的 250 份有效参与记录。</p>}
       <div role="tablist" aria-label="社区榜展示方式" className="flex gap-2"><button type="button" role="tab" aria-selected={mode === "ranking"} onClick={() => setMode("ranking")} className={"rounded-xl border px-4 py-2 text-sm " + (mode === "ranking" ? "border-anime-cyan/60 bg-anime-cyan/10 text-cyan-100" : "border-white/10 text-slate-300")}>社区排名</button><button type="button" role="tab" aria-selected={mode === "tier"} onClick={() => setMode("tier")} className={"rounded-xl border px-4 py-2 text-sm " + (mode === "tier" ? "border-anime-cyan/60 bg-anime-cyan/10 text-cyan-100" : "border-white/10 text-slate-300")}>社区 Tier List</button></div>
+      {mode === "ranking" && <div className="flex flex-wrap items-center justify-between gap-2">
+        <input type="search" aria-label="搜索社区榜歌曲" placeholder="搜索歌曲、歌手或所属动画…" className="anime-field w-full min-w-0 sm:max-w-sm"
+          value={search} onChange={event => { setSearch(event.target.value); setVisibleLimit(30); }} />
+        <p className="text-xs text-slate-400">显示 {Math.min(visibleLimit, filteredRows.length)} / {filteredRows.length} 首</p>
+      </div>}
       {data.rows.length === 0 ? <p className="rounded-xl border border-dashed border-white/15 p-8 text-sm text-slate-400">还没有有效的社区对决。参与第一场对决后，就会有真实排名。</p> :
-        mode === "ranking" ? <div className="grid gap-3 lg:grid-cols-2">{data.rows.map((song,index) => <article key={song.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/20 p-3"><span className="w-6 shrink-0 text-center text-sm font-bold text-cyan-100">{index + 1}</span><SongCover src={song.coverUrl} title={song.title} className="w-14 shrink-0" /><div className="min-w-0 flex-1"><p className="line-clamp-2 text-sm font-bold">{song.title}</p><p className="truncate text-xs text-slate-300">{song.anime || song.artist || "动画信息未填写"}</p><p className="text-xs text-slate-500">{song.participants} 人评价 · {song.comparisons} 次比较</p></div><div className="shrink-0 text-right"><p className="font-bold tabular-nums">{song.score.toFixed(1)}</p><p className="text-[10px] text-slate-400">社区分</p></div></article>)}</div> :
+        mode === "ranking" ? <div className="grid gap-3 lg:grid-cols-2">{filteredRows.slice(0, visibleLimit).map((song,index) => <article key={song.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/20 p-3"><span className="w-6 shrink-0 text-center text-sm font-bold text-cyan-100">{index + 1}</span><SongCover src={song.coverUrl} title={song.title} className="w-14 shrink-0" /><div className="min-w-0 flex-1"><p className="line-clamp-2 text-sm font-bold">{song.title}</p><p className="truncate text-xs text-slate-300">{song.anime || song.artist || "动画信息未填写"}</p><p className="text-xs text-slate-500">{song.participants} 人评价 · {song.comparisons} 次比较</p></div><div className="shrink-0 text-right"><p className="font-bold tabular-nums">{song.score.toFixed(1)}</p><p className="text-[10px] text-slate-400">社区分</p></div></article>)}
+          {!filteredRows.length && <p className="p-5 text-sm text-slate-400">没有符合关键词的歌曲，可以尝试别的歌名或动画名。</p>}
+          {filteredRows.length > visibleLimit && <div className="flex justify-center lg:col-span-2"><button type="button" className="min-h-11 rounded-xl border border-anime-purple/40 px-5 py-2 text-sm font-semibold text-slate-200 hover:bg-white/5" onClick={() => setVisibleLimit(value => value + 30)}>再显示 30 首（剩余 {filteredRows.length - visibleLimit} 首）</button></div>}
+        </div> :
         <div className="space-y-3">{TIER_ORDER.map((tier,index) => {
           // Spread the ranked songs across as many tiers as they actually fill, so few participants never leave a gap (S, B).
           const buckets = Math.min(TIER_ORDER.length, Math.max(1, data.rows.length));
