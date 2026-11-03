@@ -8,6 +8,10 @@ describe("public music playlist usability", () => {
     expect(detail).toContain("filteredTracks.slice(0, visibleLimit)");
     expect(detail).toContain("setVisibleLimit(value => value + 48)");
   });
+  it("scrolls header shortcuts to the target panel after switching sections", () => {
+    expect(detail).toContain("tabsRef.current?.scrollIntoView");
+    expect(detail).toContain('aria-controls="song-public-tab-panel"');
+  });
   it("does not offer an inert source-setting panel before the user can actually play", () => {
     expect(detail).not.toContain("<SongPlaybackPreferences");
     expect(detail).toContain("试听请点击");

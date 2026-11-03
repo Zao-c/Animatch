@@ -18,6 +18,11 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
   const [tab, setTab] = useState<"songs" | "community">("songs");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const tabsRef = useRef<HTMLElement>(null);
+  function openCommunity() {
+    setTab("community");
+    window.requestAnimationFrame(() => tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<"" | SongKind>("");
   const [visibleLimit, setVisibleLimit] = useState(48);
@@ -52,16 +57,16 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
             <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-bold text-cyan-100">个人音乐对决</h2><span className="text-xs text-slate-400">{template.trackCount} 首歌曲</span></div>
             <AppButton variant="primary" size="lg" className="w-full" disabled={busy || template.trackCount < 2} onClick={() => void start()}>{busy ? "正在准备…" : template.trackCount < 2 ? "至少两首歌曲后可参加" : "开始 / 继续个人对决"}</AppButton>
           </section>
-          <div className="mt-3 grid grid-cols-2 gap-3"><AppButton variant="secondary" onClick={() => setTab("community")}>查看社区榜</AppButton><SongShareButton path={`/anisong/templates/${templateId}`} /></div>
+          <div className="mt-3 grid grid-cols-2 gap-3"><AppButton variant="secondary" onClick={openCommunity}>查看社区榜</AppButton><SongShareButton path={`/anisong/templates/${templateId}`} /></div>
           {template.mine && template.ownerBoardId && <Link className="mt-3 block rounded-xl border border-white/10 py-2 text-center text-sm font-semibold text-slate-200 hover:bg-white/5" href={`/anisong/${template.ownerBoardId}`}>管理我创建的曲单</Link>}
           <p className="mt-3 text-center text-xs text-slate-400">分享曲单只复制网址，不会发布或分享音频</p>
         </AppCard>
       </header>
-      <nav role="tablist" aria-label="公共曲单导航" className="flex gap-1 rounded-2xl border border-anime-border bg-anime-panel p-1.5">
-        <button type="button" role="tab" aria-selected={tab === "songs"} onClick={() => setTab("songs")} className={"min-h-11 rounded-xl px-4 text-sm font-semibold " + (tab === "songs" ? "bg-anime-purple/20 text-purple-100" : "text-slate-300")}>歌曲谱 {template.trackCount}</button>
-        <button type="button" role="tab" aria-selected={tab === "community"} onClick={() => setTab("community")} className={"min-h-11 rounded-xl px-4 text-sm font-semibold " + (tab === "community" ? "bg-anime-purple/20 text-purple-100" : "text-slate-300")}>社区榜</button>
+      <nav ref={tabsRef} role="tablist" aria-label="公共曲单导航" className="scroll-mt-24 flex gap-1 rounded-2xl border border-anime-border bg-anime-panel p-1.5">
+        <button type="button" role="tab" aria-controls="song-public-tab-panel" aria-selected={tab === "songs"} onClick={() => setTab("songs")} className={"min-h-11 rounded-xl px-4 text-sm font-semibold " + (tab === "songs" ? "bg-anime-purple/20 text-purple-100" : "text-slate-300")}>歌曲谱 {template.trackCount}</button>
+        <button type="button" role="tab" aria-controls="song-public-tab-panel" aria-selected={tab === "community"} onClick={() => setTab("community")} className={"min-h-11 rounded-xl px-4 text-sm font-semibold " + (tab === "community" ? "bg-anime-purple/20 text-purple-100" : "text-slate-300")}>社区榜</button>
       </nav>
-      {tab === "songs" ? <AppCard className="space-y-4 p-4 sm:p-5">
+      {tab === "songs" ? <AppCard id="song-public-tab-panel" role="tabpanel" className="space-y-4 p-4 sm:p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div><p className="text-[11px] font-bold tracking-widest text-cyan-200/70">SONG LIBRARY</p><h2 className="mt-1 text-xl font-bold">歌曲谱</h2></div>
           <p className="text-xs text-slate-400">试听请点击「开始个人对决」，这里先查看公开曲目信息。</p>
@@ -87,7 +92,7 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
         </div> : <p className="rounded-xl border border-dashed border-white/15 p-8 text-center text-sm text-slate-400">{template.document.tracks.length ? "没有符合条件的歌曲，可以修改关键词或清除筛选。" : "创建者还没有添加歌曲，稍后再来看看。"}</p>}
         {filteredTracks.length > visibleLimit && <div className="flex justify-center"><AppButton variant="secondary" onClick={() => setVisibleLimit(value => value + 48)}>再显示 48 首（剩余 {filteredTracks.length - visibleLimit} 首）</AppButton></div>}
         <p className="text-xs text-slate-500">个人对决会保留自己的试听设置和排序进度，未授权的上传音频不会公开。</p>
-      </AppCard> : <AppCard className="p-4 sm:p-5"><SongCommunityRanking templateId={templateId} /></AppCard>}
+      </AppCard> : <AppCard id="song-public-tab-panel" role="tabpanel" className="p-4 sm:p-5"><SongCommunityRanking templateId={templateId} /></AppCard>}
     </>}
   </div>;
 }
