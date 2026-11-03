@@ -24,6 +24,14 @@ describe("AniSong lobby navigation and clipboard parity", () => {
     expect(lobby).not.toContain("details[item.id]");
   });
 
+  it("redirects guests to login before showing create/mine-only actions", () => {
+    const create = readFileSync("src/app/anisong/create/page.tsx", "utf8");
+    const mine = readFileSync("src/app/anisong/mine/page.tsx", "utf8");
+    expect(create).toContain('getCurrentUser()');
+    expect(create).toContain('redirect("/login?next=%2Fanisong%2Fcreate")');
+    expect(mine).toContain('redirect("/login?next=%2Fanisong%2Fmine")');
+  });
+
   it("reuses the existing fallback copier for music playlist sharing", () => {
     expect(share).toContain('from "@/lib/browser-copy"');
     expect(share).toContain("copyTextWithFallback(url)");
