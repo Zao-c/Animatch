@@ -14,7 +14,7 @@ import { SongPlaybackPreferences } from "./SongPlaybackPreferences";
 
 export function SongTemplateDetail({ templateId }: { templateId: string }) {
   const router = useRouter(); const lock = useRef(false);
-  const [template, setTemplate] = useState<(SongTemplateView & { document: SongDocument }) | null>(null);
+  const [template, setTemplate] = useState<(SongTemplateView & { document: SongDocument; ownerBoardId?: string | null }) | null>(null);
   const [tab, setTab] = useState<"songs" | "community">("songs");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -31,7 +31,7 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
     {!template ? !error && <p role="status">正在加载曲单…</p> : <>
       <header className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,540px)]">
         <div className="min-w-0">
-          <div className="flex flex-wrap gap-2"><AppBadge tone="success">公开</AppBadge><AppBadge>{template.trackCount} 首歌曲</AppBadge><AppBadge tone="source">音乐</AppBadge><AppBadge>{template.playableCount} 首可试听</AppBadge></div>
+          <div className="flex flex-wrap gap-2"><AppBadge tone="success">公开</AppBadge>{template.mine && <AppBadge tone="status">我创建的</AppBadge>}<AppBadge>{template.trackCount} 首歌曲</AppBadge><AppBadge tone="source">音乐</AppBadge><AppBadge>{template.playableCount} 首可试听</AppBadge></div>
           <h1 className="mt-3 break-words text-3xl font-black tracking-tight text-white sm:text-4xl">{template.title}</h1>
           <p className="mt-3 text-sm text-slate-400">由 {template.ownerName} 创建 · 版本 {template.revision} · 参加后独立保存个人对决进度</p>
         </div>
@@ -41,6 +41,7 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
             <AppButton variant="primary" size="lg" className="w-full" disabled={busy || template.trackCount < 2} onClick={() => void start()}>{busy ? "正在准备…" : template.trackCount < 2 ? "至少两首歌曲后可参加" : "开始 / 继续个人对决"}</AppButton>
           </section>
           <div className="mt-3 grid grid-cols-2 gap-3"><AppButton variant="secondary" onClick={() => setTab("community")}>查看社区榜</AppButton><SongShareButton path={`/anisong/templates/${templateId}`} /></div>
+          {template.mine && template.ownerBoardId && <Link className="mt-3 block rounded-xl border border-white/10 py-2 text-center text-sm font-semibold text-slate-200 hover:bg-white/5" href={`/anisong/${template.ownerBoardId}`}>管理我创建的曲单</Link>}
           <p className="mt-3 text-center text-xs text-slate-400">分享曲单只复制网址，不会发布或分享音频</p>
         </AppCard>
       </header>
