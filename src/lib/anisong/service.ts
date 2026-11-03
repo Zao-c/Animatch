@@ -11,6 +11,7 @@ import { cleanSongCovers, songCoverReferences } from "./cover-storage";
 import type { SongSnapshot } from "./types";
 import { selectedSongIds, songBulkPatch, changeSongCandidates } from "./bulk";
 import { applySongTierLayout, resetSongTierLayout, SONG_EDITABLE_TIERS } from "./tier-layout";
+import { publicSongDocument } from "./publication";
 
 export async function ownedSongBoard(userId: string, id: string) {
   const board = await prisma.songBoard.findFirst({ where: { id, ownerId: userId } });
@@ -26,27 +27,49 @@ export async function createSongBoard(userId: string, value: unknown) {
   const input = objectInput(value);
   const title = textInput(input.title, "曲单名称", 80, true);
   if (await prisma.songBoard.count({ where: { ownerId: userId, templateId: null } }) >= 30) throw new AppError("最多创建30个曲单", 400);
-  const board = await prisma.songBoard.create({ data: { ownerId: userId, title,
-    document: emptySongDocument() as unknown as Prisma.InputJsonValue } });
+  // New playlists are discoverable by default. No private/uploaded audio is published.
+  const board = await prisma.$transaction(async transaction => {
+    const created = await transaction.songBoard.create({ data: { ownerId: userId, title,
+      document: emptySongDocument() as unknown as Prisma.InputJsonValue } });
+    if (input.isPublic !== false) await transaction.songTemplate.create({ data: {
+      ownerId: userId, sourceBoardId: created.id, title,
+      document: emptySongDocument() as unknown as Prisma.InputJsonValue
+    } });
+    return created;
+  });
   return boardView(board);
 }
 export async function deleteSongBoard(userId: string, id: string, value: unknown) {
   const revision = revisionInput(objectInput(value).revision);
   const board = await ownedSongBoard(userId, id);
   if (revision !== board.revision) throw new AppError("曲单已更新，请重新载入后删除", 409);
-  const removed = await prisma.songBoard.deleteMany({ where: { id, ownerId: userId, revision } });
-  if (removed.count !== 1) throw new AppError("曲单已更新，请重新载入后删除", 409);
+  await prisma.$transaction(async transaction => {
+    const removed = await transaction.songBoard.deleteMany({ where: { id, ownerId: userId, revision } });
+    if (removed.count !== 1) throw new AppError("曲单已更新，请重新载入后删除", 409);
+    // Removing the source also withdraws its public listing; existing personal runs remain.
+    await transaction.songTemplate.deleteMany({ where: { sourceBoardId: id } });
+  });
   const document = board.document as unknown as SongDocument;
   await Promise.all(document.tracks.map(t => t.source.kind === "upload" ? discardAudio(t.source.key) : Promise.resolve()));
   await cleanSongCovers(songCoverReferences(document, board.snapshot as unknown as SongSnapshot | null), new Set());
   return { deleted: true };
 }
 export async function saveSongBoard(board: StoredBoard, expectedRevision: number, document: SongDocument,
-  extra: { title?: string; shareToken?: string | null; snapshot?: Prisma.InputJsonValue | typeof Prisma.DbNull } = {}) {
+  extra: { title?: string; shareToken?: string | null; snapshot?: Prisma.InputJsonValue | typeof Prisma.DbNull } = {}, syncPublic = true) {
   if (expectedRevision !== board.revision) throw new AppError("曲单已在其他页面更新，请重新载入后再操作", 409);
-  const changed = await prisma.songBoard.updateMany({ where: { id: board.id, ownerId: board.ownerId, revision: expectedRevision },
-    data: { document: document as unknown as Prisma.InputJsonValue, revision: { increment: 1 }, ...extra } });
-  if (changed.count !== 1) throw new AppError("曲单已在其他页面更新，请重新载入后再操作", 409);
+  await prisma.$transaction(async transaction => {
+    const changed = await transaction.songBoard.updateMany({ where: { id: board.id, ownerId: board.ownerId, revision: expectedRevision },
+      data: { document: document as unknown as Prisma.InputJsonValue, revision: { increment: 1 }, ...extra } });
+    if (changed.count !== 1) throw new AppError("曲单已在其他页面更新，请重新载入后再操作", 409);
+    if (syncPublic && !board.templateId) {
+      const template = await transaction.songTemplate.findUnique({ where: { sourceBoardId: board.id } });
+      if (template) await transaction.songTemplate.update({ where: { id: template.id }, data: {
+        title: extra.title ?? board.title,
+        document: publicSongDocument(document, template.document as unknown as SongDocument) as unknown as Prisma.InputJsonValue,
+        revision: { increment: 1 }
+      } });
+    }
+  });
   const nextSnapshot = extra.snapshot === Prisma.DbNull ? null : extra.snapshot ?? board.snapshot;
   await cleanSongCovers(
     songCoverReferences(board.document as unknown as SongDocument, board.snapshot as unknown as SongSnapshot | null),
@@ -165,7 +188,7 @@ export async function changeSongBoard(userId: string, id: string, value: unknown
     case "unpublish": extra.shareToken = null; extra.snapshot = Prisma.DbNull; break;
     default: throw new AppError("不支持的操作", 400);
   }
-  const result = await saveSongBoard(board, revision, document, extra);
+  const result = await saveSongBoard(board, revision, document, extra, ["bulkEdit", "candidateSelection", "candidates", "rename", "remove"].includes(String(input.action)));
   if (removedAudio) await discardAudio(removedAudio);
   return result;
 }

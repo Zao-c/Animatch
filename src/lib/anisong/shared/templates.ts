@@ -78,7 +78,8 @@ export async function startSongTemplate(userId: string, templateId: string) {
   if (await prisma.songBoard.count({ where: { ownerId: userId, templateId: { not: null } } }) >= 200) throw new AppError("最多保留200份公共曲单对决进度，请先整理个人曲单", 400);
   const document = templateDocument((template.document as unknown as SongDocument).tracks);
   const playableIds = document.tracks.filter(t => t.source.kind === "pool" || t.itunes || t.source.kind === "itunes").map(t => t.id);
-  if (playableIds.length !== document.tracks.length) document.candidateIds = playableIds;
+  // Metadata-only public playlists are still rankable from memory when no audio is licensed.
+  if (playableIds.length >= 2 && playableIds.length !== document.tracks.length) document.candidateIds = playableIds;
   const board = await prisma.songBoard.upsert({ where: { ownerId_templateId: { ownerId: userId, templateId } }, update: {}, create: { ownerId: userId, templateId, templateRevision: template.revision, title: template.title, document: document as unknown as Prisma.InputJsonValue } });
   return boardView(board);
 }

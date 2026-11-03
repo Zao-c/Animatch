@@ -41,7 +41,7 @@ export function SongLobby() {
     lock.current = true; setBusy(true); setError("");
     try {
       const board = await songRequest<SongBoardView>("/api/anisong/boards", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title })
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, isPublic: (document.getElementById("song-new-public") as HTMLInputElement | null)?.checked ?? true })
       });
       router.push(`/anisong/${board.id}`);
     } catch (e) { setError(e instanceof Error ? e.message : "创建失败"); }
@@ -65,7 +65,8 @@ export function SongLobby() {
         <p className="text-sm leading-6 text-slate-400">例如「2026 秋季 OP」「摇滚 ED 精选」。先创建曲单，再添加歌曲、选择参赛范围，就能开始对决。</p>
         <label className="block text-sm">曲单名称<input required maxLength={80} className="anime-field mt-2" placeholder="2026 秋季 OP / ED" value={title} onChange={e => setTitle(e.target.value)} /></label>
         <AppButton type="submit" disabled={busy || loading}>{busy ? "正在创建…" : "创建曲单"}</AppButton>
-        <p className="text-xs leading-5 text-slate-500">新曲单默认仅自己可见。公共发布位于曲单设置中，个人 Tier List 分享是独立操作。</p>
+        <label className="flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" defaultChecked id="song-new-public" className="h-4 w-4 accent-teal-300" /> 创建后公开展示曲单（不共享未经授权的音频）</label>
+        <p className="text-xs leading-5 text-slate-500">默认公开，可分享曲单链接；音频共享需另行授权，个人 Tier List 分享是独立操作。</p>
       </form>
       <div id="my-song-playlists">
         <h2 className="mb-4 text-xl font-semibold">我的音乐曲单</h2>
