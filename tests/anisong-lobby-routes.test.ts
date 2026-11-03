@@ -17,6 +17,13 @@ describe("AniSong lobby navigation and clipboard parity", () => {
     expect(readFileSync("src/app/anisong/create/page.tsx", "utf8")).toContain('view="create"');
   });
 
+  it("loads board cards through the summary API instead of N full board fetches", () => {
+    expect(lobby).toContain("SongBoardSummary");
+    expect(lobby).toContain("item.canStart");
+    expect(lobby).not.toContain("Promise.all([worker(), worker(), worker()])");
+    expect(lobby).not.toContain("details[item.id]");
+  });
+
   it("reuses the existing fallback copier for music playlist sharing", () => {
     expect(share).toContain('from "@/lib/browser-copy"');
     expect(share).toContain("copyTextWithFallback(url)");

@@ -6,7 +6,7 @@ import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { songRequest, SongApiError } from "@/lib/anisong/client";
 import type { SongBoardView } from "@/lib/anisong/types";
 import { SongPlaylistCard } from "./SongPlaylistCard";
-import { rankSongs } from "@/lib/anisong/engine";
+import type { SongBoardSummary } from "@/lib/anisong/summary";
 import { SongTemplateGallery } from "./SongTemplateGallery";
 
 export type SongLobbyView = "public" | "mine" | "create";
@@ -43,57 +43,37 @@ export function SongLobby({ view = "public" }: { view?: SongLobbyView }) {
 }
 
 function SongMyBoards() {
-  const [boards, setBoards] = useState<{ id: string; title: string; updatedAt: string }[]>([]);
-  const [details, setDetails] = useState<Record<string, SongBoardView>>({});
-  const [loading, setLoading] = useState(true), [loadingDetails, setLoadingDetails] = useState(true);
+  const [boards, setBoards] = useState<SongBoardSummary[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(""), [login, setLogin] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
-    songRequest<{ boards: typeof boards }>("/api/anisong/boards", { signal: controller.signal })
+    songRequest<{ boards: SongBoardSummary[] }>("/api/anisong/boards", { signal: controller.signal })
       .then(data => { if (!controller.signal.aborted) setBoards(data.boards); })
       .catch(cause => { if (!controller.signal.aborted) { setError(cause instanceof Error ? cause.message : "获取曲单失败"); setLogin(cause instanceof SongApiError && cause.status === 401); } })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, []);
-  useEffect(() => {
-    if (loading) return;
-    const controller = new AbortController();
-    let index = 0;
-    const loaded: Record<string, SongBoardView> = {};
-    setLoadingDetails(true);
-    async function worker() {
-      while (!controller.signal.aborted && index < boards.length) {
-        const current = boards[index++];
-        try { loaded[current.id] = await songRequest<SongBoardView>(`/api/anisong/boards/${current.id}`, { signal: controller.signal }); }
-        catch { /* A card remains navigable if its details cannot load. */ }
-      }
-    }
-    void Promise.all([worker(), worker(), worker()]).then(() => {
-      if (!controller.signal.aborted) { setDetails(loaded); setLoadingDetails(false); }
-    });
-    return () => controller.abort();
-  }, [boards, loading]);
-  const own = boards.filter(item => !details[item.id]?.templateId);
-  const participated = boards.filter(item => Boolean(details[item.id]?.templateId));
+  const own = boards.filter(item => !item.templateId);
+  const participated = boards.filter(item => Boolean(item.templateId));
   function cards(items: typeof boards) {
     return <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{items.map(item => {
-      const board = details[item.id];
-      const tracks = board?.document.tracks ?? [];
-      const progress = board ? rankSongs(board.document).progress.effectiveComparisons : undefined;
       return <SongPlaylistCard key={item.id} title={item.title} href={`/anisong/${item.id}`}
-        covers={tracks.map(track => track.coverUrl)} count={board ? tracks.length : undefined}
-        playable={board ? tracks.filter(track => track.source.kind !== "none" || track.itunes).length : undefined}
-        progress={progress} tag={board?.templateId ? "个人参与" : "我创建的"}>
+        covers={item.covers} count={item.trackCount} playable={item.playableCount}
+        progress={item.progress} tag={item.templateId ? "个人参与" : "我创建的"}>
         <div className="grid grid-cols-2 gap-2">
           <Link href={`/anisong/${item.id}`} className={appButtonClasses({ variant: "ghost", size: "sm", className: "w-full px-2" })}>曲单详情</Link>
-          <Link href={`/anisong/${item.id}/match`} className={appButtonClasses({ variant: "primary", size: "sm", className: "w-full px-2" })}>{progress ? "继续对决" : "开始对决"}</Link>
+          <Link href={item.canStart ? `/anisong/${item.id}/match` : `/anisong/${item.id}`}
+            className={appButtonClasses({ variant: item.canStart ? "primary" : "secondary", size: "sm", className: "w-full px-2" })}>
+            {item.canStart ? item.progress ? "继续对决" : "开始对决" : "完善参赛歌曲"}
+          </Link>
         </div>
       </SongPlaylistCard>;
     })}</div>;
   }
   return <div className="space-y-8">
     {error && <div role="alert" className="rounded-xl border border-amber-300/20 p-4 text-sm text-amber-100">{error}{login && <> · <Link href="/login?next=%2Fanisong%2Fmine" className="underline">登录后查看我的曲单</Link></>}</div>}
-    {loading || loadingDetails ? <p role="status" className="py-8 text-sm text-slate-400">正在加载我的音乐曲单…</p> : !boards.length ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-sm text-slate-300">你还没有音乐曲单。<Link href="/anisong/create" className="ml-2 text-anime-cyan underline">创建第一份曲单 →</Link></div> : <>
+    {loading ? <p role="status" className="py-8 text-sm text-slate-400">正在加载我的音乐曲单…</p> : error ? null : !boards.length ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-sm text-slate-300">你还没有音乐曲单。<Link href="/anisong/create" className="ml-2 text-anime-cyan underline">创建第一份曲单 →</Link></div> : <>
       <section className="space-y-4" aria-label="我创建的曲单"><div className="flex items-center justify-between gap-3"><h2 className="text-xl font-bold">我创建的曲单</h2><span className="text-xs text-slate-400">{own.length} 份</span></div>
         {own.length ? cards(own) : <p className="text-sm text-slate-400">暂无自己创建的曲单。</p>}</section>
       {participated.length > 0 && <section className="space-y-4" aria-label="我参加的公共曲单"><div className="flex items-center justify-between gap-3"><h2 className="text-xl font-bold">我参加的公共曲单</h2><span className="text-xs text-slate-400">{participated.length} 份</span></div>{cards(participated)}</section>}
