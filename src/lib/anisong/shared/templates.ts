@@ -16,7 +16,7 @@ import type { SongSnapshot } from "../types";
 
 export function templateSummary(template: { id: string; title: string; revision: number; document: unknown; ownerId: string; owner: { name: string | null; username: string | null }; updatedAt: Date }, userId?: string): SongTemplateView {
   const document = template.document as SongDocument;
-  return { id: template.id, title: template.title, revision: template.revision, trackCount: document.tracks.length, playableCount: document.tracks.filter(t => t.source.kind === "pool" || t.itunes || t.source.kind === "itunes").length, poolCount: document.tracks.filter(t => t.source.kind === "pool").length, itunesCount: document.tracks.filter(t => t.itunes || t.source.kind === "itunes").length, ownerName: template.owner.name || template.owner.username || "曲单创建者", covers: document.tracks.flatMap(t => t.coverUrl ? [t.coverUrl] : []).slice(0, 4), updatedAt: template.updatedAt.toISOString(), mine: template.ownerId === userId };
+  return { id: template.id, title: template.title, revision: template.revision, trackCount: document.tracks.length, playableCount: document.tracks.filter(t => t.source.kind === "pool" || t.itunes || t.source.kind === "itunes").length, poolCount: document.tracks.filter(t => t.source.kind === "pool").length, itunesCount: document.tracks.filter(t => t.itunes || t.source.kind === "itunes").length, ownerName: template.owner.name || template.owner.username || "曲单创建者", covers: document.tracks.flatMap(t => t.coverUrl ? [t.coverUrl] : []).slice(0, 5), updatedAt: template.updatedAt.toISOString(), mine: template.ownerId === userId };
 }
 export function templateDocument(tracks: SongTrack[]): SongDocument {
   // Deliberately exclude the creator's votes, tiers, private URLs and import keys.

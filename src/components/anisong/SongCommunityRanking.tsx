@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { songRequest } from "@/lib/anisong/client";
 import { SongCover } from "./SongCover";
-import { AppBadge } from "@/components/ui/AppBadge";
 type CommunityRow = { id: string; title: string; artist: string; anime: string; kind: string; coverUrl: string | null; score: number; participants: number; comparisons: number };
 type CommunityData = { trackCount: number; participants: number; comparisons: number; rows: CommunityRow[]; provisional: boolean; sampled: boolean };
 const TIER_ORDER = ["S", "A", "B", "C", "D"] as const;

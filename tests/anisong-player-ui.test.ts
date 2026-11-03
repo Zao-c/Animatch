@@ -29,7 +29,7 @@ describe("song playback controls", () => {
   });
   it("keeps the no-audio fallback without unusable controls", () => {
     const html = renderToStaticMarkup(createElement(SongPlayer, { track: { ...track, source: { kind: "none" } }, boardId: "board", shortcut: "e" }));
-    expect(html).toContain("尚未添加音频");
+    expect(html).toContain("暂无可试听音源");
     expect(html).not.toContain("<audio");
     expect(html).not.toContain("<button");
   });

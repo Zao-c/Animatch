@@ -13,16 +13,17 @@ export async function GET(_request: Request, { params }: { params: { templateId:
     if (!template) throw new AppError("公共曲单不存在或已下架", 404);
     const publicDoc = template.document as unknown as SongDocument;
     const allowed = new Set(publicDoc.tracks.map(track => track.id));
+    const currentIdentity = new Map(publicDoc.tracks.map(track => [track.id, [track.title, track.artist, track.anime, track.kind].join("\\u001f")]));
     const [runs, source] = await Promise.all([
       prisma.songBoard.findMany({
-        where: { templateId: params.templateId, templateRevision: template.revision },
+        where: { templateId: params.templateId },
         orderBy: { updatedAt: "desc" }, select: { ownerId: true, document: true }, take: 250
       }),
       template.sourceBoardId
         ? prisma.songBoard.findUnique({ where: { id: template.sourceBoardId }, select: { ownerId: true, document: true } })
         : Promise.resolve(null)
     ]);
-    // One contribution per account; only current-template song IDs and current-version runs.
+    // One contribution per account; song identity must still match the current public version.
     const byOwner = new Map<string, SongDocument>();
     if (source) byOwner.set(source.ownerId, source.document as unknown as SongDocument);
     for (const run of runs) if (!byOwner.has(run.ownerId)) byOwner.set(run.ownerId, run.document as unknown as SongDocument);
@@ -32,7 +33,9 @@ export async function GET(_request: Request, { params }: { params: { templateId:
     let participants = 0, comparisons = 0;
     for (const doc of byOwner.values()) {
       // Never aggregate an outdated or unrelated track across different public versions.
-      const votes = doc.events.filter(event => allowed.has(event.leftId) && allowed.has(event.rightId));
+      const valid = new Set(doc.tracks.filter(track => allowed.has(track.id) &&
+        currentIdentity.get(track.id) === [track.title, track.artist, track.anime, track.kind].join("\\u001f")).map(track => track.id));
+      const votes = doc.events.filter(event => valid.has(event.leftId) && valid.has(event.rightId));
       if (!votes.length) continue;
       const ranking = rankSongs({ ...publicDoc, events: votes, manualTiers: {}, manualOrder: undefined });
       const effective = ranking.progress.effectiveComparisons;
