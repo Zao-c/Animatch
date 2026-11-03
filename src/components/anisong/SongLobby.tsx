@@ -52,17 +52,22 @@ export function SongLobby() {
       <div><h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">音乐对决</h1><p className="mt-3 text-sm leading-6 text-slate-400">选择曲单，试听 OP、ED 和插入曲，用对决生成你的音乐 Tier List。</p></div>
       <p className="text-xs text-slate-400">{boards.length} 份我的曲单 · 每个人独立保存排名</p>
     </header>
+    <nav aria-label="音乐大厅导航" className="flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-slate-950/25 p-2">
+      <a className="rounded-xl border border-anime-cyan/40 bg-anime-cyan/10 px-4 py-2.5 text-sm font-semibold text-cyan-100" href="#public-song-playlists">公开曲单</a>
+      <a className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/5" href="#my-song-playlists">我的曲单</a>
+      <a className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/5" href="#create-song-playlist">创建曲单</a>
+    </nav>
     <SongTemplateGallery />
     {error && <div role="alert" className="rounded-2xl border border-amber-300/20 bg-amber-300/5 p-4 text-amber-100">{error} {login && <Link className="underline" href="/login?next=%2Fanisong">去登录</Link>}</div>}
     {!login && <section className="grid gap-8 lg:grid-cols-[1fr_1.25fr]">
-      <form onSubmit={create} className="space-y-4 rounded-3xl border border-white/10 bg-slate-950/30 p-6">
+      <form id="create-song-playlist" onSubmit={create} className="space-y-4 rounded-3xl border border-white/10 bg-slate-950/30 p-6">
         <h2 className="text-xl font-semibold">创建自己的音乐曲单</h2>
         <p className="text-sm leading-6 text-slate-400">例如「2026 秋季 OP」「摇滚 ED 精选」。先创建曲单，再添加歌曲、选择参赛范围，就能开始对决。</p>
         <label className="block text-sm">曲单名称<input required maxLength={80} className="anime-field mt-2" placeholder="2026 秋季 OP / ED" value={title} onChange={e => setTitle(e.target.value)} /></label>
         <AppButton type="submit" disabled={busy || loading}>{busy ? "正在创建…" : "创建曲单"}</AppButton>
         <p className="text-xs leading-5 text-slate-500">新曲单默认仅自己可见。公共发布位于曲单设置中，个人 Tier List 分享是独立操作。</p>
       </form>
-      <div>
+      <div id="my-song-playlists">
         <h2 className="mb-4 text-xl font-semibold">我的音乐曲单</h2>
         {loading ? <p role="status" className="text-slate-400">正在加载曲单…</p> : boards.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-slate-400">第一份音乐榜单，从你喜欢的两首歌开始。</div> : <div className="grid gap-4 sm:grid-cols-2">
           {boards.map(board => { const value = details[board.id]; const tracks = value?.document.tracks; return <SongPlaylistCard key={board.id} title={board.title} href={`/anisong/${board.id}`} covers={tracks?.map(t => t.coverUrl) ?? []} count={tracks?.length} playable={tracks?.filter(t => t.source.kind !== "none" || t.itunes).length} progress={value ? rankSongs(value.document).progress.effectiveComparisons : undefined}>

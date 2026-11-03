@@ -24,7 +24,7 @@ export function SongTemplateGallery() {
     catch (cause) { if (cause instanceof SongApiError && cause.status === 401) router.push(`/login?next=${encodeURIComponent(`/anisong/templates/${template.id}`)}`); else setError(cause instanceof Error ? cause.message : "开始失败"); }
     finally { lock.current = false; setStarting(null); }
   }
-  return <section className="space-y-5" aria-label="公共音乐曲单">
+  return <section id="public-song-playlists" className="space-y-5" aria-label="公共音乐曲单">
     <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs tracking-widest text-anime-cyan">PICK A PLAYLIST</p><h2 className="mt-2 text-2xl font-bold">选一份曲单，直接开始</h2><p className="mt-2 text-sm leading-6 text-slate-400">歌曲和封面由创建者准备。无需网易云账号；公共音频池与 iTunes 可切换，每个人保存自己的 Tier List。</p></div><form onSubmit={event => { event.preventDefault(); setPage(0); setSearch(query.trim()); }} className="flex w-full gap-2 sm:w-auto"><input aria-label="搜索公共曲单" value={query} maxLength={100} onChange={event => setQuery(event.target.value)} placeholder="季度、类型或曲单名称" className="anime-field min-w-0 flex-1" /><AppButton type="submit" variant="secondary" disabled={loading}>查找</AppButton></form></div>
     {error && <p role="alert" className="rounded-xl border border-amber-300/20 p-3 text-sm text-amber-200">{error}</p>}
     {loading ? <p role="status" className="py-8 text-sm text-slate-400">正在加载公共曲单…</p> : templates.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{templates.map(template => <SongPlaylistCard key={template.id} title={template.title} href={`/anisong/templates/${template.id}`} covers={template.covers} count={template.trackCount} playable={template.playableCount}>
