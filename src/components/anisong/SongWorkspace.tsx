@@ -23,6 +23,8 @@ import { SongMatchPanel } from "./SongMatchPanel";
 import { SongTierPanel } from "./SongTierPanel";
 import { MatchHeading } from "@/components/MatchPresentation";
 import { SongPlaybackPreferences } from "./SongPlaybackPreferences";
+import { SongVisibilityActions, type SongVisibility } from "./SongVisibilityActions";
+import { SongCommunityRanking } from "./SongCommunityRanking";
 import { registerUnsavedChangesGuard } from "@/lib/unsaved-changes-guard";
 import { createClientMutationId } from "@/lib/client-id";
 
@@ -50,7 +52,8 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
   const [editing, setEditing] = useState<SongTrack | "new" | null>(null);
   const [itunesTarget, setItunesTarget] = useState<string | null>(null);
   const [libraryPage, setLibraryPage] = useState(0);
-  const [libraryTab, setLibraryTab] = useState<"wall" | "range" | "settings">("wall");
+  const [libraryTab, setLibraryTab] = useState<"wall" | "community" | "range" | "settings">("wall");
+  const [publicInfo, setPublicInfo] = useState<SongVisibility | null>(null);
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState("");
   const [year, setYear] = useState("");
@@ -67,7 +70,7 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
     window.dispatchEvent(new CustomEvent("anisong:play", { detail: null }));
     router.push(next === "library" ? "/anisong/" + boardId : "/anisong/" + boardId + "/" + next);
   }
-  function switchLibraryTab(next: "wall" | "range" | "settings") {
+  function switchLibraryTab(next: "wall" | "community" | "range" | "settings") {
     if (renaming && next !== libraryTab) {
       if (!window.confirm("放弃尚未保存的曲单名称？")) return;
       setRenaming(false);
@@ -211,14 +214,14 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
           <AppButton variant="primary" size="lg" className="w-full" disabled={disabled || (ranking?.active.length ?? 0) < 2} onClick={() => navigate("match")}>{board.document.events.length ? "继续音乐对决" : "开始音乐对决"}</AppButton>
         </section>
         <div className="mt-3 grid grid-cols-2 gap-3"><AppButton variant="secondary" disabled={disabled} onClick={() => navigate("tier")}>查看 / 调整 Tier List</AppButton><AppButton variant="secondary" disabled={disabled} onClick={() => switchLibraryTab("range")}>选择参赛范围</AppButton></div>
-        <div className="mt-3 border-t border-white/10 pt-2 text-center"><AppButton variant="quiet" size="sm" onClick={() => switchLibraryTab("settings")}>分享与曲单设置</AppButton></div>
+        <div className="mt-3 border-t border-white/10 pt-3"><SongVisibilityActions boardId={boardId} disabled={disabled} onChange={setPublicInfo} /><AppButton className="mt-2 w-full" variant="quiet" size="sm" onClick={() => switchLibraryTab("settings")}>曲单管理与音频共享设置</AppButton></div>
       </AppCard>
     </header>}
 
     {error && !taskActive && !bulkEditing && <div role="alert" className="space-y-3 rounded-xl border border-amber-300/30 bg-amber-300/5 p-4 text-sm text-amber-100"><p>{error}</p>{conflict && <><p>当前操作未确认。重新载入已保存进度后即可继续。</p><AppButton size="sm" onClick={() => void reload()} disabled={busy || loading}>重新载入</AppButton></>}{login && <Link href={`/login?next=${encodeURIComponent(`/anisong/${boardId}`)}`} className="underline">重新登录</Link>}</div>}
     {view === "library" && <section aria-label="曲单歌曲管理" className="space-y-5">
       <nav role="tablist" aria-label="曲单导航" className="flex gap-1 rounded-2xl border border-anime-border bg-anime-panel p-1.5">
-        {([ ["wall", "歌曲墙"], ["range", "参赛范围"], ["settings", "管理"] ] as const).map(([id, label]) => <button key={id} type="button" role="tab" id={`song-library-tab-${id}`} aria-controls="song-library-panel" aria-selected={libraryTab === id} tabIndex={libraryTab === id ? 0 : -1} onKeyDown={event => { if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return; event.preventDefault(); const tabs = Array.from(event.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>('[role="tab"]')); const index = tabs.indexOf(event.currentTarget); tabs[event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length]?.focus(); }} onClick={() => switchLibraryTab(id)} className={"min-h-11 rounded-xl border px-4 text-sm font-semibold transition " + (libraryTab === id ? "border-anime-purple/25 bg-anime-purple/20 text-purple-100" : "border-transparent text-slate-400 hover:bg-white/5 hover:text-white")}>{label}{id === "wall" ? ` ${board.document.tracks.length}` : ""}</button>)}
+        {([ ["wall", "歌曲墙"], ["community", "社区榜"], ["range", "参赛范围"], ["settings", "管理"] ] as const).map(([id, label]) => <button key={id} type="button" role="tab" id={`song-library-tab-${id}`} aria-controls="song-library-panel" aria-selected={libraryTab === id} tabIndex={libraryTab === id ? 0 : -1} onKeyDown={event => { if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return; event.preventDefault(); const tabs = Array.from(event.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>('[role="tab"]')); const index = tabs.indexOf(event.currentTarget); tabs[event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length]?.focus(); }} onClick={() => switchLibraryTab(id)} className={"min-h-11 rounded-xl border px-4 text-sm font-semibold transition " + (libraryTab === id ? "border-anime-purple/25 bg-anime-purple/20 text-purple-100" : "border-transparent text-slate-400 hover:bg-white/5 hover:text-white")}>{label}{id === "wall" ? ` ${board.document.tracks.length}` : ""}</button>)}
       </nav>
       {(addOpen || editing || itunesTarget || detailId) && <SongEditDrawer title={editing ? editing === "new" ? "添加歌曲" : "编辑歌曲" : itunesTarget ? "匹配 iTunes" : detailId ? "歌曲详情" : addMode === "netease" ? "网易云搜索" : addMode === "itunes" ? "iTunes 搜索" : addMode === "batch" ? "批量导入" : "添加歌曲"} busy={busy || importing} dirty={taskDirty} onDirtyChange={setTaskDirty} onClose={clearTask}>
         <div className="space-y-4 p-4">
@@ -238,7 +241,7 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
           {detailId && (() => { const track = board.document.tracks.find(t => t.id === detailId); if (!track) return <p>歌曲已移除</p>; const score = ranking?.scores.find(s => s.animeId === track.id); return <section className="space-y-4"><SongCover src={track.coverUrl} title={track.title} className="w-28" /><h3 className="break-words text-xl font-bold">{track.title}</h3><p>{track.artist || "歌手未填写"}</p><dl className="space-y-2 text-sm text-slate-400"><div>所属动画：{track.anime || "未填写"}</div><div>年份 / 季度：{track.year ?? "未填写"} / {track.quarter ?? "未填写"}</div><div>标签：{track.tags.join("、") || "无"}</div><div>比较次数：{score?.compareCount ?? 0}</div><div>参赛状态：{score?.isHidden ? "未听过" : board.document.candidateIds && !board.document.candidateIds.includes(track.id) ? "未参赛" : "参赛中"}</div></dl><div className="flex flex-wrap gap-2"><AppButton onClick={() => editTrack(track)}>编辑歌曲</AppButton><AppButton onClick={() => { if (canChangeTask()) { clearTask(); setItunesTarget(track.id); } }}>匹配 iTunes</AppButton>{score?.isHidden && <AppButton onClick={() => void mutate({ action: "restore", trackId: track.id })}>恢复参赛</AppButton>}<AppButton variant="danger" disabled={busy} onClick={() => { if (window.confirm(`永久移除「${track.title}」及相关对决记录？`)) void mutate({ action: "remove", trackId: track.id }).then(saved => { if (saved) clearTask(); }); }}>移除歌曲</AppButton></div></section>; })()}
         </div>
       </SongEditDrawer>}
-      {libraryTab !== "settings" && <AppCard role="tabpanel" id="song-library-panel" aria-labelledby={`song-library-tab-${libraryTab}`} className="space-y-4 p-4 sm:p-5">
+      {(libraryTab === "wall" || libraryTab === "range") && <AppCard role="tabpanel" id="song-library-panel" aria-labelledby={`song-library-tab-${libraryTab}`} className="space-y-4 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[11px] font-bold tracking-[0.18em] text-cyan-200/70">SONG LIBRARY</p><h2 className="mt-1 text-xl font-bold">{libraryTab === "wall" ? "歌曲墙" : "选择参与对决的歌曲"}</h2></div><AppButton variant="primary" size="sm" aria-expanded={addOpen} aria-controls="song-add-methods" disabled={disabled} onClick={toggleAdd}>＋ 添加歌曲</AppButton></div>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(0,1fr)_160px_auto]">
         <input aria-label="搜索歌曲或风格" placeholder="搜索当前歌曲…" className="anime-field col-span-2 sm:col-span-1" disabled={bulkEditing || busy || importing} value={search} onChange={e => setSearch(e.target.value)} />
@@ -270,6 +273,9 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
       </div>}
       {libraryPages > 1 && <div className="flex items-center justify-between gap-2 border-t border-white/10 pt-3 text-xs text-slate-400"><span>{visibleTracks.length} 首 · 第 {currentLibraryPage + 1} / {libraryPages} 页</span><div className="flex gap-2"><AppButton size="sm" disabled={currentLibraryPage === 0} onClick={() => setLibraryPage(currentLibraryPage - 1)}>上一页</AppButton><AppButton size="sm" disabled={currentLibraryPage >= libraryPages - 1} onClick={() => setLibraryPage(currentLibraryPage + 1)}>下一页</AppButton></div></div>}
       </AppCard>}
+      {libraryTab === "community" && <AppCard role="tabpanel" id="song-library-panel" aria-labelledby="song-library-tab-community" className="p-4 sm:p-5">
+        <SongCommunityRanking templateId={publicInfo?.templateId ?? board.templateId ?? null} />
+      </AppCard>}
       {libraryTab === "settings" && <AppCard role="tabpanel" id="song-library-panel" aria-labelledby="song-library-tab-settings" className="p-4 sm:p-5">
         <h2 className="text-xl font-bold">曲单设置与公共发布</h2>
         <div className="mt-4 space-y-4">
@@ -277,7 +283,8 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
           {renaming && <form className="flex flex-wrap gap-2" onSubmit={async e => { e.preventDefault(); const data = new FormData(e.currentTarget); if (await mutate({ action: "rename", title: data.get("title") })) setRenaming(false); }}>
             <input aria-label="曲单新名称" name="title" defaultValue={board.title} maxLength={80} required className="anime-field min-w-0 flex-1" /><AppButton type="submit" disabled={disabled}>保存名称</AppButton>
           </form>}
-          <SongTemplatePublisher board={board} disabled={disabled || Boolean(editing) || batchOpen || bulkEditing} onPublish={confirmed => auxiliary<TemplatePublishResult>("template", { shareAudioConfirmed: confirmed })} />
+          <section className="rounded-xl border border-white/10 p-4"><h3 className="mb-2 font-semibold">曲单网址与公开设置</h3><SongVisibilityActions boardId={boardId} disabled={disabled} onChange={setPublicInfo} /><p className="mt-3 text-xs text-slate-400">分享曲单只复制网址，不会公开音频；分享我的 Tier List 请到榜单页。</p></section>
+          {!board.templateId && <SongTemplatePublisher board={board} disabled={disabled || Boolean(editing) || batchOpen || bulkEditing} onPublish={confirmed => auxiliary<TemplatePublishResult>("template", { shareAudioConfirmed: confirmed })} />}
           <div className="border-t border-rose-300/15 pt-4"><p className="mb-2 text-xs text-slate-400">删除会永久移除音乐、对决记录和分享链接。</p><AppButton variant="danger" size="sm" disabled={disabled || Boolean(editing) || batchOpen || bulkEditing} onClick={() => void removeBoard()}>删除曲单</AppButton></div>
         </div>
       </AppCard>}

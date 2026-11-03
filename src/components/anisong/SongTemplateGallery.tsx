@@ -6,6 +6,7 @@ import { AppButton } from "@/components/ui/AppButton";
 import { songRequest, SongApiError } from "@/lib/anisong/client";
 import type { SongBoardView, SongTemplateView } from "@/lib/anisong/types";
 import { SongPlaylistCard } from "./SongPlaylistCard";
+import { SongShareButton } from "./SongShareButton";
 export function SongTemplateGallery() {
   const router = useRouter();
   const [templates, setTemplates] = useState<SongTemplateView[]>([]), [query, setQuery] = useState(""), [search, setSearch] = useState("");
@@ -31,7 +32,7 @@ export function SongTemplateGallery() {
       <p className="truncate text-xs text-slate-500">创建者：{template.ownerName} · v{template.revision}</p>
       <p className="my-4 text-xs text-slate-400">公共池 {template.poolCount} 首 · iTunes {template.itunesCount} 首</p>
       <AppButton className="mt-auto" disabled={Boolean(starting) || template.trackCount < 2} onClick={() => void start(template)}>{starting === template.id ? "正在准备…" : template.trackCount < 2 ? "添加至少两首歌曲后可对决" : "开始 / 继续我的对决"}</AppButton>
-      <div className="mt-3 flex min-h-8 items-center justify-between gap-3 text-xs"><Link href={`/anisong/templates/${template.id}`} className="text-slate-400 underline">查看曲目与音源</Link>{template.mine && <button type="button" disabled={Boolean(starting)} className="text-slate-500 hover:text-amber-200" onClick={async () => { if (!window.confirm("从公共列表下架这份曲单？已开始的个人进度和公共音频会保留。")) return; try { await songRequest(`/api/anisong/templates/${template.id}`, { method: "DELETE" }); setTemplates(current => current.filter(t => t.id !== template.id)); } catch (cause) { setError(cause instanceof Error ? cause.message : "下架失败"); } }}>下架我的曲单</button>}</div>
+      <div className="mt-3 flex min-h-8 items-center justify-between gap-3 text-xs"><Link href={`/anisong/templates/${template.id}`} className="text-slate-400 underline">查看歌曲谱</Link><SongShareButton path={`/anisong/templates/${template.id}`} label="分享" />{template.mine && <button type="button" disabled={Boolean(starting)} className="text-slate-500 hover:text-amber-200" onClick={async () => { if (!window.confirm("从公共列表下架这份曲单？已开始的个人进度和公共音频会保留。")) return; try { await songRequest(`/api/anisong/templates/${template.id}`, { method: "DELETE" }); setTemplates(current => current.filter(t => t.id !== template.id)); } catch (cause) { setError(cause instanceof Error ? cause.message : "下架失败"); } }}>下架我的曲单</button>}</div>
     </SongPlaylistCard>)}</div> : <div className="rounded-2xl border border-dashed border-white/15 p-8 text-sm leading-7 text-slate-400">{search ? "没有找到匹配的公共曲单，试试其他名称。" : "公共曲单还在准备中。创建音乐曲单、补充音频并发布后，大家就能直接选来玩。"}</div>}
     {(page > 0 || more) && <div className="flex items-center justify-center gap-4"><AppButton size="sm" variant="ghost" disabled={loading || page === 0} onClick={() => setPage(current => current - 1)}>上一页</AppButton><span className="text-xs text-slate-400">第 {page + 1} 页</span><AppButton size="sm" variant="ghost" disabled={loading || !more} onClick={() => setPage(current => current + 1)}>下一页</AppButton></div>}
   </section>;
