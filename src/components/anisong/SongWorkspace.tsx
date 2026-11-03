@@ -214,7 +214,7 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
           <AppButton variant="primary" size="lg" className="w-full" disabled={disabled || (ranking?.active.length ?? 0) < 2} onClick={() => navigate("match")}>{board.document.events.length ? "继续音乐对决" : "开始音乐对决"}</AppButton>
         </section>
         <div className="mt-3 grid grid-cols-2 gap-3"><AppButton variant="secondary" disabled={disabled} onClick={() => navigate("tier")}>查看 / 调整 Tier List</AppButton><AppButton variant="secondary" disabled={disabled} onClick={() => switchLibraryTab("range")}>选择参赛范围</AppButton></div>
-        <div className="mt-3 border-t border-white/10 pt-3"><SongVisibilityActions boardId={boardId} disabled={disabled} onChange={setPublicInfo} /><AppButton className="mt-2 w-full" variant="quiet" size="sm" onClick={() => switchLibraryTab("settings")}>曲单管理与音频共享设置</AppButton></div>
+        <div className="mt-3 border-t border-white/10 pt-3"><SongVisibilityActions boardId={boardId} disabled={disabled} value={publicInfo} onChange={setPublicInfo} /><AppButton className="mt-2 w-full" variant="quiet" size="sm" onClick={() => switchLibraryTab("settings")}>曲单管理与音频共享设置</AppButton></div>
       </AppCard>
     </header>}
 
@@ -283,7 +283,7 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
           {renaming && <form className="flex flex-wrap gap-2" onSubmit={async e => { e.preventDefault(); const data = new FormData(e.currentTarget); if (await mutate({ action: "rename", title: data.get("title") })) setRenaming(false); }}>
             <input aria-label="曲单新名称" name="title" defaultValue={board.title} maxLength={80} required className="anime-field min-w-0 flex-1" /><AppButton type="submit" disabled={disabled}>保存名称</AppButton>
           </form>}
-          <section className="rounded-xl border border-white/10 p-4"><h3 className="mb-2 font-semibold">曲单网址与公开设置</h3><SongVisibilityActions boardId={boardId} disabled={disabled} onChange={setPublicInfo} /><p className="mt-3 text-xs text-slate-400">分享曲单只复制网址，不会公开音频；分享我的 Tier List 请到榜单页。</p></section>
+          <section className="rounded-xl border border-white/10 p-4"><h3 className="mb-2 font-semibold">曲单网址与公开设置</h3><SongVisibilityActions boardId={boardId} disabled={disabled} value={publicInfo} onChange={setPublicInfo} /><p className="mt-3 text-xs text-slate-400">分享曲单只复制网址，不会公开音频；分享我的 Tier List 请到榜单页。</p></section>
           {!board.templateId && <SongTemplatePublisher board={board} disabled={disabled || Boolean(editing) || batchOpen || bulkEditing} onPublish={confirmed => auxiliary<TemplatePublishResult>("template", { shareAudioConfirmed: confirmed })} />}
           <div className="border-t border-rose-300/15 pt-4"><p className="mb-2 text-xs text-slate-400">删除会永久移除音乐、对决记录和分享链接。</p><AppButton variant="danger" size="sm" disabled={disabled || Boolean(editing) || batchOpen || bulkEditing} onClick={() => void removeBoard()}>删除曲单</AppButton></div>
         </div>

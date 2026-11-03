@@ -5,12 +5,13 @@ import { songRequest } from "@/lib/anisong/client";
 import { SongShareButton } from "./SongShareButton";
 
 export type SongVisibility = { isPublic: boolean; templateId: string | null; canManage: boolean };
-export function SongVisibilityActions({ boardId, disabled, onChange }: {
-  boardId: string; disabled?: boolean; onChange?: (value: SongVisibility) => void;
+export function SongVisibilityActions({ boardId, disabled, onChange, value }: {
+  boardId: string; disabled?: boolean; onChange?: (value: SongVisibility) => void; value?: SongVisibility | null;
 }) {
   const [info, setInfo] = useState<SongVisibility | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => { if (value) setInfo(value); }, [value]);
   useEffect(() => {
     const controller = new AbortController();
     songRequest<SongVisibility>(`/api/anisong/boards/${boardId}/visibility`, { signal: controller.signal })
