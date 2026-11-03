@@ -52,8 +52,13 @@ export function SongTemplateGallery() {
           <p className="truncate text-xs text-slate-400">创建者：{template.ownerName}{template.mine ? " · 我创建的" : ""}</p>
           <div className="grid grid-cols-2 gap-2">
             <Link href={`/anisong/templates/${template.id}`} className={appButtonClasses({ variant: "ghost", size: "sm", className: "w-full px-2" })}>曲单详情</Link>
-            <AppButton variant="primary" size="sm" className="w-full px-2" disabled={Boolean(starting) || template.trackCount < 2}
-              onClick={() => void start(template)}>{starting === template.id ? "正在准备…" : "个人自由对决"}</AppButton>
+            {template.mine && template.ownerBoardId ?
+              <Link href={template.trackCount >= 2 ? `/anisong/${template.ownerBoardId}/match` : `/anisong/${template.ownerBoardId}`}
+                className={appButtonClasses({ variant: "primary", size: "sm", className: "w-full px-2" })}>
+                {template.trackCount >= 2 ? "继续我的对决" : "完善曲单"}
+              </Link> :
+              <AppButton variant="primary" size="sm" className="w-full px-2" disabled={Boolean(starting) || template.trackCount < 2}
+                onClick={() => void start(template)}>{starting === template.id ? "正在准备…" : "个人自由对决"}</AppButton>}
           </div>
           <details className="rounded-xl border border-white/10 bg-slate-950/20 px-3 py-1.5">
             <summary className="flex min-h-9 cursor-pointer items-center text-xs font-semibold text-slate-300">更多操作</summary>

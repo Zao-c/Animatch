@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AppButton } from "@/components/ui/AppButton";
+import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppCard } from "@/components/ui/AppCard";
 import { songRequest, SongApiError } from "@/lib/anisong/client";
@@ -55,7 +55,12 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
         <AppCard variant="focus" className="p-3">
           <section className="rounded-xl border border-anime-cyan/35 bg-anime-cyan/[0.06] p-3">
             <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-bold text-cyan-100">个人音乐对决</h2><span className="text-xs text-slate-400">{template.trackCount} 首歌曲</span></div>
-            <AppButton variant="primary" size="lg" className="w-full" disabled={busy || template.trackCount < 2} onClick={() => void start()}>{busy ? "正在准备…" : template.trackCount < 2 ? "至少两首歌曲后可参加" : "开始 / 继续个人对决"}</AppButton>
+            {template.mine && template.ownerBoardId ?
+              <Link href={template.trackCount >= 2 ? `/anisong/${template.ownerBoardId}/match` : `/anisong/${template.ownerBoardId}`}
+                className={appButtonClasses({ variant: "primary", size: "lg", className: "w-full" })}>
+                {template.trackCount >= 2 ? "继续我的音乐对决" : "完善曲单歌曲"}
+              </Link> :
+              <AppButton variant="primary" size="lg" className="w-full" disabled={busy || template.trackCount < 2} onClick={() => void start()}>{busy ? "正在准备…" : template.trackCount < 2 ? "至少两首歌曲后可参加" : "开始 / 继续个人对决"}</AppButton>}
           </section>
           <div className="mt-3 grid grid-cols-2 gap-3"><AppButton variant="secondary" onClick={openCommunity}>查看社区榜</AppButton><SongShareButton path={`/anisong/templates/${templateId}`} /></div>
           {template.mine && template.ownerBoardId && <Link className="mt-3 block rounded-xl border border-white/10 py-2 text-center text-sm font-semibold text-slate-200 hover:bg-white/5" href={`/anisong/${template.ownerBoardId}`}>管理我创建的曲单</Link>}
