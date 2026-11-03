@@ -1,16 +1,16 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppCard } from "@/components/ui/AppCard";
 import { songRequest, SongApiError } from "@/lib/anisong/client";
-import { KIND_LABELS, type SongBoardView, type SongDocument, type SongTemplateView } from "@/lib/anisong/types";
+import { KIND_LABELS, SONG_KINDS, type SongKind, type SongBoardView, type SongDocument, type SongTemplateView } from "@/lib/anisong/types";
 import { SongCover } from "./SongCover";
 import { SongShareButton } from "./SongShareButton";
 import { SongCommunityRanking } from "./SongCommunityRanking";
-import { SongPlaybackPreferences } from "./SongPlaybackPreferences";
+
 
 export function SongTemplateDetail({ templateId }: { templateId: string }) {
   const router = useRouter(); const lock = useRef(false);
@@ -18,6 +18,18 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
   const [tab, setTab] = useState<"songs" | "community">("songs");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState("");
+  const [kind, setKind] = useState<"" | SongKind>("");
+  const [visibleLimit, setVisibleLimit] = useState(48);
+  const filteredTracks = useMemo(() => {
+    const search = query.trim().toLocaleLowerCase();
+    return (template?.document.tracks ?? []).filter(track =>
+      (!kind || track.kind === kind) &&
+      (!search || [track.title, track.artist, track.anime, String(track.year ?? ""), ...track.tags].join(" ").toLocaleLowerCase().includes(search))
+    );
+  }, [template, query, kind]);
+  function changeQuery(value: string) { setQuery(value); setVisibleLimit(48); }
+  function changeKind(value: "" | SongKind) { setKind(value); setVisibleLimit(48); }
   useEffect(() => { const controller = new AbortController(); songRequest<NonNullable<typeof template>>(`/api/anisong/templates/${templateId}`, { signal: controller.signal }).then(setTemplate).catch(cause => { if (!controller.signal.aborted) setError(cause.message); }); return () => controller.abort(); }, [templateId]);
   async function start() {
     if (lock.current) return; lock.current = true; setBusy(true); setError("");
@@ -50,20 +62,31 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
         <button type="button" role="tab" aria-selected={tab === "community"} onClick={() => setTab("community")} className={"min-h-11 rounded-xl px-4 text-sm font-semibold " + (tab === "community" ? "bg-anime-purple/20 text-purple-100" : "text-slate-300")}>社区榜</button>
       </nav>
       {tab === "songs" ? <AppCard className="space-y-4 p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[11px] font-bold tracking-widest text-cyan-200/70">SONG LIBRARY</p><h2 className="mt-1 text-xl font-bold">歌曲谱</h2></div><details className="relative"><summary className="min-h-10 cursor-pointer rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-300">试听来源设置</summary><div className="absolute right-0 z-20 mt-2 w-[min(21rem,calc(100vw-2rem))] rounded-xl border border-white/10 bg-slate-950 p-3 shadow-xl"><SongPlaybackPreferences /></div></details></div>
-        <div className="grid grid-cols-2 items-start gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-          {template.document.tracks.map(track => <article key={track.id} className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/30">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div><p className="text-[11px] font-bold tracking-widest text-cyan-200/70">SONG LIBRARY</p><h2 className="mt-1 text-xl font-bold">歌曲谱</h2></div>
+          <p className="text-xs text-slate-400">试听请点击「开始个人对决」，这里先查看公开曲目信息。</p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_180px_auto]">
+          <input aria-label="搜索歌曲、歌手或所属动画" type="search" placeholder="搜索歌曲、歌手或所属动画…" className="anime-field min-w-0" value={query} onChange={event => changeQuery(event.target.value)} />
+          <select aria-label="筛选歌曲类型" className="anime-field min-h-11" value={kind} onChange={event => changeKind(event.target.value as "" | SongKind)}>
+            <option value="">全部类型</option>{SONG_KINDS.map(item => <option key={item} value={item}>{KIND_LABELS[item]}</option>)}
+          </select>
+          {(query || kind) && <AppButton variant="ghost" size="sm" onClick={() => { changeQuery(""); changeKind(""); }}>清除筛选</AppButton>}
+        </div>
+        <p role="status" className="text-xs text-slate-400">找到 {filteredTracks.length} 首歌曲{filteredTracks.length > visibleLimit ? ` · 当前显示前 ${visibleLimit} 首` : ""}</p>
+        {filteredTracks.length ? <div className="grid grid-cols-2 items-start gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+          {filteredTracks.slice(0, visibleLimit).map(track => <article key={track.id} className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/30">
             <SongCover src={track.coverUrl} title={track.title} className="w-full !rounded-none !border-0" />
             <div className="space-y-1.5 p-3">
               <h3 title={track.title} className="line-clamp-2 min-h-9 break-words text-xs font-bold sm:text-sm">{track.title}</h3>
-              <p className="line-clamp-2 text-xs text-cyan-100">{track.anime || "动画来源未填写"} · {KIND_LABELS[track.kind]}</p>
-              <p className="truncate text-xs text-slate-400">{track.artist || "歌手未填写"}</p>
-              <p className="text-[10px] text-slate-500">{track.source.kind === "pool" || track.itunes || track.source.kind === "itunes" ? "可试听" : "暂无公共试听音源"}</p>
+              <p title={track.anime || "动画来源未填写"} className="line-clamp-2 text-xs text-cyan-100">{track.anime || "动画来源未填写"} · {KIND_LABELS[track.kind]}</p>
+              <p title={track.artist || "歌手未填写"} className="truncate text-xs text-slate-400">{track.artist || "歌手未填写"}</p>
+              <p className="text-[10px] text-slate-500">{track.source.kind === "pool" || track.itunes || track.source.kind === "itunes" ? "有可用试听源" : "暂无公开试听音源"}</p>
             </div>
           </article>)}
-        </div>
-        {!template.document.tracks.length && <p className="p-8 text-center text-sm text-slate-400">创建者还没有添加歌曲，稍后再来看看。</p>}
-        <p className="text-xs text-slate-500">打开个人对决后才能使用曲单里的试听源；未公开的上传音频不会对外提供。</p>
+        </div> : <p className="rounded-xl border border-dashed border-white/15 p-8 text-center text-sm text-slate-400">{template.document.tracks.length ? "没有符合条件的歌曲，可以修改关键词或清除筛选。" : "创建者还没有添加歌曲，稍后再来看看。"}</p>}
+        {filteredTracks.length > visibleLimit && <div className="flex justify-center"><AppButton variant="secondary" onClick={() => setVisibleLimit(value => value + 48)}>再显示 48 首（剩余 {filteredTracks.length - visibleLimit} 首）</AppButton></div>}
+        <p className="text-xs text-slate-500">个人对决会保留自己的试听设置和排序进度，未授权的上传音频不会公开。</p>
       </AppCard> : <AppCard className="p-4 sm:p-5"><SongCommunityRanking templateId={templateId} /></AppCard>}
     </>}
   </div>;
