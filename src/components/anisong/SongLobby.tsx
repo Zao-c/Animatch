@@ -54,8 +54,10 @@ export function SongLobby() {
     </header>
     <nav aria-label="音乐大厅导航" className="flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-slate-950/25 p-2">
       <a className="rounded-xl border border-anime-cyan/40 bg-anime-cyan/10 px-4 py-2.5 text-sm font-semibold text-cyan-100" href="#public-song-playlists">公开曲单</a>
-      <a className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/5" href="#my-song-playlists">我的曲单</a>
-      <a className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/5" href="#create-song-playlist">创建曲单</a>
+      {!login && <>
+        <a className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/5" href="#my-song-playlists">我的曲单</a>
+        <a className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/5" href="#create-song-playlist">创建曲单</a>
+      </>}
     </nav>
     <SongTemplateGallery />
     {error && <div role="alert" className="rounded-2xl border border-amber-300/20 bg-amber-300/5 p-4 text-amber-100">{error} {login && <Link className="underline" href="/login?next=%2Fanisong">去登录</Link>}</div>}
