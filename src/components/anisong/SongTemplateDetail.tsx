@@ -22,11 +22,13 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
   const [tab, setTab] = useState<PublicTab>("songs");
   const pendingTabScroll = useRef(false);
   const [error, setError] = useState(""), [busy, setBusy] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [query, setQuery] = useState(""), [kind, setKind] = useState<"" | SongKind>("");
   const [page, setPage] = useState(0), [selectedIds, setSelectedIds] = useState<string[]>([]), [rangeTouched, setRangeTouched] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
+    setError("");
     songRequest<PublicTemplate>(`/api/anisong/templates/${templateId}`, { signal: controller.signal })
       .then(data => {
         if (controller.signal.aborted) return;
@@ -36,7 +38,7 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
       })
       .catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "加载失败"); });
     return () => controller.abort();
-  }, [templateId]);
+  }, [templateId, retryKey]);
 
   const tracks = useMemo(() => template?.document.tracks ?? [], [template]);
   const filteredTracks = useMemo(() => {
@@ -102,7 +104,7 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
   const ownerHref = isCreator ? `/anisong/${template!.ownerBoardId}` : "";
   return <div className="mx-auto w-full max-w-[90rem] space-y-4">
     <Link href="/anisong" className="inline-flex min-h-9 items-center text-sm text-anime-cyan">← 公开曲单</Link>
-    {error && <p role="alert" className="rounded-xl border border-amber-300/25 p-3 text-sm text-amber-200">{error}</p>}
+    {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/25 p-3 text-sm text-amber-200"><span>{error}</span>{!template && <AppButton variant="ghost" size="sm" onClick={() => setRetryKey(value => value + 1)}>重试加载</AppButton>}</div>}
     {!template ? !error && <p role="status">正在加载曲单…</p> : <>
       <header className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(310px,430px)]">
         <div className="min-w-0 space-y-2">
