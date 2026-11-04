@@ -261,9 +261,10 @@ describe("User profile page", () => {
     expect(source).toContain("重试");
   });
 
-  it("renders user display name and joined date", () => {
+  it("shows the display name and a short, timezone-stable membership date", () => {
     expect(source).toContain("displayName");
-    expect(source).toContain("加入于");
+    expect(source).toContain("getUTCFullYear()");
+    expect(source).toContain("月加入");
   });
 
   it("falls back to the first letter when the avatar image fails", () => {
@@ -282,19 +283,20 @@ describe("User profile page", () => {
     expect(source).toContain("手动复制主页网址");
   });
 
-  it("renders the five public counters and the five tabs", () => {
-    expect(source).toContain("公开番组");
-    expect(source).toContain("动画 Tier List");
-    expect(source).toContain("公开音乐曲单");
-    expect(source).toContain("音乐 Tier List");
-    expect(source).toContain("参与番组");
-    expect(source).toContain("口味档案");
+  it("keeps five categories without redundant statistic cards", () => {
+    expect(source).toContain('{ value: "pools", label: "番组", count: profile.stats.publicPoolsCount }');
+    expect(source).toContain('{ value: "shares", label: "动画榜单", count: profile.stats.sharedTierListCount }');
+    expect(source).toContain('{ value: "songs", label: "音乐曲单", count: profile.stats.publicSongPlaylistsCount }');
+    expect(source).toContain('{ value: "songTiers", label: "音乐榜单", count: profile.stats.sharedSongTierListCount }');
+    expect(source).toContain('{ value: "taste", label: "口味" }');
+    expect(source).toContain("profile.stats.participatedPoolCount");
+    expect(source).not.toContain('aria-label="个人公开作品统计"');
   });
 
-  it("defaults to the public pools tab and keeps the taste profile last", () => {
+  it("defaults to the public pools tab and keeps taste last", () => {
     expect(source).toContain('useState<PublicTab>("pools")');
-    const tasteTabIndex = source.indexOf('{ value: "taste", label: "口味档案" }');
-    expect(tasteTabIndex).toBeGreaterThan(source.indexOf('{ value: "pools", label: "公开番组"'));
+    const tasteTabIndex = source.indexOf('{ value: "taste", label: "口味" }');
+    expect(tasteTabIndex).toBeGreaterThan(source.indexOf('{ value: "pools", label: "番组"'));
   });
 
   it("resets to page one on tab change and clamps stale pages", () => {

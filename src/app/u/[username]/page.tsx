@@ -10,12 +10,10 @@ import { TasteDashboard } from "@/components/TasteDashboard";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AppBadge } from "@/components/ui/AppBadge";
 import { PageShell } from "@/components/PageShell";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { copyTextWithFallback } from "@/lib/browser-copy";
 import { proxyExternalImageUrl } from "@/lib/image-proxy";
-import { formatDateTimeStable } from "@/lib/date-format";
 import { decodeProfileUsername, profilePath } from "@/lib/profile-username";
 import { profileCollectionUrl, profilePageCount } from "@/lib/user-profile";
 
@@ -73,38 +71,32 @@ function ProfileSkeleton() {
           <div className="h-3 w-24 rounded bg-white/5" />
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-3">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-16 rounded-xl bg-white/5" />
-        ))}
-      </div>
+      <div className="h-10 max-w-xl rounded-xl bg-white/5" />
     </div>
   );
 }
 
 
-function ProfileMediaCard({ href, title, covers, category, meta, description, music, date }: {
-  href: string; title: string; covers: string[]; category: string; meta: string; description?: string; music?: boolean; date?: string;
+function ProfileMediaCard({ href, title, covers, meta, description, music }: {
+  href: string; title: string; covers: string[]; meta: string; description?: string; music?: boolean;
 }) {
-  const [failed, setFailed] = useState<Record<number, boolean>>({});
+  const [failed, setFailed] = useState<Record<string, boolean>>({});
+  const uniqueCovers = [...new Set(covers.filter(Boolean))].slice(0, 5);
   return <Link href={href} className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border border-anime-border bg-anime-panel transition hover:border-anime-cyan/40 hover:bg-white/[0.045] focus-visible:outline focus-visible:outline-2 focus-visible:outline-anime-cyan">
-    <div className="grid grid-cols-5 gap-1.5 border-b border-white/10 bg-slate-950/30 p-2.5">
-      {Array.from({ length: 5 }, (_, index) => covers[index] ?? "").map((url, index) =>
-        <div key={index} className={"relative min-w-0 overflow-hidden rounded-md bg-gradient-to-br from-cyan-950/80 to-violet-950/50 " + (music ? "aspect-square" : "aspect-[3/4]")}>
-          {url && !failed[index]
-            ? <img src={proxyExternalImageUrl(url) ?? url} alt={title + "封面 " + (index + 1)} loading="lazy" decoding="async" referrerPolicy="no-referrer"
-              onError={() => setFailed(previous => previous[index] ? previous : { ...previous, [index]: true })}
-              className="absolute inset-0 h-full w-full object-cover" />
-            : <span aria-hidden="true" className="flex h-full items-center justify-center text-xl text-slate-500">{music ? "♪" : "◇"}</span>}
-        </div>)}
+    <div className="flex h-28 items-center justify-center gap-1.5 overflow-hidden border-b border-white/10 bg-slate-950/30 p-2.5 sm:h-32">
+      {uniqueCovers.length ? uniqueCovers.map(url =>
+        <div key={url} className={"relative h-full overflow-hidden rounded-md bg-gradient-to-br from-cyan-950/80 to-violet-950/50 " + (music ? "aspect-square" : "aspect-[3/4]") + (uniqueCovers.length === 1 ? "" : " min-w-0 flex-1")}>
+          {!failed[url] ? <img src={proxyExternalImageUrl(url) ?? url} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer"
+            onError={() => setFailed(previous => previous[url] ? previous : { ...previous, [url]: true })}
+            className="absolute inset-0 h-full w-full object-cover" /> :
+            <span aria-hidden="true" className="flex h-full items-center justify-center text-xl text-slate-500">{music ? "♪" : "◇"}</span>}
+        </div>
+      ) : <span aria-hidden="true" className="text-2xl text-slate-500">{music ? "♪" : "◇"}</span>}
     </div>
     <div className="flex flex-1 flex-col gap-2 p-4">
-      <div><AppBadge tone="muted">{category}</AppBadge></div>
       <h3 className="line-clamp-2 text-base font-semibold text-white group-hover:text-cyan-100">{title}</h3>
       {description && <p className="line-clamp-2 text-xs text-slate-400">{description}</p>}
-      <div className="mt-auto space-y-1 pt-2"><p className="text-xs text-slate-300">{meta}</p>
-        {date && <p className="text-[11px] text-slate-500">更新于 {date.slice(0, 10)}</p>}
-      </div>
+      <p className="mt-auto pt-1 text-xs text-slate-400">{meta}</p>
     </div>
   </Link>;
 }
@@ -173,21 +165,17 @@ export default function UserProfilePage() {
   );
   const joinedDate = useMemo(() => {
     if (!profile?.user?.createdAt) return "";
-    try {
-      return formatDateTimeStable(new Date(profile.user.createdAt));
-    } catch {
-      return "";
-    }
+    const date = new Date(profile.user.createdAt);
+    return Number.isNaN(date.getTime()) ? "" : `${date.getUTCFullYear()} 年 ${date.getUTCMonth() + 1} 月加入`;
   }, [profile]);
 
   return (
     <PageShell>
-      <div className="mx-auto w-full max-w-[90rem] space-y-5 pb-12">
+      <div className="mx-auto w-full max-w-6xl space-y-5 pb-12">
         {loading && !profile ? (
           <ProfileSkeleton />
         ) : error === "USER_NOT_FOUND" ? (
           <div className="rounded-3xl border border-white/10 bg-slate-950/72 p-10 text-center shadow-[0_28px_100px_rgba(0,0,0,0.35)]">
-            <AppBadge tone="tier">AniMatch</AppBadge>
             <h1 className="mt-5 text-2xl font-black">用户不存在</h1>
             <p className="mt-3 text-sm text-slate-400">
               这位用户可能已注销，或你输入的地址有误。
@@ -201,7 +189,6 @@ export default function UserProfilePage() {
           </div>
         ) : error !== null && !profile ? (
           <div className="rounded-3xl border border-white/10 bg-slate-950/72 p-10 text-center shadow-[0_28px_100px_rgba(0,0,0,0.35)]">
-            <AppBadge tone="tier">AniMatch</AppBadge>
             <h1 className="mt-5 text-2xl font-black">加载失败</h1>
             <p className="mt-3 text-sm text-slate-400">无法获取用户信息，请稍后再试。</p>
             <AppButton className="mt-4" onClick={() => setRetry(value => value + 1)}>重新加载</AppButton>
@@ -209,9 +196,9 @@ export default function UserProfilePage() {
         ) : profile !== null ? (
           <>
             <section className="rounded-2xl border border-anime-border bg-anime-panel p-5 sm:p-7">
-              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
                 <div className="flex min-w-0 items-center gap-4 sm:gap-5">
-                  <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-cyan-900/70 to-violet-900/60 text-2xl font-black text-cyan-100">
+                  <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-gradient-to-br from-cyan-900/70 to-violet-900/60 text-2xl font-black text-cyan-100">
                     {profile.user.image && !avatarFailed
                       ? <img src={proxyExternalImageUrl(profile.user.image) ?? profile.user.image} alt={displayName + "头像"} decoding="async" referrerPolicy="no-referrer" onError={() => setAvatarFailed(true)} className="h-full w-full object-cover" />
                       : <span aria-hidden="true">{displayName.slice(0, 1).toUpperCase()}</span>}
@@ -225,12 +212,7 @@ export default function UserProfilePage() {
                         @{profile.user.username}
                       </p>
                     ) : null}
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <AppBadge tone="tier">AniMatch 玩家</AppBadge>
-                      {joinedDate ? (
-                        <AppBadge tone="muted">加入于 {joinedDate}</AppBadge>
-                      ) : null}
-                    </div>
+                    {(joinedDate || profile.stats.participatedPoolCount > 0) && <p className="mt-2 text-xs text-slate-400">{joinedDate}{joinedDate && profile.stats.participatedPoolCount > 0 ? " · " : ""}{profile.stats.participatedPoolCount > 0 ? `参与 ${profile.stats.participatedPoolCount} 个番组` : ""}</p>}
                   </div>
                 </div>
                 <div className="flex min-w-0 shrink-0 flex-col items-start gap-2 sm:items-end">
@@ -242,31 +224,14 @@ export default function UserProfilePage() {
             </section>
 
 
-            <section aria-label="个人公开作品统计" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-              {([
-                ["公开番组", profile.stats.publicPoolsCount, "pools"],
-                ["动画 Tier List", profile.stats.sharedTierListCount, "shares"],
-                ["公开音乐曲单", profile.stats.publicSongPlaylistsCount, "songs"],
-                ["音乐 Tier List", profile.stats.sharedSongTierListCount, "songTiers"],
-                ["参与番组", profile.stats.participatedPoolCount, null]
-              ] as const).map(([label, count, target]) => <button key={label} type="button" disabled={!target}
-                onClick={() => { if (target) { scrollOnNextContent.current = true; setContentTab(target); setContentPage(1); } }}
-                className="min-h-24 rounded-xl border border-anime-border bg-anime-panel p-4 text-left transition enabled:hover:border-anime-cyan/40 disabled:cursor-default">
-                <span className="block text-2xl font-black tabular-nums text-white">{count}</span>
-                <span className="mt-1 block text-xs text-slate-400">{label}</span>
-              </button>)}
-            </section>
-
             <section ref={contentRef} aria-label="公开作品和口味档案" className="scroll-mt-28 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div><h2 className="text-xl font-bold">公开作品</h2><p className="mt-1 text-xs text-slate-400">所有公开的番组、动画 Tier List 和音乐作品集中展示，口味档案可以单独查看。</p></div>
-              </div>
+              <h2 className="sr-only">公开作品</h2>
               <DashboardTabs id="profile-library" label="公开内容" value={contentTab} onChange={(tab) => { setContentTab(tab); setContentPage(1); }} items={[
-                { value: "pools", label: "公开番组", count: profile.stats.publicPoolsCount },
-                { value: "shares", label: "动画 Tier List", count: profile.stats.sharedTierListCount },
+                { value: "pools", label: "番组", count: profile.stats.publicPoolsCount },
+                { value: "shares", label: "动画榜单", count: profile.stats.sharedTierListCount },
                 { value: "songs", label: "音乐曲单", count: profile.stats.publicSongPlaylistsCount },
-                { value: "songTiers", label: "音乐 Tier List", count: profile.stats.sharedSongTierListCount },
-                { value: "taste", label: "口味档案" }
+                { value: "songTiers", label: "音乐榜单", count: profile.stats.sharedSongTierListCount },
+                { value: "taste", label: "口味" }
               ]} />
               {contentTab === "taste" ? <div role="tabpanel" id="profile-library-panel-taste" aria-labelledby="profile-library-tab-taste"><TasteDashboard username={username} /></div> :
                 <div role="tabpanel" id={"profile-library-panel-" + contentTab} aria-labelledby={"profile-library-tab-" + contentTab} className="space-y-4">
@@ -274,17 +239,17 @@ export default function UserProfilePage() {
                     loading ? <div role="status" className="py-8 text-sm text-slate-400">正在加载公开作品…</div> : <>
                       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         {contentTab === "pools" && profile.publicPools.map(pool => <ProfileMediaCard key={pool.id}
-                          href={"/pools/" + pool.id} title={pool.name} covers={pool.coverUrls} category="公开番组"
-                          meta={pool.animeCount + " 部动画 · " + pool.tierListCount + " 份个人对决"} description={pool.description ?? "暂无描述"} date={pool.updatedAt} />)}
+                          href={"/pools/" + pool.id} title={pool.name} covers={pool.coverUrls}
+                          meta={pool.animeCount + " 部动画 · " + pool.tierListCount + " 份个人对决"} description={pool.description ?? undefined} />)}
                         {contentTab === "shares" && profile.publicTierLists.map(tl => <ProfileMediaCard key={tl.token}
-                          href={"/share/tier/" + tl.token} title={tl.title} covers={tl.coverUrls} category="动画 Tier List"
-                          meta={tl.animeCount + " 部作品 · " + tl.comparisonCount + " 场对决"} description={tl.poolName} date={tl.createdAt} />)}
+                          href={"/share/tier/" + tl.token} title={tl.title} covers={tl.coverUrls}
+                          meta={tl.animeCount + " 部作品 · " + tl.comparisonCount + " 场对决"} description={tl.poolName} />)}
                         {contentTab === "songs" && profile.publicSongPlaylists.map(song => <ProfileMediaCard key={song.id}
-                          href={"/anisong/templates/" + song.id} title={song.title} covers={song.coverUrls} music category="公开音乐曲单"
-                          meta={song.trackCount + " 首歌曲"} date={song.updatedAt} />)}
+                          href={"/anisong/templates/" + song.id} title={song.title} covers={song.coverUrls} music
+                          meta={song.trackCount + " 首歌曲"} />)}
                         {contentTab === "songTiers" && profile.publicSongTierLists.map(song => <ProfileMediaCard key={song.token}
-                          href={"/anisong/share/" + song.token} title={song.title} covers={song.coverUrls} music category="音乐 Tier List"
-                          meta={song.trackCount + " 首歌曲 · " + song.comparisonCount + " 场对决"} date={song.updatedAt} />)}
+                          href={"/anisong/share/" + song.token} title={song.title} covers={song.coverUrls} music
+                          meta={song.trackCount + " 首歌曲 · " + song.comparisonCount + " 场对决"} />)}
                       </div>
                       {(contentTab === "pools" ? profile.stats.publicPoolsCount : contentTab === "shares" ? profile.stats.sharedTierListCount : contentTab === "songs" ? profile.stats.publicSongPlaylistsCount : profile.stats.sharedSongTierListCount) === 0 &&
                         <div className="rounded-xl border border-dashed border-white/15 bg-anime-panel p-8 text-center text-sm text-slate-400">
