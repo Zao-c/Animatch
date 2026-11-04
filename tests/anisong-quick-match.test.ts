@@ -30,4 +30,18 @@ describe("Quick Match coverage", () => {
     expect(chooseQuickSongPair(all,events,()=>.5)?.includes("2")).toBe(false);
     expect(JSON.stringify(events)).toBe(before);
   });
+  it("covers an annual 256-song pool without a quadratic all-pairs loop per vote", () => {
+    const all=scores(Array(256).fill(0));
+    const events:SongEvent[]=[];
+    for(let turn=0;turn<256;turn++){
+      const pair=chooseQuickSongPair(all,events,()=>.5);
+      expect(pair).not.toBeNull();
+      const [left,right]=pair!;
+      all[Number(left)].compareCount++;
+      all[Number(right)].compareCount++;
+      events.push({id:String(turn),leftId:left,rightId:right,result:"LEFT_WIN"});
+    }
+    const coverage=quickMatchProgress(all,events);
+    expect(coverage).toMatchObject({covered:256,total:256,components:1,readyForDraft:true});
+  });
 });

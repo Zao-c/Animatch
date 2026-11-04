@@ -61,7 +61,18 @@ export function chooseQuickSongPair<T extends Scored>(scores: T[], events: SongE
     if (!state.best || weight > state.best.weight) state.best = { pair: [a.animeId,b.animeId],weight };
   }
   if (coverage) {
-    for(let i=0;i<active.length;i++) for(let j=i+1;j<active.length;j++) consider(active[i],active[j]);
+    // 256–1000 song pools must not enumerate every possible pair on every
+    // vote. Consider the most under-exposed anchors against the entire pool.
+    // Scanning all opponents still finds cross-component links, while limiting
+    // work to O(24*n) instead of O(n²) for large annual playlists.
+    const anchors = active.length > 128
+      ? [...active].sort((a,b) => a.compareCount - b.compareCount || a.animeId.localeCompare(b.animeId)).slice(0, 24)
+      : active;
+    if (active.length > 128) {
+      for (const first of anchors) for (const second of active) consider(first, second);
+    } else {
+      for (let i=0;i<active.length;i++) for (let j=i+1;j<active.length;j++) consider(active[i],active[j]);
+    }
   } else {
     for(let i=0;i<ranked.length;i++) {
       for(let j=i+1;j<Math.min(ranked.length,i+13);j++) consider(ranked[i],ranked[j]);
