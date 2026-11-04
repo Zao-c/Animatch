@@ -33,9 +33,13 @@ export async function tasteScopes(userId: string, year?: number) {
 
 export async function getTasteProfile(username: string, viewerId?: string, year?: number) {
   const user = await prisma.user.findFirst({ where: { username, deletedAt: null },
-    select: { id: true } });
+    select: { id: true, profileVisibility: true } });
   if (!user) throw new AppError("用户不存在", 404);
   const isOwner = user.id === viewerId;
+  // Respect explicit PRIVATE profile choices. Public-pool ratings alone never
+  // override an account-wide privacy opt-out.
+  if (!isOwner && user.profileVisibility === "PRIVATE")
+    return { isOwner: false, visible: false, profile: null, scopes: [] };
   const scopes = await tasteScopes(user.id, year);
   return { isOwner, visible: true, profile: buildTasteProfile(scopes.map((scope) => scope.entries)),
     scopes: scopes.map(({ id, title, entries }) => ({ id, title, count: entries.length })) };
@@ -45,7 +49,7 @@ export async function findTasteMatches(userId: string, scopeId: string) {
   const myScopes = await tasteScopes(userId);
   const mine = myScopes.find((scope) => scope.id === scopeId);
   if (!mine) throw new AppError("请选择你参与过的公开番组或赛季", 400);
-  const eligibleUser = { deletedAt: null, id: { not: userId } };
+  const eligibleUser = { deletedAt: null, profileVisibility: "PUBLIC" as const, id: { not: userId } };
   const commonWhere = { user: eligibleUser, isHidden: false, compareCount: { gt: 0 }, animeId: { in: mine.entries.map((entry) => entry.animeId) } };
   const candidateRows = scopeId.startsWith("season:")
     ? await prisma.battleSeasonUserScore.groupBy({ by: ["userId"], where: { ...commonWhere, seasonId: scopeId.slice(7) }, _count: { animeId: true }, orderBy: { _count: { animeId: "desc" } }, take: 100 })
