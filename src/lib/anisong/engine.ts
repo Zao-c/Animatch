@@ -6,6 +6,7 @@ import { buildTierList } from "@/lib/tier";
 import { DEFAULT_TIER_CONFIG } from "@/lib/tier-config";
 import type { SongDocument, SongTrack, SongSnapshot } from "./types";
 import { preferredSongCover } from "./cover-quality";
+import { chooseQuickSongPair } from "./quick-match";
 
 export type SongScore = ScoreItem & { track: SongTrack; manualTier: string | null; manualLocked: boolean };
 
@@ -100,7 +101,11 @@ export function nextSongPair(document: SongDocument, random: () => number = pair
   const compared = new Set(document.events.filter(e => ["LEFT_WIN", "RIGHT_WIN", "DRAW"].includes(e.result))
     .map(e => makePairKey(e.leftId, e.rightId)));
   const recent = new Set(document.events.slice(-12).map(e => makePairKey(e.leftId, e.rightId)));
-  const pair = pickNextPair(songPairingCandidates(ranking.active, random), compared, recent, { stage: ranking.progress.stage, random });
+  const quick = document.matchMode === "quick"
+    ? chooseQuickSongPair(ranking.active, document.events, random) : null;
+  const pair = quick ? { leftAnimeId: quick[0], rightAnimeId: quick[1] }
+    : document.matchMode === "quick" ? null
+    : pickNextPair(songPairingCandidates(ranking.active, random), compared, recent, { stage: ranking.progress.stage, random });
   if (!pair) return null;
   const left = document.tracks.find(t => t.id === pair.leftAnimeId)!;
   const right = document.tracks.find(t => t.id === pair.rightAnimeId)!;

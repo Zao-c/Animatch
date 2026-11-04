@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { AppButton } from "@/components/ui/AppButton";
 import { downloadSongFile } from "@/lib/anisong/client";
+import { copyTextWithFallback } from "@/lib/browser-copy";
 import type { SongBoardView, SongSnapshot } from "@/lib/anisong/types";
 import { SongTierEditor } from "./SongTierEditor";
 
@@ -20,8 +21,9 @@ export function SongTierPanel({ board, snapshot, disabled, shareUrl, onLayout, o
     downloadSongFile(filename, new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" }));
   }
   async function copyShare() {
-    try { await navigator.clipboard.writeText(shareUrl); onNotice("分享链接已复制"); }
-    catch { onError("复制失败，请选中链接手动复制。"); }
+    const result = await copyTextWithFallback(shareUrl);
+    if (result === "copied") onNotice("分享链接已复制");
+    else onError("自动复制失败，请选中下方链接手动复制。");
   }
   return <section aria-label="我的音乐 Tier List" className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
     <div className="min-w-0 space-y-4">

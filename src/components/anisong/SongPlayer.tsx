@@ -8,7 +8,7 @@ import { SongPlayerPopover } from "./SongPlayerPopover";
 const PLAY_EVENT = "anisong:play";
 const timestamp = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 export type PlaybackState = "idle" | "loading" | "playing";
-export function SongPlayer({ track, boardId, shortcut, disabled = false, onPlaybackChange, compact = false }: { compact?: boolean; track: SongTrack; boardId: string; shortcut?: "q" | "e"; disabled?: boolean; onPlaybackChange?: (state: PlaybackState) => void }) {
+export function SongPlayer({ track, boardId, templateId, shortcut, disabled = false, onPlaybackChange, compact = false, minimal = false }: { compact?: boolean; minimal?: boolean; track: SongTrack; boardId: string; templateId?: string; shortcut?: "q" | "e"; disabled?: boolean; onPlaybackChange?: (state: PlaybackState) => void }) {
   const audio = useRef<HTMLAudioElement>(null);
   const wanted = useRef(false), generation = useRef(0);
   const resolution = useRef<AbortController | null>(null);
@@ -23,7 +23,7 @@ export function SongPlayer({ track, boardId, shortcut, disabled = false, onPlayb
   const [volume, setVolume] = useState(0.8), [provider, setProvider] = useState<SongAudioProvider | null>(null);
   const [trial, setTrial] = useState(false), [storeUrl, setStoreUrl] = useState(track.itunes?.storeUrl || "");
   const preferences = usePlaybackPreferences();
-  const hasAudio = track.source.kind !== "none" || Boolean(track.itunes);
+  const hasAudio = templateId ? track.source.kind === "pool" || track.source.kind === "itunes" || Boolean(track.itunes) : track.source.kind !== "none" || Boolean(track.itunes);
   const end = Math.min(clip.start + clip.length, duration ?? Infinity), length = Math.max(0, end - clip.start);
   const clearTimer = useCallback(() => { if (watchdog.current !== null) window.clearTimeout(watchdog.current); watchdog.current = null; }, []);
   const stop = useCallback(() => { wanted.current = false; generation.current++; resolution.current?.abort(); clearTimer(); audio.current?.pause(); setLoading(false); setPlaying(false); }, [clearTimer]);
@@ -67,8 +67,9 @@ export function SongPlayer({ track, boardId, shortcut, disabled = false, onPlayb
     try {
       let playback = cache.current.get(selected);
       if (!playback || playback.expiresAt <= Date.now() + 5000 || element.error) {
+        if (templateId && selected === "original") throw new Error("公开页面只能播放已授权的公共音源");
         if (selected === "original" && (track.source.kind === "upload" || track.source.kind === "url")) playback = { provider: selected, url: track.source.kind === "upload" ? `/api/anisong/boards/${boardId}/audio/${track.id}` : track.source.url, expiresAt: Date.now() + 3600000, trial: false, start: track.clipStart, length: track.clipLength };
-        else playback = await songRequest<SongPlayback>(`/api/anisong/boards/${boardId}/playback/${track.id}?provider=${selected}`, { signal: controller.signal });
+        else playback = await songRequest<SongPlayback>(templateId ? `/api/anisong/templates/${templateId}/playback/${track.id}?provider=${selected}` : `/api/anisong/boards/${boardId}/playback/${track.id}?provider=${selected}`, { signal: controller.signal });
         if (!live(token, index)) return;
         cache.current.set(selected, playback);
       }
@@ -102,8 +103,8 @@ export function SongPlayer({ track, boardId, shortcut, disabled = false, onPlayb
     setNotice((preferences.preferred === "itunes" && plan[0] !== "itunes") || (preferences.preferred === "pool" && plan[0] === "itunes") ? `首选音源尚未补充，改用${AUDIO_PROVIDER_LABELS[plan[0]]}` : "");
     void tryProvider(0, token, restart);
   }
-  if (!hasAudio) return <p className="rounded-xl border border-dashed border-white/15 p-3 text-xs leading-5 text-slate-400">尚未添加音频，可凭印象选择或在曲单中补充。</p>;
-  return <div className={`song-player space-y-1 rounded-xl border p-2 transition-colors ${compact ? "song-player-compact bg-slate-950/90" : "sm:p-3"} ${playing || loading ? "border-anime-cyan/30 bg-anime-cyan/5" : compact ? "border-white/15" : "border-white/10 bg-slate-950/30"}`}>
+  if (!hasAudio) return <p className={compact ? "px-2 py-2 text-xs text-slate-200" : "rounded-xl border border-dashed border-white/15 p-3 text-xs leading-5 text-slate-400"}>暂无可试听音源，可以凭印象选择。</p>;
+  return <div className={`song-player space-y-1 transition-colors ${minimal ? "rounded-none border-0 bg-transparent p-0" : compact ? "song-player-compact rounded-none border-0 bg-gradient-to-t from-slate-950/95 via-slate-950/75 to-transparent px-3 pb-2 pt-5 sm:rounded-lg sm:border sm:border-white/15 sm:bg-none sm:bg-slate-950/70 sm:p-2" : "rounded-xl border p-2 sm:p-3 " + (playing || loading ? "border-anime-cyan/30 bg-anime-cyan/5" : "border-white/10 bg-slate-950/30")}`}>
     <audio ref={audio} preload="none"
       onLoadedMetadata={event => { const element = event.currentTarget; if (element.currentSrc !== attempt.current.activeUrl) return; setDuration(Number.isFinite(element.duration) ? element.duration : null); if (active.current.start >= element.duration) { advance("试听起点超出音频长度，请编辑调整"); } else element.currentTime = active.current.start; }}
       onPlay={event => { if (!wanted.current || event.currentTarget.currentSrc !== attempt.current.activeUrl) { event.currentTarget.pause(); return; } window.dispatchEvent(new CustomEvent(PLAY_EVENT, { detail: event.currentTarget })); setPlaying(true); }}
@@ -114,7 +115,7 @@ export function SongPlayer({ track, boardId, shortcut, disabled = false, onPlayb
       onError={event => { if (wanted.current && !attempt.current.resolving && event.currentTarget.error) advance("音频加载失败"); }}
       onTimeUpdate={event => { const element = event.currentTarget; const boundary = Math.min(active.current.start + active.current.length, Number.isFinite(element.duration) ? element.duration : Infinity); setElapsed(Math.max(0, Math.min(active.current.length, element.currentTime - active.current.start))); if (element.currentTime >= boundary) { wanted.current = false; clearTimer(); element.pause(); setLoading(false); } }} />
     <div className={"song-player-controls"}>
-      <button type="button" disabled={disabled} onClick={() => toggle()} aria-label={`${playing || loading ? "暂停" : "试听"} ${track.title}`} aria-keyshortcuts={shortcut} className={`flex ${compact ? "h-9 w-9" : "h-11 w-11"} shrink-0 items-center justify-center rounded-full border border-anime-cyan/40 bg-anime-cyan/10 text-lg text-anime-cyan hover:bg-anime-cyan/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-200 disabled:opacity-40`}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={"h-5 w-5 " + (loading ? "animate-spin motion-reduce:animate-none" : "")}>
+      <button type="button" disabled={disabled} onClick={() => toggle()} aria-label={`${playing || loading ? "暂停" : "试听"} ${track.title}`} aria-keyshortcuts={shortcut} className={`flex ${compact || minimal ? "h-10 w-10" : "h-11 w-11"} shrink-0 items-center justify-center rounded-full border border-anime-cyan/40 bg-anime-cyan/10 text-lg text-anime-cyan hover:bg-anime-cyan/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-200 disabled:opacity-40`}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={"h-5 w-5 " + (loading ? "animate-spin motion-reduce:animate-none" : "")}>
         {loading ? <path d="M21 12a9 9 0 1 1-6-8.5" /> : playing ? <><path d="M9 5v14" /><path d="M15 5v14" /></> : <path d="m9 5 11 7-11 7z" />}
       </svg></button>
       <label className="w-full min-w-0 flex-1 text-[10px] text-slate-400 sm:text-xs"><span className="flex flex-wrap justify-between gap-x-1"><span className={"song-player-caption"}>{loading ? "正在加载" : playing ? "正在试听" : "试听片段"}</span><span className="whitespace-nowrap tabular-nums">{timestamp(elapsed)} / {timestamp(length)}</span></span>

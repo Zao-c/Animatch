@@ -13,6 +13,7 @@ export async function POST(request: Request, { params }: { params: { boardId: st
     const user = await requireCurrentUser(); limitNetease(user.id, "itunes-link", 20);
     const input = objectInput(await songJson(request)); const revision = revisionInput(input.revision);
     const board = await ownedSongBoard(user.id, params.boardId);
+    if (board.templateId) throw new AppError("只能由曲单创建者修改歌曲的音源", 403);
     if (board.revision !== revision) throw new AppError("曲单已更新，请重新载入后匹配", 409);
     const id = textInput(input.trackId, "歌曲编号", 80, true);
     const track = (board.document as unknown as SongDocument).tracks.find(t => t.id === id);

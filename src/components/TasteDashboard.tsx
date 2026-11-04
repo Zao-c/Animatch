@@ -56,7 +56,7 @@ export function TasteDashboard({ username }: { username: string }) {
             {matches && <><p className="mb-3 text-sm text-slate-300">这个范围内找到 {matches.candidateCount} 位可以比较的群友</p>{matches.candidateCount ? <div className="space-y-4"><MatchColumn title="口味搭子" items={matches.closest} /><MatchColumn title="相对分歧最大" items={matches.furthest} /></div> : <p className="rounded-xl border border-white/10 bg-white/[0.025] p-4 text-sm text-slate-300">这个番组里暂时没人与你共同评价足够作品。可以切换番组，或邀请群友多做几轮对决。</p>}</>}
         </>}
       </div>
-    </> : null}
+    </> : data && !data.visible ? <p className="rounded-xl border border-white/10 p-5 text-sm text-slate-300">这位用户选择了私人资料，口味档案暂不对外展示。</p> : null}
   </section>;
 }
 

@@ -16,7 +16,7 @@ export function MatchCardFrame({ title, side, artwork, disabled, onPick, actionL
     <div className={"relative h-[clamp(13rem,40dvh,26rem)] w-full overflow-hidden rounded-xl bg-slate-950 sm:h-[clamp(22rem,62dvh,50rem)] " + heroClassName}>
       {artwork}
       <button type="button" disabled={disabled} onClick={onPick} aria-label={"选择" + (side === "left" ? "左边" : "右边") + "：" + title} className="absolute inset-0 z-10 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-cyan-200 disabled:cursor-wait" />
-      {mediaControls && <div className="absolute inset-x-2 bottom-2 z-20">{mediaControls}</div>}
+      {mediaControls && <div className={mode === "music" ? "absolute inset-x-0 bottom-0 z-20" : "absolute inset-x-2 bottom-2 z-20"}>{mediaControls}</div>}
     </div>
     <h2 title={title} className="my-2 line-clamp-2 min-h-10 text-sm font-bold leading-5 text-slate-100 sm:text-base">{title}</h2>
     {children}

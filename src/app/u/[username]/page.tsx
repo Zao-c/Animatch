@@ -1,19 +1,25 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element -- Covers live on COS/CDN hosts that the
+   Next image optimizer is not configured for; the rest of AniMatch renders them the
+   same way (see AnimeCover and SongCover) with an explicit error fallback. */
+
 import { DashboardTabs } from "@/components/ui/DashboardTabs";
 import { CollectionPager } from "@/components/ui/CollectionPager";
 import { TasteDashboard } from "@/components/TasteDashboard";
 import Link from "next/link";
-import Image from "next/image";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { PageShell } from "@/components/PageShell";
-import { appButtonClasses } from "@/components/ui/AppButton";
+import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
+import { copyTextWithFallback } from "@/lib/browser-copy";
 import { proxyExternalImageUrl } from "@/lib/image-proxy";
 import { formatDateTimeStable } from "@/lib/date-format";
-import { decodeProfileUsername } from "@/lib/profile-username";
+import { decodeProfileUsername, profilePath } from "@/lib/profile-username";
+import { profileCollectionUrl, profilePageCount } from "@/lib/user-profile";
 
+type PublicTab = "pools" | "shares" | "songs" | "songTiers" | "taste";
 interface PublicProfile {
   user: {
     id: string;
@@ -26,9 +32,14 @@ interface PublicProfile {
     publicPoolsCount: number;
     sharedTierListCount: number;
     participatedPoolCount: number;
+    publicSongPlaylistsCount: number;
+    sharedSongTierListCount: number;
   };
   publicPools: PublicPoolEntry[];
   publicTierLists: PublicTierListEntry[];
+  publicSongPlaylists: { id: string; title: string; trackCount: number; coverUrls: string[]; updatedAt: string }[];
+  publicSongTierLists: { token: string; title: string; trackCount: number; comparisonCount: number; coverUrls: string[]; updatedAt: string }[];
+  pagination: { section: string; page: number; pageSize: number; total: number };
 }
 
 interface PublicPoolEntry {
@@ -71,45 +82,90 @@ function ProfileSkeleton() {
   );
 }
 
+
+function ProfileMediaCard({ href, title, covers, category, meta, description, music, date }: {
+  href: string; title: string; covers: string[]; category: string; meta: string; description?: string; music?: boolean; date?: string;
+}) {
+  const [failed, setFailed] = useState<Record<number, boolean>>({});
+  return <Link href={href} className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border border-anime-border bg-anime-panel transition hover:border-anime-cyan/40 hover:bg-white/[0.045] focus-visible:outline focus-visible:outline-2 focus-visible:outline-anime-cyan">
+    <div className="grid grid-cols-5 gap-1.5 border-b border-white/10 bg-slate-950/30 p-2.5">
+      {Array.from({ length: 5 }, (_, index) => covers[index] ?? "").map((url, index) =>
+        <div key={index} className={"relative min-w-0 overflow-hidden rounded-md bg-gradient-to-br from-cyan-950/80 to-violet-950/50 " + (music ? "aspect-square" : "aspect-[3/4]")}>
+          {url && !failed[index]
+            ? <img src={proxyExternalImageUrl(url) ?? url} alt={title + "封面 " + (index + 1)} loading="lazy" decoding="async" referrerPolicy="no-referrer"
+              onError={() => setFailed(previous => previous[index] ? previous : { ...previous, [index]: true })}
+              className="absolute inset-0 h-full w-full object-cover" />
+            : <span aria-hidden="true" className="flex h-full items-center justify-center text-xl text-slate-500">{music ? "♪" : "◇"}</span>}
+        </div>)}
+    </div>
+    <div className="flex flex-1 flex-col gap-2 p-4">
+      <div><AppBadge tone="muted">{category}</AppBadge></div>
+      <h3 className="line-clamp-2 text-base font-semibold text-white group-hover:text-cyan-100">{title}</h3>
+      {description && <p className="line-clamp-2 text-xs text-slate-400">{description}</p>}
+      <div className="mt-auto space-y-1 pt-2"><p className="text-xs text-slate-300">{meta}</p>
+        {date && <p className="text-[11px] text-slate-500">更新于 {date.slice(0, 10)}</p>}
+      </div>
+    </div>
+  </Link>;
+}
+
 export default function UserProfilePage() {
   const params = useParams<{ username: string }>();
   const username = decodeProfileUsername(params.username);
 
-  const [contentTab, setContentTab] = useState<"shares" | "pools">("shares");
+  const [contentTab, setContentTab] = useState<PublicTab>("pools");
   const [contentPage, setContentPage] = useState(1);
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
+  const [copyStatus, setCopyStatus] = useState("");
+  const [manualUrl, setManualUrl] = useState("");
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const copyInput = useRef<HTMLInputElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const scrollOnNextContent = useRef(false);
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true); setError(null); setProfile(null); setContentPage(1);
-
-    fetch(`/api/users/${encodeURIComponent(username)}/public-profile`)
-      .then((res) => {
-        if (!res.ok) {
-          if (res.status === 404) throw new Error("USER_NOT_FOUND");
-          throw new Error("LOAD_FAILED");
-        }
-        return res.json();
-      })
-      .then((data) => {
-        if (!cancelled) {
-          setProfile(data.data ?? null);
-          setLoading(false);
-        }
-      })
-      .catch((err: Error) => {
-        if (!cancelled) {
-          setError(err.message === "USER_NOT_FOUND" ? "USER_NOT_FOUND" : "LOAD_FAILED");
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    setProfile(null); setContentTab("pools"); setContentPage(1);
+    setCopyStatus(""); setManualUrl(""); setAvatarFailed(false);
   }, [username]);
+  useEffect(() => {
+    if (contentTab === "taste") return;
+    const controller = new AbortController();
+    setLoading(true); setError(null);
+    fetch(profileCollectionUrl(username, contentTab, contentPage), { signal: controller.signal })
+      .then(response => {
+        if (response.status === 404) throw new Error("USER_NOT_FOUND");
+        if (!response.ok) throw new Error("LOAD_FAILED");
+        return response.json();
+      })
+      .then(data => { if (!controller.signal.aborted) { setProfile(data.data ?? null); setLoading(false); } })
+      .catch((cause: Error) => { if (!controller.signal.aborted) { setError(cause.message === "USER_NOT_FOUND" ? "USER_NOT_FOUND" : "LOAD_FAILED"); setLoading(false); } });
+    return () => controller.abort();
+  }, [username, contentTab, contentPage, retry]);
+  // Scroll once the new page is on screen: a smooth scroll started before the
+  // list re-renders is cancelled by that layout change in Chromium.
+  useEffect(() => {
+    if (loading || !scrollOnNextContent.current) return;
+    scrollOnNextContent.current = false;
+    contentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [loading]);
+  // A collection can shrink while it is open (a snapshot is revoked, a pool turns
+  // private). Land on the last real page instead of an empty page N of fewer.
+  useEffect(() => {
+    const pagination = profile?.pagination;
+    if (!pagination || contentTab === "taste") return;
+    const lastPage = profilePageCount(pagination.total, pagination.pageSize);
+    if (contentPage > lastPage) setContentPage(lastPage);
+  }, [profile?.pagination, contentPage, contentTab]);
+
+  async function copyProfileLink() {
+    const url = new URL(profilePath(username), window.location.origin).href;
+    if (await copyTextWithFallback(url) === "copied") { setCopyStatus("主页网址已复制"); setManualUrl(""); }
+    else { setCopyStatus("复制受限，请手动复制下面的网址"); setManualUrl(url);
+      window.requestAnimationFrame(() => { copyInput.current?.focus(); copyInput.current?.select(); }); }
+  }
 
   const displayName = useMemo(
     () => profile?.user?.name ?? profile?.user?.username ?? "未知用户",
@@ -126,8 +182,8 @@ export default function UserProfilePage() {
 
   return (
     <PageShell>
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-        {loading ? (
+      <div className="mx-auto w-full max-w-[90rem] space-y-5 pb-12">
+        {loading && !profile ? (
           <ProfileSkeleton />
         ) : error === "USER_NOT_FOUND" ? (
           <div className="rounded-3xl border border-white/10 bg-slate-950/72 p-10 text-center shadow-[0_28px_100px_rgba(0,0,0,0.35)]">
@@ -143,158 +199,108 @@ export default function UserProfilePage() {
               浏览公开番组
             </Link>
           </div>
-        ) : error !== null ? (
+        ) : error !== null && !profile ? (
           <div className="rounded-3xl border border-white/10 bg-slate-950/72 p-10 text-center shadow-[0_28px_100px_rgba(0,0,0,0.35)]">
             <AppBadge tone="tier">AniMatch</AppBadge>
             <h1 className="mt-5 text-2xl font-black">加载失败</h1>
-            <p className="mt-3 text-sm text-slate-400">
-              无法获取用户信息，请稍后再试。
-            </p>
+            <p className="mt-3 text-sm text-slate-400">无法获取用户信息，请稍后再试。</p>
+            <AppButton className="mt-4" onClick={() => setRetry(value => value + 1)}>重新加载</AppButton>
           </div>
         ) : profile !== null ? (
           <>
-            <section className="mb-10 rounded-3xl border border-white/10 bg-slate-950/72 p-6 shadow-[0_28px_100px_rgba(0,0,0,0.35)] sm:p-8">
-              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white/10 text-2xl font-black text-white/40">
-                  {displayName.slice(0, 1).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <h1 className="truncate text-2xl font-black text-white">
-                    {displayName}
-                  </h1>
-                  {profile.user.username ? (
-                    <p className="mt-1 text-sm text-slate-400">
-                      @{profile.user.username}
-                    </p>
-                  ) : null}
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <AppBadge tone="tier">AniMatch 玩家</AppBadge>
-                    {joinedDate ? (
-                      <AppBadge tone="muted">加入于 {joinedDate}</AppBadge>
+            <section className="rounded-2xl border border-anime-border bg-anime-panel p-5 sm:p-7">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+                <div className="flex min-w-0 items-center gap-4 sm:gap-5">
+                  <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-cyan-900/70 to-violet-900/60 text-2xl font-black text-cyan-100">
+                    {profile.user.image && !avatarFailed
+                      ? <img src={proxyExternalImageUrl(profile.user.image) ?? profile.user.image} alt={displayName + "头像"} decoding="async" referrerPolicy="no-referrer" onError={() => setAvatarFailed(true)} className="h-full w-full object-cover" />
+                      : <span aria-hidden="true">{displayName.slice(0, 1).toUpperCase()}</span>}
+                  </div>
+                  <div className="min-w-0">
+                    <h1 className="truncate text-2xl font-black text-white">
+                      {displayName}
+                    </h1>
+                    {profile.user.username ? (
+                      <p className="mt-1 break-all text-sm text-slate-400">
+                        @{profile.user.username}
+                      </p>
                     ) : null}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <AppBadge tone="tier">AniMatch 玩家</AppBadge>
+                      {joinedDate ? (
+                        <AppBadge tone="muted">加入于 {joinedDate}</AppBadge>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
+                <div className="flex min-w-0 shrink-0 flex-col items-start gap-2 sm:items-end">
+                  <AppButton size="sm" variant="secondary" onClick={() => void copyProfileLink()}>分享主页</AppButton>
+                  {copyStatus && <span role="status" className="text-xs text-cyan-100">{copyStatus}</span>}
+                  {manualUrl && <input ref={copyInput} value={manualUrl} aria-label="手动复制主页网址" readOnly onFocus={event => event.currentTarget.select()} className="anime-field w-full max-w-[22rem] text-xs" />}
+                </div>
               </div>
             </section>
 
-            <TasteDashboard username={username} />
-            <section className="mb-10 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4 text-center">
-                <p className="text-2xl font-black text-white">{profile.stats.publicPoolsCount}</p>
-                <p className="mt-1 text-xs text-slate-400">公开番组</p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4 text-center">
-                <p className="text-2xl font-black text-white">{profile.stats.sharedTierListCount}</p>
-                <p className="mt-1 text-xs text-slate-400">公开榜单</p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4 text-center">
-                <p className="text-2xl font-black text-white">{profile.stats.participatedPoolCount}</p>
-                <p className="mt-1 text-xs text-slate-400">参与番组</p>
-              </div>
+
+            <section aria-label="个人公开作品统计" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+              {([
+                ["公开番组", profile.stats.publicPoolsCount, "pools"],
+                ["动画 Tier List", profile.stats.sharedTierListCount, "shares"],
+                ["公开音乐曲单", profile.stats.publicSongPlaylistsCount, "songs"],
+                ["音乐 Tier List", profile.stats.sharedSongTierListCount, "songTiers"],
+                ["参与番组", profile.stats.participatedPoolCount, null]
+              ] as const).map(([label, count, target]) => <button key={label} type="button" disabled={!target}
+                onClick={() => { if (target) { scrollOnNextContent.current = true; setContentTab(target); setContentPage(1); } }}
+                className="min-h-24 rounded-xl border border-anime-border bg-anime-panel p-4 text-left transition enabled:hover:border-anime-cyan/40 disabled:cursor-default">
+                <span className="block text-2xl font-black tabular-nums text-white">{count}</span>
+                <span className="mt-1 block text-xs text-slate-400">{label}</span>
+              </button>)}
             </section>
 
-            <div className="mb-4"><DashboardTabs id="profile-library" label="公开内容" value={contentTab} onChange={(tab) => { setContentTab(tab); setContentPage(1); }} items={[{ value: "shares", label: "公开榜单", count: profile.publicTierLists.length }, { value: "pools", label: "公开番组", count: profile.publicPools.length }]} /></div>
-            {contentTab === "shares" ? <section className="mb-5" role="tabpanel" id="profile-library-panel-shares" aria-labelledby="profile-library-tab-shares">
-              <h2 className="sr-only">公开榜单</h2>
-              {profile.publicTierLists.length === 0 ? (
-                <p className="text-sm text-slate-500">还没有公开榜单</p>
-              ) : (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {profile.publicTierLists.slice((contentPage - 1) * 4, contentPage * 4).map((tl) => (
-                    <Link
-                      key={tl.token}
-                      href={`/share/tier/${tl.token}`}
-                      className="group rounded-2xl border border-white/10 bg-slate-950/60 p-4 transition hover:border-cyan-300/30"
-                    >
-                      <div className="mb-3 flex h-20 gap-1 overflow-hidden rounded-lg">
-                        {tl.coverUrls.slice(0, 5).map((url, i) => (
-                          <div key={i} className="flex-1 overflow-hidden rounded bg-black/40 relative">
-                            <Image
-                              src={proxyExternalImageUrl(url) ?? url}
-                              alt=""
-                              fill
-                              sizes="20vw"
-                              className="object-cover"
-                              loading="lazy"
-                            />
-                          </div>
-                        ))}
-                        {tl.coverUrls.length === 0 ? (
-                          <div className="flex flex-1 items-center justify-center rounded bg-black/40">
-                            <span className="text-xs text-slate-600">无封面</span>
-                          </div>
-                        ) : null}
+            <section ref={contentRef} aria-label="公开作品和口味档案" className="scroll-mt-28 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div><h2 className="text-xl font-bold">公开作品</h2><p className="mt-1 text-xs text-slate-400">所有公开的番组、动画 Tier List 和音乐作品集中展示，口味档案可以单独查看。</p></div>
+              </div>
+              <DashboardTabs id="profile-library" label="公开内容" value={contentTab} onChange={(tab) => { setContentTab(tab); setContentPage(1); }} items={[
+                { value: "pools", label: "公开番组", count: profile.stats.publicPoolsCount },
+                { value: "shares", label: "动画 Tier List", count: profile.stats.sharedTierListCount },
+                { value: "songs", label: "音乐曲单", count: profile.stats.publicSongPlaylistsCount },
+                { value: "songTiers", label: "音乐 Tier List", count: profile.stats.sharedSongTierListCount },
+                { value: "taste", label: "口味档案" }
+              ]} />
+              {contentTab === "taste" ? <div role="tabpanel" id="profile-library-panel-taste" aria-labelledby="profile-library-tab-taste"><TasteDashboard username={username} /></div> :
+                <div role="tabpanel" id={"profile-library-panel-" + contentTab} aria-labelledby={"profile-library-tab-" + contentTab} className="space-y-4">
+                  {error ? <div role="alert" className="rounded-xl border border-amber-300/20 p-4 text-sm text-amber-200">公开内容加载失败。<AppButton className="ml-3" size="sm" onClick={() => setRetry(value => value + 1)}>重试</AppButton></div> :
+                    loading ? <div role="status" className="py-8 text-sm text-slate-400">正在加载公开作品…</div> : <>
+                      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        {contentTab === "pools" && profile.publicPools.map(pool => <ProfileMediaCard key={pool.id}
+                          href={"/pools/" + pool.id} title={pool.name} covers={pool.coverUrls} category="公开番组"
+                          meta={pool.animeCount + " 部动画 · " + pool.tierListCount + " 份个人对决"} description={pool.description ?? "暂无描述"} date={pool.updatedAt} />)}
+                        {contentTab === "shares" && profile.publicTierLists.map(tl => <ProfileMediaCard key={tl.token}
+                          href={"/share/tier/" + tl.token} title={tl.title} covers={tl.coverUrls} category="动画 Tier List"
+                          meta={tl.animeCount + " 部作品 · " + tl.comparisonCount + " 场对决"} description={tl.poolName} date={tl.createdAt} />)}
+                        {contentTab === "songs" && profile.publicSongPlaylists.map(song => <ProfileMediaCard key={song.id}
+                          href={"/anisong/templates/" + song.id} title={song.title} covers={song.coverUrls} music category="公开音乐曲单"
+                          meta={song.trackCount + " 首歌曲"} date={song.updatedAt} />)}
+                        {contentTab === "songTiers" && profile.publicSongTierLists.map(song => <ProfileMediaCard key={song.token}
+                          href={"/anisong/share/" + song.token} title={song.title} covers={song.coverUrls} music category="音乐 Tier List"
+                          meta={song.trackCount + " 首歌曲 · " + song.comparisonCount + " 场对决"} date={song.updatedAt} />)}
                       </div>
-                      <h3 className="truncate text-sm font-semibold text-white group-hover:text-cyan-300">
-                        {tl.title}
-                      </h3>
-                      <p className="mt-1 text-xs text-slate-500">{tl.poolName}</p>
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-400">
-                        <span>{tl.animeCount} 作品</span>
-                        {tl.comparisonCount > 0 ? (
-                          <span>{tl.comparisonCount} 对决</span>
-                        ) : null}
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </section> : null}
-
-            {contentTab === "pools" ? <section role="tabpanel" id="profile-library-panel-pools" aria-labelledby="profile-library-tab-pools">
-              <h2 className="sr-only">公开番组</h2>
-              {profile.publicPools.length === 0 ? (
-                <p className="text-sm text-slate-500">还没有创建公开番组</p>
-              ) : (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {profile.publicPools.slice((contentPage - 1) * 4, contentPage * 4).map((pool) => (
-                    <Link
-                      key={pool.id}
-                      href={`/pools/${pool.id}`}
-                      className="group rounded-2xl border border-white/10 bg-slate-950/60 p-4 transition hover:border-anime-purple/30"
-                    >
-                      <div className="mb-3 flex h-20 gap-1 overflow-hidden rounded-lg">
-                        {pool.coverUrls.slice(0, 5).map((url, i) => (
-                          <div key={i} className="flex-1 overflow-hidden rounded bg-black/40 relative">
-                            <Image
-                              src={proxyExternalImageUrl(url) ?? url}
-                              alt=""
-                              fill
-                              sizes="20vw"
-                              className="object-cover"
-                              loading="lazy"
-                            />
-                          </div>
-                        ))}
-                        {pool.coverUrls.length === 0 ? (
-                          <div className="flex flex-1 items-center justify-center rounded bg-black/40">
-                            <span className="text-xs text-slate-600">无封面</span>
-                          </div>
-                        ) : null}
-                      </div>
-                      <h3 className="truncate text-sm font-semibold text-white group-hover:text-anime-purple">
-                        {pool.name}
-                      </h3>
-                      {pool.description ? (
-                        <p className="mt-1 line-clamp-2 text-xs text-slate-500">
-                          {pool.description}
-                        </p>
-                      ) : null}
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-400">
-                        <span>{pool.animeCount} 作品</span>
-                        {pool.tierListCount > 0 ? (
-                          <span>{pool.tierListCount} 榜单</span>
-                        ) : null}
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </section> : null}
-            <div className="mt-4"><CollectionPager label="公开内容" page={contentPage} pageSize={4} total={contentTab === "shares" ? profile.publicTierLists.length : profile.publicPools.length} onChange={setContentPage} /></div>
+                      {(contentTab === "pools" ? profile.stats.publicPoolsCount : contentTab === "shares" ? profile.stats.sharedTierListCount : contentTab === "songs" ? profile.stats.publicSongPlaylistsCount : profile.stats.sharedSongTierListCount) === 0 &&
+                        <div className="rounded-xl border border-dashed border-white/15 bg-anime-panel p-8 text-center text-sm text-slate-400">
+                          {contentTab === "pools" ? "还没有创建公开番组" : contentTab === "shares" ? "还没有公开榜单" : contentTab === "songs" ? "还没有公开音乐曲单" : "还没有分享音乐 Tier List"}
+                        </div>}
+                      <CollectionPager label="公开内容" page={contentPage} pageSize={profile.pagination.pageSize} total={
+                        contentTab === "pools" ? profile.stats.publicPoolsCount :
+                        contentTab === "shares" ? profile.stats.sharedTierListCount :
+                        contentTab === "songs" ? profile.stats.publicSongPlaylistsCount : profile.stats.sharedSongTierListCount
+                      } onChange={(next) => { scrollOnNextContent.current = true; setContentPage(next); }} />
+                    </>}
+                </div>}
+            </section>
           </>
         ) : null}
-      </main>
+      </div>
     </PageShell>
   );
 }
