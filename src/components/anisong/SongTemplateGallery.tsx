@@ -16,6 +16,8 @@ export function SongTemplateGallery() {
   const [starting, setStarting] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const lock = useRef(false);
+  const galleryRef = useRef<HTMLElement>(null);
+  const scrollAfterPage = useRef(false);
   const load = useCallback(async (signal: AbortSignal) => {
     setLoading(true); setError("");
     try {
@@ -25,6 +27,17 @@ export function SongTemplateGallery() {
     finally { if (!signal.aborted) setLoading(false); }
   }, [search, page]);
   useEffect(() => { const controller = new AbortController(); void load(controller.signal); return () => controller.abort(); }, [load, retryKey]);
+  // Keep the reader inside the music gallery when changing pages. Scrolling
+  // straight to window.top loses the gallery under the site's main header.
+  useEffect(() => {
+    if (loading || !scrollAfterPage.current) return;
+    scrollAfterPage.current = false;
+    galleryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [loading]);
+  function goToPage(next: number) {
+    scrollAfterPage.current = true;
+    setPage(Math.max(0, next));
+  }
 
   async function start(template: SongTemplateView) {
     if (lock.current) return;
@@ -37,7 +50,7 @@ export function SongTemplateGallery() {
       else setError(cause instanceof Error ? cause.message : "开始失败");
     } finally { lock.current = false; setStarting(null); }
   }
-  return <section className="space-y-4" aria-label="公共音乐曲单">
+  return <section ref={galleryRef} className="scroll-mt-24 space-y-4" aria-label="公共音乐曲单">
     <div className="flex flex-wrap items-end justify-between gap-3">
       <h2 className="text-xl font-bold">公开曲单</h2>
       <form onSubmit={event => { event.preventDefault(); setPage(0); setSearch(query.trim()); }} className="flex w-full gap-2 sm:w-auto">
@@ -76,9 +89,9 @@ export function SongTemplateGallery() {
         </SongPlaylistCard>)}</div> :
       <div className="rounded-2xl border border-dashed border-white/15 p-8 text-sm leading-7 text-slate-400">{search ? "没有找到匹配的公开曲单。" : "暂无公开音乐曲单。"}<Link className="ml-2 text-anime-cyan underline" href="/anisong/create">创建一份曲单 →</Link></div>}
     {(page > 0 || more) && <div className="flex items-center justify-center gap-3">
-      <AppButton size="sm" variant="ghost" disabled={loading || page === 0} onClick={() => { setPage(current => current - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>上一页</AppButton>
+      <AppButton size="sm" variant="ghost" disabled={loading || page === 0} onClick={() => goToPage(page - 1)}>上一页</AppButton>
       <span className="text-xs text-slate-400">第 {page + 1} 页</span>
-      <AppButton size="sm" variant="ghost" disabled={loading || !more} onClick={() => { setPage(current => current + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>下一页</AppButton>
+      <AppButton size="sm" variant="ghost" disabled={loading || !more} onClick={() => goToPage(page + 1)}>下一页</AppButton>
     </div>}
   </section>;
 }
