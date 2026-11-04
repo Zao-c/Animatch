@@ -71,9 +71,15 @@ export async function publishSongTemplate(userId: string, boardId: string, input
   return result;
 }
 export async function startSongTemplate(userId: string, templateId: string) {
+  const template = await prisma.songTemplate.findFirst({ where: { id: templateId, active: true } });
+  // Creators keep the source board's votes, tiers and private audio even when
+  // entering through an older client or the public start API directly.
+  if (template?.ownerId === userId && template.sourceBoardId) {
+    const source = await prisma.songBoard.findFirst({ where: { id: template.sourceBoardId, ownerId: userId } });
+    if (source) return boardView(source);
+  }
   const existing = await prisma.songBoard.findUnique({ where: { ownerId_templateId: { ownerId: userId, templateId } } });
   if (existing) return boardView(existing);
-  const template = await prisma.songTemplate.findFirst({ where: { id: templateId, active: true } });
   if (!template) throw new AppError("公共曲单不存在或已下架", 404);
   if (await prisma.songBoard.count({ where: { ownerId: userId, templateId: { not: null } } }) >= 200) throw new AppError("最多保留200份公共曲单对决进度，请先整理个人曲单", 400);
   const document = templateDocument((template.document as unknown as SongDocument).tracks);
