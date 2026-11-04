@@ -13,6 +13,7 @@ describe("public song wall matches anime pagination UX", () => {
     expect(code).toContain("templateId={templateId} minimal");
     expect(code).toContain('aria-label={`选择参赛：${track.title}`}');
     expect(code).toContain("setSelectedIds");
-    expect(code).toContain("仅影响我的对决，不修改公共曲单");
+    expect(code).not.toContain("试听请点击");
+    expect(code).not.toContain("参加后独立保存");
   });
 });

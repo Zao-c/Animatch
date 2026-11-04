@@ -100,7 +100,7 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
             <AppBadge>{template.trackCount} 首歌曲</AppBadge>
           </div>
           <h1 className="break-words text-3xl font-black tracking-tight text-white sm:text-4xl">{template.title}</h1>
-          <p className="text-sm text-slate-400">{template.ownerName} 创建 · {template.playableCount} 首可试听</p>
+          <p className="text-sm text-slate-400">由 {template.ownerName} 创建</p>
         </div>
         <AppCard variant="focus" className="space-y-2 p-3">
           {isCreator ?
@@ -119,11 +119,11 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
           {isCreator && <Link href={ownerHref} className="block py-1 text-center text-xs text-anime-cyan">管理我的曲单 →</Link>}
         </AppCard>
       </header>
-      <nav role="tablist" aria-label="公共曲单导航" className="flex flex-wrap gap-1 rounded-xl border border-anime-border bg-anime-panel p-1">
+      <nav role="tablist" aria-label="公共曲单导航" className="flex flex-wrap gap-2 rounded-xl border border-anime-border bg-anime-panel p-1.5">
         {([["songs","歌曲谱"],["range","参赛范围"],["community","社区榜"]] as const).map(([id,label]) =>
           <button type="button" key={id} role="tab" aria-controls="song-public-panel" aria-selected={tab === id} onClick={() => selectTab(id)}
             className={"min-h-10 rounded-lg px-4 text-sm font-semibold transition " + (tab === id ? "bg-anime-purple/20 text-purple-100" : "text-slate-400 hover:bg-white/5 hover:text-white")}>
-            {label}{id === "songs" ? ` ${template.trackCount}` : ""}
+            {label}
           </button>
         )}
       </nav>
@@ -131,16 +131,14 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
         <AppCard id="song-public-panel" role="tabpanel" className="space-y-4 p-3 sm:p-4">
           <div ref={wallRef} className="scroll-mt-24 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-bold">{tab === "range" ? "参赛范围" : "歌曲谱"}</h2>
-            <span className="text-xs text-slate-400">{tab === "range" ? `已选择 ${selectedIds.length} / ${tracks.length} 首` : `共 ${filteredTracks.length} 首`}</span>
+            {tab === "range" ? <span className="text-xs text-slate-400">{selectedIds.length} / {tracks.length} 首</span> : (query || kind) ? <span className="text-xs text-slate-400">{filteredTracks.length} 首结果</span> : null}
           </div>
           {tab === "range" && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-anime-cyan/20 bg-anime-cyan/[0.04] p-3">
             {isCreator ?
-              <><p className="min-w-0 flex-1 text-xs text-slate-300">创建者请在原曲单设置自己的参赛范围。</p>
-                <Link href={`${ownerHref}?tab=range`} className={appButtonClasses({ variant: "secondary", size: "sm" })}>去我的曲单设置</Link></> :
+              <Link href={`${ownerHref}?tab=range`} className={appButtonClasses({ variant: "secondary", size: "sm" })}>调整我的参赛范围</Link> :
               <><AppButton size="sm" variant="ghost" onClick={selectAll}>全选</AppButton>
                 <AppButton size="sm" variant="ghost" disabled={filteredTracks.length < 2} onClick={onlyFiltered}>仅使用筛选结果</AppButton>
-                <AppButton size="sm" variant="quiet" onClick={() => { setSelectedIds([]); setRangeTouched(true); }}>清空</AppButton>
-                <span className="text-xs text-slate-400">仅影响我的对决，不修改公共曲单</span></>}
+                <AppButton size="sm" variant="quiet" onClick={() => { setSelectedIds([]); setRangeTouched(true); }}>清空</AppButton></>}
           </div>}
           <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_180px_auto]">
             <input aria-label="搜索歌曲、歌手或所属动画" type="search" placeholder="搜索歌名、歌手、动画…" className="anime-field min-w-0"

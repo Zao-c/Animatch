@@ -32,7 +32,7 @@ export function SongVisibilityActions({ boardId, disabled, onChange, value }: {
     finally { setBusy(false); }
   }
   return <div className="flex flex-wrap items-center gap-3">
-    <span className="text-xs text-slate-300">{info ? (info.isPublic ? "公开曲单 · 可通过网址访问" : "私人曲单 · 仅你可见") : "正在确认曲单公开状态…"}</span>
+    {!info && <span className="sr-only" role="status">正在读取公开状态</span>}
     {info?.isPublic && info.templateId && <SongShareButton path={`/anisong/templates/${info.templateId}`} />}
     {info?.canManage && <AppButton variant="ghost" size="sm" disabled={busy || disabled} onClick={() => void toggle()}>{busy ? "正在更新…" : info.isPublic ? "设为私人" : "设为公开"}</AppButton>}
     {error && <p role="alert" className="w-full text-xs text-amber-200">{error}</p>}
