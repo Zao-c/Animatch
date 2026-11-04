@@ -27,6 +27,9 @@ describe("AniSong library accessibility and stale-data recovery", () => {
     expect(gallery).toContain('setActionError(cause instanceof Error');
     expect(gallery).toContain("重试加载");
     expect(gallery).toContain("当前页没有曲单");
+    expect(gallery).toContain('loadError && page > 0');
+    expect(gallery).toContain('返回上一页');
+    expect(gallery).toContain('!loadError && (page > 0 || more)');
     expect(gallery).toContain("查看曲单</Link>");
     expect(gallery).toContain("进入对决");
   });
