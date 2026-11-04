@@ -54,7 +54,7 @@ export function SongMatchPanel({ boardId, pair, ranking, document, disabled, bus
     </div>}
     <details className="mt-3 rounded-xl border border-white/10 px-3 text-sm text-slate-400">
       <summary className="min-h-11 cursor-pointer py-3">进度与榜单说明</summary>
-      <div className="pb-3"><RankingProgressCard progress={ranking.progress} compact /><p className="mt-2 text-xs leading-6 text-slate-500">进度是比较次数参考，不代表统计置信度。未听过的歌曲不会进入榜单，也不计入本轮目标。</p><button type="button" className="mt-2 min-h-11 text-anime-cyan hover:underline" onClick={onTier}>查看当前 Tier List →</button></div>
+      <div className="pb-3">{isQuick ? <p className="rounded-xl border border-white/10 p-3 text-xs leading-6 text-slate-300">快速分档：已基础覆盖 {quick.covered} / {quick.total} 首；连通分组 {quick.components}。覆盖充分才提示初稿可用，档位仍可随对决调整，数字不代表统计置信度。</p> : <RankingProgressCard progress={ranking.progress} compact />}<p className="mt-2 text-xs leading-6 text-slate-500">进度是比较次数参考，不代表统计置信度。未听过的歌曲不会进入榜单，也不计入本轮目标。</p><button type="button" className="mt-2 min-h-11 text-anime-cyan hover:underline" onClick={onTier}>查看当前 Tier List →</button></div>
     </details>
   </section>;
 }

@@ -114,6 +114,18 @@ export async function startSongTemplate(userId: string, templateId: string, inpu
   if (existing) {
     if (!hasSelection) return boardView(existing);
     const doc = existing.document as unknown as SongDocument;
+    // Both public-detail selection and the dedicated update endpoint must
+    // reject a reused ID whose song identity changed. Historical votes are
+    // tied to the original identity and must never be silently reinterpreted.
+    if (existing.templateId) {
+      const latestById = new Map((template.document as unknown as SongDocument).tracks.map(t => [t.id, t]));
+      const changedIdentity = doc.tracks.some(t => {
+        const now = latestById.get(t.id);
+        return now && [t.title,t.artist,t.anime,t.kind].join("\u001f") !==
+          [now.title,now.artist,now.anime,now.kind].join("\u001f");
+      });
+      if (changedIdentity) throw new AppError("公开曲单包含替换歌曲。为保留旧对决，请创建者使用新歌曲 ID 发布，再调整参赛范围。", 409);
+    }
     // A participant may have started on an older revision. An explicit range
     // selection can include newly added public songs without deleting old votes.
     const extended = extendPublicSongRun(doc, template.document as unknown as SongDocument, selected ?? null);
