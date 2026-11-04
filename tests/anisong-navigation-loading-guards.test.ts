@@ -20,7 +20,7 @@ describe("AniSong library accessibility and stale-data recovery", () => {
 
   it("does not show stale playlist cards after a failed query or page fetch", () => {
     expect(gallery).toContain("const [loadError, setLoadError]");
-    expect(gallery).toContain("const [actionError, setActionError]");
+    expect(gallery).toContain("[actionError, setActionError] = useState");
     expect(gallery).toContain("loading ? <p");
     expect(gallery).toContain(": loadError ? null : templates.length ?");
     expect(gallery).toContain('setLoadError(cause instanceof Error');
