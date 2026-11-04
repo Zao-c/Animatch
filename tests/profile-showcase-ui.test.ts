@@ -16,6 +16,8 @@ describe("profile showcase layout", () => {
     expect(profile).toContain("公开榜单");
     expect(profile).toContain("公开番组");
     expect(profile).toContain("音乐曲单");
+    expect(profile).toContain("查看榜单");
+    expect(profile).toContain('switchSection("shares", true)');
     expect(profile).toContain('"/anisong/templates/" + song.id');
     expect(taste).toContain('useState<"taste" | "matches">("taste")');
   });
@@ -36,5 +38,7 @@ describe("profile showcase layout", () => {
   it("shows a visible profile entrance alongside the account menu", () => {
     expect(nav).toContain('aria-label="个人主页" title="个人主页"');
     expect(nav).toContain('<span className="hidden 2xl:inline">个人主页</span>');
+    expect(nav).toContain('href="/tierlists"');
+    expect(nav).toContain('aria-label="我的榜单"');
   });
 });

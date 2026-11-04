@@ -153,6 +153,10 @@ export default function UserProfilePage() {
               {joined && <span className="text-slate-400">{joined}</span>}
             </div>
           </div>
+          <button type="button" onClick={() => switchSection("shares", true)}
+            className="relative mt-4 inline-flex min-h-10 items-center rounded-xl border border-cyan-300/30 bg-cyan-300/[0.07] px-4 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300/55 hover:bg-cyan-300/15 sm:absolute sm:right-8 sm:top-8 sm:mt-0">
+            查看榜单
+          </button>
         </div>
         <div className="relative mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
           {([
