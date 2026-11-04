@@ -10,7 +10,9 @@ describe("music community rank and large-tier display", () => {
   });
   it("renders Tier entries progressively and preserves absolute tier buckets", () => {
     expect(source).toContain("filteredRows.slice(0, visibleLimit)");
-    expect(source).toContain("(song.overallRank - 1) * buckets");
+    expect(source).toContain("(rank - 1) * bucketCount");
+    expect(source).toContain("visibleTierRows.filter(song => bucketForRank(song.overallRank) === index)");
+    expect(source).toContain("const tierLimit = Math.max(1, Math.ceil(visibleLimit / bucketCount))");
     expect(source).toContain("再显示 30 首");
     expect(source).toContain("搜索不会改变原始档位");
   });

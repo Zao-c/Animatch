@@ -19,6 +19,15 @@ export function SongCommunityRanking({ templateId }: { templateId: string | null
   const filteredRows = (data?.rows ?? []).map((song, index) => ({ ...song, overallRank: index + 1 }))
     .filter(song => !searchTerm ||
       [song.title, song.artist, song.anime].join(" ").toLocaleLowerCase().includes(searchTerm));
+  const bucketCount = Math.min(TIER_ORDER.length, Math.max(1, data?.rows.length ?? 0));
+  const tierLimit = Math.max(1, Math.ceil(visibleLimit / bucketCount));
+  const bucketForRank = (rank: number) => Math.floor((rank - 1) * bucketCount / Math.max(1, data?.rows.length ?? 0));
+  // Render a slice from *each* tier instead of only the top 30 overall,
+  // which would make A–D look falsely empty on a 256-song ranking.
+  const visibleTierRows = filteredRows.filter((song) =>
+    filteredRows.filter(other => bucketForRank(other.overallRank) === bucketForRank(song.overallRank) && other.overallRank <= song.overallRank).length <= tierLimit);
+  const visibleCount = mode === "ranking" ? Math.min(visibleLimit, filteredRows.length) : visibleTierRows.length;
+  const hasMore = visibleCount < filteredRows.length;
   useEffect(() => {
     setData(null); setError(""); setSearch(""); setVisibleLimit(30);
     if (!templateId) return;
@@ -43,7 +52,7 @@ export function SongCommunityRanking({ templateId }: { templateId: string | null
       <div className="flex flex-wrap items-center justify-between gap-2">
         <input type="search" aria-label="搜索社区榜歌曲" placeholder="搜索歌曲、歌手或所属动画…" className="anime-field w-full min-w-0 sm:max-w-sm"
           value={search} onChange={event => { setSearch(event.target.value); setVisibleLimit(30); }} />
-        <p className="text-xs text-slate-400">显示 {Math.min(visibleLimit, filteredRows.length)} / {filteredRows.length} 首</p>
+        <p className="text-xs text-slate-400">显示 {visibleCount} / {filteredRows.length} 首</p>
       </div>
       {data.rows.length === 0 ? <p className="rounded-xl border border-dashed border-white/15 p-8 text-sm text-slate-400">还没有有效的社区对决。参与第一场对决后，就会有真实排名。</p> :
         filteredRows.length === 0 ? <p className="rounded-xl border border-dashed border-white/15 p-6 text-sm text-slate-400">没有符合条件的歌曲，可以调整歌名、歌手或动画关键词。</p> :
@@ -53,11 +62,9 @@ export function SongCommunityRanking({ templateId }: { templateId: string | null
         </div> :
         <div className="space-y-3">{TIER_ORDER.map((tier,index) => {
           // Spread the ranked songs across as many tiers as they actually fill, so few participants never leave a gap (S, B).
-          const buckets = Math.min(TIER_ORDER.length, Math.max(1, data.rows.length));
-          const selected = filteredRows.slice(0, visibleLimit)
-            .filter(song => Math.floor((song.overallRank - 1) * buckets / Math.max(1, data.rows.length)) === index);
+          const selected = visibleTierRows.filter(song => bucketForRank(song.overallRank) === index);
           return <div key={tier} className="grid grid-cols-[3.5rem_minmax(0,1fr)] overflow-hidden rounded-xl border border-white/10"><div className="flex items-center justify-center bg-slate-800 text-xl font-black">{tier}</div><div className="flex min-h-20 flex-wrap gap-2 p-3">{selected.length ? selected.map(song => <div key={song.id} className="w-20 min-w-0"><SongCover src={song.coverUrl} title={song.title} className="w-full" /><p className="mt-1 line-clamp-2 text-[10px] text-slate-300">{song.title}</p></div>) : <span className="self-center text-xs text-slate-500">暂无歌曲</span>}</div></div>;
-        })}<p className="text-xs text-slate-500">社区 Tier 按歌曲在完整社区排名中的位置分档，搜索不会改变原始档位；不代表个人 Tier。</p>{filteredRows.length > visibleLimit && <button type="button" className="min-h-11 rounded-xl border border-anime-purple/40 px-4 text-sm hover:bg-white/5" onClick={() => setVisibleLimit(value => value + 30)}>再显示 30 首（剩余 {filteredRows.length - visibleLimit} 首）</button>}</div>}
+        })}<p className="text-xs text-slate-500">社区 Tier 按歌曲在完整社区排名中的位置分档，搜索不会改变原始档位；不代表个人 Tier。</p>{hasMore && <button type="button" className="min-h-11 rounded-xl border border-anime-purple/40 px-4 text-sm hover:bg-white/5" onClick={() => setVisibleLimit(value => value + 30)}>再显示更多歌曲（剩余 {filteredRows.length - visibleTierRows.length} 首）</button>}</div>}
     </>}
   </section>;
 }
