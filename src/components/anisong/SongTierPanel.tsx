@@ -31,15 +31,22 @@ export function SongTierPanel({ board, snapshot, disabled, shareUrl, onLayout, o
       <SongTierEditor snapshot={snapshot} busy={disabled} onSave={onLayout} onReset={onReset} onEditingChange={setEditing} />
     </div>
     <aside className="min-w-0 space-y-3 xl:sticky xl:top-24">
-      <h2 className="text-base font-bold text-white">设置与分享</h2>
+      <h2 className="text-base font-bold text-white">分享与导出</h2>
       <div className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
-        <div className="flex flex-wrap gap-2"><AppButton disabled={disabled || editing} onClick={onExportPng}>导出 PNG</AppButton><AppButton variant="ghost" disabled={disabled || editing} onClick={exportJson}>导出榜单 JSON</AppButton></div>
-        <AppButton variant="secondary" disabled={disabled || editing} onClick={onPublish}>{board.shareToken ? "更新分享快照" : "生成分享链接"}</AppButton>
-        <p className="text-xs leading-6 text-slate-400">图片与分享快照按已保存的排序生成。之后继续对决不会自动改变旧快照；快照包含封面与分档，不包含音频。</p>
+        <AppButton variant="primary" disabled={disabled || editing} onClick={onPublish}>{board.shareToken ? "更新分享" : "分享榜单"}</AppButton>
+        <div className="flex flex-wrap items-center gap-2">
+          <AppButton variant="secondary" disabled={disabled || editing} onClick={onExportPng}>导出 PNG</AppButton>
+          <details className="relative text-xs text-slate-400">
+            <summary className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 hover:text-white">更多导出</summary>
+            <div className="absolute right-0 z-20 mt-1 rounded-xl border border-white/15 bg-slate-950 p-2 shadow-xl">
+              <AppButton size="sm" variant="ghost" disabled={disabled || editing} onClick={exportJson}>导出 JSON</AppButton>
+            </div>
+          </details>
+        </div>
         {board.shareToken && <AppButton variant="ghost" disabled={disabled || editing} onClick={onUnpublish}>关闭分享</AppButton>}
         {shareUrl && <div className="space-y-2"><input readOnly aria-label="分享链接" value={shareUrl} className="anime-field min-w-0 w-full text-xs" onFocus={event => event.target.select()} /><div className="flex flex-wrap items-center gap-3"><AppButton variant="secondary" onClick={() => void copyShare()}>复制</AppButton><Link href={"/anisong/share/" + board.shareToken} target="_blank" className="text-sm text-anime-cyan underline">查看快照</Link></div></div>}
         <div className="flex flex-wrap gap-2 border-t border-white/10 pt-4"><Link href={"/anisong/" + board.id + "/match"} className="inline-flex min-h-11 items-center rounded-xl border border-white/10 bg-white/5 px-3 text-sm font-semibold text-slate-200 hover:bg-white/10">继续对决</Link><Link href={"/anisong/" + board.id} className="inline-flex min-h-11 items-center rounded-xl border border-white/10 bg-white/5 px-3 text-sm font-semibold text-slate-200 hover:bg-white/10">返回曲单</Link></div>
-        <details className="text-xs leading-6 text-slate-400"><summary className="min-h-9 cursor-pointer py-2">榜单说明</summary><p>自动分档反映当前曲单内的相对偏好。手动分档不会改变对决历史与 Elo。</p></details>
+        <details className="text-xs leading-6 text-slate-400"><summary className="min-h-9 cursor-pointer py-2">分享说明</summary><p>分享与导出使用已保存的排序，不包含音频。后续对决不会自动改动已分享的快照；手动排序也不会改变 Elo 或投票历史。</p></details>
       </div>
     </aside>
   </section>;
