@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { prisma } from "../src/lib/db";
 import { choosePublicRivalry, getPublicTasteRivalry } from "../src/lib/taste-rivalry";
 import type { TasteEntry } from "../src/lib/taste-analysis";
@@ -13,6 +14,12 @@ vi.mock("../src/lib/db", () => ({ prisma: {
 beforeEach(() => vi.clearAllMocks());
 
 describe("public taste rivalry", () => {
+  it("never lets cached public comparisons outlive a profile visibility switch", () => {
+    const route = readFileSync("src/app/api/taste/rivalry/route.ts", "utf8");
+    expect(route).toContain('"Cache-Control": "no-store"');
+    expect(route).not.toContain("stale-while-revalidate");
+  });
+
   const ratings = [1800, 1750, 1700, 1400, 1350, 1300];
   const entries = (reverse = false): TasteEntry[] => ratings.map((_, index) => ({
     animeId: `anime${index}`, title: `作品${index}`, imageUrl: null, tags: [],
@@ -43,5 +50,29 @@ describe("public taste rivalry", () => {
     vi.mocked(prisma.customPool.findUnique).mockResolvedValue({ id: "public", name: "公开番组", visibility: "PUBLIC", deletedAt: null } as any);
     vi.mocked(prisma.userPoolScore.groupBy).mockResolvedValue([]);
     expect(await getPublicTasteRivalry("pool:public")).toMatchObject({ participantCount: 0, pair: null });
+  });
+
+  it("excludes private-profile users from public pool comparisons", async () => {
+    vi.mocked(prisma.customPool.findUnique).mockResolvedValue({ id: "public", name: "公开番组", visibility: "PUBLIC", deletedAt: null } as any);
+    vi.mocked(prisma.userPoolScore.groupBy).mockResolvedValue([]);
+    await getPublicTasteRivalry("pool:public");
+    expect(prisma.userPoolScore.groupBy).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        user: expect.objectContaining({ profileVisibility: "PUBLIC" })
+      })
+    }));
+  });
+
+  it("also excludes private-profile users from public season comparisons", async () => {
+    vi.mocked(prisma.battleSeason.findUnique).mockResolvedValue({
+      id: "s", title: "公开赛季", poolId: "p", pool: { visibility: "PUBLIC", deletedAt: null }
+    } as any);
+    vi.mocked(prisma.battleSeasonUserScore.groupBy).mockResolvedValue([]);
+    await getPublicTasteRivalry("season:s");
+    expect(prisma.battleSeasonUserScore.groupBy).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        user: expect.objectContaining({ profileVisibility: "PUBLIC" })
+      })
+    }));
   });
 });

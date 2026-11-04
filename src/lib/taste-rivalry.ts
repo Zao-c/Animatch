@@ -55,7 +55,8 @@ export async function getPublicTasteRivalry(scopeId: string) {
     poolId = season.poolId;
     title = season.title;
   }
-  const where = { isHidden: false, compareCount: { gt: 0 }, user: { deletedAt: null, username: { not: null } },
+  // Public comparisons must never include accounts that opted out of a public taste profile.
+  const where = { isHidden: false, compareCount: { gt: 0 }, user: { deletedAt: null, username: { not: null }, profileVisibility: "PUBLIC" as const },
     anime: { deletedAt: null } };
   const candidateRows = kind === "pool"
     ? await prisma.userPoolScore.groupBy({ by: ["userId"], where: { ...where, poolId,
