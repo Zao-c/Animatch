@@ -35,7 +35,7 @@ export async function GET(request: Request, context: RouteContext) {
   try {
     const { username } = context.params;
     const params = new URL(request.url).searchParams;
-    const requestedSection = params.get("section");
+    const requestedSection = params.get("section") === "shares" ? "tiers" : params.get("section");
     const section: ProfileSection =
       requestedSection === "tiers" || requestedSection === "songs" || requestedSection === "songTiers"
         ? requestedSection

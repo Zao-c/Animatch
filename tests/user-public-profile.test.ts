@@ -109,11 +109,11 @@ describe("User profile page", () => {
   });
 
   it("renders public tier lists section with titles", () => {
-    expect(source).toContain("href={`/share/tier/${tl.token}`}");
+    expect(source).toContain('href={"/share/tier/" + tl.token}');
   });
 
   it("renders public pools section with links", () => {
-    expect(source).toContain("href={`/pools/${pool.id}`}");
+    expect(source).toContain('href={"/pools/" + pool.id}');
   });
 
   it("shows empty state for no tier lists", () => {
@@ -128,8 +128,19 @@ describe("User profile page", () => {
     expect(source).not.toContain("email");
   });
 
-  it("uses PageShell for navigation wrapping", () => {
+  it("uses site-wide profile width and does not nest a second main", () => {
     expect(source).toContain("PageShell");
+    expect(source).toContain("max-w-[90rem]");
+    expect(source).not.toContain("max-w-4xl");
+    expect(source).not.toContain("<main");
+  });
+
+  it("keeps taste profile behind a tab and shows both public music collections", () => {
+    expect(source).toContain('contentTab === "taste"');
+    expect(source).toContain("publicSongPlaylists");
+    expect(source).toContain("publicSongTierLists");
+    expect(source).toContain("分享主页");
+    expect(source).toContain("copyTextWithFallback");
   });
 
   it("uses proxyExternalImageUrl for cover images", () => {
