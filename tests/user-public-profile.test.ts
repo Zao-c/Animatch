@@ -26,6 +26,15 @@ describe("User public profile API", () => {
     expect(source).toContain('visibility: "PUBLIC"');
   });
 
+  it("only exposes active public music playlist metadata, never source boards or votes", () => {
+    expect(source).toContain("prisma.songTemplate.findMany");
+    expect(source).toContain("ownerId: user.id, active: true");
+    expect(source).toContain("publicSongPlaylistsCount");
+    expect(source).toContain("publicSongPlaylists");
+    expect(source).toContain("trackCount: doc.tracks.length");
+    expect(source).not.toContain("prisma.songBoard.findMany");
+  });
+
   it("filters deleted pools", () => {
     expect(source).toContain("deletedAt: null");
   });
