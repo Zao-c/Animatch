@@ -240,6 +240,16 @@ export function SongWorkspace({ boardId, view = "library", initialLibraryTab = "
     </header>}
 
     {error && !taskActive && !bulkEditing && <div role="alert" className="space-y-3 rounded-xl border border-amber-300/30 bg-amber-300/5 p-4 text-sm text-amber-100"><p>{error}</p>{conflict && <><p>当前操作未确认。重新载入已保存进度后即可继续。</p><AppButton size="sm" onClick={() => void reload()} disabled={busy || loading}>重新载入</AppButton></>}{login && <Link href={`/login?next=${encodeURIComponent(`/anisong/${boardId}`)}`} className="underline">重新登录</Link>}</div>}
+    {view === "library" && ranking && ranking.active.length >= 128 && <section aria-label="年度大曲单快速分档" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-anime-cyan/25 bg-anime-cyan/[0.045] p-4">
+      <div className="min-w-0 space-y-1">
+        <h2 className="text-sm font-bold text-cyan-100">⚡ 年度大曲单 · 快速分档</h2>
+        <p className="text-xs leading-5 text-slate-300">{ranking.active.length} 首歌曲适合先做覆盖优先的智能对决，再慢慢校准 S–D 档位。不会清空你的已有投票或手动 Tier。</p>
+        <p className="text-[11px] text-slate-400">建议约 {Math.ceil(ranking.active.length * 1.65)} 场形成初稿，仅作参考；可以提前查看或继续精排。</p>
+      </div>
+      <AppButton size="sm" variant="primary" disabled={disabled} onClick={async () => {
+        if (board.document.matchMode === "quick" || await mutate({ action: "matchMode", mode: "quick" })) navigate("match");
+      }}>{board.document.matchMode === "quick" ? "继续快速分档" : "开启快速分档"}</AppButton>
+    </section>}
     {view === "library" && board.templateId && <SongVersionUpdateNotice board={board} disabled={disabled} onApplied={(next)=>{latestBoard.current=next;setBoard(next);setNotice("已同步公开曲单，历史对决保留");}} />}
     {view === "library" && <section aria-label={board.templateId ? "个人歌曲谱与参赛范围" : "曲单歌曲管理"} className="space-y-5">
       <nav id="song-library-tabs" role="tablist" aria-label="曲单导航" className="scroll-mt-24 flex gap-1 rounded-2xl border border-anime-border bg-anime-panel p-1.5">
