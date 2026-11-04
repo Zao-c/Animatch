@@ -11,7 +11,7 @@ describe("public song wall matches anime pagination UX", () => {
   });
   it("auditions approved public audio and allows participant-only range selection", () => {
     expect(code).toContain("templateId={templateId} minimal");
-    expect(code).toContain('aria-label={`选择参赛:${track.title}`}').toBe(false); // spacing in the accessible label
+    expect(code).toContain('aria-label={`选择参赛：${track.title}`}');
     expect(code).toContain("setSelectedIds");
     expect(code).toContain("仅影响我的对决，不修改公共曲单");
   });

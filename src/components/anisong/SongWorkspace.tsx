@@ -156,9 +156,9 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
     (!search.trim() || [t.title, t.artist, t.anime, ...t.tags].some(s => s.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())))
   ) ?? [], [board, search, kind, year, quarter]);
   useEffect(() => { setLibraryPage(0); }, [search, kind, year, quarter]);
-  const libraryPages = Math.max(1, Math.ceil(visibleTracks.length / 48));
+  const libraryPages = Math.max(1, Math.ceil(visibleTracks.length / 12));
   const currentLibraryPage = Math.min(libraryPage, libraryPages - 1);
-  const pageTracks = visibleTracks.slice(currentLibraryPage * 48, (currentLibraryPage + 1) * 48);
+  const pageTracks = visibleTracks.slice(currentLibraryPage * 12, (currentLibraryPage + 1) * 12);
   const visibleMatchCount = visibleTracks.filter(t => !ranking?.scores.find(score => score.animeId === t.id)?.isHidden).length;
   const vote = (result: SongDecision) => {
     if (!pair) return;
@@ -201,7 +201,7 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
   const disabled = busy || importing || conflict || loading || login;
   if (!board) return <div className="mx-auto max-w-4xl space-y-5"><Link href="/anisong" className="text-anime-cyan">← 音乐曲单</Link>{loading ? <p role="status">正在加载曲单…</p> : <div role="alert"><p>{error}</p>{login ? <Link href={`/login?next=${encodeURIComponent(`/anisong/${boardId}`)}`} className="text-anime-cyan underline">去登录</Link> : <AppButton onClick={() => void reload()}>重试</AppButton>}</div>}</div>;
   return <div className={view === "match" ? "mx-auto w-full max-w-[90rem]" : "mx-auto w-full max-w-[90rem] space-y-4"}>
-    {view === "match" ? <MatchHeading mode="music" title={board.title} backHref={"/anisong/" + boardId} description="先试听，再选择更喜欢的一首。点击封面或选择按钮会记录对决；播放按钮只负责试听。平局计入比较，跳过不改变评分；未听过的歌曲可在曲单中恢复。"
+    {view === "match" ? <MatchHeading mode="music" title={board.title} backHref={"/anisong/" + boardId} description="试听歌曲后选择你更喜欢的一首。跳过不计分。"
       context={<span className="text-slate-400">{ranking?.active.length} 首 · {ranking?.progress.effectiveComparisons} 次比较</span>}
       tools={<>
         <Link href={"/anisong/" + boardId + "/tier"} className="inline-flex min-h-9 items-center rounded-xl border border-white/10 bg-white/5 px-3 text-xs font-semibold text-slate-200 hover:bg-white/10">查看 Tier</Link>
@@ -266,7 +266,7 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
       </div>
       {(search || kind || year || quarter) && <div className="flex items-center gap-3 text-xs text-slate-400"><span>{visibleTracks.length} 首结果</span><AppButton size="sm" variant="quiet" disabled={disabled || bulkEditing} onClick={() => { setSearch(""); setKind(""); setYear(""); setQuarter(""); }}>清除筛选</AppButton></div>}
       {libraryTab === "range" && <>
-      <div className="rounded-xl border border-white/10 px-4 py-3 text-sm text-slate-300">当前参赛范围：{board.document.candidateIds === null ? `全曲单 ${board.document.tracks.length} 首（新加入的歌曲也参赛）` : `自选 ${board.document.candidateIds.length} 首`}<span className="ml-2 text-xs text-slate-400">可对决 {ranking?.active.length ?? 0} 首 · 未听过 {ranking?.hidden.length ?? 0} 首</span></div>
+      <p className="text-xs text-slate-400">参赛 {board.document.candidateIds?.length ?? board.document.tracks.length} 首 · 未听过 {ranking?.hidden.length ?? 0} 首</p>
       {!board.templateId && (board.document.tracks.length > 0 || bulkEditing) && <SongBulkTools tracks={board.document.tracks} visible={visibleTracks} selectedIds={selectedIds} hiddenIds={ranking?.scores.filter(score => score.isHidden).map(score => score.animeId) ?? []} candidateIds={board.document.candidateIds} disabled={disabled || Boolean(editing) || batchOpen || addMode !== "none"} open={bulkEditing} onOpen={next => { if (next) { if (!canChangeTask()) return; clearTask(); } setBulkEditing(next); }} onSelection={setSelectedIds}
         onSave={(trackIds, patch) => mutate({ action: "bulkEdit", trackIds, patch })}
         onCandidates={async (trackIds, mode) => { const saved = await mutate(mode === "only" ? { action: "candidates", trackIds } : { action: "candidateSelection", trackIds, mode }); if (saved && mode === "only") navigate("match"); return saved; }} />}

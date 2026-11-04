@@ -10,6 +10,6 @@ describe("music playlist owner progress routing", () => {
   it("routes creators into the source board instead of making a second run", () => {
     expect(gallery).toContain("template.mine && template.ownerBoardId");
     expect(detail).toContain("template.mine && template.ownerBoardId");
-    expect(detail).toContain("继续我的音乐对决");
+    expect(detail).toContain("继续我的对决");
   });
 });
