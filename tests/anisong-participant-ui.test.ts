@@ -6,7 +6,7 @@ describe("participant versus publisher music UI", () => {
     expect(code).toContain("!board.templateId && <AppButton");
     expect(code).toContain("!board.templateId && (board.document.tracks.length");
     expect(code).toContain("libraryTab === \"settings\" && !board.templateId");
-    expect(code).toContain('board.templateId ? "详情" : "管理"');
+    expect(code).toContain("!board.templateId && <AppButton data-song-manage");
   });
   it("labels removing a personal run as an exit without implying source deletion", () => {
     expect(code).toContain("退出参与（仅删除我的进度）");

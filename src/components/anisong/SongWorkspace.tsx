@@ -151,8 +151,11 @@ export function SongWorkspace({ boardId, view = "library", initialLibraryTab = "
   // For participants the checkboxes represent the current personal match range,
   // not a destructive bulk-selection scratchpad.
   useEffect(() => {
-    if (board?.templateId) setSelectedIds(board.document.candidateIds ?? board.document.tracks.map(track => track.id));
-  }, [board?.id, board?.revision, board?.templateId]);
+    if (board?.templateId) {
+      setSelectedIds(board.document.candidateIds ?? board.document.tracks.map(track => track.id));
+      if (libraryTab === "settings") setLibraryTab("range");
+    }
+  }, [board?.id, board?.revision, board?.templateId, libraryTab]);
   const ranking = useMemo(() => board ? rankSongs(board.document) : null, [board]);
   const snapshot = useMemo(() => board ? songSnapshot(board.title, board.document) : null, [board]);
   const pair = useMemo(() => board ? nextSongPair(board.document) : null, [board]);
@@ -293,7 +296,7 @@ export function SongWorkspace({ boardId, view = "library", initialLibraryTab = "
             <div className="relative"><SongCover src={track.coverUrl} title={track.title} className="w-full !rounded-none !border-0" />{libraryTab === "range" && <label className="absolute left-2 top-2 flex min-h-9 cursor-pointer items-center gap-2 rounded-lg bg-slate-950/85 px-2 text-xs text-slate-300"><input type="checkbox" aria-label={`选择歌曲：${track.title}`} checked={selectedIds.includes(track.id)} disabled={disabled || bulkEditing || Boolean(editing) || batchOpen} className="h-4 w-4 accent-teal-300" onChange={e => setSelectedIds(previous => e.target.checked ? [...new Set([...previous, track.id])] : previous.filter(id => id !== track.id))} /><span className="sr-only">选择歌曲</span></label>}<span className="absolute right-2 top-2 rounded-md bg-slate-950/85 px-2 py-1 text-xs text-cyan-100">{KIND_LABELS[track.kind]}</span></div>
             <div className="space-y-2 p-2"><h3 title={track.title} className="line-clamp-2 min-h-10 break-words text-sm font-semibold">{track.title}</h3><p className="line-clamp-2 min-h-8 break-words text-xs font-medium leading-4 text-cyan-100" title={track.anime || "动画来源未填写"}>{track.anime || (track.kind === "OTHER" ? "音乐曲目" : "动画来源未填写")} · {KIND_LABELS[track.kind]}</p><p className="truncate text-xs text-slate-400" title={track.artist}>{track.artist || "歌手未填写"}</p>
             <SongPlayer minimal track={track} boardId={boardId} />
-            <div className="flex items-center justify-between gap-1 text-[10px] text-slate-500"><span className="min-w-0 truncate">{excluded ? "未参赛" : score?.isHidden ? "未听过" : `已比较 ${score?.compareCount ?? 0} 次`}</span><AppButton data-song-manage={track.id} size="sm" variant="quiet" disabled={disabled} onClick={() => { if (canChangeTask()) { clearTask(); setDetailId(track.id); } }}>{board.templateId ? "详情" : "管理"}</AppButton></div></div>
+            <div className="flex items-center justify-between gap-1 text-[10px] text-slate-500"><span className="min-w-0 truncate">{excluded ? "未参赛" : score?.isHidden ? "未听过" : `已比较 ${score?.compareCount ?? 0} 次`}</span>{!board.templateId && <AppButton data-song-manage={track.id} size="sm" variant="quiet" disabled={disabled} onClick={() => { if (canChangeTask()) { clearTask(); setDetailId(track.id); } }}>管理</AppButton>}</div></div>
           </article>;
         })}
       </div>}
