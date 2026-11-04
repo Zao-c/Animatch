@@ -51,6 +51,7 @@ export function SongMatchPanel({ boardId, pair, ranking, document, disabled, bus
           ? <p className="text-xs leading-6 text-slate-300">基础覆盖 {quick.covered}/{quick.total} 首 · 连通分组 {quick.components} · 建议约 {quick.suggestedBudget} 场</p>
           : <RankingProgressCard progress={ranking.progress} compact />}
         <p className="mt-2 text-xs leading-6 text-slate-500">覆盖和场数仅供参考，不代表排名准确度。没听过的歌曲不参与分档。</p>
+        <button type="button" className="mt-2 min-h-11 text-anime-cyan hover:underline" onClick={onTier}>查看当前 Tier →</button>
       </div>
     </details>
   </section>;
