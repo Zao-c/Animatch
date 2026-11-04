@@ -64,13 +64,17 @@ export function SongTemplateGallery() {
         <SongPlaylistCard key={template.id} title={template.title} href={`/anisong/templates/${template.id}`} covers={template.covers}
           count={template.trackCount} playable={template.playableCount} tag={template.mine ? "我创建的" : undefined}>
           <p className="truncate text-xs text-slate-400">{template.ownerName}</p>
-          {template.mine && template.ownerBoardId ?
-            <Link href={template.trackCount >= 2 ? `/anisong/${template.ownerBoardId}/match` : `/anisong/${template.ownerBoardId}`}
-              className={appButtonClasses({ variant: "primary", size: "sm", className: "w-full px-2" })}>
-              {template.trackCount >= 2 ? "进入对决" : "完善曲单"}
-            </Link> :
-            <AppButton variant="primary" size="sm" className="w-full px-2" disabled={Boolean(starting) || template.trackCount < 2}
-              onClick={() => void start(template)}>{starting === template.id ? "正在准备…" : "进入对决"}</AppButton>}
+          <div className="grid grid-cols-2 gap-2">
+            <Link href={`/anisong/templates/${template.id}`}
+              className={appButtonClasses({ variant: "secondary", size: "sm", className: "min-w-0 px-2" })}>查看曲单</Link>
+            {template.mine && template.ownerBoardId ?
+              <Link href={template.trackCount >= 2 ? `/anisong/${template.ownerBoardId}/match` : `/anisong/${template.ownerBoardId}`}
+                className={appButtonClasses({ variant: "primary", size: "sm", className: "min-w-0 px-2" })}>
+                {template.trackCount >= 2 ? "进入对决" : "完善曲单"}
+              </Link> :
+              <AppButton variant="primary" size="sm" className="min-w-0 px-2" disabled={Boolean(starting) || template.trackCount < 2}
+                onClick={() => void start(template)}>{starting === template.id ? "正在准备…" : "进入对决"}</AppButton>}
+          </div>
           <details className="text-xs text-slate-400">
             <summary className="flex min-h-11 cursor-pointer items-center px-1 font-semibold hover:text-white">更多操作</summary>
             <div className="space-y-3 border-t border-white/10 pb-2 pt-3">
