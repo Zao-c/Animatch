@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppCard } from "@/components/ui/AppCard";
+import { DashboardTabs } from "@/components/ui/DashboardTabs";
 import { songRequest, SongApiError } from "@/lib/anisong/client";
 import { KIND_LABELS, SONG_KINDS, type SongKind, type SongBoardView, type SongDocument, type SongTemplateView } from "@/lib/anisong/types";
 import { SongCover } from "./SongCover";
@@ -133,16 +134,12 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
           {isCreator && <Link href={ownerHref} className="block py-1 text-center text-xs text-anime-cyan">管理我的曲单 →</Link>}
         </AppCard>
       </header>
-      <nav ref={wallRef} role="tablist" aria-label="公共曲单导航" className="scroll-mt-24 flex flex-wrap gap-2 rounded-xl border border-anime-border bg-anime-panel p-1.5">
-        {([["songs","歌曲谱"],["range","参赛范围"],["community","社区榜"]] as const).map(([id,label]) =>
-          <button type="button" key={id} role="tab" aria-controls="song-public-panel" aria-selected={tab === id} onClick={() => selectTab(id)}
-            className={"min-h-10 rounded-lg px-4 text-sm font-semibold transition " + (tab === id ? "bg-anime-purple/20 text-purple-100" : "text-slate-400 hover:bg-white/5 hover:text-white")}>
-            {label}
-          </button>
-        )}
-      </nav>
-      {tab === "community" ? <AppCard id="song-public-panel" role="tabpanel" className="p-4 sm:p-5"><SongCommunityRanking templateId={templateId}/></AppCard> :
-        <AppCard id="song-public-panel" role="tabpanel" className="space-y-4 p-3 sm:p-4">
+      <div ref={wallRef} className="scroll-mt-24">
+        <DashboardTabs id="song-public" label="公共曲单导航" value={tab} onChange={selectTab}
+          items={[{ value: "songs", label: "歌曲谱" }, { value: "range", label: "参赛范围" }, { value: "community", label: "社区榜" }]} />
+      </div>
+      {tab === "community" ? <AppCard id={`song-public-panel-${tab}`} role="tabpanel" aria-labelledby={`song-public-tab-${tab}`} className="p-4 sm:p-5"><SongCommunityRanking templateId={templateId}/></AppCard> :
+        <AppCard id={`song-public-panel-${tab}`} role="tabpanel" aria-labelledby={`song-public-tab-${tab}`} className="space-y-4 p-3 sm:p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="sr-only">{tab === "range" ? "参赛范围" : "歌曲谱"}</h2>
             {tab === "range" ? <span className="text-xs text-slate-400">{selectedIds.length} / {tracks.length} 首</span> : (query || kind) ? <span className="text-xs text-slate-400">{filteredTracks.length} 首结果</span> : null}

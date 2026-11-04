@@ -31,6 +31,7 @@ describe("AniSong usability audit", () => {
     expect(gallery).toContain("return () => controller.abort()");
     expect(gallery).not.toContain("const controller = new AbortController(); void load(controller.signal); }}>重试");
     expect(detail).toContain("pendingTabScroll.current = true");
-    expect(detail).toContain('ref={wallRef} role="tablist"');
+    expect(detail).toContain('<DashboardTabs id="song-public"');
+    expect(detail).toContain('aria-labelledby={`song-public-tab-${tab}`}');
   });
 });
