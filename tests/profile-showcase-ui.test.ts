@@ -15,6 +15,8 @@ describe("profile showcase layout", () => {
     expect(profile).toContain('<ProfileTastePreview username={username}');
     expect(profile).toContain("公开榜单");
     expect(profile).toContain("公开番组");
+    expect(profile).toContain("音乐曲单");
+    expect(profile).toContain('"/anisong/templates/" + song.id');
     expect(taste).toContain('useState<"taste" | "matches">("taste")');
   });
 

@@ -32,14 +32,22 @@ interface PublicTierListEntry {
   coverUrls: string[];
   createdAt: string;
 }
+interface PublicSongPlaylistEntry {
+  id: string;
+  title: string;
+  trackCount: number;
+  coverUrls: string[];
+  updatedAt: string;
+}
 interface PublicProfile {
   user: { id: string; username: string | null; name: string | null; image: string | null; createdAt: string };
-  stats: { publicPoolsCount: number; sharedTierListCount: number; participatedPoolCount: number };
+  stats: { publicPoolsCount: number; sharedTierListCount: number; participatedPoolCount: number; publicSongPlaylistsCount: number };
   publicPools: PublicPoolEntry[];
   publicTierLists: PublicTierListEntry[];
+  publicSongPlaylists: PublicSongPlaylistEntry[];
 }
 
-type Section = "shares" | "pools" | "taste";
+type Section = "shares" | "pools" | "songs" | "taste";
 type Group<T> = { key: string; latest: T; entries: T[] };
 
 function groupByLabel<T>(items: T[], keyFor: (item: T) => string): Group<T>[] {
@@ -68,7 +76,7 @@ function ProfileSkeleton() {
       <div className="h-20 w-20 rounded-2xl bg-white/10"/>
       <div className="flex-1 space-y-3"><div className="h-6 w-32 rounded bg-white/10"/><div className="h-3 w-48 rounded bg-white/5"/></div>
     </div>
-    <div className="grid grid-cols-3 gap-3">{[0,1,2].map(n => <div key={n} className="h-20 rounded-xl bg-white/5"/>)}</div>
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{[0,1,2,3].map(n => <div key={n} className="h-20 rounded-xl bg-white/5"/>)}</div>
     <div className="grid gap-4 sm:grid-cols-2"><div className="h-60 rounded-2xl bg-white/5"/><div className="h-60 rounded-2xl bg-white/5"/></div>
   </div>;
 }
@@ -102,24 +110,26 @@ export default function UserProfilePage() {
 
   const shareGroups = useMemo(() => groupByLabel(profile?.publicTierLists ?? [], item => item.poolName + "\u001f" + item.title), [profile]);
   const poolGroups = useMemo(() => groupByLabel(profile?.publicPools ?? [], item => item.name), [profile]);
+  const songGroups = useMemo(() => groupByLabel(profile?.publicSongPlaylists ?? [], item => item.title), [profile]);
   const displayName = profile?.user.name?.trim() || profile?.user.username || "未知用户";
   const joined = useMemo(() => {
     if (!profile?.user.createdAt) return "";
     const date = new Date(profile.user.createdAt);
     return Number.isNaN(date.getTime()) ? "" : date.getUTCFullYear() + " 年 " + (date.getUTCMonth() + 1) + " 月加入";
   }, [profile]);
-  const groups = section === "shares" ? shareGroups : poolGroups;
+  const groups = section === "shares" ? shareGroups : section === "pools" ? poolGroups : songGroups;
   const pageSize = 6;
   const currentPage = Math.min(page, Math.max(1, Math.ceil(groups.length / pageSize)));
   const visibleShareGroups = shareGroups.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const visiblePoolGroups = poolGroups.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const visibleSongGroups = songGroups.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   function switchSection(next: Section, scroll = false) {
     setSection(next); setPage(1);
     if (scroll) window.requestAnimationFrame(() => panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
-  return <PageShell><main className="mx-auto w-full max-w-6xl space-y-6 pb-14 sm:space-y-8">
+  return <PageShell><div className="mx-auto w-full max-w-6xl space-y-6 pb-14 sm:space-y-8">
     {loading ? <ProfileSkeleton /> : error || !profile ?
       <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-8 text-center sm:p-12">
         <h1 className="text-2xl font-bold">{error === "USER_NOT_FOUND" ? "用户不存在" : "加载失败"}</h1>
@@ -144,11 +154,12 @@ export default function UserProfilePage() {
             </div>
           </div>
         </div>
-        <div className="relative mt-6 grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="relative mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
           {([
             [profile.stats.sharedTierListCount,"公开榜单"],
             [profile.stats.publicPoolsCount,"公开番组"],
-            [profile.stats.participatedPoolCount,"参与番组"]
+            [profile.stats.participatedPoolCount,"参与番组"],
+            [profile.stats.publicSongPlaylistsCount,"音乐曲单"]
           ] as const).map(([value, label]) => <div key={label} className="rounded-xl border border-white/10 bg-slate-950/25 p-3 sm:p-4">
             <p className="text-2xl font-black tabular-nums text-white sm:text-3xl">{value}</p>
             <p className="mt-1 text-xs text-slate-400 sm:text-sm">{label}</p>
@@ -161,6 +172,7 @@ export default function UserProfilePage() {
           items={[
             { value: "shares", label: "公开榜单", count: profile.stats.sharedTierListCount },
             { value: "pools", label: "公开番组", count: profile.stats.publicPoolsCount },
+            { value: "songs", label: "音乐曲单", count: profile.stats.publicSongPlaylistsCount },
             { value: "taste", label: "口味分析" }
           ]}/>
       </div>
@@ -171,8 +183,8 @@ export default function UserProfilePage() {
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_310px]">
           <section role="tabpanel" id={"profile-library-panel-" + section} aria-labelledby={"profile-library-tab-" + section} className="min-w-0 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-xl font-bold text-white">{section === "shares" ? "公开榜单" : "公开番组"}</h2>
-              <span className="text-xs text-slate-400">{section === "shares" ? shareGroups.length : poolGroups.length} 组作品</span>
+              <h2 className="text-xl font-bold text-white">{section === "shares" ? "公开榜单" : section === "pools" ? "公开番组" : "音乐曲单"}</h2>
+              <span className="text-xs text-slate-400">{groups.length} 组作品</span>
             </div>
             {section === "shares" ? (shareGroups.length ?
               <div className="grid gap-4 sm:grid-cols-2">{visibleShareGroups.map(group => {
@@ -194,7 +206,7 @@ export default function UserProfilePage() {
                   </details> : null}
                 </article>;
               })}</div> : <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center text-sm text-slate-400">还没有公开榜单</div>
-            ) : (poolGroups.length ?
+            ) : section === "pools" ? (poolGroups.length ?
               <div className="grid gap-4 sm:grid-cols-2">{visiblePoolGroups.map(group => {
                 const pool = group.latest;
                 return <article key={group.key} className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/45 p-3 transition hover:border-violet-300/30">
@@ -215,11 +227,31 @@ export default function UserProfilePage() {
                   </details> : null}
                 </article>;
               })}</div> : <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center text-sm text-slate-400">还没有创建公开番组</div>
+            ) : (songGroups.length ?
+              <div className="grid gap-4 sm:grid-cols-2">{visibleSongGroups.map(group => {
+                const song = group.latest;
+                return <article key={group.key} className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/45 p-3 transition hover:border-cyan-300/30">
+                  <Link href={"/anisong/templates/" + song.id} className="group block">
+                    <CoverStrip urls={song.coverUrls} title={song.title}/>
+                    <h3 className="mt-3 line-clamp-2 text-base font-bold text-white group-hover:text-cyan-200">{song.title}</h3>
+                    <p className="mt-1 text-xs text-slate-400">{song.trackCount} 首歌曲</p>
+                  </Link>
+                  {group.entries.length > 1 && <details className="mt-3 rounded-lg border border-white/10 px-3 py-2">
+                    <summary className="cursor-pointer text-xs font-medium text-cyan-100">还有 {group.entries.length - 1} 份同名曲单</summary>
+                    <div className="mt-2 space-y-1 border-t border-white/10 pt-2">
+                      {group.entries.slice(1).map(item => <Link key={item.id} href={"/anisong/templates/" + item.id}
+                        className="block rounded-md px-2 py-2 text-xs text-slate-300 hover:bg-white/5 hover:text-white">
+                        {item.title} · {item.trackCount} 首歌曲
+                      </Link>)}
+                    </div>
+                  </details>}
+                </article>;
+              })}</div> : <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center text-sm text-slate-400">还没有公开音乐曲单</div>
             )}
-            {(section === "shares" ? shareGroups.length : poolGroups.length) > pageSize && <CollectionPager
-              label="作品" page={currentPage} total={section === "shares" ? shareGroups.length : poolGroups.length} pageSize={pageSize}
+            {groups.length > pageSize && <CollectionPager
+              label="作品" page={currentPage} total={groups.length} pageSize={pageSize}
               onChange={next => { setPage(next); panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}/>}
-            {(section === "shares" ? profile.stats.sharedTierListCount > profile.publicTierLists.length : profile.stats.publicPoolsCount > profile.publicPools.length) &&
+            {(section === "shares" ? profile.stats.sharedTierListCount > profile.publicTierLists.length : section === "pools" ? profile.stats.publicPoolsCount > profile.publicPools.length : profile.stats.publicSongPlaylistsCount > profile.publicSongPlaylists.length) &&
               <p className="text-xs text-slate-500">这里只展示最近发布的作品。</p>}
           </section>
           <aside className="min-w-0 space-y-4">
@@ -227,5 +259,5 @@ export default function UserProfilePage() {
           </aside>
         </div>}
     </>}
-  </main></PageShell>;
+  </div></PageShell>;
 }
