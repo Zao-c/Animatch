@@ -56,7 +56,7 @@ function SongMyBoards() {
         covers={item.covers} count={item.trackCount} playable={item.playableCount}
         progress={item.progress}>
         <div className="grid grid-cols-2 gap-2">
-          <Link href={`/anisong/${item.id}`} className={appButtonClasses({ variant: "secondary", size: "sm", className: "min-w-0 px-2" })}>查看曲单</Link>
+          <Link href={`/anisong/${item.id}`} aria-label={`查看曲单：${item.title}`} className={appButtonClasses({ variant: "secondary", size: "sm", className: "min-w-0 px-2" })}>查看曲单</Link>
           <Link href={item.canStart ? `/anisong/${item.id}/match` : `/anisong/${item.id}`}
             className={appButtonClasses({ variant: item.canStart ? "primary" : "ghost", size: "sm", className: "min-w-0 px-2" })}>
             {item.canStart ? item.progress ? "继续对决" : "开始对决" : "完善歌曲"}
