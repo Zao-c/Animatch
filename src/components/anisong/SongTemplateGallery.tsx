@@ -91,7 +91,8 @@ export function SongTemplateGallery() {
           </details>
         </SongPlaylistCard>)}</div> :
       <div className="rounded-2xl border border-dashed border-white/15 p-8 text-sm leading-7 text-slate-400">{page > 0 ? "当前页没有曲单，可返回上一页。" : search ? "没有找到匹配的公开曲单。" : "暂无公开音乐曲单。"}<Link className="ml-2 text-anime-cyan underline" href="/anisong/create">创建一份曲单 →</Link></div>}
-    {(page > 0 || more) && <div className="flex items-center justify-center gap-3">
+    {loadError && page > 0 && <AppButton size="sm" variant="ghost" onClick={() => goToPage(page - 1)}>返回上一页</AppButton>}
+    {!loadError && (page > 0 || more) && <div className="flex items-center justify-center gap-3">
       <AppButton size="sm" variant="ghost" disabled={loading || page === 0} onClick={() => goToPage(page - 1)}>上一页</AppButton>
       <span className="text-xs text-slate-400">第 {page + 1} 页</span>
       <AppButton size="sm" variant="ghost" disabled={loading || !more} onClick={() => goToPage(page + 1)}>下一页</AppButton>
