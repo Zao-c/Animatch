@@ -47,7 +47,7 @@ export function SongCommunityRanking({ templateId }: { templateId: string | null
   }, [templateId, retryKey, algorithm]);
   if (!templateId) return <section className="rounded-xl border border-dashed border-white/15 p-8 text-sm text-slate-400">当前曲单尚未公开。公开曲单后，其他人参与对决的结果就会汇总在这里。</section>;
   return <section className="space-y-4" aria-label="音乐社区榜">
-    <div><p className="text-[11px] font-bold tracking-[0.18em] text-cyan-200/70">COMMUNITY</p><h2 className="mt-1 text-xl font-bold">社区音乐排行榜</h2><p className="mt-2 text-xs text-slate-400">按当前公开版本的有效对决汇总，每位用户只计一次；个人 Tier 编辑不会改变社区结果。</p></div>
+    <div><p className="text-[11px] font-bold tracking-[0.18em] text-cyan-200/70">COMMUNITY</p><h2 className="mt-1 text-xl font-bold">社区音乐排行榜</h2><p className="mt-2 text-xs text-slate-400">{algorithm === "official" ? "正式榜按用户汇总个人有效对决产生的歌曲 Elo，每位用户对每首歌只贡献一个分数。" : "预览榜按原始胜负重新拟合，同一用户对同一歌曲对只贡献最后一次有效选择。"} 个人 Tier 编辑不会改变社区结果。</p></div>
     <div className="flex flex-wrap items-center gap-2" role="group" aria-label="选择社区评分方法">
       <button type="button" aria-pressed={algorithm === "official"} onClick={() => setAlgorithm("official")} className={"min-h-10 rounded-xl border px-3 text-xs font-semibold " + (algorithm === "official" ? "border-cyan-300/50 bg-cyan-300/10 text-cyan-100" : "border-white/15 text-slate-300")}>正式社区榜</button>
       <button type="button" aria-pressed={algorithm === "preview"} onClick={() => setAlgorithm("preview")} className={"min-h-10 rounded-xl border px-3 text-xs font-semibold " + (algorithm === "preview" ? "border-amber-300/50 bg-amber-300/10 text-amber-100" : "border-white/15 text-slate-300")}>新算法预览</button>
