@@ -152,7 +152,7 @@ export function SongWorkspace({ boardId, view = "library", initialLibraryTab = "
   // not a destructive bulk-selection scratchpad.
   useEffect(() => {
     if (board?.templateId) setSelectedIds(board.document.candidateIds ?? board.document.tracks.map(track => track.id));
-  }, [board?.id, board?.revision, board?.templateId]);
+  }, [board?.id, board?.revision, board?.templateId, board?.document.candidateIds, board?.document.tracks]);
   useEffect(() => {
     if (board?.templateId && libraryTab === "settings") setLibraryTab("range");
   }, [board?.templateId, libraryTab]);

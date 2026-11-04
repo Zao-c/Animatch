@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppButton } from "@/components/ui/AppButton";
 import { songRequest } from "@/lib/anisong/client";
 import { SongShareButton } from "./SongShareButton";
@@ -11,11 +11,13 @@ export function SongVisibilityActions({ boardId, disabled, onChange, value, show
   const [info, setInfo] = useState<SongVisibility | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const notify = useRef(onChange);
+  useEffect(() => { notify.current = onChange; }, [onChange]);
   useEffect(() => { if (value) setInfo(value); }, [value]);
   useEffect(() => {
     const controller = new AbortController();
     songRequest<SongVisibility>(`/api/anisong/boards/${boardId}/visibility`, { signal: controller.signal })
-      .then(value => { if (!controller.signal.aborted) { setInfo(value); onChange?.(value); } })
+      .then(value => { if (!controller.signal.aborted) { setInfo(value); notify.current?.(value); } })
       .catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "获取公开状态失败"); });
     return () => controller.abort();
   }, [boardId]); // onChange is a notification, not a fetch dependency

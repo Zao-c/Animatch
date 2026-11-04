@@ -11,7 +11,8 @@ describe("music playlist owner progress routing", () => {
     expect(gallery).toContain("template.mine && template.ownerBoardId");
     // The detail page derives one creator flag and reuses its owner href.
     expect(detail).toContain("Boolean(template?.mine && template.ownerBoardId)");
-    expect(detail).toContain("ownerHref");
+    expect(detail).toContain('isCreator ? `/anisong/${template!.ownerBoardId}` : ""');
+    expect(detail).toContain('`${ownerHref}/match`');
     expect(detail).toContain("继续我的对决");
   });
 });
