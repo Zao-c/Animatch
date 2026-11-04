@@ -44,4 +44,28 @@ describe("public taste rivalry", () => {
     vi.mocked(prisma.userPoolScore.groupBy).mockResolvedValue([]);
     expect(await getPublicTasteRivalry("pool:public")).toMatchObject({ participantCount: 0, pair: null });
   });
+
+  it("excludes private-profile users from public pool comparisons", async () => {
+    vi.mocked(prisma.customPool.findUnique).mockResolvedValue({ id: "public", name: "公开番组", visibility: "PUBLIC", deletedAt: null } as any);
+    vi.mocked(prisma.userPoolScore.groupBy).mockResolvedValue([]);
+    await getPublicTasteRivalry("pool:public");
+    expect(prisma.userPoolScore.groupBy).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        user: expect.objectContaining({ profileVisibility: "PUBLIC" })
+      })
+    }));
+  });
+
+  it("also excludes private-profile users from public season comparisons", async () => {
+    vi.mocked(prisma.battleSeason.findUnique).mockResolvedValue({
+      id: "s", title: "公开赛季", poolId: "p", pool: { visibility: "PUBLIC", deletedAt: null }
+    } as any);
+    vi.mocked(prisma.battleSeasonUserScore.groupBy).mockResolvedValue([]);
+    await getPublicTasteRivalry("season:s");
+    expect(prisma.battleSeasonUserScore.groupBy).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        user: expect.objectContaining({ profileVisibility: "PUBLIC" })
+      })
+    }));
+  });
 });
