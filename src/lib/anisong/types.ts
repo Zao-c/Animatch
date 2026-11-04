@@ -43,6 +43,8 @@ export type SongDocument = {
   /** Explicit order within each Tier; optional for legacy v1 boards. */
   manualOrder?: Record<string, string[]>;
   candidateIds: string[] | null;
+  /** Missing in legacy documents means classic; never copied into public templates. */
+  matchMode?: "classic" | "quick";
 };
 export type SongBoardView = {
   id: string;

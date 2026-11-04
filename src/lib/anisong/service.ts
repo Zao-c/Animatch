@@ -97,7 +97,7 @@ export async function changeSongBoard(userId: string, id: string, value: unknown
   const revision = revisionInput(input.revision);
   const board = await ownedSongBoard(userId, id);
   // A participant owns their votes and selected range, not the publisher's song metadata.
-  const participantActions = ["candidateSelection", "candidates", "vote", "undo", "restore", "tier", "tierLayout", "tierReset", "publish", "unpublish"];
+  const participantActions = ["candidateSelection", "candidates", "vote", "undo", "restore", "tier", "tierLayout", "tierReset", "publish", "unpublish", "matchMode"];
   if (board.templateId && !participantActions.includes(String(input.action)))
     throw new AppError("这是一份公共曲单的个人对决记录，不能修改原曲单歌曲或名称", 403);
   const document = structuredClone(board.document) as unknown as SongDocument;
@@ -109,6 +109,11 @@ export async function changeSongBoard(userId: string, id: string, value: unknown
   const extra: Parameters<typeof saveSongBoard>[3] = {};
   let removedAudio: string | null = null;
   switch (input.action) {
+    case "matchMode": {
+      if (input.mode !== "classic" && input.mode !== "quick") throw new AppError("对决模式不正确", 400);
+      document.matchMode = input.mode;
+      break;
+    }
     case "bulkEdit": {
       const ids = new Set(selectedSongIds(input.trackIds, document.tracks));
       const patch = songBulkPatch(input.patch);
