@@ -17,9 +17,9 @@ describe("AniSong library focuses on the next user action", () => {
     expect(workspace).toContain('libraryTab === "range"');
     expect(workspace).toContain('libraryTab === "settings"');
     expect(workspace).not.toContain("准备好就开始对决");
-    expect(workspace.indexOf("参赛范围")).toBeLessThan(workspace.indexOf("曲单设置与公共发布"));
-    expect(workspace.indexOf("曲单设置与公共发布")).toBeLessThan(workspace.indexOf("<SongTemplatePublisher board={board}"));
-    expect(lobby).toContain("创建自己的音乐曲单");
+    expect(workspace.indexOf("参赛范围")).toBeLessThan(workspace.indexOf("曲单设置"));
+    expect(workspace.indexOf("曲单设置")).toBeLessThan(workspace.indexOf("<SongTemplatePublisher board={board}"));
+    expect(lobby).toContain("创建音乐曲单");
     expect(lobby).not.toContain("创建与发布曲单");
   });
 

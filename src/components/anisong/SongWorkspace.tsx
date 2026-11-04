@@ -232,7 +232,7 @@ export function SongWorkspace({ boardId, view = "library", initialLibraryTab = "
         </section>
         <div className="mt-3 grid grid-cols-2 gap-3"><AppButton variant="secondary" disabled={disabled} onClick={() => navigate("tier")}>查看 / 调整 Tier List</AppButton><AppButton variant="secondary" disabled={disabled} onClick={() => jumpToLibraryTab("range")}>选择参赛范围</AppButton></div>
         {!board.templateId && <div className="mt-3 border-t border-white/10 pt-3">
-          <SongVisibilityActions boardId={boardId} disabled={disabled} value={publicInfo} onChange={setPublicInfo} />
+          <SongVisibilityActions boardId={boardId} disabled={disabled} value={publicInfo} onChange={setPublicInfo} showToggle={false} />
           <AppButton className="mt-2 w-full" variant="quiet" size="sm" onClick={() => jumpToLibraryTab("settings")}>曲单设置</AppButton>
         </div>}
       </AppCard>

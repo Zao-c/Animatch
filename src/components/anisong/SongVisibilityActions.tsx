@@ -5,8 +5,8 @@ import { songRequest } from "@/lib/anisong/client";
 import { SongShareButton } from "./SongShareButton";
 
 export type SongVisibility = { isPublic: boolean; templateId: string | null; canManage: boolean };
-export function SongVisibilityActions({ boardId, disabled, onChange, value }: {
-  boardId: string; disabled?: boolean; onChange?: (value: SongVisibility) => void; value?: SongVisibility | null;
+export function SongVisibilityActions({ boardId, disabled, onChange, value, showToggle = true }: {
+  boardId: string; disabled?: boolean; showToggle?: boolean; onChange?: (value: SongVisibility) => void; value?: SongVisibility | null;
 }) {
   const [info, setInfo] = useState<SongVisibility | null>(null);
   const [busy, setBusy] = useState(false);
@@ -34,7 +34,7 @@ export function SongVisibilityActions({ boardId, disabled, onChange, value }: {
   return <div className="flex flex-wrap items-center gap-3">
     {!info && <span className="sr-only" role="status">正在读取公开状态</span>}
     {info?.isPublic && info.templateId && <SongShareButton path={`/anisong/templates/${info.templateId}`} />}
-    {info?.canManage && <AppButton variant="ghost" size="sm" disabled={busy || disabled} onClick={() => void toggle()}>{busy ? "正在更新…" : info.isPublic ? "设为私人" : "设为公开"}</AppButton>}
+    {showToggle && info?.canManage && <AppButton variant="ghost" size="sm" disabled={busy || disabled} onClick={() => void toggle()}>{busy ? "正在更新…" : info.isPublic ? "设为私人" : "设为公开"}</AppButton>}
     {error && <p role="alert" className="w-full text-xs text-amber-200">{error}</p>}
   </div>;
 }
