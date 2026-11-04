@@ -19,23 +19,15 @@ export function SongMatchPanel({ boardId, pair, ranking, document, disabled, bus
   const isQuick = document.matchMode === "quick";
   const quick = quickMatchProgress(ranking.active, document.events);
   return <section aria-label="音乐对决">
-    <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950/20 px-3 py-2">
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-slate-950/20 px-3 py-2">
       <div className="flex flex-wrap items-center gap-2" role="group" aria-label="对决模式">
-        <span className="mr-1 text-xs text-slate-400">对决模式</span>
-        <AppButton size="sm" variant={isQuick ? "primary" : "ghost"} disabled={disabled} onClick={() => onModeChange("quick")}>快速分档</AppButton>
-        <AppButton size="sm" variant={!isQuick ? "primary" : "ghost"} disabled={disabled} onClick={() => onModeChange("classic")}>经典 Elo</AppButton>
+        <AppButton size="sm" variant={isQuick ? "primary" : "ghost"} disabled={disabled} aria-pressed={isQuick} onClick={() => onModeChange("quick")}>快速分档</AppButton>
+        <AppButton size="sm" variant={!isQuick ? "primary" : "ghost"} disabled={disabled} aria-pressed={!isQuick} onClick={() => onModeChange("classic")}>经典 Elo</AppButton>
       </div>
-      <p className="text-xs text-slate-400">{isQuick
-        ? `基础覆盖 ${quick.covered}/${quick.total} · 连通分组 ${quick.components} · 建议预算约 ${quick.suggestedBudget} 场`
-        : "经典模式持续优化歌曲的相对顺序"}</p>
+      {isQuick && <span role="status" className="text-xs text-slate-400">基础覆盖 {quick.covered}/{quick.total} 首</span>}
     </div>
-    {isQuick && <div role="status" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-anime-cyan/25 bg-anime-cyan/[0.05] px-4 py-3 text-xs">
-      <span>{quick.readyForDraft ? "基础覆盖已完成，可以查看快速初稿；仍可继续校准档位。" :
-        "正在优先覆盖未充分比较的歌曲，连接不同歌曲组。"} 跳过、没听过不计入有效覆盖。</span>
-      <AppButton size="sm" variant="quiet" onClick={onTier}>查看当前 Tier →</AppButton>
-    </div>}
     <MatchSessionGoal scopeKey={"anisong:" + boardId} count={ranking.progress.effectiveComparisons} resultHref={"/anisong/" + boardId + "/tier"} disabled={disabled} />
-    <div role="status" aria-live="polite" aria-atomic="true" className="mb-2 min-h-6 text-center text-sm text-cyan-100">{busy ? "正在保存选择…" : notice || "先试听，再点击封面选出更喜欢的一首"}</div>
+    <div role="status" aria-live="polite" aria-atomic="true" className="mb-2 min-h-6 text-center text-sm text-cyan-100">{busy ? "正在保存选择…" : notice || ""}</div>
     {pair ? <>
       <MatchArena mode="music"
         left={<SongMatchCard key={playbackKey(pair.left)} track={pair.left} boardId={boardId} side="left" disabled={disabled} onPick={() => onVote("LEFT_WIN")} />}
@@ -53,8 +45,13 @@ export function SongMatchPanel({ boardId, pair, ranking, document, disabled, bus
       <AppButton className="mt-4" onClick={onLibrary}>返回曲单管理</AppButton>
     </div>}
     <details className="mt-3 rounded-xl border border-white/10 px-3 text-sm text-slate-400">
-      <summary className="min-h-11 cursor-pointer py-3">进度与榜单说明</summary>
-      <div className="pb-3">{isQuick ? <p className="rounded-xl border border-white/10 p-3 text-xs leading-6 text-slate-300">快速分档：已基础覆盖 {quick.covered} / {quick.total} 首；连通分组 {quick.components}。覆盖充分才提示初稿可用，档位仍可随对决调整，数字不代表统计置信度。</p> : <RankingProgressCard progress={ranking.progress} compact />}<p className="mt-2 text-xs leading-6 text-slate-500">进度是比较次数参考，不代表统计置信度。未听过的歌曲不会进入榜单，也不计入本轮目标。</p><button type="button" className="mt-2 min-h-11 text-anime-cyan hover:underline" onClick={onTier}>查看当前 Tier List →</button></div>
+      <summary className="min-h-11 cursor-pointer py-3">进度说明</summary>
+      <div className="pb-3">
+        {isQuick
+          ? <p className="text-xs leading-6 text-slate-300">基础覆盖 {quick.covered}/{quick.total} 首 · 连通分组 {quick.components} · 建议约 {quick.suggestedBudget} 场</p>
+          : <RankingProgressCard progress={ranking.progress} compact />}
+        <p className="mt-2 text-xs leading-6 text-slate-500">覆盖和场数仅供参考，不代表排名准确度。没听过的歌曲不参与分档。</p>
+      </div>
     </details>
   </section>;
 }
