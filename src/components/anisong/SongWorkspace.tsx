@@ -262,7 +262,7 @@ export function SongWorkspace({ boardId, view = "library", initialLibraryTab = "
         </div>
       </SongEditDrawer>}
       {(libraryTab === "wall" || libraryTab === "range") && <AppCard role="tabpanel" id="song-library-panel" aria-labelledby={`song-library-tab-${libraryTab}`} className="space-y-4 p-4 sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-bold">{libraryTab === "wall" ? "歌曲谱" : "参赛范围"}</h2></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="sr-only">{libraryTab === "wall" ? "歌曲谱" : "参赛范围"}</h2>
         {!board.templateId && <AppButton variant="primary" size="sm" aria-expanded={addOpen} aria-controls="song-add-methods" disabled={disabled} onClick={toggleAdd}>＋ 添加歌曲</AppButton>}</div>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(0,1fr)_160px_auto]">
         <input aria-label="搜索歌曲或风格" placeholder="搜索当前歌曲…" className="anime-field col-span-2 sm:col-span-1" disabled={bulkEditing || busy || importing} value={search} onChange={e => setSearch(e.target.value)} />

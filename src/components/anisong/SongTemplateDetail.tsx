@@ -130,7 +130,7 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
       {tab === "community" ? <AppCard id="song-public-panel" role="tabpanel" className="p-4 sm:p-5"><SongCommunityRanking templateId={templateId}/></AppCard> :
         <AppCard id="song-public-panel" role="tabpanel" className="space-y-4 p-3 sm:p-4">
           <div ref={wallRef} className="scroll-mt-24 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-bold">{tab === "range" ? "参赛范围" : "歌曲谱"}</h2>
+            <h2 className="sr-only">{tab === "range" ? "参赛范围" : "歌曲谱"}</h2>
             {tab === "range" ? <span className="text-xs text-slate-400">{selectedIds.length} / {tracks.length} 首</span> : (query || kind) ? <span className="text-xs text-slate-400">{filteredTracks.length} 首结果</span> : null}
           </div>
           {tab === "range" && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-anime-cyan/20 bg-anime-cyan/[0.04] p-3">
