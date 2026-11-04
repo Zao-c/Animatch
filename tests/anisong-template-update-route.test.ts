@@ -10,7 +10,10 @@ describe("public template update contract", () => {
   });
   it("preserves all old events and writes the new public revision with optimistic concurrency", () => {
     expect(code).toContain("applySongTemplateVersion(");
-    expect(code).toContain("templateRevision:template.revision,revision:{increment:1}");
+    expect(code).toContain("templateRevision:latest.revision,revision:{increment:1}");
+    expect(code).toContain("Prisma.TransactionIsolationLevel.Serializable");
+    expect(code).toContain("latest.revision!==target");
+    expect(code).toContain('cause.code==="P2034"');
     expect(code).toContain("where:{id:board.id,ownerId:user.id,revision}");
   });
 });
