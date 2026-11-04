@@ -14,6 +14,7 @@ export function SongTemplateGallery() {
   const [query, setQuery] = useState(""), [search, setSearch] = useState("");
   const [page, setPage] = useState(0), [more, setMore] = useState(false), [loading, setLoading] = useState(true), [error, setError] = useState("");
   const [starting, setStarting] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const lock = useRef(false);
   const load = useCallback(async (signal: AbortSignal) => {
     setLoading(true); setError("");
@@ -23,7 +24,7 @@ export function SongTemplateGallery() {
     } catch (cause) { if (!signal.aborted) setError(cause instanceof Error ? cause.message : "公共曲单加载失败"); }
     finally { if (!signal.aborted) setLoading(false); }
   }, [search, page]);
-  useEffect(() => { const controller = new AbortController(); void load(controller.signal); return () => controller.abort(); }, [load]);
+  useEffect(() => { const controller = new AbortController(); void load(controller.signal); return () => controller.abort(); }, [load, retryKey]);
 
   async function start(template: SongTemplateView) {
     if (lock.current) return;
@@ -44,7 +45,7 @@ export function SongTemplateGallery() {
         <AppButton type="submit" variant="secondary" disabled={loading}>搜索</AppButton>
       </form>
     </div>
-    {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300/20 p-3 text-sm text-amber-200"><span>{error}</span><AppButton variant="ghost" size="sm" onClick={() => { const controller = new AbortController(); void load(controller.signal); }}>重试加载</AppButton></div>}
+    {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300/20 p-3 text-sm text-amber-200"><span>{error}</span><AppButton variant="ghost" size="sm" onClick={() => setRetryKey(value => value + 1)}>重试加载</AppButton></div>}
     {loading ? <p role="status" className="py-8 text-sm text-slate-400">正在加载公开音乐曲单…</p> : templates.length ?
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{templates.map(template =>
         <SongPlaylistCard key={template.id} title={template.title} href={`/anisong/templates/${template.id}`} covers={template.covers}

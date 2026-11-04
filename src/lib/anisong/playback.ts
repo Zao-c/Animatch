@@ -7,5 +7,9 @@ export function songPlaybackPlan(track: SongTrack, options: PlaybackPreferences)
   const apple = Boolean(track.itunes || track.source.kind === "itunes");
   const preferred: SongAudioProvider | null = options.preferred === "itunes" ? apple ? "itunes" : null : local;
   const backup: SongAudioProvider | null = options.preferred === "itunes" ? local : apple ? "itunes" : null;
-  return [preferred, ...(options.fallback ? [backup] : [])].filter((provider): provider is SongAudioProvider => provider !== null);
+  // "Automatically switch on failure" controls *runtime* fallback, not whether a
+  // song with only one available provider can be played at all.
+  const first = preferred ?? backup;
+  return [first, ...(options.fallback && preferred ? [backup] : [])]
+    .filter((provider): provider is SongAudioProvider => provider !== null);
 }
