@@ -14,7 +14,6 @@ import { PageShell } from "@/components/PageShell";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { copyTextWithFallback } from "@/lib/browser-copy";
 import { proxyExternalImageUrl } from "@/lib/image-proxy";
-import { formatDateTimeStable } from "@/lib/date-format";
 import { decodeProfileUsername, profilePath } from "@/lib/profile-username";
 import { profileCollectionUrl, profilePageCount } from "@/lib/user-profile";
 
@@ -166,11 +165,8 @@ export default function UserProfilePage() {
   );
   const joinedDate = useMemo(() => {
     if (!profile?.user?.createdAt) return "";
-    try {
-      return formatDateTimeStable(new Date(profile.user.createdAt));
-    } catch {
-      return "";
-    }
+    const date = new Date(profile.user.createdAt);
+    return Number.isNaN(date.getTime()) ? "" : `${date.getUTCFullYear()} 年 ${date.getUTCMonth() + 1} 月加入`;
   }, [profile]);
 
   return (
@@ -216,7 +212,7 @@ export default function UserProfilePage() {
                         @{profile.user.username}
                       </p>
                     ) : null}
-                    <p className="mt-2 text-xs text-slate-400">{joinedDate ? `加入于 ${joinedDate} · ` : ""}参与 {profile.stats.participatedPoolCount} 个番组</p>
+                    {(joinedDate || profile.stats.participatedPoolCount > 0) && <p className="mt-2 text-xs text-slate-400">{joinedDate}{joinedDate && profile.stats.participatedPoolCount > 0 ? " · " : ""}{profile.stats.participatedPoolCount > 0 ? `参与 ${profile.stats.participatedPoolCount} 个番组` : ""}</p>}
                   </div>
                 </div>
                 <div className="flex min-w-0 shrink-0 flex-col items-start gap-2 sm:items-end">
