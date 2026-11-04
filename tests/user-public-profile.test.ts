@@ -1,80 +1,245 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { decodeProfileUsername, profilePath } from "@/lib/profile-username";
+import {
+  PROFILE_PAGE_SIZE,
+  profileCollectionUrl,
+  profilePageCount,
+  resolveProfilePage,
+  resolveProfileSection
+} from "@/lib/user-profile";
 
-describe("User public profile API", () => {
-  const source = readFileSync("src/app/api/users/[username]/public-profile/route.ts", "utf8");
+const db = vi.hoisted(() => ({
+  user: { findFirst: vi.fn() },
+  customPool: { count: vi.fn(), findMany: vi.fn() },
+  tierShare: { count: vi.fn(), findMany: vi.fn() },
+  userPoolScore: { groupBy: vi.fn() },
+  songTemplate: { count: vi.fn(), findMany: vi.fn() },
+  songBoard: { count: vi.fn(), findMany: vi.fn() }
+}));
+vi.mock("@/lib/db", () => ({ prisma: db }));
 
-  it("returns user not found for non-existent username", () => {
-    expect(source).toContain('notFound("用户不存在")');
+import { GET } from "@/app/api/users/[username]/public-profile/route";
+
+const user = {
+  id: "user-1",
+  username: "alice",
+  name: "Alice",
+  image: null,
+  createdAt: new Date("2026-01-02T03:04:05.000Z")
+};
+
+async function call(path: string, username = "alice") {
+  const response = await GET(new Request(`http://test.local${path}`), { params: { username } });
+  return { response, body: await response.json() };
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  db.user.findFirst.mockResolvedValue(user);
+  db.customPool.count.mockResolvedValue(0);
+  db.customPool.findMany.mockResolvedValue([]);
+  db.tierShare.count.mockResolvedValue(0);
+  db.tierShare.findMany.mockResolvedValue([]);
+  db.userPoolScore.groupBy.mockResolvedValue([]);
+  db.songTemplate.count.mockResolvedValue(0);
+  db.songTemplate.findMany.mockResolvedValue([]);
+  db.songBoard.count.mockResolvedValue(0);
+  db.songBoard.findMany.mockResolvedValue([]);
+});
+
+describe("public profile API behaviour", () => {
+  it("returns 404 for a missing or deleted user", async () => {
+    db.user.findFirst.mockResolvedValue(null);
+    const { response, body } = await call("/api/users/alice/public-profile");
+    expect(response.status).toBe(404);
+    expect(body).toEqual({ ok: false, error: { message: "用户不存在" } });
   });
 
-  it("only selects safe user fields (excludes email)", () => {
-    expect(source).toContain('select: {');
-    expect(source).toContain("id: true");
-    expect(source).toContain("username: true");
-    expect(source).toContain("name: true");
-    expect(source).toContain("image: true");
-    expect(source).toContain("createdAt: true");
-    expect(source).not.toContain("email");
+  it("maps the shares tab to the tiers collection", async () => {
+    const { body } = await call("/api/users/alice/public-profile?section=shares&page=1");
+    expect(body.data.pagination.section).toBe("tiers");
   });
 
-  it("filters deleted users", () => {
-    expect(source).toContain("deletedAt: null");
+  it("paginates 27 tier lists through to the last page instead of truncating at 12", async () => {
+    db.tierShare.count.mockResolvedValue(27);
+    db.tierShare.findMany.mockResolvedValue(
+      Array.from({ length: PROFILE_PAGE_SIZE }, (_, index) => ({
+        token: `token-${index}`,
+        title: `榜单 ${index}`,
+        snapshot: {
+          animeCount: 10,
+          comparisonCount: 40,
+          tiers: [{ items: [{ imageUrl: "https://img.example/cover.jpg" }] }]
+        },
+        createdAt: new Date("2026-02-03T00:00:00.000Z"),
+        run: { pool: { id: "pool-1", name: "2026 冬季" } }
+      }))
+    );
+
+    const { body } = await call("/api/users/alice/public-profile?section=shares&page=3");
+    const lastCall = db.tierShare.findMany.mock.calls.at(-1)?.[0] as { skip: number; take: number };
+    expect(lastCall).toMatchObject({ skip: 18, take: PROFILE_PAGE_SIZE });
+    expect(body.data.pagination).toEqual({ section: "tiers", page: 3, pageSize: 9, total: 27 });
+    expect(body.data.publicTierLists).toHaveLength(9);
+    expect(body.data.publicTierLists[0]).toMatchObject({
+      token: "token-0", poolName: "2026 冬季", animeCount: 10, comparisonCount: 40
+    });
+    expect(body.data.publicTierLists[0].coverUrls).toEqual(["https://img.example/cover.jpg"]);
   });
 
-  it("only returns PUBLIC pools", () => {
-    expect(source).toContain('visibility: "PUBLIC"');
+  it("uses the page size and offset for pool pagination", async () => {
+    db.customPool.count.mockResolvedValue(27);
+    await call("/api/users/alice/public-profile?section=pools&page=2");
+    expect(db.customPool.findMany.mock.calls.at(-1)?.[0]).toMatchObject({ skip: 9, take: 9 });
   });
 
-  it("filters deleted pools", () => {
-    expect(source).toContain("deletedAt: null");
+  it("falls back to page 1 for empty, negative, fractional or non-numeric pages", async () => {
+    for (const value of ["", "0", "-3", "2.5", "abc"]) {
+      await call(`/api/users/alice/public-profile?section=pools&page=${encodeURIComponent(value)}`);
+      expect(db.customPool.findMany.mock.calls.at(-1)?.[0]).toMatchObject({ skip: 0 });
+      expect(db.customPool.findMany.mock.calls.at(-1)?.[0]).toMatchObject({ take: PROFILE_PAGE_SIZE });
+    }
   });
 
-  it("counts public pools", () => {
-    expect(source).toContain("publicPoolsCount");
+  it("keeps the reported total in sync with the counter", async () => {
+    db.customPool.count.mockResolvedValue(27);
+    db.customPool.findMany.mockResolvedValue([]);
+    const { body } = await call("/api/users/alice/public-profile?section=pools&page=3");
+    expect(body.data.pagination.total).toBe(27);
+    expect(body.data.stats.publicPoolsCount).toBe(27);
+    expect(body.data.publicPools).toHaveLength(0);
   });
 
-  it("counts shared tier lists via PersonalRun join", () => {
-    expect(source).toContain("run: {");
-    expect(source).toContain("userId: user.id");
+  it("only lists published (active) music playlists and returns no audio or source data", async () => {
+    db.songTemplate.count.mockResolvedValue(1);
+    db.songTemplate.findMany.mockResolvedValue([
+      {
+        id: "template-1",
+        title: "秋季 OP",
+        document: {
+          tracks: [
+            { id: "a", title: "A", source: { kind: "pool", assetId: "secret-asset" }, coverUrl: "https://img.example/a.jpg" },
+            { id: "b", title: "B", source: { kind: "upload", key: "private/key.wav" }, coverUrl: null }
+          ]
+        },
+        updatedAt: new Date("2026-03-04T00:00:00.000Z")
+      }
+    ]);
+    const { body } = await call("/api/users/alice/public-profile?section=songs&page=1");
+    expect(db.songTemplate.findMany.mock.calls.at(-1)?.[0]).toMatchObject({
+      where: { ownerId: "user-1", active: true },
+      skip: 0,
+      take: PROFILE_PAGE_SIZE
+    });
+    expect(body.data.publicSongPlaylists).toEqual([
+      {
+        id: "template-1",
+        title: "秋季 OP",
+        trackCount: 2,
+        coverUrls: ["https://img.example/a.jpg"],
+        updatedAt: "2026-03-04T00:00:00.000Z"
+      }
+    ]);
+    const serialized = JSON.stringify(body);
+    expect(serialized).not.toContain("secret-asset");
+    expect(serialized).not.toContain("private/key.wav");
   });
 
-  it("counts participated pools via UserPoolScore groupBy", () => {
-    expect(source).toContain("userPoolScore.groupBy");
-    expect(source).toContain("participatedPoolCount");
+  it("only treats explicitly shared music Tier snapshots as public", async () => {
+    db.songBoard.count.mockResolvedValue(1);
+    db.songBoard.findMany.mockResolvedValue([
+      {
+        shareToken: "song-token",
+        title: "我的音乐榜",
+        snapshot: {
+          version: 1,
+          title: "我的音乐榜",
+          capturedAt: "2026-03-05T00:00:00.000Z",
+          comparisons: 12,
+          rows: [{ id: "s", label: "S", color: "#fff", songs: [{ id: "a", title: "A", coverUrl: "https://img.example/a.jpg" }] }]
+        },
+        updatedAt: new Date("2026-03-05T00:00:00.000Z")
+      }
+    ]);
+    const { body } = await call("/api/users/alice/public-profile?section=songTiers&page=1");
+    const where = (db.songBoard.findMany.mock.calls.at(-1)?.[0] as { where: Record<string, unknown> }).where;
+    expect(where).toMatchObject({ ownerId: "user-1", shareToken: { not: null } });
+    expect(where.snapshot).toEqual({ not: expect.anything() });
+    expect(body.data.publicSongTierLists).toEqual([
+      {
+        token: "song-token",
+        title: "我的音乐榜",
+        trackCount: 1,
+        comparisonCount: 12,
+        coverUrls: ["https://img.example/a.jpg"],
+        updatedAt: "2026-03-05T00:00:00.000Z"
+      }
+    ]);
   });
 
-  it("returns coverUrls via getAnimeCoverUrl with display intent", () => {
-    expect(source).toContain('getAnimeCoverUrl(a, { intent: "display" })');
+  it("never serializes email or comparison history", async () => {
+    const { body } = await call("/api/users/alice/public-profile?section=pools&page=1");
+    const serialized = JSON.stringify(body);
+    expect(serialized).not.toContain("email");
+    expect(body.data.user).toEqual({
+      id: "user-1",
+      username: "alice",
+      name: "Alice",
+      image: null,
+      createdAt: "2026-01-02T03:04:05.000Z"
+    });
+  });
+});
+
+describe("profile pagination helpers", () => {
+  it("clamps every page value to a safe positive integer", () => {
+    expect(resolveProfilePage("1")).toBe(1);
+    expect(resolveProfilePage("12")).toBe(12);
+    expect(resolveProfilePage("0")).toBe(1);
+    expect(resolveProfilePage("-2")).toBe(1);
+    expect(resolveProfilePage("1.5")).toBe(1);
+    expect(resolveProfilePage("abc")).toBe(1);
+    expect(resolveProfilePage(null)).toBe(1);
+    expect(resolveProfilePage("999999")).toBe(10000);
   });
 
-  it("includes pool description and counts", () => {
-    expect(source).toContain("description: pool.description");
-    expect(source).toContain("animeCount: pool._count.poolAnime");
+  it("accepts shares as an alias for tiers and rejects unknown sections", () => {
+    expect(resolveProfileSection("shares")).toBe("tiers");
+    expect(resolveProfileSection("tiers")).toBe("tiers");
+    expect(resolveProfileSection("songs")).toBe("songs");
+    expect(resolveProfileSection("songTiers")).toBe("songTiers");
+    expect(resolveProfileSection("taste")).toBe("pools");
+    expect(resolveProfileSection(null)).toBe("pools");
   });
 
-  it("includes tier list pool name, anime count, comparison count", () => {
-    expect(source).toContain("poolName");
-    expect(source).toContain("animeCount");
-    expect(source).toContain("comparisonCount");
+  it("computes page counts, always at least one page", () => {
+    expect(profilePageCount(0)).toBe(1);
+    expect(profilePageCount(9)).toBe(1);
+    expect(profilePageCount(10)).toBe(2);
+    expect(profilePageCount(27)).toBe(3);
+    expect(profilePageCount(Number.NaN)).toBe(1);
   });
 
-  it("server-paginates each public collection instead of truncating all content after 12 entries", () => {
-    expect(source).toContain("export const PROFILE_PAGE_SIZE = 9");
-    expect(source).toContain("skip,");
-    expect(source).toContain("take: PROFILE_PAGE_SIZE");
-    expect(source).toContain("pagination: { section, page, pageSize: PROFILE_PAGE_SIZE");
-    expect(source).not.toContain("take: 12");
+  it("keeps the section and page together in one request URL", () => {
+    expect(profileCollectionUrl("alice", "shares", 3)).toBe("/api/users/alice/public-profile?section=shares&page=3");
+    expect(profileCollectionUrl("中文 用户", "songs", 1)).toBe(
+      "/api/users/%E4%B8%AD%E6%96%87%20%E7%94%A8%E6%88%B7/public-profile?section=songs&page=1"
+    );
+    expect(profileCollectionUrl("alice", "pools", 0)).toBe("/api/users/alice/public-profile?section=pools&page=1");
+  });
+});
+
+describe("profile usernames", () => {
+  it("decodes percent-escaped and raw usernames", () => {
+    expect(decodeProfileUsername("%E4%B8%AD%E6%96%87")).toBe("中文");
+    expect(decodeProfileUsername("中文")).toBe("中文");
+    expect(decodeProfileUsername("100%")).toBe("100%");
   });
 
-  it("includes only explicitly shared public music content and never private song source data", () => {
-    expect(source).toContain("prisma.songTemplate.findMany");
-    expect(source).toContain("ownerId: user.id, active: true");
-    expect(source).toContain("prisma.songBoard.findMany");
-    expect(source).toContain("shareToken: { not: null }");
-    expect(source).toContain("publicSongPlaylistsCount");
-    expect(source).toContain("sharedSongTierListCount");
-    expect(source).not.toContain("source: track.source");
+  it("builds an encoded profile path for names with spaces and symbols", () => {
+    expect(profilePath("中文 用户")).toBe("/u/%E4%B8%AD%E6%96%87%20%E7%94%A8%E6%88%B7");
+    expect(profilePath("a&b")).toBe("/u/a%26b");
   });
 });
 
@@ -90,61 +255,93 @@ describe("User profile page", () => {
     expect(source).toContain("animate-pulse");
   });
 
-  it("renders error state", () => {
+  it("renders an error state with a retry action", () => {
     expect(source).toContain("加载失败");
+    expect(source).toContain("重新加载");
+    expect(source).toContain("重试");
   });
 
-  it("renders user display name", () => {
+  it("renders user display name and joined date", () => {
     expect(source).toContain("displayName");
+    expect(source).toContain("加入于");
   });
 
-  it("renders AniMatch 玩家 badge", () => {
-    expect(source).toContain("AniMatch 玩家");
+  it("falls back to the first letter when the avatar image fails", () => {
+    expect(source).toContain("avatarFailed");
+    expect(source).toContain("onError");
+    expect(source).toContain("displayName.slice(0, 1)");
   });
 
-  it("renders stats: public pools, tier lists, participated pools", () => {
-    expect(source).toContain("publicPoolsCount");
-    expect(source).toContain("sharedTierListCount");
-    expect(source).toContain("participatedPoolCount");
+  it("puts the share action in the profile header, before the collection section", () => {
+    const shareIndex = source.indexOf("分享主页");
+    const sectionIndex = source.indexOf("公开作品");
+    expect(shareIndex).toBeGreaterThan(-1);
+    expect(sectionIndex).toBeGreaterThan(-1);
+    expect(shareIndex).toBeLessThan(sectionIndex);
+    expect(source).toContain("copyTextWithFallback");
+    expect(source).toContain("手动复制主页网址");
   });
 
-  it("renders public tier lists section with titles", () => {
-    expect(source).toContain('href={"/share/tier/" + tl.token}');
+  it("renders the five public counters and the five tabs", () => {
+    expect(source).toContain("公开番组");
+    expect(source).toContain("动画 Tier List");
+    expect(source).toContain("公开音乐曲单");
+    expect(source).toContain("音乐 Tier List");
+    expect(source).toContain("参与番组");
+    expect(source).toContain("口味档案");
   });
 
-  it("renders public pools section with links", () => {
-    expect(source).toContain('href={"/pools/" + pool.id}');
+  it("defaults to the public pools tab and keeps the taste profile last", () => {
+    expect(source).toContain('useState<PublicTab>("pools")');
+    const tasteTabIndex = source.indexOf('{ value: "taste", label: "口味档案" }');
+    expect(tasteTabIndex).toBeGreaterThan(source.indexOf('{ value: "pools", label: "公开番组"'));
   });
 
-  it("shows empty state for no tier lists", () => {
-    expect(source).toContain("还没有公开榜单");
+  it("resets to page one on tab change and clamps stale pages", () => {
+    expect(source).toContain("setContentTab(tab); setContentPage(1);");
+    expect(source).toContain("profilePageCount(");
   });
 
-  it("shows empty state for no pools", () => {
-    expect(source).toContain("还没有创建公开番组");
+  it("scrolls back to the collection after a page change once the new list is rendered", () => {
+    expect(source).toContain("scrollOnNextContent");
+    expect(source).toContain("scrollIntoView");
   });
 
-  it("does not render email anywhere", () => {
-    expect(source).not.toContain("email");
+  it("aborts superseded requests so slow tabs cannot overwrite the active one", () => {
+    expect(source).toContain("AbortController");
+    expect(source).toContain("controller.abort()");
+    expect(source).toContain("controller.signal.aborted");
+    expect(source).toContain("profileCollectionUrl(");
   });
 
-  it("uses site-wide profile width and does not nest a second main", () => {
+  it("uses the site-wide width and does not nest a second main", () => {
     expect(source).toContain("PageShell");
-    expect(source).toContain("max-w-[90rem]");
     expect(source).not.toContain("max-w-4xl");
     expect(source).not.toContain("<main");
   });
 
-  it("keeps taste profile behind a tab and shows both public music collections", () => {
+  it("keeps the taste dashboard mounted behind its own tab", () => {
     expect(source).toContain('contentTab === "taste"');
-    expect(source).toContain("publicSongPlaylists");
-    expect(source).toContain("publicSongTierLists");
-    expect(source).toContain("分享主页");
-    expect(source).toContain("copyTextWithFallback");
+    expect(source).toContain("<TasteDashboard username={username} />");
   });
 
-  it("uses proxyExternalImageUrl for cover images", () => {
+  it("links every card to its real detail page", () => {
+    expect(source).toContain('"/pools/" + pool.id');
+    expect(source).toContain('"/share/tier/" + tl.token');
+    expect(source).toContain('"/anisong/templates/" + song.id');
+    expect(source).toContain('"/anisong/share/" + song.token');
+  });
+
+  it("uses proxyExternalImageUrl for covers and avatars", () => {
     expect(source).toContain("proxyExternalImageUrl");
+  });
+
+  it("renders cover images with a plain img so COS/CDN hosts skip the Next optimizer", () => {
+    // next.config only allows bangumi hosts for the optimizer; COS covers would 400.
+    expect(source).not.toContain('from "next/image"');
+    expect(source).toContain('loading="lazy"');
+    expect(source).toContain("referrerPolicy=\"no-referrer\"");
+    expect(source).toContain("onError={() => setFailed");
   });
 });
 

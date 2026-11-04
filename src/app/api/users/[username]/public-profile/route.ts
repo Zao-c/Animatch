@@ -1,14 +1,13 @@
 import { fromError, notFound, ok } from "@/lib/api-response";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { PROFILE_PAGE_SIZE, resolveProfilePage, resolveProfileSection } from "@/lib/user-profile";
 import type { SongDocument, SongSnapshot } from "@/lib/anisong/types";
 
 interface RouteContext {
   params: { username: string };
 }
-
-export const PROFILE_PAGE_SIZE = 9;
-type ProfileSection = "pools" | "tiers" | "songs" | "songTiers";
 
 function toCoverStrip(
   animes: Array<{
@@ -35,14 +34,8 @@ export async function GET(request: Request, context: RouteContext) {
   try {
     const { username } = context.params;
     const params = new URL(request.url).searchParams;
-    const requestedSection = params.get("section") === "shares" ? "tiers" : params.get("section");
-    const section: ProfileSection =
-      requestedSection === "tiers" || requestedSection === "songs" || requestedSection === "songTiers"
-        ? requestedSection
-        : "pools";
-    const requestedPage = Number(params.get("page") ?? "1");
-    const page = Number.isSafeInteger(requestedPage) && requestedPage > 0
-      ? Math.min(10000, requestedPage) : 1;
+    const section = resolveProfileSection(params.get("section"));
+    const page = resolveProfilePage(params.get("page"));
     const skip = (page - 1) * PROFILE_PAGE_SIZE;
 
     const user = await prisma.user.findFirst({
@@ -59,7 +52,9 @@ export async function GET(request: Request, context: RouteContext) {
 
     const publicPoolWhere = { creatorId: user.id, visibility: "PUBLIC" as const, deletedAt: null };
     const publicSongWhere = { ownerId: user.id, active: true };
-    const sharedSongTierWhere = { ownerId: user.id, shareToken: { not: null } };
+    // A music Tier List is only public when the owner explicitly published a snapshot.
+    // Requiring the snapshot here keeps the counter and the paginated list in sync.
+    const sharedSongTierWhere = { ownerId: user.id, shareToken: { not: null }, snapshot: { not: Prisma.DbNull } };
     const [
       publicPoolsCount,
       sharedTierListCount,
@@ -146,10 +141,11 @@ export async function GET(request: Request, context: RouteContext) {
       });
       publicSongPlaylists.push(...rows.map(template => {
         const document = template.document as unknown as SongDocument;
+        const tracks = document.tracks ?? [];
         return {
           id: template.id, title: template.title,
-          trackCount: document.tracks.length,
-          coverUrls: safeSongCovers(document.tracks.map(track => track.coverUrl)),
+          trackCount: tracks.length,
+          coverUrls: safeSongCovers(tracks.map(track => track.coverUrl)),
           updatedAt: template.updatedAt.toISOString()
         };
       }));
@@ -165,10 +161,10 @@ export async function GET(request: Request, context: RouteContext) {
       });
       publicSongTierLists.push(...rows.filter(board => board.shareToken && board.snapshot).map(board => {
         const snapshot = board.snapshot as unknown as SongSnapshot;
-        const songs = snapshot.rows.flatMap(row => row.songs);
+        const songs = (snapshot.rows ?? []).flatMap(row => row.songs ?? []);
         return {
           token: board.shareToken!, title: snapshot.title || board.title,
-          trackCount: songs.length, comparisonCount: snapshot.comparisons,
+          trackCount: songs.length, comparisonCount: snapshot.comparisons ?? 0,
           coverUrls: safeSongCovers(songs.map(song => song.coverUrl)),
           updatedAt: board.updatedAt.toISOString()
         };

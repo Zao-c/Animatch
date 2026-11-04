@@ -1,10 +1,13 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element -- Covers live on COS/CDN hosts that the
+   Next image optimizer is not configured for; the rest of AniMatch renders them the
+   same way (see AnimeCover and SongCover) with an explicit error fallback. */
+
 import { DashboardTabs } from "@/components/ui/DashboardTabs";
 import { CollectionPager } from "@/components/ui/CollectionPager";
 import { TasteDashboard } from "@/components/TasteDashboard";
 import Link from "next/link";
-import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppBadge } from "@/components/ui/AppBadge";
@@ -13,7 +16,8 @@ import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { copyTextWithFallback } from "@/lib/browser-copy";
 import { proxyExternalImageUrl } from "@/lib/image-proxy";
 import { formatDateTimeStable } from "@/lib/date-format";
-import { decodeProfileUsername } from "@/lib/profile-username";
+import { decodeProfileUsername, profilePath } from "@/lib/profile-username";
+import { profileCollectionUrl, profilePageCount } from "@/lib/user-profile";
 
 type PublicTab = "pools" | "shares" | "songs" | "songTiers" | "taste";
 interface PublicProfile {
@@ -82,12 +86,16 @@ function ProfileSkeleton() {
 function ProfileMediaCard({ href, title, covers, category, meta, description, music, date }: {
   href: string; title: string; covers: string[]; category: string; meta: string; description?: string; music?: boolean; date?: string;
 }) {
+  const [failed, setFailed] = useState<Record<number, boolean>>({});
   return <Link href={href} className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border border-anime-border bg-anime-panel transition hover:border-anime-cyan/40 hover:bg-white/[0.045] focus-visible:outline focus-visible:outline-2 focus-visible:outline-anime-cyan">
     <div className="grid grid-cols-5 gap-1.5 border-b border-white/10 bg-slate-950/30 p-2.5">
       {Array.from({ length: 5 }, (_, index) => covers[index] ?? "").map((url, index) =>
         <div key={index} className={"relative min-w-0 overflow-hidden rounded-md bg-gradient-to-br from-cyan-950/80 to-violet-950/50 " + (music ? "aspect-square" : "aspect-[3/4]")}>
-          {url ? <Image src={proxyExternalImageUrl(url) ?? url} alt={title + "封面 " + (index + 1)} fill sizes="(max-width: 640px) 18vw, 7vw" className="object-cover" loading="lazy" /> :
-            <span aria-hidden="true" className="flex h-full items-center justify-center text-xl text-slate-500">{music ? "♪" : "◇"}</span>}
+          {url && !failed[index]
+            ? <img src={proxyExternalImageUrl(url) ?? url} alt={title + "封面 " + (index + 1)} loading="lazy" decoding="async" referrerPolicy="no-referrer"
+              onError={() => setFailed(previous => previous[index] ? previous : { ...previous, [index]: true })}
+              className="absolute inset-0 h-full w-full object-cover" />
+            : <span aria-hidden="true" className="flex h-full items-center justify-center text-xl text-slate-500">{music ? "♪" : "◇"}</span>}
         </div>)}
     </div>
     <div className="flex flex-1 flex-col gap-2 p-4">
@@ -113,17 +121,20 @@ export default function UserProfilePage() {
   const [retry, setRetry] = useState(0);
   const [copyStatus, setCopyStatus] = useState("");
   const [manualUrl, setManualUrl] = useState("");
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const copyInput = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const scrollOnNextContent = useRef(false);
 
   useEffect(() => {
     setProfile(null); setContentTab("pools"); setContentPage(1);
+    setCopyStatus(""); setManualUrl(""); setAvatarFailed(false);
   }, [username]);
   useEffect(() => {
     if (contentTab === "taste") return;
     const controller = new AbortController();
     setLoading(true); setError(null);
-    fetch("/api/users/" + encodeURIComponent(username) + "/public-profile?section=" + contentTab + "&page=" + contentPage, { signal: controller.signal })
+    fetch(profileCollectionUrl(username, contentTab, contentPage), { signal: controller.signal })
       .then(response => {
         if (response.status === 404) throw new Error("USER_NOT_FOUND");
         if (!response.ok) throw new Error("LOAD_FAILED");
@@ -133,11 +144,26 @@ export default function UserProfilePage() {
       .catch((cause: Error) => { if (!controller.signal.aborted) { setError(cause.message === "USER_NOT_FOUND" ? "USER_NOT_FOUND" : "LOAD_FAILED"); setLoading(false); } });
     return () => controller.abort();
   }, [username, contentTab, contentPage, retry]);
+  // Scroll once the new page is on screen: a smooth scroll started before the
+  // list re-renders is cancelled by that layout change in Chromium.
+  useEffect(() => {
+    if (loading || !scrollOnNextContent.current) return;
+    scrollOnNextContent.current = false;
+    contentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [loading]);
+  // A collection can shrink while it is open (a snapshot is revoked, a pool turns
+  // private). Land on the last real page instead of an empty page N of fewer.
+  useEffect(() => {
+    const pagination = profile?.pagination;
+    if (!pagination || contentTab === "taste") return;
+    const lastPage = profilePageCount(pagination.total, pagination.pageSize);
+    if (contentPage > lastPage) setContentPage(lastPage);
+  }, [profile?.pagination, contentPage, contentTab]);
 
   async function copyProfileLink() {
-    const url = new URL("/u/" + encodeURIComponent(username), window.location.origin).href;
+    const url = new URL(profilePath(username), window.location.origin).href;
     if (await copyTextWithFallback(url) === "copied") { setCopyStatus("主页网址已复制"); setManualUrl(""); }
-    else { setCopyStatus("复制失败，请手动复制下面的网址"); setManualUrl(url);
+    else { setCopyStatus("复制受限，请手动复制下面的网址"); setManualUrl(url);
       window.requestAnimationFrame(() => { copyInput.current?.focus(); copyInput.current?.select(); }); }
   }
 
@@ -183,25 +209,34 @@ export default function UserProfilePage() {
         ) : profile !== null ? (
           <>
             <section className="rounded-2xl border border-anime-border bg-anime-panel p-5 sm:p-7">
-              <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center sm:gap-6">
-                <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-cyan-900/70 to-violet-900/60 text-2xl font-black text-cyan-100">
-                  {profile.user.image ? <Image src={proxyExternalImageUrl(profile.user.image) ?? profile.user.image} alt={displayName + "头像"} fill sizes="80px" className="object-cover" /> : displayName.slice(0, 1).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <h1 className="truncate text-2xl font-black text-white">
-                    {displayName}
-                  </h1>
-                  {profile.user.username ? (
-                    <p className="mt-1 text-sm text-slate-400">
-                      @{profile.user.username}
-                    </p>
-                  ) : null}
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <AppBadge tone="tier">AniMatch 玩家</AppBadge>
-                    {joinedDate ? (
-                      <AppBadge tone="muted">加入于 {joinedDate}</AppBadge>
-                    ) : null}
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+                <div className="flex min-w-0 items-center gap-4 sm:gap-5">
+                  <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-cyan-900/70 to-violet-900/60 text-2xl font-black text-cyan-100">
+                    {profile.user.image && !avatarFailed
+                      ? <img src={proxyExternalImageUrl(profile.user.image) ?? profile.user.image} alt={displayName + "头像"} decoding="async" referrerPolicy="no-referrer" onError={() => setAvatarFailed(true)} className="h-full w-full object-cover" />
+                      : <span aria-hidden="true">{displayName.slice(0, 1).toUpperCase()}</span>}
                   </div>
+                  <div className="min-w-0">
+                    <h1 className="truncate text-2xl font-black text-white">
+                      {displayName}
+                    </h1>
+                    {profile.user.username ? (
+                      <p className="mt-1 break-all text-sm text-slate-400">
+                        @{profile.user.username}
+                      </p>
+                    ) : null}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <AppBadge tone="tier">AniMatch 玩家</AppBadge>
+                      {joinedDate ? (
+                        <AppBadge tone="muted">加入于 {joinedDate}</AppBadge>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex min-w-0 shrink-0 flex-col items-start gap-2 sm:items-end">
+                  <AppButton size="sm" variant="secondary" onClick={() => void copyProfileLink()}>分享主页</AppButton>
+                  {copyStatus && <span role="status" className="text-xs text-cyan-100">{copyStatus}</span>}
+                  {manualUrl && <input ref={copyInput} value={manualUrl} aria-label="手动复制主页网址" readOnly onFocus={event => event.currentTarget.select()} className="anime-field w-full max-w-[22rem] text-xs" />}
                 </div>
               </div>
             </section>
@@ -210,12 +245,12 @@ export default function UserProfilePage() {
             <section aria-label="个人公开作品统计" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
               {([
                 ["公开番组", profile.stats.publicPoolsCount, "pools"],
-                ["公开榜单", profile.stats.sharedTierListCount, "shares"],
-                ["音乐曲单", profile.stats.publicSongPlaylistsCount, "songs"],
-                ["音乐榜单", profile.stats.sharedSongTierListCount, "songTiers"],
+                ["动画 Tier List", profile.stats.sharedTierListCount, "shares"],
+                ["公开音乐曲单", profile.stats.publicSongPlaylistsCount, "songs"],
+                ["音乐 Tier List", profile.stats.sharedSongTierListCount, "songTiers"],
                 ["参与番组", profile.stats.participatedPoolCount, null]
               ] as const).map(([label, count, target]) => <button key={label} type="button" disabled={!target}
-                onClick={() => { if (target) { setContentTab(target); setContentPage(1); contentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); } }}
+                onClick={() => { if (target) { scrollOnNextContent.current = true; setContentTab(target); setContentPage(1); } }}
                 className="min-h-24 rounded-xl border border-anime-border bg-anime-panel p-4 text-left transition enabled:hover:border-anime-cyan/40 disabled:cursor-default">
                 <span className="block text-2xl font-black tabular-nums text-white">{count}</span>
                 <span className="mt-1 block text-xs text-slate-400">{label}</span>
@@ -224,18 +259,13 @@ export default function UserProfilePage() {
 
             <section ref={contentRef} aria-label="公开作品和口味档案" className="scroll-mt-28 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div><h2 className="text-xl font-bold">公开作品</h2><p className="mt-1 text-xs text-slate-400">所有公开的番组、动画榜单和音乐作品集中展示，口味档案可以单独查看。</p></div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <AppButton size="sm" variant="ghost" onClick={() => void copyProfileLink()}>分享主页</AppButton>
-                  {copyStatus && <span role="status" className="text-xs text-cyan-100">{copyStatus}</span>}
-                  {manualUrl && <input ref={copyInput} value={manualUrl} aria-label="手动复制主页网址" readOnly onFocus={event => event.currentTarget.select()} className="anime-field max-w-full text-xs" />}
-                </div>
+                <div><h2 className="text-xl font-bold">公开作品</h2><p className="mt-1 text-xs text-slate-400">所有公开的番组、动画 Tier List 和音乐作品集中展示，口味档案可以单独查看。</p></div>
               </div>
               <DashboardTabs id="profile-library" label="公开内容" value={contentTab} onChange={(tab) => { setContentTab(tab); setContentPage(1); }} items={[
                 { value: "pools", label: "公开番组", count: profile.stats.publicPoolsCount },
-                { value: "shares", label: "动画 Tier", count: profile.stats.sharedTierListCount },
+                { value: "shares", label: "动画 Tier List", count: profile.stats.sharedTierListCount },
                 { value: "songs", label: "音乐曲单", count: profile.stats.publicSongPlaylistsCount },
-                { value: "songTiers", label: "音乐 Tier", count: profile.stats.sharedSongTierListCount },
+                { value: "songTiers", label: "音乐 Tier List", count: profile.stats.sharedSongTierListCount },
                 { value: "taste", label: "口味档案" }
               ]} />
               {contentTab === "taste" ? <div role="tabpanel" id="profile-library-panel-taste" aria-labelledby="profile-library-tab-taste"><TasteDashboard username={username} /></div> :
@@ -264,7 +294,7 @@ export default function UserProfilePage() {
                         contentTab === "pools" ? profile.stats.publicPoolsCount :
                         contentTab === "shares" ? profile.stats.sharedTierListCount :
                         contentTab === "songs" ? profile.stats.publicSongPlaylistsCount : profile.stats.sharedSongTierListCount
-                      } onChange={(next) => { setContentPage(next); window.requestAnimationFrame(() => contentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })); }} />
+                      } onChange={(next) => { scrollOnNextContent.current = true; setContentPage(next); }} />
                     </>}
                 </div>}
             </section>

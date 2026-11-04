@@ -6,3 +6,8 @@ export function decodeProfileUsername(username: string): string {
     return username;
   }
 }
+
+/** Profiles are addressed by username, which may contain Chinese, spaces or symbols. */
+export function profilePath(username: string): string {
+  return "/u/" + encodeURIComponent(username);
+}
