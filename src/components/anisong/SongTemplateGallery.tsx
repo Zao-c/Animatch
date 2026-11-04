@@ -30,7 +30,7 @@ export function SongTemplateGallery() {
     lock.current = true; setStarting(template.id); setError("");
     try {
       const board = await songRequest<SongBoardView>(`/api/anisong/templates/${template.id}/start`, { method: "POST" });
-      router.push(`/anisong/${board.id}?view=match`);
+      router.push(`/anisong/${board.id}/match`);
     } catch (cause) {
       if (cause instanceof SongApiError && cause.status === 401) router.push(`/login?next=${encodeURIComponent(`/anisong/templates/${template.id}`)}`);
       else setError(cause instanceof Error ? cause.message : "开始失败");
@@ -44,7 +44,7 @@ export function SongTemplateGallery() {
         <AppButton type="submit" variant="secondary" disabled={loading}>搜索</AppButton>
       </form>
     </div>
-    {error && <p role="alert" className="rounded-xl border border-amber-300/20 p-3 text-sm text-amber-200">{error}</p>}
+    {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300/20 p-3 text-sm text-amber-200"><span>{error}</span><AppButton variant="ghost" size="sm" onClick={() => { const controller = new AbortController(); void load(controller.signal); }}>重试加载</AppButton></div>}
     {loading ? <p role="status" className="py-8 text-sm text-slate-400">正在加载公开音乐曲单…</p> : templates.length ?
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{templates.map(template =>
         <SongPlaylistCard key={template.id} title={template.title} href={`/anisong/templates/${template.id}`} covers={template.covers}
@@ -75,9 +75,9 @@ export function SongTemplateGallery() {
         </SongPlaylistCard>)}</div> :
       <div className="rounded-2xl border border-dashed border-white/15 p-8 text-sm leading-7 text-slate-400">{search ? "没有找到匹配的公开曲单。" : "暂无公开音乐曲单。"}<Link className="ml-2 text-anime-cyan underline" href="/anisong/create">创建一份曲单 →</Link></div>}
     {(page > 0 || more) && <div className="flex items-center justify-center gap-3">
-      <AppButton size="sm" variant="ghost" disabled={loading || page === 0} onClick={() => setPage(current => current - 1)}>上一页</AppButton>
+      <AppButton size="sm" variant="ghost" disabled={loading || page === 0} onClick={() => { setPage(current => current - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>上一页</AppButton>
       <span className="text-xs text-slate-400">第 {page + 1} 页</span>
-      <AppButton size="sm" variant="ghost" disabled={loading || !more} onClick={() => setPage(current => current + 1)}>下一页</AppButton>
+      <AppButton size="sm" variant="ghost" disabled={loading || !more} onClick={() => { setPage(current => current + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>下一页</AppButton>
     </div>}
   </section>;
 }
