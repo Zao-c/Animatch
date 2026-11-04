@@ -16,7 +16,7 @@ import type { SongSnapshot } from "../types";
 
 export function templateSummary(template: { id: string; title: string; revision: number; document: unknown; ownerId: string; owner: { name: string | null; username: string | null }; updatedAt: Date; sourceBoardId?: string | null }, userId?: string): SongTemplateView {
   const document = template.document as SongDocument;
-  return { id: template.id, title: template.title, revision: template.revision, trackCount: document.tracks.length, playableCount: document.tracks.filter(t => t.source.kind === "pool" || t.itunes || t.source.kind === "itunes").length, poolCount: document.tracks.filter(t => t.source.kind === "pool").length, itunesCount: document.tracks.filter(t => t.itunes || t.source.kind === "itunes").length, ownerName: template.owner.name || template.owner.username || "曲单创建者", covers: document.tracks.flatMap(t => t.coverUrl ? [t.coverUrl] : []).slice(0, 5), updatedAt: template.updatedAt.toISOString(), mine: template.ownerId === userId, ...(template.ownerId === userId && template.sourceBoardId ? { ownerBoardId: template.sourceBoardId } : {}) };
+  return { id: template.id, title: template.title, revision: template.revision, trackCount: document.tracks.length, playableCount: document.tracks.filter(t => t.source.kind === "pool" || t.itunes || t.source.kind === "itunes").length, poolCount: document.tracks.filter(t => t.source.kind === "pool").length, itunesCount: document.tracks.filter(t => t.itunes || t.source.kind === "itunes").length, ownerName: template.owner.name || template.owner.username || "曲单创建者", covers: [...new Set(document.tracks.flatMap(t => t.coverUrl ? [t.coverUrl] : []))].slice(0, 5), updatedAt: template.updatedAt.toISOString(), mine: template.ownerId === userId, ...(template.ownerId === userId && template.sourceBoardId ? { ownerBoardId: template.sourceBoardId } : {}) };
 }
 export function templateDocument(tracks: SongTrack[]): SongDocument {
   // Deliberately exclude the creator's votes, tiers, private URLs and import keys.
@@ -85,7 +85,12 @@ export function selectedPublicSongIds(value: unknown, available: string[]): stri
 export async function startSongTemplate(userId: string, templateId: string, input: { candidateIds?: unknown } = {}) {
   const template = await prisma.songTemplate.findFirst({ where: { id: templateId, active: true } });
   if (!template) throw new AppError("公共曲单不存在或已下架", 404);
-  const existing = await prisma.songBoard.findUnique({ where: { ownerId_templateId: { ownerId: userId, templateId } } });
+  // The creator already owns the source board. Do not create a second personal
+  // run merely because they entered via the public URL or called the start API.
+  const existing = template.ownerId === userId && template.sourceBoardId
+    ? (await prisma.songBoard.findFirst({ where: { id: template.sourceBoardId, ownerId: userId } })
+      ?? await prisma.songBoard.findUnique({ where: { ownerId_templateId: { ownerId: userId, templateId } } }))
+    : await prisma.songBoard.findUnique({ where: { ownerId_templateId: { ownerId: userId, templateId } } });
   const publicIds = (template.document as unknown as SongDocument).tracks.map(track => track.id);
   if (publicIds.length < 2) throw new AppError("曲单至少需要两首歌曲才能开始对决", 422);
   const hasSelection = Object.prototype.hasOwnProperty.call(input, "candidateIds");
