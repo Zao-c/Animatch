@@ -45,7 +45,7 @@ export default async function TierListsPage({ searchParams }: { searchParams: { 
             <Link key={share.token} href={`/share/tier/${share.token}`}
               className="rounded-2xl border border-white/10 bg-slate-950/40 p-4 transition hover:border-cyan-300/40">
               <h3 className="truncate font-bold text-white">{share.title}</h3>
-              <p className="mt-1 truncate text-xs text-slate-400">{share.run.pool.name}</p>
+              <p className="mt-1 truncate text-xs text-slate-400">{share.run?.pool?.name ?? "未知番组"}</p>
             </Link>)}</div> :
             <div className="rounded-2xl border border-dashed border-white/15 p-6 text-sm text-slate-400">还没有分享 Tier List。</div>}
         </section>

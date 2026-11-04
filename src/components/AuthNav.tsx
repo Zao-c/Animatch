@@ -127,7 +127,7 @@ function AuthNavContent() {
       </Link>
       {user.username ? <Link href={`/u/${user.username}`}
         aria-label="个人主页" title="个人主页"
-        className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/[0.07] px-2.5 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300/60 hover:bg-cyan-300/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300">
+        className="hidden min-[380px]:inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/[0.07] px-2.5 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300/60 hover:bg-cyan-300/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300">
         <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-400/30 to-cyan-300/30 text-xs font-bold">{(user.name ?? user.username).slice(0, 1)}</span>
         <span className="hidden 2xl:inline">个人主页</span>
       </Link> : null}
