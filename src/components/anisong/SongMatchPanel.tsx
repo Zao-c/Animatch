@@ -33,7 +33,7 @@ export function SongMatchPanel({ boardId, pair, ranking, document, disabled, bus
       <span>{quick.readyForDraft ? "基础覆盖已完成，可以查看快速初稿；仍可继续校准档位。" :
         "正在优先覆盖未充分比较的歌曲，连接不同歌曲组。"} 跳过、没听过不计入有效覆盖。</span>
       <AppButton size="sm" variant="quiet" onClick={onTier}>查看当前 Tier →</AppButton>
-    </div>
+    </div>}
     <MatchSessionGoal scopeKey={"anisong:" + boardId} count={ranking.progress.effectiveComparisons} resultHref={"/anisong/" + boardId + "/tier"} disabled={disabled} />
     <div role="status" aria-live="polite" aria-atomic="true" className="mb-2 min-h-6 text-center text-sm text-cyan-100">{busy ? "正在保存选择…" : notice || "先试听，再点击封面选出更喜欢的一首"}</div>
     {pair ? <>
