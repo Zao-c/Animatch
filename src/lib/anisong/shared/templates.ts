@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { AppError } from "@/lib/app-error";
 import { getAnimeCoverUploadDir, localAnimeCoverPublicPathToFilePath } from "@/lib/anime-cover-upload";
 import { ownedSongBoard, boardView } from "../service";
-import { emptySongDocument, type SongDocument, type SongTemplateView, type SongTrack } from "../types";
+import { emptySongDocument, MAX_TRACKS, type SongDocument, type SongTemplateView, type SongTrack } from "../types";
 import { revisionInput } from "../validation";
 import { readNeteaseAccount } from "../netease/accounts";
 import { ingestSongAudio } from "./audio-pool";
@@ -70,16 +70,51 @@ export async function publishSongTemplate(userId: string, boardId: string, input
   await cleanSongCovers(songCoverReferences(document, board.snapshot as unknown as SongSnapshot | null), songCoverReferences(nextDocument, board.snapshot as unknown as SongSnapshot | null));
   return result;
 }
-export async function startSongTemplate(userId: string, templateId: string) {
-  const existing = await prisma.songBoard.findUnique({ where: { ownerId_templateId: { ownerId: userId, templateId } } });
-  if (existing) return boardView(existing);
+/** A range belongs to one participant; changing it never edits the public source. */
+export function selectedPublicSongIds(value: unknown, available: string[]): string[] | null {
+  if (value === null) return null;
+  if (!Array.isArray(value) || value.length < 2 || value.length > MAX_TRACKS || value.some(id => typeof id !== "string"))
+    throw new AppError("请至少选择两首参赛歌曲", 400);
+  const ids = [...new Set(value as string[])];
+  const allowed = new Set(available);
+  if (ids.length < 2 || ids.some(id => !allowed.has(id))) throw new AppError("参赛范围包含无效或已移除的歌曲，请刷新页面", 400);
+  return ids.length === available.length ? null : ids;
+}
+
+export async function startSongTemplate(userId: string, templateId: string, input: { candidateIds?: unknown } = {}) {
   const template = await prisma.songTemplate.findFirst({ where: { id: templateId, active: true } });
   if (!template) throw new AppError("公共曲单不存在或已下架", 404);
-  if (await prisma.songBoard.count({ where: { ownerId: userId, templateId: { not: null } } }) >= 200) throw new AppError("最多保留200份公共曲单对决进度，请先整理个人曲单", 400);
+  const existing = await prisma.songBoard.findUnique({ where: { ownerId_templateId: { ownerId: userId, templateId } } });
+  const publicIds = (template.document as unknown as SongDocument).tracks.map(track => track.id);
+  if (publicIds.length < 2) throw new AppError("曲单至少需要两首歌曲才能开始对决", 422);
+  const hasSelection = Object.prototype.hasOwnProperty.call(input, "candidateIds");
+  const selected = hasSelection ? selectedPublicSongIds(input.candidateIds, publicIds) : undefined;
+  if (existing) {
+    if (!hasSelection) return boardView(existing);
+    const doc = existing.document as unknown as SongDocument;
+    const ids = doc.tracks.map(track => track.id);
+    // Existing runs can reference an older publication. Never silently lose prior votes.
+    const next = selectedPublicSongIds(input.candidateIds, ids);
+    if (JSON.stringify(doc.candidateIds) === JSON.stringify(next)) return boardView(existing);
+    const changed = await prisma.songBoard.updateMany({
+      where: { id: existing.id, ownerId: userId, revision: existing.revision },
+      data: { document: { ...doc, candidateIds: next } as unknown as Prisma.InputJsonValue, revision: { increment: 1 } }
+    });
+    if (!changed.count) throw new AppError("个人曲单刚刚更新，请重新进入后再调整范围", 409);
+    return boardView({ ...existing, document: { ...doc, candidateIds: next } as unknown as Prisma.JsonValue, revision: existing.revision + 1, updatedAt: new Date() });
+  }
+  if (await prisma.songBoard.count({ where: { ownerId: userId, templateId: { not: null } } }) >= 200)
+    throw new AppError("最多保留200份公共曲单对决进度，请先整理个人曲单", 400);
   const document = templateDocument((template.document as unknown as SongDocument).tracks);
-  const playableIds = document.tracks.filter(t => t.source.kind === "pool" || t.itunes || t.source.kind === "itunes").map(t => t.id);
-  // Metadata-only public playlists are still rankable from memory when no audio is licensed.
-  if (playableIds.length >= 2 && playableIds.length !== document.tracks.length) document.candidateIds = playableIds;
-  const board = await prisma.songBoard.upsert({ where: { ownerId_templateId: { ownerId: userId, templateId } }, update: {}, create: { ownerId: userId, templateId, templateRevision: template.revision, title: template.title, document: document as unknown as Prisma.InputJsonValue } });
+  // All tracks remain eligible by default, including songs without a licensed preview.
+  if (hasSelection) document.candidateIds = selected ?? null;
+  const board = await prisma.songBoard.upsert({
+    where: { ownerId_templateId: { ownerId: userId, templateId } },
+    update: {},
+    create: { ownerId: userId, templateId, templateRevision: template.revision, title: template.title, document: document as unknown as Prisma.InputJsonValue }
+  });
+  // If a concurrent request created the run first, honour the user's range through a retry.
+  if (hasSelection && JSON.stringify((board.document as unknown as SongDocument).candidateIds) !== JSON.stringify(document.candidateIds))
+    return startSongTemplate(userId, templateId, input);
   return boardView(board);
 }
