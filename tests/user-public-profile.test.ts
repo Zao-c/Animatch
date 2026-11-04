@@ -59,8 +59,8 @@ describe("User public profile API", () => {
     expect(source).toContain("comparisonCount");
   });
 
-  it("takes max 12 pools and tier lists", () => {
-    expect(source).toContain("take: 12");
+  it("loads a bounded recent showcase of up to 60 pools and tier lists", () => {
+    expect(source).toContain("take: 60");
   });
 });
 
@@ -85,7 +85,7 @@ describe("User profile page", () => {
   });
 
   it("renders AniMatch 玩家 badge", () => {
-    expect(source).toContain("AniMatch 玩家");
+    expect(source).toContain("ANIMATCH PLAYER");
   });
 
   it("renders stats: public pools, tier lists, participated pools", () => {
@@ -95,11 +95,11 @@ describe("User profile page", () => {
   });
 
   it("renders public tier lists section with titles", () => {
-    expect(source).toContain("href={`/share/tier/${tl.token}`}");
+    expect(source).toContain('href={"/share/tier/" + tl.token}');
   });
 
   it("renders public pools section with links", () => {
-    expect(source).toContain("href={`/pools/${pool.id}`}");
+    expect(source).toContain('href={"/pools/" + pool.id}');
   });
 
   it("shows empty state for no tier lists", () => {
@@ -126,8 +126,10 @@ describe("User profile page", () => {
 describe("AuthNav links to user profile", () => {
   const source = readFileSync("src/components/AuthNav.tsx", "utf8");
 
-  it("username is wrapped in Link to /u/${username}", () => {
+  it("makes the profile directly available in the top-right navigation", () => {
     expect(source).toContain("user.username ? <Link href={`/u/${user.username}`}");
+    expect(source).toContain('aria-label="个人主页"');
+    expect(source).toContain(">个人主页</span>");
   });
 
   it("Link has hover styles", () => {

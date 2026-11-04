@@ -72,7 +72,7 @@ export async function GET(_request: Request, context: RouteContext) {
           }
         },
         orderBy: { updatedAt: "desc" },
-        take: 12
+        take: 60
       }),
       prisma.customPool.count({
         where: {
@@ -97,7 +97,7 @@ export async function GET(_request: Request, context: RouteContext) {
           }
         },
         orderBy: { createdAt: "desc" },
-        take: 12
+        take: 60
       }),
       prisma.tierShare.count({
         where: {

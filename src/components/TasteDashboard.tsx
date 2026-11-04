@@ -15,14 +15,14 @@ const field = "min-h-11 rounded-xl border border-white/15 bg-slate-950 px-3 text
 export function TasteDashboard({ username }: { username: string }) {
   const [data, setData] = useState<Profile | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"taste" | "matches">("matches");
+  const [tab, setTab] = useState<"taste" | "matches">("taste");
   const [year, setYear] = useState("");
   const [scope, setScope] = useState("");
   const [matches, setMatches] = useState<Matches | null>(null);
   const [matching, setMatching] = useState(false);
   const [reload, setReload] = useState(0);
   const [matchError, setMatchError] = useState<string | null>(null);
-  useEffect(() => { setTab("matches"); }, [username]);
+  useEffect(() => { setTab("taste"); }, [username]);
   useEffect(() => {
     const abort = new AbortController(); setData(null); setMatches(null); setError(null); setScope("");
     featureRequest<Profile>(`/api/users/${encodeURIComponent(username)}/taste${year ? `?year=${year}` : ""}`, { signal: abort.signal })
@@ -40,7 +40,7 @@ export function TasteDashboard({ username }: { username: string }) {
     return () => abort.abort();
   }, [tab, scope, data?.isOwner, reload]);
   return <section className="mb-8 min-w-0 rounded-2xl border border-white/10 bg-slate-950/50 p-4 sm:p-6" aria-label="口味与年度">
-    <div className="mb-4 flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-bold">口味档案</h2><p className="mt-2 text-sm text-slate-400">从参与过的公开番组，看看你的偏好。</p></div>{data?.isOwner && <Link href="/collections" className={appButtonClasses({ variant: "secondary" })}>我的年度组合</Link>}</div>
+    <div className="mb-4 flex flex-wrap items-start justify-between gap-3"><h2 className="text-xl font-bold">口味档案</h2>{data?.isOwner && <Link href="/collections" className={appButtonClasses({ variant: "secondary" })}>我的年度组合</Link>}</div>
     {error ? <div role="alert" className="mb-4 text-sm text-rose-200">{error} <button className="min-h-11 underline" onClick={() => setReload((n) => n + 1)}>重试</button></div> : null}
     {!data && !error ? <p role="status" className="py-6 text-sm text-slate-400">正在整理口味记录…</p> : data?.profile ? <>
       <DashboardTabs id="taste-profile" label="口味内容" value={tab} onChange={setTab} items={[...(data.isOwner ? [{ value: "matches" as const, label: "口味搭子与分歧" }] : []), { value: "taste" as const, label: data.isOwner ? "我的口味" : "TA 的口味" }]} />
