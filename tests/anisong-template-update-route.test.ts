@@ -4,7 +4,8 @@ describe("public template update contract", () => {
   const code=readFileSync("src/app/api/anisong/boards/[boardId]/template-update/route.ts","utf8");
   it("requires owner authentication and a specific public revision", () => {
     expect(code).toContain("requireCurrentUser()");
-    expect(code).toContain("ownedSongBoard(user.id,params.boardId)");
+    expect(code).toContain("ownedSongBoard(userId,boardId)");
+    expect(code).toContain("load(user.id,params.boardId)");
     expect(code).toContain("template.revision!==target");
     expect(code).toContain("board.revision!==revision");
   });
