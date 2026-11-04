@@ -1,11 +1,10 @@
 name: AniMatch CI
 
 on:
+  pull_request:
   push:
     branches:
-      - "codex/**"
-      - "feature/**"
-  pull_request:
+      - main
 
 permissions:
   contents: read
