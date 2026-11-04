@@ -59,8 +59,22 @@ describe("User public profile API", () => {
     expect(source).toContain("comparisonCount");
   });
 
-  it("takes max 12 pools and tier lists", () => {
-    expect(source).toContain("take: 12");
+  it("server-paginates each public collection instead of truncating all content after 12 entries", () => {
+    expect(source).toContain("export const PROFILE_PAGE_SIZE = 9");
+    expect(source).toContain("skip,");
+    expect(source).toContain("take: PROFILE_PAGE_SIZE");
+    expect(source).toContain("pagination: { section, page, pageSize: PROFILE_PAGE_SIZE");
+    expect(source).not.toContain("take: 12");
+  });
+
+  it("includes only explicitly shared public music content and never private song source data", () => {
+    expect(source).toContain("prisma.songTemplate.findMany");
+    expect(source).toContain("ownerId: user.id, active: true");
+    expect(source).toContain("prisma.songBoard.findMany");
+    expect(source).toContain("shareToken: { not: null }");
+    expect(source).toContain("publicSongPlaylistsCount");
+    expect(source).toContain("sharedSongTierListCount");
+    expect(source).not.toContain("source: track.source");
   });
 });
 
