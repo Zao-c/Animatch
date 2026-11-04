@@ -9,7 +9,9 @@ describe("onboarding guide copy", () => {
   const presentationSource = readFileSync("src/components/MatchPresentation.tsx", "utf8");
 
   it("keeps home actions visible without an onboarding guide", () => {
-    expect(homeSource).toContain("动画对决");
+    const actions = readFileSync("src/components/HomeActions.tsx", "utf8");
+    expect(actions).toContain(">动画对决</Link>");
+    expect(actions).toContain(">音乐对决</Link>");
     expect(homeSource).toContain("<HomeActions />");
     expect(homeSource).toContain("<HomeMiniMatchDemo />");
     expect(homeSource).not.toContain("三步生成榜单");
