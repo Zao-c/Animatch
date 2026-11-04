@@ -38,7 +38,7 @@ describe("profile showcase layout", () => {
   it("shows a visible profile entrance alongside the account menu", () => {
     expect(nav).toContain('aria-label="个人主页" title="个人主页"');
     expect(nav).toContain('<span className="hidden 2xl:inline">个人主页</span>');
-    expect(nav).toContain('href="/tierlists"');
+    expect(nav).toContain('href="/tierlists?view=mine"');
     expect(nav).toContain('aria-label="我的榜单"');
   });
 });

@@ -116,7 +116,7 @@ function AuthNavContent() {
 
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <Link href="/tierlists"
+      <Link href="/tierlists?view=mine"
         aria-label="我的榜单" title="我的榜单"
         className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.035] px-3 text-xs font-semibold text-slate-200 transition hover:border-cyan-300/50 hover:text-cyan-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-4 w-4 shrink-0" strokeLinecap="round" strokeLinejoin="round">
@@ -150,7 +150,7 @@ function AuthNavContent() {
       <div className="absolute right-0 top-full z-50 mt-2 w-60 max-w-[calc(100vw-2rem)] rounded-2xl border border-anime-border bg-slate-950 p-2 shadow-xl">
         <p className="break-words border-b border-white/10 px-3 py-3 text-sm font-semibold text-white">{user.name ?? user.username}</p>
         {user.username ? <Link href={`/u/${user.username}`} className="flex min-h-11 items-center rounded-xl px-3 hover:bg-white/[0.06]">我的主页</Link> : null}
-        <Link href="/tierlists" className="flex min-h-11 items-center rounded-xl px-3 hover:bg-white/[0.06]">我的榜单</Link>
+        <Link href="/tierlists?view=mine" className="flex min-h-11 items-center rounded-xl px-3 hover:bg-white/[0.06]">我的榜单</Link>
         <Link href={pathname === "/account/security" ? "/account/security" : `/account/security?next=${encodeURIComponent(pathname)}`} className="flex min-h-11 items-center rounded-xl px-3 hover:bg-white/[0.06]">账号设置</Link>
         {logoutError ? <ErrorAlert message={logoutError} className="my-2" /> : null}
         <AppButton type="button" variant="quiet" onClick={handleLogout} disabled={isLoggingOut} className="w-full justify-start">
