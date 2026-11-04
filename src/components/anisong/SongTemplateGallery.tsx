@@ -65,7 +65,7 @@ export function SongTemplateGallery() {
           count={template.trackCount} playable={template.playableCount} tag={template.mine ? "我创建的" : undefined}>
           <p className="truncate text-xs text-slate-400">{template.ownerName}</p>
           <div className="grid grid-cols-2 gap-2">
-            <Link href={`/anisong/templates/${template.id}`}
+            <Link href={`/anisong/templates/${template.id}`} aria-label={`查看曲单：${template.title}`}
               className={appButtonClasses({ variant: "secondary", size: "sm", className: "min-w-0 px-2" })}>查看曲单</Link>
             {template.mine && template.ownerBoardId ?
               <Link href={template.trackCount >= 2 ? `/anisong/${template.ownerBoardId}/match` : `/anisong/${template.ownerBoardId}`}
