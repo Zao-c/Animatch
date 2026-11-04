@@ -11,10 +11,10 @@ import { SongTemplateGallery } from "./SongTemplateGallery";
 
 export type SongLobbyView = "public" | "mine" | "create";
 
-const PAGES: Record<SongLobbyView, { title: string; description: string }> = {
-  public: { title: "公开音乐曲单", description: "选择一份 OP、ED 或插入曲曲单，开始自己的音乐对决。" },
-  mine: { title: "我的音乐曲单", description: "管理自己创建的曲单，或者继续参与别人的公开曲单。" },
-  create: { title: "创建音乐曲单", description: "创建属于你的年度、季度或主题曲单，添加歌曲后即可开始对决。" }
+const PAGES: Record<SongLobbyView, { title: string }> = {
+  public: { title: "音乐对决" },
+  mine: { title: "我的曲单" },
+  create: { title: "创建曲单" }
 };
 const NAV: { id: SongLobbyView; label: string; href: string }[] = [
   { id: "public", label: "公开曲单", href: "/anisong" },
@@ -29,7 +29,6 @@ export function SongLobby({ view = "public" }: { view?: SongLobbyView }) {
     <header className="flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
         <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">{page.title}</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-400">{page.description}</p>
       </div>
       {view === "public" && <Link className={appButtonClasses({ variant: "primary", size: "sm" })} href="/anisong/create">＋ 创建曲单</Link>}
     </header>
@@ -101,11 +100,11 @@ function SongCreateBoard() {
   }
   return <section className="mx-auto max-w-2xl">
     <form onSubmit={create} className="space-y-5 rounded-2xl border border-anime-border bg-anime-panel p-5 sm:p-8">
-      <div><h2 className="text-xl font-bold">创建自己的音乐曲单</h2><p className="mt-2 text-sm leading-6 text-slate-400">例如「2026 年度 OP/ED」「秋季新番音乐」。创建后会进入歌曲管理页添加歌曲。</p></div>
+      <h2 className="text-xl font-bold">创建音乐曲单</h2>
       <label className="block text-sm font-medium">曲单名称<input required autoFocus maxLength={80} className="anime-field mt-2" value={title} onChange={event => setTitle(event.target.value)} placeholder="2026 年度动画歌曲" /></label>
       <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-4">
         <input type="checkbox" checked={isPublic} onChange={event => setIsPublic(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-teal-300" />
-        <span className="text-sm font-semibold">创建后公开展示曲单<span className="mt-1 block text-xs font-normal leading-5 text-slate-400">默认公开，其他人可通过网址查看歌曲信息。不会自动共享你上传的音频；创建后也可以改成私人曲单。</span></span>
+        <span className="text-sm font-semibold">公开曲单<span className="mt-1 block text-xs font-normal text-slate-400">只公开曲目信息，不共享私人音频</span></span>
       </label>
       {error && <p role="alert" className="text-sm text-amber-200">{error}</p>}
       <div className="flex flex-wrap gap-3"><AppButton variant="primary" type="submit" disabled={busy}>{busy ? "正在创建…" : "创建曲单"}</AppButton><Link href="/anisong" className={appButtonClasses({ variant: "ghost" })}>取消</Link></div>

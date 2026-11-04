@@ -306,13 +306,13 @@ export function SongWorkspace({ boardId, view = "library", initialLibraryTab = "
         <SongCommunityRanking templateId={publicInfo?.templateId ?? board.templateId ?? null} />
       </AppCard>}
       {libraryTab === "settings" && !board.templateId && <AppCard role="tabpanel" id="song-library-panel" aria-labelledby="song-library-tab-settings" className="p-4 sm:p-5">
-        <h2 className="text-xl font-bold">曲单设置与公共发布</h2>
+        <h2 className="text-xl font-bold">曲单设置</h2>
         <div className="mt-4 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm text-slate-300">管理曲单名称</span><AppButton variant="ghost" size="sm" disabled={disabled} onClick={() => setRenaming(!renaming)}>{renaming ? "取消改名" : "修改名称"}</AppButton></div>
           {renaming && <form className="flex flex-wrap gap-2" onSubmit={async e => { e.preventDefault(); const data = new FormData(e.currentTarget); if (await mutate({ action: "rename", title: data.get("title") })) setRenaming(false); }}>
             <input aria-label="曲单新名称" name="title" defaultValue={board.title} maxLength={80} required className="anime-field min-w-0 flex-1" /><AppButton type="submit" disabled={disabled}>保存名称</AppButton>
           </form>}
-          <section className="rounded-xl border border-white/10 p-4"><h3 className="mb-2 font-semibold">曲单网址与公开设置</h3><SongVisibilityActions boardId={boardId} disabled={disabled} value={publicInfo} onChange={setPublicInfo} /><p className="mt-3 text-xs text-slate-400">分享曲单只复制网址，不会公开音频；分享我的 Tier List 请到榜单页。</p></section>
+          <section className="rounded-xl border border-white/10 p-4"><h3 className="mb-2 font-semibold">公开与分享</h3><SongVisibilityActions boardId={boardId} disabled={disabled} value={publicInfo} onChange={setPublicInfo} /></section>
           {!board.templateId && <SongTemplatePublisher board={board} disabled={disabled || Boolean(editing) || batchOpen || bulkEditing} onPublish={confirmed => auxiliary<TemplatePublishResult>("template", { shareAudioConfirmed: confirmed })} />}
           <div className="border-t border-rose-300/15 pt-4"><p className="mb-2 text-xs text-slate-400">删除会永久移除音乐、对决记录和分享链接。</p><AppButton variant="danger" size="sm" disabled={disabled || Boolean(editing) || batchOpen || bulkEditing} onClick={() => void removeBoard()}>删除曲单</AppButton></div>
         </div>

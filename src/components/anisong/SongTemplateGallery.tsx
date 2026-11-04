@@ -38,7 +38,7 @@ export function SongTemplateGallery() {
   }
   return <section className="space-y-4" aria-label="公共音乐曲单">
     <div className="flex flex-wrap items-end justify-between gap-3">
-      <div><p className="text-[11px] font-bold tracking-[0.16em] text-anime-cyan">PUBLIC MUSIC PLAYLISTS</p><h2 className="mt-1 text-xl font-bold">公开曲单</h2></div>
+      <h2 className="text-xl font-bold">公开曲单</h2>
       <form onSubmit={event => { event.preventDefault(); setPage(0); setSearch(query.trim()); }} className="flex w-full gap-2 sm:w-auto">
         <input aria-label="搜索公共曲单" value={query} maxLength={100} onChange={event => setQuery(event.target.value)} placeholder="曲单名称、季度、类型" className="anime-field min-w-0 flex-1" />
         <AppButton type="submit" variant="secondary" disabled={loading}>搜索</AppButton>
@@ -49,7 +49,7 @@ export function SongTemplateGallery() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{templates.map(template =>
         <SongPlaylistCard key={template.id} title={template.title} href={`/anisong/templates/${template.id}`} covers={template.covers}
           count={template.trackCount} playable={template.playableCount} tag={template.mine ? "我创建的" : "公开"}>
-          <p className="truncate text-xs text-slate-400">创建者：{template.ownerName}{template.mine ? " · 我创建的" : ""}</p>
+          <p className="truncate text-xs text-slate-400">{template.ownerName}</p>
           <div className="grid grid-cols-2 gap-2">
             <Link href={`/anisong/templates/${template.id}`} className={appButtonClasses({ variant: "ghost", size: "sm", className: "w-full px-2" })}>曲单详情</Link>
             {template.mine && template.ownerBoardId ?
@@ -63,7 +63,7 @@ export function SongTemplateGallery() {
           <details className="rounded-xl border border-white/10 bg-slate-950/20 px-3 py-1.5">
             <summary className="flex min-h-9 cursor-pointer items-center text-xs font-semibold text-slate-300">更多操作</summary>
             <div className="space-y-3 border-t border-white/10 pb-2 pt-3">
-              <p className="text-xs text-slate-400">公共池 {template.poolCount} 首 · iTunes {template.itunesCount} 首 · v{template.revision}</p>
+              <p className="text-xs text-slate-400">公共音源 {template.poolCount} · iTunes {template.itunesCount}</p>
               <SongShareButton path={`/anisong/templates/${template.id}`} label="复制曲单链接"/>
               {template.mine && <button type="button" disabled={Boolean(starting)} className="block min-h-9 text-xs text-rose-200 hover:underline" onClick={async () => {
                 if (!window.confirm("从公共列表下架这份曲单？已开始的个人进度和公共音频会保留。")) return;
