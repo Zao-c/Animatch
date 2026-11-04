@@ -64,8 +64,12 @@ describe("public pools view UI", () => {
   });
 
   it("home links point directly to /pools?view=public", () => {
-    const matches = homeActionsSource.match(/href="\/pools\?view=public"/g) ?? [];
-    expect(matches.length).toBeGreaterThanOrEqual(2);
+    // The home page now offers two explicit entries: animation duels and music duels.
+    expect(homeActionsSource).toContain('href="/pools?view=public"');
+    expect(homeActionsSource).not.toContain('href="/pools"');
+    expect(homeActionsSource).toContain('href="/anisong"');
+    expect(homeActionsSource).toContain("动画对决");
+    expect(homeActionsSource).toContain("音乐对决");
   });
 });
 
