@@ -5,8 +5,57 @@ import { appButtonClasses } from "@/components/ui/AppButton";
 import { getCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
 export const dynamic = "force-dynamic";
-export default async function TierListsPage({ searchParams }: { searchParams: { q?: string; page?: string } }) {
+export default async function TierListsPage({ searchParams }: { searchParams: { q?: string; page?: string; view?: string } }) {
   const user = await getCurrentUser();
+  if (searchParams.view === "mine") {
+    if (!user) redirect("/login?next=" + encodeURIComponent("/tierlists?view=mine"));
+    const [myDrafts, myShares] = await Promise.all([
+      prisma.manualTierBoard.findMany({
+        where: { ownerId: user.id, pool: { deletedAt: null,
+          OR: [{ creatorId: user.id }, { visibility: { in: ["PUBLIC", "UNLISTED"] } }] } },
+        select: { poolId: true, title: true, shareToken: true },
+        orderBy: { updatedAt: "desc" }, take: 60
+      }),
+      prisma.tierShare.findMany({
+        where: { run: { userId: user.id } },
+        select: { token: true, title: true, createdAt: true,
+          run: { select: { pool: { select: { name: true } } } } },
+        orderBy: { createdAt: "desc" }, take: 60
+      })
+    ]);
+    return <PageShell><div className="mx-auto w-full max-w-6xl space-y-6">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div><h1 className="text-3xl font-black text-white">我的榜单</h1><p className="mt-1 text-sm text-slate-400">保存的作品与公开分享</p></div>
+        <Link href="/tierlists" className={appButtonClasses({ variant: "secondary" })}>制作新榜单</Link>
+      </header>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="min-w-0 space-y-3">
+          <h2 className="text-lg font-bold">我的自由榜 <span className="ml-1 text-xs text-slate-400">{myDrafts.length}</span></h2>
+          {myDrafts.length ? <div className="grid gap-3">{myDrafts.map(draft =>
+            <Link key={draft.poolId} href={`/pools/${draft.poolId}/tier-maker`}
+              className="rounded-2xl border border-white/10 bg-slate-950/40 p-4 transition hover:border-cyan-300/40">
+              <h3 className="truncate font-bold text-white">{draft.title}</h3>
+              <p className="mt-1 text-xs text-slate-400">{draft.shareToken ? "已分享" : "未分享"} · 继续编辑 →</p>
+            </Link>)}</div> :
+            <div className="rounded-2xl border border-dashed border-white/15 p-6 text-sm text-slate-400">还没有保存自由榜。</div>}
+        </section>
+        <section className="min-w-0 space-y-3">
+          <h2 className="text-lg font-bold">已分享的 Tier List <span className="ml-1 text-xs text-slate-400">{myShares.length}</span></h2>
+          {myShares.length ? <div className="grid gap-3">{myShares.map(share =>
+            <Link key={share.token} href={`/share/tier/${share.token}`}
+              className="rounded-2xl border border-white/10 bg-slate-950/40 p-4 transition hover:border-cyan-300/40">
+              <h3 className="truncate font-bold text-white">{share.title}</h3>
+              <p className="mt-1 truncate text-xs text-slate-400">{share.run?.pool?.name ?? "未知番组"}</p>
+            </Link>)}</div> :
+            <div className="rounded-2xl border border-dashed border-white/15 p-6 text-sm text-slate-400">还没有分享 Tier List。</div>}
+        </section>
+      </div>
+      <div className="flex flex-wrap gap-3 border-t border-white/10 pt-4">
+        <Link href="/anisong/mine" className={appButtonClasses({ variant: "secondary" })}>音乐对决与音乐 Tier List</Link>
+        <Link href="/tierlists" className={appButtonClasses({ variant: "ghost" })}>浏览番组制作榜单</Link>
+      </div>
+    </div></PageShell>;
+  }
   const q = typeof searchParams.q === "string" ? searchParams.q.trim().slice(0, 100) : "";
   const page = Math.max(1, Math.min(10000, Number.parseInt(searchParams.page ?? "1", 10) || 1));
   const where = { deletedAt: null, status: { not: "ARCHIVED" as const },

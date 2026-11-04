@@ -1,6 +1,7 @@
 import { fromError, notFound, ok } from "@/lib/api-response";
 import { prisma } from "@/lib/db";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import type { SongDocument } from "@/lib/anisong/types";
 
 interface RouteContext {
   params: { username: string };
@@ -50,7 +51,9 @@ export async function GET(_request: Request, context: RouteContext) {
       publicPoolCount,
       tierShares,
       sharedTierListCount,
-      participatedPoolCount
+      participatedPoolCount,
+      publicSongTemplates,
+      publicSongPlaylistsCount
     ] = await Promise.all([
       prisma.customPool.findMany({
         where: {
@@ -72,7 +75,7 @@ export async function GET(_request: Request, context: RouteContext) {
           }
         },
         orderBy: { updatedAt: "desc" },
-        take: 12
+        take: 60
       }),
       prisma.customPool.count({
         where: {
@@ -97,7 +100,7 @@ export async function GET(_request: Request, context: RouteContext) {
           }
         },
         orderBy: { createdAt: "desc" },
-        take: 12
+        take: 60
       }),
       prisma.tierShare.count({
         where: {
@@ -108,10 +111,15 @@ export async function GET(_request: Request, context: RouteContext) {
       }),
       prisma.userPoolScore.groupBy({
         by: ["poolId"],
-        where: {
-          userId: user.id
-        }
-      }).then((groups) => groups.length)
+        where: { userId: user.id }
+      }).then((groups) => groups.length),
+      prisma.songTemplate.findMany({
+        where: { ownerId: user.id, active: true },
+        orderBy: { updatedAt: "desc" },
+        take: 60,
+        select: { id: true, title: true, document: true, updatedAt: true }
+      }),
+      prisma.songTemplate.count({ where: { ownerId: user.id, active: true } })
     ]);
 
     const publicPools = publicPoolsRaw.map((pool) => {
@@ -155,6 +163,18 @@ export async function GET(_request: Request, context: RouteContext) {
       };
     });
 
+    // Public templates contain sanitized metadata; never expose private source boards.
+    const publicSongPlaylists = publicSongTemplates.map((template) => {
+      const doc = template.document as unknown as SongDocument;
+      return {
+        id: template.id,
+        title: template.title,
+        trackCount: doc.tracks.length,
+        coverUrls: [...new Set(doc.tracks.flatMap(track => track.coverUrl ? [track.coverUrl] : []))].slice(0, 5),
+        updatedAt: template.updatedAt.toISOString()
+      };
+    });
+
     return ok({
       user: {
         id: user.id,
@@ -166,10 +186,12 @@ export async function GET(_request: Request, context: RouteContext) {
       stats: {
         publicPoolsCount: publicPoolCount,
         sharedTierListCount,
-        participatedPoolCount
+        participatedPoolCount,
+        publicSongPlaylistsCount
       },
       publicPools,
-      publicTierLists
+      publicTierLists,
+      publicSongPlaylists
     });
   } catch (error) {
     return fromError(error);
