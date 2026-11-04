@@ -12,18 +12,19 @@ export function SongTemplateGallery() {
   const router = useRouter();
   const [templates, setTemplates] = useState<SongTemplateView[]>([]);
   const [query, setQuery] = useState(""), [search, setSearch] = useState("");
-  const [page, setPage] = useState(0), [more, setMore] = useState(false), [loading, setLoading] = useState(true), [error, setError] = useState("");
+  const [page, setPage] = useState(0), [more, setMore] = useState(false), [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(""), [actionError, setActionError] = useState("");
   const [starting, setStarting] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const lock = useRef(false);
   const galleryRef = useRef<HTMLElement>(null);
   const scrollAfterPage = useRef(false);
   const load = useCallback(async (signal: AbortSignal) => {
-    setLoading(true); setError("");
+    setLoading(true); setLoadError("");
     try {
       const data = await songRequest<{ templates: SongTemplateView[]; hasMore: boolean }>(`/api/anisong/templates?q=${encodeURIComponent(search)}&page=${page}`, { signal });
       if (!signal.aborted) { setTemplates(data.templates); setMore(data.hasMore); }
-    } catch (cause) { if (!signal.aborted) setError(cause instanceof Error ? cause.message : "公共曲单加载失败"); }
+    } catch (cause) { if (!signal.aborted) setLoadError(cause instanceof Error ? cause.message : "公共曲单加载失败"); }
     finally { if (!signal.aborted) setLoading(false); }
   }, [search, page]);
   useEffect(() => { const controller = new AbortController(); void load(controller.signal); return () => controller.abort(); }, [load, retryKey]);
@@ -41,13 +42,13 @@ export function SongTemplateGallery() {
 
   async function start(template: SongTemplateView) {
     if (lock.current) return;
-    lock.current = true; setStarting(template.id); setError("");
+    lock.current = true; setStarting(template.id); setActionError("");
     try {
       const board = await songRequest<SongBoardView>(`/api/anisong/templates/${template.id}/start`, { method: "POST" });
       router.push(`/anisong/${board.id}/match`);
     } catch (cause) {
       if (cause instanceof SongApiError && cause.status === 401) router.push(`/login?next=${encodeURIComponent(`/anisong/templates/${template.id}`)}`);
-      else setError(cause instanceof Error ? cause.message : "开始失败");
+      else setActionError(cause instanceof Error ? cause.message : "开始失败");
     } finally { lock.current = false; setStarting(null); }
   }
   return <section ref={galleryRef} className="scroll-mt-24 space-y-4" aria-label="公共音乐曲单">
@@ -58,8 +59,9 @@ export function SongTemplateGallery() {
         <AppButton type="submit" variant="secondary" disabled={loading}>搜索</AppButton>
       </form>
     </div>
-    {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300/20 p-3 text-sm text-amber-200"><span>{error}</span><AppButton variant="ghost" size="sm" onClick={() => setRetryKey(value => value + 1)}>重试加载</AppButton></div>}
-    {loading ? <p role="status" className="py-8 text-sm text-slate-400">正在加载公开音乐曲单…</p> : templates.length ?
+    {loadError && <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300/20 p-3 text-sm text-amber-200"><span>{loadError}</span><AppButton variant="ghost" size="sm" onClick={() => setRetryKey(value => value + 1)}>重试加载</AppButton></div>}
+    {actionError && <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300/20 p-3 text-sm text-amber-200"><span>{actionError}</span><AppButton variant="ghost" size="sm" onClick={() => setActionError("")}>关闭</AppButton></div>}
+    {loading ? <p role="status" className="py-8 text-sm text-slate-400">正在加载公开音乐曲单…</p> : loadError ? null : templates.length ?
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{templates.map(template =>
         <SongPlaylistCard key={template.id} title={template.title} href={`/anisong/templates/${template.id}`} covers={template.covers}
           count={template.trackCount} playable={template.playableCount} tag={template.mine ? "我创建的" : undefined}>
@@ -83,12 +85,12 @@ export function SongTemplateGallery() {
               {template.mine && <button type="button" disabled={Boolean(starting)} className="block min-h-9 text-xs text-rose-200 hover:underline" onClick={async () => {
                 if (!window.confirm("从公共列表下架这份曲单？已开始的个人进度和公共音频会保留。")) return;
                 try { await songRequest(`/api/anisong/templates/${template.id}`, { method: "DELETE" }); setTemplates(current => current.filter(value => value.id !== template.id)); }
-                catch (cause) { setError(cause instanceof Error ? cause.message : "下架失败"); }
+                catch (cause) { setActionError(cause instanceof Error ? cause.message : "下架失败"); }
               }}>设为私人／下架</button>}
             </div>
           </details>
         </SongPlaylistCard>)}</div> :
-      <div className="rounded-2xl border border-dashed border-white/15 p-8 text-sm leading-7 text-slate-400">{search ? "没有找到匹配的公开曲单。" : "暂无公开音乐曲单。"}<Link className="ml-2 text-anime-cyan underline" href="/anisong/create">创建一份曲单 →</Link></div>}
+      <div className="rounded-2xl border border-dashed border-white/15 p-8 text-sm leading-7 text-slate-400">{page > 0 ? "当前页没有曲单，可返回上一页。" : search ? "没有找到匹配的公开曲单。" : "暂无公开音乐曲单。"}<Link className="ml-2 text-anime-cyan underline" href="/anisong/create">创建一份曲单 →</Link></div>}
     {(page > 0 || more) && <div className="flex items-center justify-center gap-3">
       <AppButton size="sm" variant="ghost" disabled={loading || page === 0} onClick={() => goToPage(page - 1)}>上一页</AppButton>
       <span className="text-xs text-slate-400">第 {page + 1} 页</span>
