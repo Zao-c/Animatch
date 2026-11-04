@@ -136,7 +136,7 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
           {tab === "range" && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-anime-cyan/20 bg-anime-cyan/[0.04] p-3">
             {isCreator ?
               <><p className="min-w-0 flex-1 text-xs text-slate-300">创建者请在原曲单设置自己的参赛范围。</p>
-                <Link href={ownerHref} className={appButtonClasses({ variant: "secondary", size: "sm" })}>去我的曲单设置</Link></> :
+                <Link href={`${ownerHref}?tab=range`} className={appButtonClasses({ variant: "secondary", size: "sm" })}>去我的曲单设置</Link></> :
               <><AppButton size="sm" variant="ghost" onClick={selectAll}>全选</AppButton>
                 <AppButton size="sm" variant="ghost" disabled={filteredTracks.length < 2} onClick={onlyFiltered}>仅使用筛选结果</AppButton>
                 <AppButton size="sm" variant="quiet" onClick={() => { setSelectedIds([]); setRangeTouched(true); }}>清空</AppButton>

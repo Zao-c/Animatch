@@ -31,7 +31,7 @@ import { createClientMutationId } from "@/lib/client-id";
 type Tab = "library" | "match" | "tier";
 // Keep buffered media while the same recording remains in a subsequent round.
 const playbackKey = (track: SongTrack) => JSON.stringify([track.id, track.source, track.itunes, track.clipStart, track.clipLength]);
-export function SongWorkspace({ boardId, view = "library" }: { boardId: string; view?: Tab }) {
+export function SongWorkspace({ boardId, view = "library", initialLibraryTab = "wall" }: { boardId: string; view?: Tab; initialLibraryTab?: "wall" | "community" | "range" | "settings" }) {
   const router = useRouter();
   const [board, setBoard] = useState<SongBoardView | null>(null);
   const [busy, setBusy] = useState(false);
@@ -52,7 +52,7 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
   const [editing, setEditing] = useState<SongTrack | "new" | null>(null);
   const [itunesTarget, setItunesTarget] = useState<string | null>(null);
   const [libraryPage, setLibraryPage] = useState(0);
-  const [libraryTab, setLibraryTab] = useState<"wall" | "community" | "range" | "settings">("wall");
+  const [libraryTab, setLibraryTab] = useState<"wall" | "community" | "range" | "settings">(initialLibraryTab);
   const [publicInfo, setPublicInfo] = useState<SongVisibility | null>(null);
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState("");
@@ -148,6 +148,11 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
     } finally { lock.current = false; setBusy(false); }
   }
 
+  // For participants the checkboxes represent the current personal match range,
+  // not a destructive bulk-selection scratchpad.
+  useEffect(() => {
+    if (board?.templateId) setSelectedIds(board.document.candidateIds ?? board.document.tracks.map(track => track.id));
+  }, [board?.id, board?.revision, board?.templateId]);
   const ranking = useMemo(() => board ? rankSongs(board.document) : null, [board]);
   const snapshot = useMemo(() => board ? songSnapshot(board.title, board.document) : null, [board]);
   const pair = useMemo(() => board ? nextSongPair(board.document) : null, [board]);
@@ -205,7 +210,7 @@ export function SongWorkspace({ boardId, view = "library" }: { boardId: string; 
       context={<span className="text-slate-400">{ranking?.active.length} 首 · {ranking?.progress.effectiveComparisons} 次比较</span>}
       tools={<>
         <Link href={"/anisong/" + boardId + "/tier"} className="inline-flex min-h-9 items-center rounded-xl border border-white/10 bg-white/5 px-3 text-xs font-semibold text-slate-200 hover:bg-white/10">查看 Tier</Link>
-        <Link href={"/anisong/" + boardId} className="inline-flex min-h-9 items-center rounded-xl border border-indigo-300/30 px-3 text-xs font-semibold text-indigo-100 hover:bg-white/5">本轮对决范围</Link>
+        <Link href={"/anisong/" + boardId + "?tab=range"} className="inline-flex min-h-9 items-center rounded-xl border border-indigo-300/30 px-3 text-xs font-semibold text-indigo-100 hover:bg-white/5">本轮对决范围</Link>
         <AppButton variant="quiet" size="sm" disabled={disabled || !board.document.events.length} onClick={() => void mutate({ action: "undo" })}>撤回上次选择</AppButton>
         <details className="relative"><summary className="flex min-h-9 cursor-pointer items-center px-3 text-xs font-semibold text-slate-300">对决设置</summary><div className="absolute right-0 z-30 mt-3 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-white/10 bg-slate-950 p-3 shadow-xl"><SongPlaybackPreferences /><p className="mt-3 text-xs leading-6 text-slate-400">Q / E 试听或暂停左右歌曲，切换试听会自动暂停另一首。← / → 选择，↑ 平局，↓ 跳过；也支持 1 / 2 / 3 / 4。</p></div></details>
       </>}
