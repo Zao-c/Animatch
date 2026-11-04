@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { prisma } from "../src/lib/db";
 import { choosePublicRivalry, getPublicTasteRivalry } from "../src/lib/taste-rivalry";
 import type { TasteEntry } from "../src/lib/taste-analysis";
@@ -13,6 +14,12 @@ vi.mock("../src/lib/db", () => ({ prisma: {
 beforeEach(() => vi.clearAllMocks());
 
 describe("public taste rivalry", () => {
+  it("never lets cached public comparisons outlive a profile visibility switch", () => {
+    const route = readFileSync("src/app/api/taste/rivalry/route.ts", "utf8");
+    expect(route).toContain('"Cache-Control": "no-store"');
+    expect(route).not.toContain("stale-while-revalidate");
+  });
+
   const ratings = [1800, 1750, 1700, 1400, 1350, 1300];
   const entries = (reverse = false): TasteEntry[] => ratings.map((_, index) => ({
     animeId: `anime${index}`, title: `作品${index}`, imageUrl: null, tags: [],
