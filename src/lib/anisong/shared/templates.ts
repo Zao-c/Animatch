@@ -82,6 +82,22 @@ export function selectedPublicSongIds(value: unknown, available: string[]): stri
   return ids.length === available.length ? null : ids;
 }
 
+/** Opt in to newly published songs without losing a participant's old comparisons,
+ * manual tiers or removed historic tracks. Existing shared-song metadata is immutable
+ * here so an author's later edit cannot silently relabel old votes. */
+export function extendPublicSongRun(document: SongDocument, currentPublic: SongDocument, selected: string[] | null): SongDocument {
+  const known = new Set(document.tracks.map(track => track.id));
+  const wanted = new Set(selected ?? currentPublic.tracks.map(track => track.id));
+  const appended = currentPublic.tracks.filter(track => wanted.has(track.id) && !known.has(track.id));
+  if (document.tracks.length + appended.length > MAX_TRACKS)
+    throw new AppError("个人对决已达到 1000 首歌曲上限，请缩小范围或建立新的曲单", 400);
+  if (!appended.length) return document;
+  // Template documents are public-only already; strip any legacy import keys,
+  // votes or manual Tier state as a second safety boundary.
+  const additions = templateDocument(appended).tracks;
+  return { ...document, tracks: [...document.tracks, ...additions] };
+}
+
 export async function startSongTemplate(userId: string, templateId: string, input: { candidateIds?: unknown } = {}) {
   const template = await prisma.songTemplate.findFirst({ where: { id: templateId, active: true } });
   if (!template) throw new AppError("公共曲单不存在或已下架", 404);
@@ -98,16 +114,19 @@ export async function startSongTemplate(userId: string, templateId: string, inpu
   if (existing) {
     if (!hasSelection) return boardView(existing);
     const doc = existing.document as unknown as SongDocument;
-    const ids = doc.tracks.map(track => track.id);
-    // Existing runs can reference an older publication. Never silently lose prior votes.
-    const next = selectedPublicSongIds(input.candidateIds, ids);
-    if (JSON.stringify(doc.candidateIds) === JSON.stringify(next)) return boardView(existing);
+    // A participant may have started on an older revision. An explicit range
+    // selection can include newly added public songs without deleting old votes.
+    const extended = extendPublicSongRun(doc, template.document as unknown as SongDocument, selected ?? null);
+    const desiredIds = selected ?? publicIds;
+    const next = selectedPublicSongIds(desiredIds, extended.tracks.map(track => track.id));
+    if (JSON.stringify(doc.candidateIds) === JSON.stringify(next) && extended === doc) return boardView(existing);
+    const updatedDoc = { ...extended, candidateIds: next };
     const changed = await prisma.songBoard.updateMany({
       where: { id: existing.id, ownerId: userId, revision: existing.revision },
-      data: { document: { ...doc, candidateIds: next } as unknown as Prisma.InputJsonValue, revision: { increment: 1 } }
+      data: { document: updatedDoc as unknown as Prisma.InputJsonValue, revision: { increment: 1 } }
     });
     if (!changed.count) throw new AppError("个人曲单刚刚更新，请重新进入后再调整范围", 409);
-    return boardView({ ...existing, document: { ...doc, candidateIds: next } as unknown as Prisma.JsonValue, revision: existing.revision + 1, updatedAt: new Date() });
+    return boardView({ ...existing, document: updatedDoc as unknown as Prisma.JsonValue, revision: existing.revision + 1, updatedAt: new Date() });
   }
   if (await prisma.songBoard.count({ where: { ownerId: userId, templateId: { not: null } } }) >= 200)
     throw new AppError("最多保留200份公共曲单对决进度，请先整理个人曲单", 400);
