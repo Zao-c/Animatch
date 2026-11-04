@@ -34,8 +34,9 @@ export function SongCommunityRanking({ templateId }: { templateId: string | null
   });
   const visibleCount = mode === "ranking" ? Math.min(visibleLimit, filteredRows.length) : visibleTierRows.length;
   const hasMore = visibleCount < filteredRows.length;
+  useEffect(() => { setSearch(""); setVisibleLimit(30); }, [templateId]);
   useEffect(() => {
-    setData(null); setError(""); setSearch(""); setVisibleLimit(30);
+    setData(null); setError("");
     if (!templateId) return;
     const controller = new AbortController(); setLoading(true);
     songRequest<CommunityData>(`/api/anisong/templates/${templateId}/community-ranking${algorithm === "preview" ? "?algorithm=bt-preview" : ""}`, { signal: controller.signal })
