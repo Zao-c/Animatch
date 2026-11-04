@@ -25,6 +25,7 @@ import { MatchHeading } from "@/components/MatchPresentation";
 import { SongPlaybackPreferences } from "./SongPlaybackPreferences";
 import { SongVisibilityActions, type SongVisibility } from "./SongVisibilityActions";
 import { SongCommunityRanking } from "./SongCommunityRanking";
+import { SongVersionUpdateNotice } from "./SongVersionUpdateNotice";
 import { registerUnsavedChangesGuard } from "@/lib/unsaved-changes-guard";
 import { createClientMutationId } from "@/lib/client-id";
 
@@ -239,6 +240,7 @@ export function SongWorkspace({ boardId, view = "library", initialLibraryTab = "
     </header>}
 
     {error && !taskActive && !bulkEditing && <div role="alert" className="space-y-3 rounded-xl border border-amber-300/30 bg-amber-300/5 p-4 text-sm text-amber-100"><p>{error}</p>{conflict && <><p>当前操作未确认。重新载入已保存进度后即可继续。</p><AppButton size="sm" onClick={() => void reload()} disabled={busy || loading}>重新载入</AppButton></>}{login && <Link href={`/login?next=${encodeURIComponent(`/anisong/${boardId}`)}`} className="underline">重新登录</Link>}</div>}
+    {view === "library" && board.templateId && <SongVersionUpdateNotice board={board} disabled={disabled} onApplied={(next)=>{latestBoard.current=next;setBoard(next);setNotice("已同步公开曲单，历史对决保留");}} />}
     {view === "library" && <section aria-label={board.templateId ? "个人歌曲谱与参赛范围" : "曲单歌曲管理"} className="space-y-5">
       <nav id="song-library-tabs" role="tablist" aria-label="曲单导航" className="scroll-mt-24 flex gap-1 rounded-2xl border border-anime-border bg-anime-panel p-1.5">
         {([ ["wall", "歌曲谱"], ["community", "社区榜"], ["range", "参赛范围"], ...(!board.templateId ? [["settings", "管理"] as const] : []) ] as const).map(([id, label]) => <button key={id} type="button" role="tab" id={`song-library-tab-${id}`} aria-controls="song-library-panel" aria-selected={libraryTab === id} tabIndex={libraryTab === id ? 0 : -1} onKeyDown={event => { if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return; event.preventDefault(); const tabs = Array.from(event.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>('[role="tab"]')); const index = tabs.indexOf(event.currentTarget); tabs[event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length]?.focus(); }} onClick={() => switchLibraryTab(id)} className={"min-h-11 rounded-xl border px-4 text-sm font-semibold transition " + (libraryTab === id ? "border-anime-purple/25 bg-anime-purple/20 text-purple-100" : "border-transparent text-slate-400 hover:bg-white/5 hover:text-white")}>{label}{id === "wall" ? ` ${board.document.tracks.length}` : ""}</button>)}
