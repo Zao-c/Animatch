@@ -110,7 +110,6 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
       <header className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(310px,430px)]">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <AppBadge tone="success">公开</AppBadge>
             {template.mine && <AppBadge tone="status">我创建的</AppBadge>}
             <AppBadge>{template.trackCount} 首歌曲</AppBadge>
           </div>
@@ -140,10 +139,7 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
       </div>
       {tab === "community" ? <AppCard id={`song-public-panel-${tab}`} role="tabpanel" aria-labelledby={`song-public-tab-${tab}`} className="p-4 sm:p-5"><SongCommunityRanking templateId={templateId}/></AppCard> :
         <AppCard id={`song-public-panel-${tab}`} role="tabpanel" aria-labelledby={`song-public-tab-${tab}`} className="space-y-4 p-3 sm:p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="sr-only">{tab === "range" ? "参赛范围" : "歌曲谱"}</h2>
-            {tab === "range" ? <span className="text-xs text-slate-400">{selectedIds.length} / {tracks.length} 首</span> : (query || kind) ? <span className="text-xs text-slate-400">{filteredTracks.length} 首结果</span> : null}
-          </div>
+          <h2 className="sr-only">{tab === "range" ? "参赛范围" : "歌曲谱"}</h2>
           {tab === "range" && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-anime-cyan/20 bg-anime-cyan/[0.04] p-3">
             {isCreator ?
               <Link href={`${ownerHref}?tab=range`} className={appButtonClasses({ variant: "secondary", size: "sm" })}>调整我的参赛范围</Link> :
@@ -189,7 +185,7 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
           </div>
           {tab === "range" && !isCreator && <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-3">
             <p role="status" className="text-xs text-slate-300">已选择 {selectedIds.length} 首（至少 2 首）</p>
-            <AppButton variant="primary" disabled={busy || !canParticipate} onClick={() => void start()}>{busy ? "正在保存…" : "用已选歌曲开始对决"}</AppButton>
+            <AppButton variant="primary" disabled={busy || !canParticipate} onClick={() => void start()}>{busy ? "正在保存…" : "开始对决"}</AppButton>
           </div>}
         </AppCard>}
     </>}
