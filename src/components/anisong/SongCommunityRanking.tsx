@@ -24,8 +24,13 @@ export function SongCommunityRanking({ templateId }: { templateId: string | null
   const bucketForRank = (rank: number) => Math.floor((rank - 1) * bucketCount / Math.max(1, data?.rows.length ?? 0));
   // Render a slice from *each* tier instead of only the top 30 overall,
   // which would make A–D look falsely empty on a 256-song ranking.
-  const visibleTierRows = filteredRows.filter((song) =>
-    filteredRows.filter(other => bucketForRank(other.overallRank) === bucketForRank(song.overallRank) && other.overallRank <= song.overallRank).length <= tierLimit);
+  const tierSeen = new Map<number, number>();
+  const visibleTierRows = filteredRows.filter(song => {
+    const bucket = bucketForRank(song.overallRank);
+    const seen = (tierSeen.get(bucket) ?? 0) + 1;
+    tierSeen.set(bucket, seen);
+    return seen <= tierLimit;
+  });
   const visibleCount = mode === "ranking" ? Math.min(visibleLimit, filteredRows.length) : visibleTierRows.length;
   const hasMore = visibleCount < filteredRows.length;
   useEffect(() => {
