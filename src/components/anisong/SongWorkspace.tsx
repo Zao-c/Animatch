@@ -151,11 +151,11 @@ export function SongWorkspace({ boardId, view = "library", initialLibraryTab = "
   // For participants the checkboxes represent the current personal match range,
   // not a destructive bulk-selection scratchpad.
   useEffect(() => {
-    if (board?.templateId) {
-      setSelectedIds(board.document.candidateIds ?? board.document.tracks.map(track => track.id));
-      if (libraryTab === "settings") setLibraryTab("range");
-    }
-  }, [board?.id, board?.revision, board?.templateId, libraryTab]);
+    if (board?.templateId) setSelectedIds(board.document.candidateIds ?? board.document.tracks.map(track => track.id));
+  }, [board?.id, board?.revision, board?.templateId]);
+  useEffect(() => {
+    if (board?.templateId && libraryTab === "settings") setLibraryTab("range");
+  }, [board?.templateId, libraryTab]);
   const ranking = useMemo(() => board ? rankSongs(board.document) : null, [board]);
   const snapshot = useMemo(() => board ? songSnapshot(board.title, board.document) : null, [board]);
   const pair = useMemo(() => board ? nextSongPair(board.document) : null, [board]);

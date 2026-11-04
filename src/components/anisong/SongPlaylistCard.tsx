@@ -13,7 +13,7 @@ export function SongPlaylistCard({ title, href, covers, count, playable, progres
     <Link href={href} className="block min-w-0">
       <div className="flex h-24 items-center justify-center gap-1 overflow-hidden bg-gradient-to-r from-cyan-950/20 via-slate-900 to-violet-950/20 p-2">
         {available.length ? available.slice(0, 5).map(src =>
-          <SongCover key={src} src={src} title={title} className={"!h-full !min-w-0 !rounded-md !border-0 " + (available.length === 1 ? "!w-20" : "!w-1/5")} />
+          <SongCover key={src} src={src} title={title} className={"!h-full !min-w-0 !rounded-md !border-0 " + (available.length === 1 ? "!w-20" : "!w-0 flex-1")} />
         ) : <span className="text-2xl text-cyan-200/35" aria-label="暂无曲单封面">♪</span>}
       </div>
       <div className="space-y-2 px-4 pt-3 sm:px-5">
