@@ -81,6 +81,7 @@ export async function saveSongBoard(board: StoredBoard, expectedRevision: number
     revision: expectedRevision + 1, updatedAt: new Date() });
 }
 export async function addSongTrack(board: StoredBoard, revision: number, track: SongTrack) {
+  if (board.templateId) throw new AppError("参与者不能修改公共曲单的歌曲，请联系创建者", 403);
   const document = board.document as unknown as SongDocument;
   const previous = document.tracks.find(t => t.id === track.id);
   if (!previous && document.tracks.length >= MAX_TRACKS) throw new AppError(`每份曲单最多${MAX_TRACKS}首歌`, 400);
@@ -95,6 +96,10 @@ export async function changeSongBoard(userId: string, id: string, value: unknown
   const input = objectInput(value);
   const revision = revisionInput(input.revision);
   const board = await ownedSongBoard(userId, id);
+  // A participant owns their votes and selected range, not the publisher's song metadata.
+  const participantActions = ["candidateSelection", "candidates", "vote", "undo", "restore", "tier", "tierLayout", "tierReset", "publish", "unpublish"];
+  if (board.templateId && !participantActions.includes(String(input.action)))
+    throw new AppError("这是一份公共曲单的个人对决记录，不能修改原曲单歌曲或名称", 403);
   const document = structuredClone(board.document) as unknown as SongDocument;
   // A target deleted by another tab is a revision conflict first. Returning 400
   // here would hide the reload action and strand a preserved bulk-edit draft.

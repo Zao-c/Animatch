@@ -35,6 +35,7 @@ export async function publishSongTemplate(userId: string, boardId: string, input
   const revision = revisionInput(input.revision);
   if (input.shareAudioConfirmed !== true) throw new AppError("发布前请确认这些音频可以公开供他人使用", 400);
   const board = await ownedSongBoard(userId, boardId);
+  if (board.templateId) throw new AppError("只能发布自己创建的曲单，不能重新发布别人的曲单", 403);
   if (board.revision !== revision) throw new AppError("曲单已更新，请重新载入后发布", 409);
   const document = structuredClone(board.document) as unknown as SongDocument;
   const selected = document.tracks.filter(t => document.candidateIds === null || document.candidateIds.includes(t.id));
