@@ -11,7 +11,8 @@ describe("compact taste UI with meaningful comparison evidence", () => {
     expect(taste).toContain('useState<"taste" | "matches">("taste")');
     expect(taste).toContain('setTab("taste")');
     expect(taste).toContain('label: "与别人比较"');
-    expect(taste).toContain('role="tabpanel"');
+    expect(taste).toContain('data.isOwner && <DashboardTabs');
+    expect(taste).toContain('role={data.isOwner ? "tabpanel" : undefined}');
     expect(taste).not.toContain("口味搭子与分歧");
   });
 
