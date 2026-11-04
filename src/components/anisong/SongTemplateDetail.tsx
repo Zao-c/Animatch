@@ -37,14 +37,14 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
     return () => controller.abort();
   }, [templateId]);
 
-  const tracks = template?.document.tracks ?? [];
+  const tracks = useMemo(() => template?.document.tracks ?? [], [template]);
   const filteredTracks = useMemo(() => {
     const search = query.trim().toLocaleLowerCase();
     return tracks.filter(track =>
       (!kind || track.kind === kind) &&
       (!search || [track.title, track.artist, track.anime, String(track.year ?? ""), ...track.tags].join(" ").toLocaleLowerCase().includes(search))
     );
-  }, [template, query, kind]);
+  }, [tracks, query, kind]);
   const pages = Math.max(1, Math.ceil(filteredTracks.length / SONGS_PER_PAGE));
   const currentPage = Math.min(page, pages - 1);
   const pageTracks = filteredTracks.slice(currentPage * SONGS_PER_PAGE, (currentPage + 1) * SONGS_PER_PAGE);
