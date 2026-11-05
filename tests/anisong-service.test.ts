@@ -81,6 +81,20 @@ describe("music board persistence", () => {
     }
     expect(mocks.updateMany).not.toHaveBeenCalled();
   });
+  it("lets a participant restore a past unseen vote without losing other comparisons", async () => {
+    const doc = document();
+    doc.events.push(
+      { id: "hidden-a", leftId: "a", rightId: "b", result: "LEFT_UNSEEN" },
+      { id: "comparison", leftId: "b", rightId: "a", result: "DRAW" }
+    );
+    mocks.findFirst.mockResolvedValue({ ...board(doc), templateId: "public-template" });
+    const { rankSongs } = await import("@/lib/anisong/engine");
+    expect(rankSongs(doc).scores.find(score => score.animeId === "a")?.isHidden).toBe(true);
+    const result = await changeSongBoard("owner", "board", { action: "restore", revision: 3, trackId: "a" });
+    expect(result.document.events).toEqual([{ id: "comparison", leftId: "b", rightId: "a", result: "DRAW" }]);
+    expect(rankSongs(result.document).scores.find(score => score.animeId === "a")?.isHidden).toBe(false);
+    expect(mocks.updateMany).toHaveBeenCalledOnce();
+  });
   it("changes candidate membership without deleting any comparison history", async () => {
     const doc = document(); doc.tracks.push(song("c"));
     doc.events.push({ id: "one", leftId: "a", rightId: "b", result: "LEFT_WIN" });
