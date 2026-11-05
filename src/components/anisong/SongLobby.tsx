@@ -39,15 +39,16 @@ export function SongLobby({ view = "public" }: { view?: SongLobbyView }) {
 function SongMyBoards() {
   const [boards, setBoards] = useState<SongBoardSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(""), [login, setLogin] = useState(false);
+  const [error, setError] = useState(""), [login, setLogin] = useState(false), [retryKey, setRetryKey] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
+    setLoading(true); setError(""); setLogin(false);
     songRequest<{ boards: SongBoardSummary[] }>("/api/anisong/boards", { signal: controller.signal })
       .then(data => { if (!controller.signal.aborted) setBoards(data.boards); })
       .catch(cause => { if (!controller.signal.aborted) { setError(cause instanceof Error ? cause.message : "获取曲单失败"); setLogin(cause instanceof SongApiError && cause.status === 401); } })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, []);
+  }, [retryKey]);
   const own = boards.filter(item => !item.templateId);
   const participated = boards.filter(item => Boolean(item.templateId));
   function cards(items: typeof boards) {
@@ -66,7 +67,7 @@ function SongMyBoards() {
     })}</div>;
   }
   return <div className="space-y-8">
-    {error && <div role="alert" className="rounded-xl border border-amber-300/20 p-4 text-sm text-amber-100">{error}{login && <> · <Link href="/login?next=%2Fanisong%2Fmine" className="underline">登录后查看我的曲单</Link></>}</div>}
+    {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/20 p-4 text-sm text-amber-100"><span>{error}{login && <> · <Link href="/login?next=%2Fanisong%2Fmine" className="underline">登录后查看我的曲单</Link></>}</span><AppButton variant="ghost" size="sm" onClick={() => setRetryKey(key => key + 1)}>重新加载</AppButton></div>}
     {loading ? <p role="status" className="py-8 text-sm text-slate-400">正在加载我的音乐曲单…</p> : error ? null : !boards.length ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-sm text-slate-300">你还没有音乐曲单。<Link href="/anisong/create" className="ml-2 text-anime-cyan underline">创建第一份曲单 →</Link></div> : <>
       {own.length > 0 && <section className="space-y-4" aria-label="我创建的曲单"><div className="flex items-center justify-between gap-3"><h2 className="text-xl font-bold">我创建的曲单</h2><span className="text-xs text-slate-400">{own.length} 份</span></div>
         {cards(own)}</section>}
