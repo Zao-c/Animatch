@@ -21,7 +21,7 @@ describe("AniSong publisher deletion and licensing guardrails", () => {
     expect(publisher).toContain("setConfirmed(false)");
     expect(publisher).toContain('checked={confirmed}');
     expect(publisher).toContain("disabled={disabled || publishing || checking || Boolean(checkError) || !confirmed || count < 2}");
-    expect(publisher).toContain("shareAudioConfirmed");
+    expect(publisher).toContain("onPublish(confirmed)");
   });
 
   it("does not misrepresent an unreadable public version as unpublished", () => {
