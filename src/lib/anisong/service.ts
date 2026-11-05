@@ -44,9 +44,16 @@ export async function deleteSongBoard(userId: string, id: string, value: unknown
   const board = await ownedSongBoard(userId, id);
   if (revision !== board.revision) throw new AppError("曲单已更新，请重新载入后删除", 409);
   await prisma.$transaction(async transaction => {
-    // Delete the template before its source; onDelete:SetNull otherwise orphans it.
-    // A revision conflict rolls the entire transaction back.
-    await transaction.songTemplate.deleteMany({ where: { sourceBoardId: id } });
+    // Retire, do not delete, the published template. SongBoard.templateId uses
+    // onDelete:SetNull; deleting a template would silently turn every participant
+    // run into an editable "creator" board, changing its permissions and identity.
+    // SongTemplate.sourceBoardId uses onDelete:SetNull instead, so deleting only
+    // the source board leaves a detached, inactive template to anchor old runs.
+    // Both operations are transactional: a revision conflict rolls back the retirement.
+    await transaction.songTemplate.updateMany({
+      where: { sourceBoardId: id, ownerId: userId },
+      data: { active: false }
+    });
     const removed = await transaction.songBoard.deleteMany({ where: { id, ownerId: userId, revision } });
     if (removed.count !== 1) throw new AppError("曲单已更新，请重新载入后删除", 409);
   });
