@@ -5,12 +5,12 @@ import { emptySongDocument, MAX_BOARD_AUDIO_BYTES, MAX_TRACKS, type SongDocument
 const mocks = vi.hoisted(() => ({
   findFirst: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn(), discardAudio: vi.fn(),
   boardCreate: vi.fn(), boardCount: vi.fn(), templateCreate: vi.fn(),
-  templateFind: vi.fn(), templateUpdate: vi.fn(), templateDelete: vi.fn()
+  templateFind: vi.fn(), templateUpdate: vi.fn(), templateDelete: vi.fn(), templateRetire: vi.fn()
 }));
 vi.mock("@/lib/db", () => {
   const prisma = {
     songBoard: { ...mocks, create: mocks.boardCreate, count: mocks.boardCount },
-    songTemplate: { findUnique: mocks.templateFind, update: mocks.templateUpdate, deleteMany: mocks.templateDelete, create: mocks.templateCreate },
+    songTemplate: { findUnique: mocks.templateFind, update: mocks.templateUpdate, updateMany: mocks.templateRetire, deleteMany: mocks.templateDelete, create: mocks.templateCreate },
     $transaction: async (callback: (tx: unknown) => Promise<unknown>) => callback(prisma)
   };
   return { prisma };
@@ -19,7 +19,7 @@ vi.mock("@/lib/anisong/audio-storage", () => ({ discardAudio: mocks.discardAudio
 const song = (id: string): SongTrack => ({ id, title: id, artist: "", anime: "", kind: "OP", year: null, quarter: null, tags: [], clipStart: 0, clipLength: 30, source: { kind: "none" } });
 const document = (): SongDocument => ({ ...emptySongDocument(), tracks: [song("a"), song("b")] });
 const board = (doc = document()) => ({ id: "board", ownerId: "owner", title: "test", revision: 3, templateId: null, templateRevision: null, document: doc as unknown as Prisma.JsonValue, shareToken: null, snapshot: null, createdAt: new Date(), updatedAt: new Date() });
-beforeEach(() => { vi.resetAllMocks(); mocks.findFirst.mockResolvedValue(board()); mocks.updateMany.mockResolvedValue({ count: 1 }); mocks.deleteMany.mockResolvedValue({ count: 1 }); mocks.boardCount.mockResolvedValue(0); mocks.boardCreate.mockResolvedValue(board(emptySongDocument())); mocks.templateCreate.mockResolvedValue({ id: "public" }); mocks.templateFind.mockResolvedValue(null); mocks.templateDelete.mockResolvedValue({ count: 0 }); });
+beforeEach(() => { vi.resetAllMocks(); mocks.findFirst.mockResolvedValue(board()); mocks.updateMany.mockResolvedValue({ count: 1 }); mocks.deleteMany.mockResolvedValue({ count: 1 }); mocks.boardCount.mockResolvedValue(0); mocks.boardCreate.mockResolvedValue(board(emptySongDocument())); mocks.templateCreate.mockResolvedValue({ id: "public" }); mocks.templateFind.mockResolvedValue(null); mocks.templateDelete.mockResolvedValue({ count: 0 }); mocks.templateRetire.mockResolvedValue({ count: 0 }); });
 describe("music board persistence", () => {
   it("defaults to public metadata but supports opt-out during creation", async () => {
     await createSongBoard("owner", { title: "我的OP" });
@@ -153,11 +153,21 @@ describe("music board persistence", () => {
     await addSongTrack(current, 3, replacement);
     expect(mocks.discardAudio).toHaveBeenCalledWith("old.wav");
   });
-  it("requires the current revision to delete the board", async () => {
+  it("retires the public template without orphaning participant runs when deleting its source", async () => {
     await expect(deleteSongBoard("owner", "board", { revision: 4 })).rejects.toMatchObject({ statusCode: 409 });
     expect(mocks.deleteMany).not.toHaveBeenCalled();
+    expect(mocks.templateRetire).not.toHaveBeenCalled();
+
     await deleteSongBoard("owner", "board", { revision: 3 });
+    expect(mocks.templateRetire).toHaveBeenCalledOnce();
+    expect(mocks.templateRetire).toHaveBeenCalledWith({
+      where: { sourceBoardId: "board", ownerId: "owner" },
+      data: { active: false }
+    });
     expect(mocks.deleteMany).toHaveBeenCalledWith({ where: { id: "board", ownerId: "owner", revision: 3 } });
+    // Deleting SongTemplate would null the participant's templateId FK.
+    expect(mocks.templateDelete).not.toHaveBeenCalled();
+    expect(mocks.templateRetire.mock.invocationCallOrder[0]).toBeLessThan(mocks.deleteMany.mock.invocationCallOrder[0]);
   });
   it("persists a complete tier order atomically and preserves voting history", async () => {
     const doc = document();
