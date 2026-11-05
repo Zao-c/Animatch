@@ -21,6 +21,14 @@ describe("participant versus publisher music UI", () => {
     expect(lobby).toContain('item.templateId ? "调整参赛范围" : "完善歌曲"');
     expect(lobby).toContain("查看曲单</Link>");
   });
+  it("offers an abortable reload when the personal playlist list fails", () => {
+    const lobby = readFileSync("src/components/anisong/SongLobby.tsx", "utf8");
+    expect(lobby).toContain("setLoading(true); setError(\"\"); setLogin(false)");
+    expect(lobby).toContain('}, [retryKey]);');
+    expect(lobby).toContain("setRetryKey(key => key + 1)");
+    expect(lobby).toContain("重新加载");
+    expect(lobby).toContain("return () => controller.abort()");
+  });
   it("labels removing a personal run as an exit without implying source deletion", () => {
     expect(code).toContain("退出参与（仅删除我的进度）");
     expect(code).toContain("不会修改或删除发布者的原曲单");
