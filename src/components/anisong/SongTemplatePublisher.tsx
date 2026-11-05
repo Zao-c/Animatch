@@ -10,11 +10,6 @@ export function SongTemplatePublisher({ board, disabled, onPublish }: { board: S
   const [template, setTemplate] = useState<{ id: string; active: boolean; revision: number } | null>(null);
   const [result, setResult] = useState<TemplatePublishResult | null>(null);
   const [checking, setChecking] = useState(true), [checkError, setCheckError] = useState(""), [checkRetry, setCheckRetry] = useState(0);
-  // Approval belongs to the exact set of songs and sources last reviewed.
-  useEffect(() => {
-    setConfirmed(false);
-    setResult(previous => previous?.board.id === board.id && previous.board.revision === board.revision ? previous : null);
-  }, [board.id, board.revision]);
   useEffect(() => {
     const controller = new AbortController();
     setTemplate(null); setChecking(true); setCheckError("");
@@ -30,7 +25,7 @@ export function SongTemplatePublisher({ board, disabled, onPublish }: { board: S
     {checking && <p role="status" className="text-xs text-slate-400">正在检查公开版本…</p>}
     {checkError && <p role="alert" className="text-xs text-amber-200">{checkError}<button type="button" className="ml-2 min-h-9 underline" onClick={() => setCheckRetry(n => n + 1)}>重新检查</button></p>}
     <label className="flex items-start gap-2 text-xs leading-6 text-slate-300"><input type="checkbox" checked={confirmed} disabled={disabled || publishing || checking || Boolean(checkError)} onChange={event => setConfirmed(event.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-teal-300" />我确认有权将这些音频公开供他人试听和复用。</label>
-    <div className="flex flex-wrap items-center gap-3"><AppButton disabled={disabled || publishing || checking || Boolean(checkError) || !confirmed || count < 2} onClick={async () => { setPublishing(true); try { const value = await onPublish(confirmed); if (value) { setResult(value); setTemplate({ ...value.template, active: true }); setConfirmed(false); } } finally { setPublishing(false); } }}>{publishing ? "正在保存音频并发布…" : template ? "更新公共音源版本" : "授权发布公共音频"}</AppButton></div>
+    <div className="flex flex-wrap items-center gap-3"><AppButton disabled={disabled || publishing || checking || Boolean(checkError) || !confirmed || count < 2} onClick={async () => { setPublishing(true); try { const value = await onPublish(confirmed); if (value) { setResult(value); setTemplate({ ...value.template, active: true }); } } finally { setPublishing(false); } }}>{publishing ? "正在保存音频并发布…" : template ? "更新公共音源版本" : "授权发布公共音频"}</AppButton></div>
     {publishing && <p role="status" className="text-xs text-cyan-200">逐首检查并保存音频，文件较多时可能需要一些时间，请保持页面打开。</p>}
     {result && <div className="space-y-2 text-xs"><p role="status" className="text-anime-cyan">已发布：{result.poolCount} 首公共音频 · {result.itunesCount} 首已匹配 iTunes · {result.warnings.length} 首需要补充</p>{result.warnings.length > 0 && <ul className="max-h-44 space-y-1 overflow-auto text-amber-200">{result.warnings.map(warning => <li key={warning.trackId}>{warning.title}：{warning.message}</li>)}</ul>}</div>}
   </section>;
