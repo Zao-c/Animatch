@@ -16,12 +16,12 @@ describe("AniSong publisher deletion and licensing guardrails", () => {
     expect(updateRoute).toContain("if(!template) return ok({unavailable:true");
   });
 
-  it("asks for fresh authorization when the set of songs changes", () => {
-    expect(publisher).toContain("}, [board.id, board.revision]);");
-    expect(publisher).toContain("setConfirmed(false)");
+  it("respects the existing confirmation without forcing re-approval on edits or publish", () => {
     expect(publisher).toContain('checked={confirmed}');
-    expect(publisher).toContain("disabled={disabled || publishing || checking || Boolean(checkError) || !confirmed || count < 2}");
+    expect(publisher).toContain("onChange={event => setConfirmed(event.target.checked)}");
     expect(publisher).toContain("onPublish(confirmed)");
+    expect(publisher).not.toContain("setConfirmed(false)");
+    expect(publisher).not.toContain("}, [board.id, board.revision]);");
   });
 
   it("does not misrepresent an unreadable public version as unpublished", () => {
