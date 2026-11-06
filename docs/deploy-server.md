@@ -111,8 +111,10 @@ docker compose --env-file .env.production -f docker-compose.prod.yml exec app pn
 
 User-uploaded custom item art (`/uploads/custom-items/...`) is mirrored to the
 same COS prefix, so tier lists built from uploaded images are CDN-served too.
-The local file is kept on disk and stays the ultimate fallback. To backfill only
-uploaded items, filter by source:
+Uploaded files are copied byte-for-byte (no re-encode, transparency preserved);
+only remote catalog covers are downscaled to 600x900 WebP. The local file is
+kept on disk and stays the ultimate fallback. To backfill only uploaded items,
+filter by source:
 
 ```bash
 docker compose --env-file .env.production -f docker-compose.prod.yml exec app \

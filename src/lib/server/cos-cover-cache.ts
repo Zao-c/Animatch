@@ -20,6 +20,7 @@ export interface CacheableAnimeCover {
   imageMediumUrl?: string | null;
   imageLargeUrl?: string | null;
   thumbnailUrl?: string | null;
+  cachedCoverKey?: string | null;
   cachedCoverSourceUrl?: string | null;
 }
 
@@ -134,6 +135,80 @@ export async function cacheAnimeCoverToCos(
   if (!options.force && hasFreshCachedCover(anime, sourceKey)) return null;
 
   const downloaded = await loadSourceImage(source);
+  const prepared = await prepareCoverObject(source, downloaded);
+
+  const contentHash = crypto.createHash("sha256").update(prepared.body).digest("hex");
+  const key = buildCoverKey(config.prefix, anime, sourceKey, contentHash, prepared.extension);
+  await putCosObject(config, key, prepared.body, prepared.contentType);
+
+  const url = buildPublicUrl(config, key);
+  const previousKey = anime.cachedCoverKey ?? null;
+  await prisma.anime.update({
+    where: { id: anime.id },
+    data: {
+      cachedCoverUrl: url,
+      cachedCoverKey: key,
+      cachedCoverSourceUrl: sourceKey,
+      cachedCoverContentHash: contentHash,
+      cachedCoverWidth: prepared.width,
+      cachedCoverHeight: prepared.height,
+      cachedCoverFormat: prepared.format,
+      cachedCoverBytes: prepared.body.byteLength,
+      cachedCoverAt: new Date(),
+      imageStatus: "OK"
+    }
+  });
+
+  // Keys embed the content hash, so a refresh would otherwise leave the old object behind.
+  if (previousKey !== null && previousKey !== key) {
+    await deleteCosObject(config, previousKey);
+  }
+
+  return {
+    url,
+    key,
+    width: prepared.width,
+    height: prepared.height,
+    bytes: prepared.body.byteLength,
+    format: prepared.format
+  };
+}
+
+export async function deleteAnimeCoverCosObject(anime: {
+  cachedCoverKey?: string | null;
+}): Promise<void> {
+  const config = getCosCoverConfig();
+  if (!config || !anime.cachedCoverKey) return;
+  await deleteCosObject(config, anime.cachedCoverKey);
+}
+
+const COS_CONTENT_TYPES: Record<string, { contentType: string; extension: string }> = {
+  png: { contentType: "image/png", extension: "png" },
+  jpeg: { contentType: "image/jpeg", extension: "jpg" },
+  webp: { contentType: "image/webp", extension: "webp" },
+  gif: { contentType: "image/gif", extension: "gif" },
+  avif: { contentType: "image/avif", extension: "avif" }
+};
+
+/**
+ * Uploaded art is mirrored byte-for-byte so the CDN copy looks exactly like the
+ * user's file; only remote catalog covers are downscaled to save bandwidth.
+ */
+async function prepareCoverObject(source: CoverSource, downloaded: Buffer) {
+  if (source.kind === "local") {
+    const meta = await sharp(downloaded).metadata();
+    const format = meta.format ?? "png";
+    const type = COS_CONTENT_TYPES[format] ?? { contentType: "image/png", extension: "png" };
+    return {
+      body: downloaded,
+      contentType: type.contentType,
+      extension: type.extension,
+      format,
+      width: meta.width ?? null,
+      height: meta.height ?? null
+    };
+  }
+
   const processed = await sharp(downloaded)
     .rotate()
     .resize({
@@ -145,34 +220,13 @@ export async function cacheAnimeCoverToCos(
     .webp({ quality: 82 })
     .toBuffer({ resolveWithObject: true });
 
-  const contentHash = crypto.createHash("sha256").update(processed.data).digest("hex");
-  const key = buildCoverKey(config.prefix, anime, sourceKey, contentHash);
-  await putCosObject(config, key, processed.data, "image/webp");
-
-  const url = buildPublicUrl(config, key);
-  await prisma.anime.update({
-    where: { id: anime.id },
-    data: {
-      cachedCoverUrl: url,
-      cachedCoverKey: key,
-      cachedCoverSourceUrl: sourceKey,
-      cachedCoverContentHash: contentHash,
-      cachedCoverWidth: processed.info.width ?? null,
-      cachedCoverHeight: processed.info.height ?? null,
-      cachedCoverFormat: "webp",
-      cachedCoverBytes: processed.data.byteLength,
-      cachedCoverAt: new Date(),
-      imageStatus: "OK"
-    }
-  });
-
   return {
-    url,
-    key,
+    body: processed.data,
+    contentType: "image/webp",
+    extension: "webp",
+    format: "webp",
     width: processed.info.width ?? null,
-    height: processed.info.height ?? null,
-    bytes: processed.data.byteLength,
-    format: "webp"
+    height: processed.info.height ?? null
   };
 }
 
@@ -378,10 +432,39 @@ function putCosObject(config: CosCoverConfig, key: string, body: Buffer, content
   });
 }
 
-function buildCoverKey(prefix: string, anime: CacheableAnimeCover, sourceUrl: string, contentHash: string): string {
+function buildCoverKey(
+  prefix: string,
+  anime: CacheableAnimeCover,
+  sourceUrl: string,
+  contentHash: string,
+  extension = "webp"
+): string {
   const sourcePart = anime.bgmId ? `bangumi-${anime.bgmId}` : anime.id;
   const hash = crypto.createHash("sha1").update(sourceUrl).digest("hex").slice(0, 12);
-  return `${prefix}/${safeKeyPart(sourcePart)}/${hash}-${contentHash.slice(0, 12)}.webp`;
+  return `${prefix}/${safeKeyPart(sourcePart)}/${hash}-${contentHash.slice(0, 12)}.${extension}`;
+}
+
+function deleteCosObject(config: CosCoverConfig, key: string): Promise<void> {
+  const cos = new COS({
+    SecretId: config.secretId,
+    SecretKey: config.secretKey
+  });
+
+  return new Promise((resolve) => {
+    cos.deleteObject(
+      { Bucket: config.bucket, Region: config.region, Key: key },
+      (error) => {
+        // Losing an orphan cleanup must never break the cache refresh.
+        if (error) {
+          console.warn("[COS cover cache] failed to delete stale object", {
+            key,
+            message: error.message
+          });
+        }
+        resolve();
+      }
+    );
+  });
 }
 
 function buildPublicUrl(config: CosCoverConfig, key: string): string {
