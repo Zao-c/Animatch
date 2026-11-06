@@ -23,7 +23,7 @@ export function DuelAnimeCard({ anime, side, disabled, actionLabel, onPick, scor
   const coverUrl = getAnimeCoverUrl(anime, { intent: "hero" });
   // Match is a tall card: use the same 2:3 derivative as the pool artwork wall.
   // Keep the original as a fallback if the thumbnail endpoint is unavailable.
-  const matchCoverUrl = smartCoverUrl(coverUrl, anime.source, "card");
+  const matchCoverUrl = smartCoverUrl(coverUrl, anime.source, "match");
   const isSmartCover = matchCoverUrl !== coverUrl;
   const secondarySrc = isSmartCover
     ? coverUrl
