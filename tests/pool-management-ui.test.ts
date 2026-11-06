@@ -69,7 +69,7 @@ describe("pool management UI", () => {
   });
 
   it("renders functional owner-controlled public collaboration checkboxes", () => {
-    expect(detailSource).toContain("checked={editAllowPublicEdit");
+    expect(detailSource).toContain('checked={editVisibility === "PUBLIC" && (editAllowPublicEdit');
     expect(detailSource).toContain("checked={editAllowCommunityMatch}");
     expect(detailSource).toContain('disabled={editVisibility !== "PUBLIC" || isMutating');
     expect(detailSource).toContain("setEditAllowPublicEdit(event.target.checked)");
