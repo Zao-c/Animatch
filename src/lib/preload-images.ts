@@ -1,7 +1,6 @@
 import type { MatchPair } from "./client-api";
-import { getAnimeCoverUrl, getAnimeSourceCoverCandidates, type AnimeCoverUrlFields } from "./anime-cover-url";
+import { type MatchArtworkFields, getMatchArtwork } from "./match-artwork";
 import { getCoverDeliveryCandidates } from "./image-proxy";
-import { smartCoverUrl } from "./smart-cover-url";
 
 import { loadCoverImage } from "./cover-loader";
 
@@ -88,7 +87,7 @@ export async function preloadPairs(
   };
 }
 
-async function preloadAnimeImage(anime: AnimeCoverUrlFields & { source?: string | null }, signal?: AbortSignal): Promise<boolean> {
+async function preloadAnimeImage(anime: MatchArtworkFields, signal?: AbortSignal): Promise<boolean> {
   const controller = new AbortController();
   try {
     await loadCoverImage(bestImageCandidates(anime), { signal: signal ?? controller.signal, priority: 2 });
@@ -97,13 +96,7 @@ async function preloadAnimeImage(anime: AnimeCoverUrlFields & { source?: string 
   finally { controller.abort(); }
 }
 
-function bestImageCandidates(anime: AnimeCoverUrlFields & { source?: string | null }): string[] {
-  const heroUrl = getAnimeCoverUrl(anime, { intent: "hero" });
-  const smartUrl = smartCoverUrl(heroUrl, anime.source, "match");
-  const originalSources = getAnimeSourceCoverCandidates(anime);
-  // Warm the same full-resolution derivative that the visible Match card will request.
-  const secondary = smartUrl !== heroUrl
-    ? heroUrl
-    : originalSources.find((url) => url !== heroUrl);
-  return getCoverDeliveryCandidates(smartUrl, secondary, originalSources);
+function bestImageCandidates(anime: MatchArtworkFields): string[] {
+  const { src, secondarySrc, fallbackSrcs } = getMatchArtwork(anime);
+  return getCoverDeliveryCandidates(src, secondarySrc, fallbackSrcs);
 }
