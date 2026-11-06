@@ -8,6 +8,8 @@ describe("smart cover URLs", () => {
       .toBe("/api/cover-thumbnail?variant=card&src=%2Fuploads%2Fcustom-items%2Fcharacter.png");
     expect(smartCoverUrl(src, "CUSTOM_UPLOAD", "tier"))
       .toBe("/api/cover-thumbnail?variant=tier&src=%2Fuploads%2Fcustom-items%2Fcharacter.png");
+    expect(smartCoverUrl(src, "CUSTOM_UPLOAD", "match"))
+      .toBe("/api/cover-thumbnail?variant=match&src=%2Fuploads%2Fcustom-items%2Fcharacter.png");
   });
 
   it("supports edited existing pool covers even for non-custom sources", () => {
