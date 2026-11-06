@@ -99,9 +99,9 @@ async function preloadAnimeImage(anime: AnimeCoverUrlFields & { source?: string 
 
 function bestImageCandidates(anime: AnimeCoverUrlFields & { source?: string | null }): string[] {
   const heroUrl = getAnimeCoverUrl(anime, { intent: "hero" });
-  const smartUrl = smartCoverUrl(heroUrl, anime.source, "card");
+  const smartUrl = smartCoverUrl(heroUrl, anime.source, "match");
   const originalSources = getAnimeSourceCoverCandidates(anime);
-  // Warm the same derivative that the visible Match card will request.
+  // Warm the same full-resolution derivative that the visible Match card will request.
   const secondary = smartUrl !== heroUrl
     ? heroUrl
     : originalSources.find((url) => url !== heroUrl);
