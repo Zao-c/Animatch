@@ -54,7 +54,7 @@ describe("Match artwork thumbnails", () => {
   it("renders imported character artwork in the 2:3 smart cover instead of contain", () => {
     const html = render("CUSTOM_UPLOAD", artwork);
     expect(html).toContain("data-cover-fit=\"cover\"");
-    expect(html).toContain("/api/cover-thumbnail?variant=card&amp;src=%2Fuploads%2Fcustom-items%2Fcharacter.png");
+    expect(html).toContain("/api/cover-thumbnail?variant=match&amp;src=%2Fuploads%2Fcustom-items%2Fcharacter.png");
     expect(html).toContain(artwork);
     expect(html).toContain("选择左边");
   });
@@ -62,7 +62,7 @@ describe("Match artwork thumbnails", () => {
   it("also composes older TierMaker images", () => {
     const html = render("TIERMAKER_IMPORT", artwork);
     expect(html).toContain("data-cover-fit=\"cover\"");
-    expect(html).toContain("variant=card");
+    expect(html).toContain("variant=match");
   });
 
   it("keeps existing contain rendering for ordinary poster URLs", () => {
