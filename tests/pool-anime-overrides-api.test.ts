@@ -285,7 +285,7 @@ describe("pool anime display override API", () => {
     );
   });
 
-  it("DELETE overrides removes local uploaded covers", async () => {
+  it("DELETE overrides keeps local uploads referenced by historic shares", async () => {
     const fileName = "pool-1-anime-1-test.webp";
     const filePath = path.join(tempUploadDir, fileName);
     await writeFile(filePath, Buffer.from("image"));
@@ -304,7 +304,7 @@ describe("pool anime display override API", () => {
       { params: { poolId: "pool-1", animeId: "anime-1" } }
     );
 
-    await expect(stat(filePath)).rejects.toThrow();
+    expect((await stat(filePath)).size).toBeGreaterThan(0);
     expect(response.status).toBe(200);
   });
 
