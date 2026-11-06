@@ -2,7 +2,7 @@
  * Tier artwork is not a poster. Keep the source URL unchanged in persistence,
  * and generate a cached, context-specific thumbnail only for image-led entries.
  */
-export type SmartCoverVariant = "card" | "tier";
+export type SmartCoverVariant = "card" | "tier" | "match";
 
 export function needsSmartCover(
   source: string | null | undefined,
