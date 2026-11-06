@@ -4,7 +4,8 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["tests/**/*.test.ts"]
+    // Allow component tests that need JSX syntax; keep .ts for plain modules.
+    include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"]
   },
   // tsconfig uses "jsx": "preserve" for Next's automatic runtime, so components
   // may omit `import React`. Match that here instead of esbuild's classic default.

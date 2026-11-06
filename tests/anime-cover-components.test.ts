@@ -134,10 +134,10 @@ describe("anime cover rendering", () => {
     );
 
     expect(html).toContain("<img");
-    // Uploaded artwork is shown through the 2:3 smart derivative in Match; the
-    // original file stays as the fallback so it must still appear in the HTML.
+    // Uploaded artwork is shown through the HD Match derivative; the original
+    // file stays as the fallback so it must still appear in the HTML.
     expect(html).toContain('data-cover-fit="cover"');
-    expect(html).toContain("/api/cover-thumbnail?variant=card&amp;src=%2Fuploads%2Fcustom-items%2Ftest.png");
+    expect(html).toContain("/api/cover-thumbnail?variant=match&amp;src=%2Fuploads%2Fcustom-items%2Ftest.png");
     expect(html).toContain('data-export-secondary-src="/uploads/custom-items/test.png"');
   });
 
