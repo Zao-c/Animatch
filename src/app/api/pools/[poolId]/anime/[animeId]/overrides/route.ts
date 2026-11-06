@@ -1,6 +1,5 @@
 import { PoolStatus } from "@prisma/client";
 import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
-import { deleteLocalAnimeCoverIfPresent } from "@/lib/anime-cover-upload";
 import { requireCurrentUser } from "@/lib/auth-session";
 import { isAdminEditSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
@@ -62,7 +61,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     });
     const poolAnime = serializePoolAnime(updated);
 
-    await deleteLocalAnimeCoverIfPresent(existingEntry.coverUrlOverride);
+    // Previous overrides can remain referenced by immutable public Tier snapshots.
 
     return ok({
       poolAnime,
