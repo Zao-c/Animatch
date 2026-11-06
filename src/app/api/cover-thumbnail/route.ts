@@ -15,8 +15,10 @@ import type { SmartCoverVariant } from "@/lib/smart-cover-url";
 export const runtime = "nodejs";
 
 const MAX_SOURCE_BYTES = 10 * 1024 * 1024;
-const CACHE_DIR = process.env.ANIMATCH_SMART_COVER_CACHE_DIR ??
-  path.join(process.cwd(), "data", "image-cache", "smart-covers");
+function getCacheDir(): string {
+  return process.env.ANIMATCH_SMART_COVER_CACHE_DIR ??
+    path.join(process.cwd(), "data", "image-cache", "smart-covers");
+}
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800";
 
@@ -87,7 +89,7 @@ async function readFreshThumbnail(filePath: string): Promise<Buffer | null> {
 }
 
 async function buildAndCache(key: string, src: string, variant: SmartCoverVariant, request: Request) {
-  const filePath = path.join(CACHE_DIR, `${key}.webp`);
+  const filePath = path.join(getCacheDir(), `${key}.webp`);
   const cached = await readFreshThumbnail(filePath);
   if (cached !== null) return cached;
 
@@ -98,7 +100,7 @@ async function buildAndCache(key: string, src: string, variant: SmartCoverVarian
 
     const input = await loadSource(src, request);
     const result = await generateSmartCover(input, variant);
-    await mkdir(CACHE_DIR, { recursive: true });
+    await mkdir(getCacheDir(), { recursive: true });
     const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
     try {
       await writeFile(temporaryPath, result);
