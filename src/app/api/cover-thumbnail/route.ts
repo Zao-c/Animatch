@@ -16,7 +16,7 @@ export const runtime = "nodejs";
 
 const MAX_SOURCE_BYTES = 10 * 1024 * 1024;
 const CACHE_DIR = process.env.ANIMATCH_SMART_COVER_CACHE_DIR ??
-  path.join(process.cwd(), "data", "smart-cover-cache");
+  path.join(process.cwd(), "data", "image-cache", "smart-covers");
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800";
 
