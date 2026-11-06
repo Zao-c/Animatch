@@ -34,6 +34,7 @@ export function ManualTierBoard({ initial, ownerId }: { initial: ManualBoardData
   const [history, setHistory] = useState<ManualBoardData["layout"][]>([]);
   const [exportShare, setExportShare] = useState<PublicTierShare | null>(null);
   const [showItemTitles, setShowItemTitles] = useState(false);
+  const [exportImageFit, setExportImageFit] = useState<"crop" | "contain">("crop");
   const exportRef = useRef<HTMLDivElement>(null);
   const rowEditor = useRef<HTMLDetailsElement>(null);
   const byId = useMemo(() => new Map(board.items.map((item) => [item.animeId, item])), [board.items]);
@@ -215,8 +216,9 @@ export function ManualTierBoard({ initial, ownerId }: { initial: ManualBoardData
     <fieldset disabled={!recovery.ready || !!recovery.pending} className="min-w-0 space-y-4">
     <header className="flex flex-wrap items-start justify-between gap-4">
       <div><p className="text-sm text-cyan-200">自由排榜 · {board.pool.name}</p><h1 className="mt-1 text-2xl font-black sm:text-3xl">制作我的 Tier List</h1></div>
-      <Link href={`/pools/${board.pool.id}`} className={appButtonClasses({ variant: "ghost" })}>返回番组</Link>
+      <Link href={`/pools/${board.pool.id}`} className={appButtonClasses({ variant: "ghost" })}>编辑番组作品 / 更换封面</Link>
     </header>
+    <p className="text-xs leading-5 text-slate-400">导出默认使用统一的方形裁切。修改已创建作品的封面或标题，请先保存草稿，再返回番组的作品墙编辑；修改后重新进入榜单导出，公开榜单可点击「更新分享」。</p>
     <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-white/10 bg-slate-950/40 p-4">
       <label className="w-full min-w-0 text-xs text-slate-400 sm:w-auto sm:min-w-[200px] sm:flex-1">榜单标题<input className="anime-field mt-1 block w-full" maxLength={100} value={board.title} disabled={busy} onChange={(event) => { setBoard({ ...board, title: event.target.value }); }} /></label>
       <AppButton variant="primary" onClick={() => save()} disabled={busy || !board.title.trim()}>{busy ? "处理中…" : "保存草稿"}</AppButton>
@@ -230,6 +232,10 @@ export function ManualTierBoard({ initial, ownerId }: { initial: ManualBoardData
           onChange={(event) => setShowItemTitles(event.target.checked)}
         />
         显示作品名称
+      </label>
+      <label className="flex min-h-11 items-center gap-2 text-xs text-slate-300">
+        <input type="checkbox" className="h-4 w-4 shrink-0 accent-cyan-400" checked={exportImageFit === "contain"} disabled={busy} onChange={(event) => setExportImageFit(event.target.checked ? "contain" : "crop")} />
+        完整显示原图（可能留白）
       </label>
       <AppButton variant="secondary" onClick={() => { if (window.confirm("生成公开链接后，任何拿到链接的人都能查看当前已分档的作品。继续分享？")) void save(true); }} disabled={busy || ranked.size === 0 || !board.title.trim()}>{board.shareUrl ? "更新分享" : "分享榜单"}</AppButton>
       <span className={`text-xs ${dirty ? "text-amber-200" : "text-slate-400"}`}>{dirty ? recovery.ready && !recovery.storageError ? "未保存到账号 · 此标签页暂存" : "有未保存修改" : board.revision ? "草稿已保存" : "新榜单"}</span>
@@ -297,7 +303,7 @@ export function ManualTierBoard({ initial, ownerId }: { initial: ManualBoardData
         </details>
       </aside>
     </div>
-    {exportShare && <div aria-hidden="true" ref={exportRef} style={{ position: "fixed", left: -20000, top: 0, width: 1280, pointerEvents: "none" }}><TierShareCard share={exportShare} exportMode showItemTitles={showItemTitles} /></div>}
+    {exportShare && <div aria-hidden="true" ref={exportRef} style={{ position: "fixed", left: -20000, top: 0, width: 1280, pointerEvents: "none" }}><TierShareCard share={exportShare} exportMode showItemTitles={showItemTitles} exportImageFit={exportImageFit} /></div>}
     </fieldset>
   </div>;
 }
