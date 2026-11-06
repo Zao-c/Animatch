@@ -7,7 +7,7 @@ type PoolPermissionFields = Pick<
 >;
 type CommunityRankingPoolFields = Pick<
   CustomPool,
-  "visibility" | "status" | "deletedAt"
+  "visibility" | "status" | "deletedAt" | "allowCommunityMatch"
 >;
 type EditPermissionFields = Pick<
   CustomPool,
@@ -87,6 +87,7 @@ export function canAddAnime(
 export function canReadCommunityRanking(pool: CommunityRankingPoolFields): boolean {
   return (
     pool.visibility === Visibility.PUBLIC &&
+    pool.allowCommunityMatch === true &&
     pool.status !== PoolStatus.ARCHIVED &&
     pool.deletedAt === null
   );
@@ -102,7 +103,7 @@ export function getPoolPermissions(
     canPlay: canPlayPool(pool, user),
     canManage: canManagePool(pool, user),
     canAddAnime: canAddAnime(pool, user, opts),
-    canCommunityMatch: pool.allowCommunityMatch && canReadPool(pool, user),
+    canCommunityMatch: canReadCommunityRanking(pool) && canReadPool(pool, user),
     isAdmin: opts?.isAdmin ?? false
   };
 }
