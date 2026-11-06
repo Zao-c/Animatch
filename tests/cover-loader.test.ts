@@ -74,6 +74,44 @@ describe("cover failover", () => {
     expect(coverLoaderStats().active).toEqual({ local: 0, remote: 0 });
     controller.abort();
   });
+  it("prefers a successful processed thumbnail before racing the raw fallback", async () => {
+    vi.useFakeTimers();
+    const started: string[] = [];
+    const smart = "/api/cover-thumbnail?variant=card&src=%2Fuploads%2Fcustom-items%2Fmatch.png";
+    const original = "/uploads/custom-items/match.png";
+    vi.stubGlobal("Image", class extends ControlledImage {
+      set src(value: string) {
+        started.push(value);
+        if (value === smart) setTimeout(() => this.onload?.(), 1200);
+      }
+      get src() { return ""; }
+    });
+    const controller = new AbortController();
+    const result = loadCoverImage([smart, original], { signal: controller.signal });
+    await vi.advanceTimersByTimeAsync(1300);
+    await expect(result).resolves.toBe(smart);
+    expect(started).toEqual([smart]);
+    controller.abort();
+  });
+
+  it("still falls back to the original when thumbnail processing fails", async () => {
+    vi.useFakeTimers();
+    const smart = "/api/cover-thumbnail?variant=card&src=%2Fuploads%2Fcustom-items%2Fbroken.png";
+    const original = "/uploads/custom-items/broken.png";
+    vi.stubGlobal("Image", class extends ControlledImage {
+      set src(value: string) {
+        if (value === smart) setTimeout(() => this.onerror?.(), 0);
+        if (value === original) setTimeout(() => this.onload?.(), 0);
+      }
+      get src() { return ""; }
+    });
+    const controller = new AbortController();
+    const result = loadCoverImage([smart, original], { signal: controller.signal });
+    await vi.advanceTimersByTimeAsync(2501);
+    await expect(result).resolves.toBe(original);
+    controller.abort();
+  });
+
   it("coalesces duplicate covers and does not abort another subscriber", async () => {
     vi.useFakeTimers();
     const images: ControlledImage[] = [];
