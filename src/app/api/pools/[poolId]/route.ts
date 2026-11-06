@@ -21,6 +21,8 @@ interface UpdatePoolBody {
   description?: unknown;
   visibility?: unknown;
   tags?: unknown;
+  allowPublicEdit?: unknown;
+  allowCommunityMatch?: unknown;
 }
 
 export async function GET(_request: Request, context: RouteContext) {
@@ -125,6 +127,18 @@ export async function PATCH(request: Request, context: RouteContext) {
     return badRequest(tags.message);
   }
 
+  // These are owner-only opt-ins, never accepted as truthy string values.
+  if (body?.allowPublicEdit !== undefined && typeof body.allowPublicEdit !== "boolean") {
+    return badRequest("allowPublicEdit must be a boolean");
+  }
+  if (body?.allowCommunityMatch !== undefined && typeof body.allowCommunityMatch !== "boolean") {
+    return badRequest("allowCommunityMatch must be a boolean");
+  }
+  if (body.visibility !== Visibility.PUBLIC &&
+      (body.allowPublicEdit === true || body.allowCommunityMatch === true)) {
+    return badRequest("Public collaboration and community ranking require a public pool");
+  }
+
   try {
     const user = await requireCurrentUser();
     const pool = await prisma.customPool.findUnique({
@@ -141,6 +155,21 @@ export async function PATCH(request: Request, context: RouteContext) {
       return forbidden("你没有权限管理这个番组。");
     }
 
+    // Archiving disables access; settings cannot reopen public editing while archived.
+    if ((pool.status === PoolStatus.ARCHIVED || pool.deletedAt !== null) &&
+        (body.allowPublicEdit === true || body.allowCommunityMatch === true)) {
+      return badRequest("Archived pools cannot enable public collaboration");
+    }
+
+    const isPublicAndActive = body.visibility === Visibility.PUBLIC &&
+      pool.status !== PoolStatus.ARCHIVED && pool.deletedAt === null;
+    const allowPublicEdit = isPublicAndActive
+      ? (body.allowPublicEdit ?? pool.allowPublicEdit)
+      : false;
+    const allowCommunityMatch = isPublicAndActive
+      ? (body.allowCommunityMatch ?? pool.allowCommunityMatch)
+      : false;
+
     const updated = await prisma.customPool.update({
       where: {
         id: pool.id
@@ -149,7 +178,9 @@ export async function PATCH(request: Request, context: RouteContext) {
         name,
         description,
         visibility: body.visibility as Visibility,
-        tags
+        tags,
+        allowPublicEdit,
+        allowCommunityMatch
       }
     });
 
