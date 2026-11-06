@@ -741,6 +741,8 @@ export function updatePool(
     description?: string | null;
     visibility: "PRIVATE" | "UNLISTED" | "PUBLIC";
     tags?: string[];
+    allowPublicEdit?: boolean;
+    allowCommunityMatch?: boolean;
   }
 ) {
   return fetchJson<PoolSummary>(`/api/pools/${poolId}`, {
