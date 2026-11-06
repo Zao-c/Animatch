@@ -3,6 +3,9 @@ import type { SmartCoverVariant } from "../smart-cover-url";
 
 const SAMPLE_EDGE = 320;
 const MAX_INPUT_PIXELS = 32_000_000;
+// SVG is rasterised at arbitrary density and is not an upload format; refusing it
+// keeps a proxied remote URL from turning into a huge decode.
+const SUPPORTED_INPUT_FORMATS = new Set(["jpeg", "png", "webp", "gif", "avif", "tiff"]);
 export const SMART_COVER_VERSION = "v1";
 
 export const SMART_COVER_SIZES: Record<SmartCoverVariant, { width: number; height: number }> = {
@@ -115,6 +118,15 @@ export function coverCrop(
 export async function generateSmartCover(input: Buffer, variant: SmartCoverVariant): Promise<Buffer> {
   const { width, height } = SMART_COVER_SIZES[variant];
   if (!width || !height) throw new Error("Invalid thumbnail variant");
+
+  // Validate before auto-orientation re-encodes the whole source.
+  const probe = await sharp(input, { limitInputPixels: MAX_INPUT_PIXELS }).metadata();
+  if (!probe.format || !SUPPORTED_INPUT_FORMATS.has(probe.format)) {
+    throw new Error("Unsupported image format");
+  }
+  if (!probe.width || !probe.height || probe.width * probe.height > MAX_INPUT_PIXELS) {
+    throw new Error("Invalid image dimensions");
+  }
 
   const normalized = await sharp(input, { limitInputPixels: MAX_INPUT_PIXELS })
     .rotate()

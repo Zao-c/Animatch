@@ -4,22 +4,22 @@ import { mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promis
 import path from "node:path";
 import { GET as getCachedProxyImage } from "@/app/api/image-proxy/route";
 import {
-  getAnimeCoverUploadDir,
-  getCustomItemUploadDir,
   isLocalAnimeCoverPath,
-  isLocalCustomItemPath
+  isLocalCustomItemPath,
+  localAnimeCoverPublicPathToFilePath,
+  localCustomItemPublicPathToFilePath
 } from "@/lib/anime-cover-upload";
+import {
+  readCachedSmartCover,
+  scheduleSmartCoverCachePrune,
+  smartCoverCacheFilePath
+} from "@/lib/server/smart-cover-cache";
 import { generateSmartCover, SMART_COVER_VERSION } from "@/lib/server/smart-cover-thumbnail";
 import type { SmartCoverVariant } from "@/lib/smart-cover-url";
 
 export const runtime = "nodejs";
 
 const MAX_SOURCE_BYTES = 10 * 1024 * 1024;
-function getCacheDir(): string {
-  return process.env.ANIMATCH_SMART_COVER_CACHE_DIR ??
-    path.join(process.cwd(), "data", "image-cache", "smart-covers");
-}
-const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800";
 
 // Coalesce repeated requests for the same source and bound Sharp CPU usage.
@@ -49,6 +49,7 @@ function imageResponse(buffer: Buffer) {
   return new NextResponse(body, {
     headers: {
       "Content-Type": "image/webp",
+      "Content-Length": String(buffer.byteLength),
       "Cache-Control": CACHE_CONTROL,
       "X-Content-Type-Options": "nosniff"
     }
@@ -56,12 +57,8 @@ function imageResponse(buffer: Buffer) {
 }
 
 async function loadSource(src: string, request: Request): Promise<Buffer> {
-  let filePath: string | null = null;
-  if (isLocalAnimeCoverPath(src)) {
-    filePath = path.join(getAnimeCoverUploadDir(), src.slice("/uploads/anime-covers/".length));
-  } else if (isLocalCustomItemPath(src)) {
-    filePath = path.join(getCustomItemUploadDir(), src.slice("/uploads/custom-items/".length));
-  }
+  const filePath =
+    localAnimeCoverPublicPathToFilePath(src) ?? localCustomItemPublicPathToFilePath(src);
 
   if (filePath !== null) {
     const fileInfo = await stat(filePath);
@@ -82,33 +79,24 @@ async function loadSource(src: string, request: Request): Promise<Buffer> {
   return Buffer.from(bytes);
 }
 
-async function readFreshThumbnail(filePath: string): Promise<Buffer | null> {
-  try {
-    const fileInfo = await stat(filePath);
-    if (Date.now() - fileInfo.mtimeMs > CACHE_TTL_MS) return null;
-    return await readFile(filePath);
-  } catch {
-    return null;
-  }
-}
-
 async function buildAndCache(key: string, src: string, variant: SmartCoverVariant, request: Request) {
-  const filePath = path.join(getCacheDir(), `${key}.webp`);
-  const cached = await readFreshThumbnail(filePath);
+  const filePath = smartCoverCacheFilePath(key);
+  const cached = await readCachedSmartCover(filePath);
   if (cached !== null) return cached;
 
   return withTransformSlot(async () => {
     // Another request may have finished while this one was queued.
-    const cachedAfterQueue = await readFreshThumbnail(filePath);
+    const cachedAfterQueue = await readCachedSmartCover(filePath);
     if (cachedAfterQueue !== null) return cachedAfterQueue;
 
     const input = await loadSource(src, request);
     const result = await generateSmartCover(input, variant);
-    await mkdir(getCacheDir(), { recursive: true });
+    await mkdir(path.dirname(filePath), { recursive: true });
     const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
     try {
       await writeFile(temporaryPath, result);
       await rename(temporaryPath, filePath);
+      scheduleSmartCoverCachePrune();
     } finally {
       await unlink(temporaryPath).catch(() => undefined);
     }

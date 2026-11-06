@@ -23,13 +23,20 @@ even when an immutable shared Tier snapshot still referenced their URLs.
   preserving the host allowlist, IP validation and upstream cache. Local assets
   are read only from the validated `uploads/anime-covers` or
   `uploads/custom-items` directories.
-- Generated files are cached for seven days under
-  `/app/data/image-cache/smart-covers/` in production, using the existing
-  persistent image-cache Docker volume. Set
-  `ANIMATCH_SMART_COVER_CACHE_DIR` to override this directory.
+- Generated files are cached under `/app/data/image-cache/smart-covers/` in
+  production, using the existing persistent image-cache Docker volume. Set
+  `ANIMATCH_SMART_COVER_CACHE_DIR` to override this directory. Derivatives are
+  immutable for a key (version + variant + source URL), so they are served until
+  evicted; bump `SMART_COVER_VERSION` when the rendering algorithm changes. The
+  cache is pruned least-recently-written first, capped at 5,000 files / 512 MiB
+  by default (`ANIMATCH_SMART_COVER_CACHE_MAX_ENTRIES` and
+  `ANIMATCH_SMART_COVER_CACHE_MAX_BYTES`), so the public endpoint cannot fill
+  the volume.
 - Derivative keys include algorithm version, variant and full original URL.
   Replacing an uploaded cover (which already generates a unique filename)
   immediately selects a different derivative URL.
+- Snapshots map uploads by `source`, and also by `/uploads/...` path, so shares
+  created before `source` was persisted still use the new layout.
 - Previously uploaded covers are retained when a pool override is changed or
   cleared, because historical public Tier share snapshots are immutable and
   may still reference them. A future reference-aware garbage collector may

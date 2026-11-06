@@ -62,4 +62,11 @@ describe("smart cover composition", () => {
       expect(center[1]).toBeLessThan(90);
     }
   });
+
+  it("rejects formats that could trigger unbounded rasterisation", async () => {
+    const svg = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16"/></svg>'
+    );
+    await expect(generateSmartCover(svg, "card")).rejects.toThrow("Unsupported image format");
+  });
 });

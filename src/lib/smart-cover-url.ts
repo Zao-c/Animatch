@@ -10,7 +10,9 @@ export function needsSmartCover(
 ): boolean {
   return source === "CUSTOM_UPLOAD" ||
     source === "TIERMAKER_IMPORT" ||
-    !!url?.startsWith("/uploads/anime-covers/");
+    // Old share snapshots may predate `source`, so identify uploads by path too.
+    !!url?.startsWith("/uploads/anime-covers/") ||
+    !!url?.startsWith("/uploads/custom-items/");
 }
 
 export function smartCoverUrl(

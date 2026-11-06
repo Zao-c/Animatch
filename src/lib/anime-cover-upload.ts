@@ -79,6 +79,15 @@ export function localAnimeCoverPublicPathToFilePath(publicPath: string) {
   return path.join(getAnimeCoverUploadDir(), fileName);
 }
 
+export function localCustomItemPublicPathToFilePath(publicPath: string) {
+  if (!isLocalCustomItemPath(publicPath)) {
+    return null;
+  }
+
+  const fileName = publicPath.slice(CUSTOM_ITEM_UPLOAD_PUBLIC_PREFIX.length);
+  return path.join(getCustomItemUploadDir(), fileName);
+}
+
 export async function saveAnimeCoverUpload({
   file,
   poolId,

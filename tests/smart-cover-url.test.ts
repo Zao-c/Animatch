@@ -16,6 +16,13 @@ describe("smart cover URLs", () => {
       .toContain("variant=tier");
   });
 
+  it("recognises legacy snapshots that only stored an upload path", () => {
+    // Snapshots created before `source` was persisted must still get the new layout.
+    expect(needsSmartCover(undefined, "/uploads/custom-items/character.png")).toBe(true);
+    expect(smartCoverUrl("/uploads/custom-items/character.png", undefined, "card"))
+      .toContain("variant=card");
+  });
+
   it("does not alter normal poster URLs or unsafe local paths", () => {
     const src = "https://lain.bgm.tv/pic/cover/l/frieren.jpg";
     expect(smartCoverUrl(src, "BANGUMI", "tier")).toBe(src);
