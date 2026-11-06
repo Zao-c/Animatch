@@ -187,6 +187,7 @@ function TierPageContent({ params }: { params: { poolId: string; runId: string }
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportProgress, setExportProgress] = useState<string | null>(null);
   const [exportShowTitles, setExportShowTitles] = useState(false);
+  const [exportImageFit, setExportImageFit] = useState<"crop" | "contain">("crop");
   const [isSharing, setIsSharing] = useState(false);
   const [shareStage, setShareStage] = useState<"saving" | "creating" | null>(null);
   const shareInFlight = useRef(false);
@@ -864,6 +865,10 @@ function TierPageContent({ params }: { params: { poolId: string; runId: string }
           />
           显示作品名称
         </label>
+        <label className="flex min-h-11 items-center gap-2 text-sm text-slate-300">
+          <input type="checkbox" className="h-4 w-4 shrink-0 accent-cyan-400" checked={exportImageFit === "contain"} disabled={isExporting} onChange={(event) => setExportImageFit(event.target.checked ? "contain" : "crop")} />
+          完整显示原图（可能留白）
+        </label>
         <a href="#tier-tools" className={appButtonClasses({ variant: "secondary" })}>设置与分享 ↓</a>
       </div>
       <p id="tier-export-scope-mobile" className="mb-4 text-xs leading-5 text-slate-400 xl:hidden">{exportScopeDescription}</p>
@@ -1043,6 +1048,10 @@ function TierPageContent({ params }: { params: { poolId: string; runId: string }
             />
             显示作品名称
           </label>
+          <label className="flex min-h-11 items-center gap-2 text-sm text-slate-300">
+            <input type="checkbox" className="h-4 w-4 shrink-0 accent-cyan-400" checked={exportImageFit === "contain"} disabled={isExporting} onChange={(event) => setExportImageFit(event.target.checked ? "contain" : "crop")} />
+            完整显示原图（可能留白）
+          </label>
           <AppButton
             id="tier-share-button"
             onClick={openShareConfirmation}
@@ -1062,7 +1071,7 @@ function TierPageContent({ params }: { params: { poolId: string; runId: string }
             继续对决
           </Link>
           <Link href={`/pools/${params.poolId}`} className={appButtonClasses({ variant: "ghost" })}>
-            返回番组
+            返回番组 / 更换作品封面
           </Link>
           {canShowCommunityRanking ? (
             <Link
@@ -1338,7 +1347,7 @@ function TierPageContent({ params }: { params: { poolId: string; runId: string }
         <div className="tiermaker-export-host" aria-hidden="true">
           <div ref={exportCardRef}>
             {shareSnapshot !== null ? (
-              <TierShareCard share={shareSnapshot} exportMode showItemTitles={exportShowTitles} />
+              <TierShareCard share={shareSnapshot} exportMode showItemTitles={exportShowTitles} exportImageFit={exportImageFit} />
             ) : null}
           </div>
         </div>
