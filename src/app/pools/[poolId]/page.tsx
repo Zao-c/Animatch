@@ -2254,6 +2254,7 @@ function CommunitySection({
   const communityExportCardRef = useRef<HTMLDivElement | null>(null);
   const [isCommunityTierExporting, setIsCommunityTierExporting] = useState(false);
   const [communityShowTitles, setCommunityShowTitles] = useState(false);
+  const [communityExportImageFit, setCommunityExportImageFit] = useState<"crop" | "contain">("crop");
   const [communityTierExportError, setCommunityTierExportError] = useState<string | null>(null);
   const [communityTierExportedAt, setCommunityTierExportedAt] = useState<Date | null>(null);
   const communityTierShare = useMemo<PublicTierShare | null>(() => {
@@ -2401,6 +2402,10 @@ function CommunitySection({
                   />
                   显示作品名称
                 </label>
+                <label className="flex min-h-11 items-center gap-2 text-sm text-slate-300">
+                  <input type="checkbox" className="h-4 w-4 shrink-0 accent-cyan-400" checked={communityExportImageFit === "contain"} disabled={isCommunityTierExporting} onChange={(event) => setCommunityExportImageFit(event.target.checked ? "contain" : "crop")} />
+                  完整显示原图（可能留白）
+                </label>
               </div>
             ) : null}
           </div>
@@ -2473,7 +2478,7 @@ function CommunitySection({
           {communityTierShare !== null ? (
             <div className="tiermaker-export-host" aria-hidden="true">
               <div ref={communityExportCardRef}>
-                <TierShareCard share={communityTierShare} exportMode showItemTitles={communityShowTitles} />
+                <TierShareCard share={communityTierShare} exportMode showItemTitles={communityShowTitles} exportImageFit={communityExportImageFit} />
               </div>
             </div>
           ) : null}
@@ -2751,10 +2756,10 @@ function PoolAnimeCard({
           </p>
         ) : null}
         {canManage && !batchMode ? (
-        <div className="absolute inset-x-3 bottom-3 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-slate-950/78 p-2 opacity-100 shadow-anime-panel backdrop-blur-xl transition-opacity duration-anime sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+        <div className="absolute inset-x-3 bottom-3 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-slate-950/78 p-2 opacity-100 shadow-anime-panel backdrop-blur-xl transition-opacity duration-anime sm:opacity-100">
           {!isArchived ? (
             <AppButton onClick={onEdit} disabled={isMutating} variant="quiet" size="sm">
-              编辑显示
+              编辑 / 更换封面
             </AppButton>
           ) : null}
           <AppButton onClick={onRemove} disabled={isArchived || isMutating} variant="quiet" size="sm">
@@ -2791,6 +2796,7 @@ function PoolAnimeDisplayPanel({
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [coverUploadError, setCoverUploadError] = useState<string | null>(null);
+  const [coverSaved, setCoverSaved] = useState(false);
   const display = entry.display;
   const displayAnime = { ...entry.anime, display };
   const title = getAnimeDisplayTitle(displayAnime);
@@ -2814,6 +2820,7 @@ function PoolAnimeDisplayPanel({
   useEffect(() => {
     setSelectedCoverFile(null);
     setCoverUploadError(null);
+    setCoverSaved(false);
   }, [entry.animeId]);
 
   function handleCoverFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -2828,6 +2835,7 @@ function PoolAnimeDisplayPanel({
 
   function selectCoverFile(file: File | null) {
     setCoverUploadError(null);
+    setCoverSaved(false);
 
     if (file === null) {
       setSelectedCoverFile(null);
@@ -2865,6 +2873,7 @@ function PoolAnimeDisplayPanel({
         fileInputRef.current.value = "";
       }
       await onUploaded();
+      setCoverSaved(true);
       return result.coverUrl;
     } catch (reason) {
       setCoverUploadError(reason instanceof Error ? reason.message : "上传封面失败");
@@ -2918,7 +2927,7 @@ function PoolAnimeDisplayPanel({
       </div>
         <form onSubmit={handleDisplaySubmit} className="mt-4 space-y-2 border-t border-anime-border pt-4">
           <p className="text-xs leading-5 text-cyan-100">
-            这个修改只影响当前番组，不会改动全局动画库。
+            已创建作品也可以修改标题、标签和封面；这些修改只影响当前番组，不会改动全局动画库。
           </p>
           <input
             value={displayForm.displayTitleOverride}
@@ -2933,11 +2942,11 @@ function PoolAnimeDisplayPanel({
             onChange={(event) =>
               setDisplayForm((current) => ({ ...current, coverUrlOverride: event.target.value }))
             }
-            placeholder="封面 URL"
+            placeholder="新封面 URL（或在下面重新上传图片）"
             className="anime-field text-xs"
           />
           <p className="text-xs leading-5 text-slate-500">
-            可以填写 http/https URL，也可以上传本地图片。外部封面加载失败时，页面会自动显示 fallback。
+            可以填写 http/https URL，也可以重新上传本地图片。已生成的对决 Tier List 分享链接是历史快照，修改封面后需要生成新分享链接；自由排榜可以点击「更新分享」。
           </p>
           <input
             ref={fileInputRef}
@@ -2982,6 +2991,7 @@ function PoolAnimeDisplayPanel({
           {coverUploadError ? (
             <p className="text-xs leading-5 text-rose-200">{coverUploadError}</p>
           ) : null}
+          {coverSaved ? <p role="status" className="text-xs text-cyan-100">新封面已保存并应用到这个番组。重新导出后即可看到更新。</p> : null}
           {selectedCoverFile ? (
             <AppButton
               type="button"
