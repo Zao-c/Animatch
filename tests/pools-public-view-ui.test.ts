@@ -84,8 +84,8 @@ describe("public pools community summary", () => {
     expect(poolsApiSource).toContain("getCommunitySummaries");
   });
 
-  it("Pools API injects communitySummary only for PUBLIC pools", () => {
-    expect(poolsApiSource).toContain('visibility === "PUBLIC"');
+  it("Pools API injects communitySummary only for PUBLIC pools with opt-in enabled", () => {
+    expect(poolsApiSource).toContain('visibility === "PUBLIC" && pool.allowCommunityMatch === true');
     expect(poolsApiSource).toContain("communitySummary");
   });
 
