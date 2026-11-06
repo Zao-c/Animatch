@@ -106,7 +106,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const src = searchParams.get("src")?.trim() ?? "";
   const variant = searchParams.get("variant");
-  if (variant !== "card" && variant !== "tier") {
+  if (variant !== "card" && variant !== "tier" && variant !== "match") {
     return NextResponse.json({ error: "Invalid thumbnail variant" }, { status: 400 });
   }
   const local = isLocalAnimeCoverPath(src) || isLocalCustomItemPath(src);
