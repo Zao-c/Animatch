@@ -1,6 +1,6 @@
 import { PoolStatus, Prisma } from "@prisma/client";
 import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
-import { deleteLocalAnimeCoverIfPresent, isAllowedCoverOverrideUrl } from "@/lib/anime-cover-upload";
+import { isAllowedCoverOverrideUrl } from "@/lib/anime-cover-upload";
 import { requireCurrentUser } from "@/lib/auth-session";
 import { isAdminEditSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
@@ -75,7 +75,6 @@ export async function PATCH(request: Request, context: RouteContext) {
       return notFound("Anime is not in this pool");
     }
 
-    const oldCoverUrlOverride = existingEntry.coverUrlOverride;
     const updated = await prisma.poolAnime.update({
       where: {
         id: existingEntry.id
@@ -90,12 +89,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     });
     const poolAnime = serializePoolAnime(updated);
 
-    if (
-      Object.prototype.hasOwnProperty.call(data, "coverUrlOverride") &&
-      updated.coverUrlOverride !== oldCoverUrlOverride
-    ) {
-      await deleteLocalAnimeCoverIfPresent(oldCoverUrlOverride);
-    }
+    // Do not delete an old local cover here: published Tier snapshots may still reference it.
 
     return ok({
       poolAnime,
