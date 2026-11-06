@@ -68,18 +68,23 @@ describe("pool management UI", () => {
     expect(detailSource).not.toContain("编辑番组");
   });
 
-  it("renders disabled reserved public permission controls", () => {
-    expect(detailSource).toContain('type="checkbox" disabled');
+  it("renders functional owner-controlled public collaboration checkboxes", () => {
+    expect(detailSource).toContain("checked={editAllowPublicEdit");
+    expect(detailSource).toContain("checked={editAllowCommunityMatch}");
+    expect(detailSource).toContain('disabled={editVisibility !== "PUBLIC" || isMutating');
+    expect(detailSource).toContain("setEditAllowPublicEdit(event.target.checked)");
+    expect(detailSource).toContain("setEditAllowCommunityMatch(event.target.checked)");
+    expect(detailSource).not.toContain('type="checkbox" disabled');
   });
 
-  it("does not submit reserved public permission fields from the settings panel", () => {
+  it("saves independent opt-ins together with visibility and clears them for private pools", () => {
     const updateStart = detailSource.indexOf("const updated = await updatePool");
     const updateEnd = detailSource.indexOf("});", updateStart);
     const updatePayload = detailSource.slice(updateStart, updateEnd);
 
     expect(updatePayload).toContain("visibility: editVisibility");
-    expect(updatePayload).not.toContain("allowPublicEdit");
-    expect(updatePayload).not.toContain("allowCommunityMatch");
+    expect(updatePayload).toContain('allowPublicEdit: editVisibility === "PUBLIC" && editAllowPublicEdit');
+    expect(updatePayload).toContain('allowCommunityMatch: editVisibility === "PUBLIC" && editAllowCommunityMatch');
   });
 
   it("updates the detail badge from the saved pool visibility", () => {
