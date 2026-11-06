@@ -193,6 +193,17 @@ describe("community ranking service", () => {
     expect(mockedScores.findMany).not.toHaveBeenCalled();
   });
 
+  it("denies public community ranking when its independent toggle is off", async () => {
+    mockedPool.findUnique.mockResolvedValueOnce(
+      poolFixture({ allowCommunityMatch: false }) as any
+    );
+    await expect(getCommunityRanking("pool-1")).rejects.toMatchObject({
+      statusCode: 404,
+      code: "COMMUNITY_RANKING_NOT_AVAILABLE"
+    });
+    expect(mockedPoolAnime.findMany).not.toHaveBeenCalled();
+  });
+
   it("returns 404 for missing pools", async () => {
     mockedPool.findUnique.mockResolvedValueOnce(null);
 
@@ -209,6 +220,7 @@ function poolFixture(overrides: Record<string, unknown> = {}) {
     visibility: Visibility.PUBLIC,
     status: PoolStatus.DRAFT,
     deletedAt: null,
+    allowCommunityMatch: true,
     ...overrides
   };
 }
