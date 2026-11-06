@@ -1534,7 +1534,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
               <label className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm text-slate-200">
                 <input
                   type="checkbox"
-                  checked={editAllowPublicEdit || !!pool.isOfficialDemo}
+                  checked={editVisibility === "PUBLIC" && (editAllowPublicEdit || !!pool.isOfficialDemo)}
                   onChange={(event) => setEditAllowPublicEdit(event.target.checked)}
                   disabled={editVisibility !== "PUBLIC" || isMutating || !!pool.isOfficialDemo}
                   className="h-4 w-4 accent-cyan-400"
