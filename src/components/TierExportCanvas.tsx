@@ -3,6 +3,7 @@ import React, { useMemo, useState } from "react";
 import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
 import { getAnimeDisplayTitle, getAnimeImageFitMode } from "@/lib/anime-display";
 import { proxyExternalImageUrl } from "@/lib/image-proxy";
+import { smartCoverUrl } from "@/lib/smart-cover-url";
 import type { TierListItem, TierRowConfig } from "@/lib/client-api";
 import { DEFAULT_TIER_CONFIG } from "@/lib/tier-config";
 
@@ -76,13 +77,19 @@ function TierExportItem({
   initiallyFailed: boolean;
 }) {
   const [imageFailed, setImageFailed] = useState(initiallyFailed);
+  const [useOriginal, setUseOriginal] = useState(false);
   const title = getAnimeDisplayTitle(item);
   const rawCoverUrl = getAnimeCoverUrl(item, { intent: "export" });
-  const coverUrl = useMemo(() => proxyExternalImageUrl(rawCoverUrl), [rawCoverUrl]);
-  const useContain = getAnimeImageFitMode(item) === "contain";
+  const smartUrl = smartCoverUrl(rawCoverUrl, item.source, "tier");
+  const originalUrl = useMemo(() => proxyExternalImageUrl(rawCoverUrl), [rawCoverUrl]);
+  const coverUrl = useOriginal ? originalUrl : proxyExternalImageUrl(smartUrl);
+  const useContain = getAnimeImageFitMode(item) === "contain" && (useOriginal || smartUrl === rawCoverUrl);
   const fallback = title.trim().slice(0, 1).toUpperCase() || "A";
 
-  React.useEffect(() => setImageFailed(initiallyFailed), [initiallyFailed, coverUrl]);
+  React.useEffect(() => {
+    setImageFailed(initiallyFailed);
+    setUseOriginal(false);
+  }, [initiallyFailed, rawCoverUrl]);
 
   return (
     <div className="tiermaker-export-item" aria-label={title}>
@@ -96,10 +103,11 @@ function TierExportItem({
           data-tier-export-image="true"
           data-anime-id={item.animeId}
           onError={() => {
-            console.warn("Tier export cover failed to load", {
-              animeId: item.animeId,
-              coverUrl
-            });
+            if (!useOriginal && smartUrl !== rawCoverUrl && originalUrl) {
+              setUseOriginal(true);
+              return;
+            }
+            console.warn("Tier export cover failed to load", { animeId: item.animeId, coverUrl });
             setImageFailed(true);
           }}
         />

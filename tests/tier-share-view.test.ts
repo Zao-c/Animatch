@@ -208,7 +208,8 @@ describe("TierShareView", () => {
 
     expect(html).toContain("未命名作品");
     expect(html).not.toContain("17750273769085f154");
-    expect(html).toContain('data-cover-fit="contain"');
+    expect(html).toContain('data-cover-fit="cover"');
+    expect(html).toContain("/api/cover-thumbnail?variant=tier");
     expect(html).not.toContain(">TIERMAKER_IMPORT<");
   });
 });

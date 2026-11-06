@@ -98,6 +98,7 @@ export function localUploadPublicPathToFilePath(publicPath: string): string | nu
     getCustomItemUploadDir(),
     publicPath.slice(CUSTOM_ITEM_UPLOAD_PUBLIC_PREFIX.length)
   );
+
 }
 
 export async function saveAnimeCoverUpload({
