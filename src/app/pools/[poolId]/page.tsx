@@ -17,6 +17,7 @@ import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
 import { TierShareCard } from "@/components/TierShareView";
 import { getAnimeCoverUrl, getAnimeSourceCoverCandidates } from "@/lib/anime-cover-url";
+import { smartCoverUrl } from "@/lib/smart-cover-url";
 import { getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
 import { isSuspiciousPoolAnimeTitle, matchesPoolAnimeSearch } from "@/lib/pool-anime-search";
 import { isSlowNetwork, prewarmCoverUrls } from "@/lib/cover-prewarm";
@@ -2709,12 +2710,12 @@ function PoolAnimeCard({
       aria-label={batchMode ? `${isBatchSelected ? "取消选择" : "选择"} ${title}` : undefined}
     >
       <AnimeCover
-        src={coverUrl}
-        secondarySrc={entry.anime.imageSmallUrl ?? entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl}
+        src={smartCoverUrl(coverUrl, entry.anime.source, "card")}
+        secondarySrc={coverUrl}
         fallbackSrcs={getAnimeSourceCoverCandidates(entry.anime)}
         title={title}
         size="md"
-        fit={coverFit}
+        fit={smartCoverUrl(coverUrl, entry.anime.source, "card") !== coverUrl ? "cover" : coverFit}
         className="h-48 w-full rounded-none border-0 sm:h-52"
       />
       {batchMode ? (
@@ -2891,12 +2892,12 @@ function PoolAnimeDisplayPanel({
     <AppCard className="p-5" variant="focus">
       <div className="flex gap-3">
         <AnimeCover
-          src={coverUrl}
-          secondarySrc={entry.anime.imageSmallUrl ?? entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl}
-        fallbackSrcs={getAnimeSourceCoverCandidates(entry.anime)}
+          src={smartCoverUrl(coverUrl, entry.anime.source, "card")}
+          secondarySrc={coverUrl}
+          fallbackSrcs={getAnimeSourceCoverCandidates(entry.anime)}
           title={title}
           size="sm"
-          fit={coverFit}
+          fit={smartCoverUrl(coverUrl, entry.anime.source, "card") !== coverUrl ? "cover" : coverFit}
           className="shrink-0 rounded-xl"
         />
         <div className="min-w-0 flex-1">
