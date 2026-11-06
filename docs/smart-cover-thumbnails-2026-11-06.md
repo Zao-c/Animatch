@@ -13,6 +13,7 @@ even when an immutable shared Tier snapshot still referenced their URLs.
 - Generate two derivatives on demand:
   - `variant=card`: 320×480 WebP for 2:3 artwork cards and the manual Tier board.
   - `variant=tier`: 256×256 WebP for Tier grids, public shares, and PNG exports.
+  - `variant=match`: 768×1152 WebP (quality 94) for fullscreen-height Match duel cards, preserving fine line art at desktop/HiDPI sizes.
 - For user-uploaded/TierMaker artwork and uploaded override URLs, sample alpha,
   suppress isolated transparent edges, trim visible bounds, choose a crop near
   the alpha-weighted visual center, then composite it over a blurred background.
