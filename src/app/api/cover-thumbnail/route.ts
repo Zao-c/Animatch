@@ -30,14 +30,17 @@ let activeTransforms = 0;
 async function withTransformSlot<T>(job: () => Promise<T>): Promise<T> {
   if (activeTransforms >= 2) {
     if (queue.length >= 250) throw new Error("Thumbnail queue is full");
+    // The previous worker transfers its occupied slot to this waiter.
     await new Promise<void>((resolve) => queue.push(resolve));
+  } else {
+    activeTransforms++;
   }
-  activeTransforms++;
   try {
     return await job();
   } finally {
-    activeTransforms--;
-    queue.shift()?.();
+    const next = queue.shift();
+    if (next) next();
+    else activeTransforms--;
   }
 }
 
