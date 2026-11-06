@@ -164,10 +164,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     const isPublicAndActive = body.visibility === Visibility.PUBLIC &&
       pool.status !== PoolStatus.ARCHIVED && pool.deletedAt === null;
     const allowPublicEdit = isPublicAndActive
-      ? (body.allowPublicEdit ?? pool.allowPublicEdit)
+      ? (typeof body.allowPublicEdit === "boolean" ? body.allowPublicEdit : pool.allowPublicEdit)
       : false;
     const allowCommunityMatch = isPublicAndActive
-      ? (body.allowCommunityMatch ?? pool.allowCommunityMatch)
+      ? (typeof body.allowCommunityMatch === "boolean" ? body.allowCommunityMatch : pool.allowCommunityMatch)
       : false;
 
     const updated = await prisma.customPool.update({
