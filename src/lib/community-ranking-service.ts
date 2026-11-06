@@ -273,6 +273,7 @@ export async function getCommunityRanking(poolId: string): Promise<CommunityRank
     select: {
       id: true,
       visibility: true,
+      allowCommunityMatch: true,
       status: true,
       deletedAt: true
     }
