@@ -118,11 +118,13 @@ export function TierShareView({
 export function TierShareCard({
   share,
   exportMode = false,
-  showItemTitles = false
+  showItemTitles = false,
+  exportImageFit = "crop"
 }: {
   share: PublicTierShare;
   exportMode?: boolean;
   showItemTitles?: boolean;
+  exportImageFit?: "crop" | "contain";
 }) {
   const creatorLabel = getShareCreatorLabel(share);
   const creatorUsername = getShareCreatorUsername(share);
@@ -198,6 +200,7 @@ export function TierShareCard({
                   item={item}
                   exportMode={exportMode}
                   showItemTitles={showItemTitles}
+                  exportImageFit={exportImageFit}
                 />
               ))
             )}
@@ -240,11 +243,13 @@ export function TierShareMissingView({ unavailable = false }: { unavailable?: bo
 function ShareItemCard({
   item,
   exportMode = false,
-  showItemTitles = false
+  showItemTitles = false,
+  exportImageFit = "crop"
 }: {
   item: TierShareSnapshotItem;
   exportMode?: boolean;
   showItemTitles?: boolean;
+  exportImageFit?: "crop" | "contain";
 }) {
   const title = getAnimeDisplayTitle(item);
   const coverFit = shouldUseContainCover(item) ? "contain" : "cover";
@@ -257,7 +262,6 @@ function ShareItemCard({
     <article className="w-28 rounded-xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_12px_36px_rgba(0,0,0,0.25)] sm:w-32">
       {exportMode ? (
         <div className="relative h-28 w-full overflow-hidden rounded-lg bg-slate-900 sm:h-32">
-          <span className="absolute inset-0 flex items-center justify-center p-2 text-center text-xs text-slate-300">{title}</span>
           {coverUrl ? (
             <img
               data-export-src={coverUrl}
@@ -266,9 +270,11 @@ function ShareItemCard({
               decoding="async"
               referrerPolicy="no-referrer"
               data-export-fallback-srcs={sourceCandidates.length > 0 ? JSON.stringify(sourceCandidates) : undefined}
-              className={`relative h-full w-full ${coverFit === "contain" ? "object-contain" : "object-cover"}`}
+              className={`relative h-full w-full ${exportImageFit === "contain" ? "object-contain" : "object-cover object-[center_30%]"}`}
             />
-          ) : null}
+          ) : (
+            <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center text-xs text-slate-500">无封面</span>
+          )}
         </div>
       ) : <AnimeCover
         src={coverUrl}
