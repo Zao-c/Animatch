@@ -1,11 +1,16 @@
 import crypto from "crypto";
+import { readFile, stat } from "fs/promises";
 import sharp from "sharp";
 import COS from "cos-nodejs-sdk-v5";
 import { prisma } from "../db";
+import {
+  isLocalUploadPublicPath,
+  localUploadPublicPathToFilePath
+} from "../anime-cover-upload";
 import { getDispatcher } from "./outbound-fetch";
 import { readLimitedBody } from "./read-limited-body";
 
-interface CacheableAnimeCover {
+export interface CacheableAnimeCover {
   id: string;
   bgmId: number | null;
   title?: string | null;
@@ -18,7 +23,7 @@ interface CacheableAnimeCover {
   cachedCoverSourceUrl?: string | null;
 }
 
-interface CoverCacheResult {
+export interface CoverCacheResult {
   url: string;
   key: string;
   width: number | null;
@@ -26,6 +31,11 @@ interface CoverCacheResult {
   bytes: number;
   format: string;
 }
+
+/** Where a cacheable cover comes from: a remote URL or a locally uploaded file. */
+export type CoverSource =
+  | { kind: "remote"; url: string }
+  | { kind: "local"; publicPath: string };
 
 interface CosCoverConfig {
   secretId: string;
@@ -73,9 +83,9 @@ export function cacheAnimeCoverToCosBackground(
 ): CosCoverBackgroundQueueResult {
   if (!anime) return "no-source";
   if (!getCosCoverConfig()) return "unconfigured";
-  const sourceUrl = pickSourceCoverUrl(anime);
-  if (!sourceUrl) return "no-source";
-  if (hasFreshCachedCover(anime, sourceUrl)) return "fresh";
+  const source = pickCoverSource(anime);
+  if (!source) return "no-source";
+  if (hasFreshCachedCover(anime, coverSourceKey(source))) return "fresh";
   if ((retryAfterByAnimeId.get(anime.id) ?? 0) > Date.now()) return "duplicate";
 
   const state = getBackgroundState();
@@ -118,11 +128,12 @@ export async function cacheAnimeCoverToCos(
   const config = getCosCoverConfig();
   if (!config) return null;
 
-  const sourceUrl = pickSourceCoverUrl(anime);
-  if (!sourceUrl) return null;
-  if (!options.force && hasFreshCachedCover(anime, sourceUrl)) return null;
+  const source = pickCoverSource(anime);
+  if (!source) return null;
+  const sourceKey = coverSourceKey(source);
+  if (!options.force && hasFreshCachedCover(anime, sourceKey)) return null;
 
-  const downloaded = await downloadImage(sourceUrl);
+  const downloaded = await loadSourceImage(source);
   const processed = await sharp(downloaded)
     .rotate()
     .resize({
@@ -135,7 +146,7 @@ export async function cacheAnimeCoverToCos(
     .toBuffer({ resolveWithObject: true });
 
   const contentHash = crypto.createHash("sha256").update(processed.data).digest("hex");
-  const key = buildCoverKey(config.prefix, anime, sourceUrl, contentHash);
+  const key = buildCoverKey(config.prefix, anime, sourceKey, contentHash);
   await putCosObject(config, key, processed.data, "image/webp");
 
   const url = buildPublicUrl(config, key);
@@ -144,7 +155,7 @@ export async function cacheAnimeCoverToCos(
     data: {
       cachedCoverUrl: url,
       cachedCoverKey: key,
-      cachedCoverSourceUrl: sourceUrl,
+      cachedCoverSourceUrl: sourceKey,
       cachedCoverContentHash: contentHash,
       cachedCoverWidth: processed.info.width ?? null,
       cachedCoverHeight: processed.info.height ?? null,
@@ -241,7 +252,13 @@ function getCosCoverConfig(): CosCoverConfig | null {
   };
 }
 
-function pickSourceCoverUrl(anime: CacheableAnimeCover): string | null {
+/**
+ * Resolves the first cacheable cover source, in the same field priority the
+ * display layer uses. Local uploads (custom items, anime cover uploads) are
+ * cacheable too, so user-uploaded art also lands on COS instead of staying on
+ * the application disk.
+ */
+export function pickCoverSource(anime: CacheableAnimeCover): CoverSource | null {
   const candidates = [
     anime.imageLargeUrl,
     anime.imageMediumUrl,
@@ -251,17 +268,47 @@ function pickSourceCoverUrl(anime: CacheableAnimeCover): string | null {
   ];
 
   for (const candidate of candidates) {
-    const url = candidate?.trim();
-    if (url && /^https?:\/\//i.test(url) && !isCosObjectUrl(url)) {
-      return url;
+    const value = candidate?.trim();
+    if (!value) continue;
+    if (isLocalUploadPublicPath(value)) {
+      return { kind: "local", publicPath: value };
+    }
+    if (/^https?:\/\//i.test(value) && !isCosObjectUrl(value)) {
+      return { kind: "remote", url: value };
     }
   }
 
   return null;
 }
 
-function hasFreshCachedCover(anime: CacheableAnimeCover, sourceUrl: string): boolean {
-  return Boolean(anime.cachedCoverUrl && anime.cachedCoverSourceUrl === sourceUrl);
+/** Stable identifier stored in cachedCoverSourceUrl to detect stale covers. */
+export function coverSourceKey(source: CoverSource): string {
+  return source.kind === "remote" ? source.url : source.publicPath;
+}
+
+function hasFreshCachedCover(anime: CacheableAnimeCover, sourceKey: string): boolean {
+  return Boolean(anime.cachedCoverUrl && anime.cachedCoverSourceUrl === sourceKey);
+}
+
+async function loadSourceImage(source: CoverSource): Promise<Buffer> {
+  if (source.kind === "remote") {
+    return downloadImage(source.url);
+  }
+
+  const filePath = localUploadPublicPathToFilePath(source.publicPath);
+  if (filePath === null) {
+    throw new Error("local upload path is invalid");
+  }
+
+  const fileStat = await stat(filePath).catch(() => null);
+  if (fileStat === null) {
+    throw new Error("local upload is missing");
+  }
+  if (fileStat.size > MAX_SOURCE_BYTES) {
+    throw new Error("source image is too large");
+  }
+
+  return readFile(filePath);
 }
 
 async function downloadImage(url: string): Promise<Buffer> {

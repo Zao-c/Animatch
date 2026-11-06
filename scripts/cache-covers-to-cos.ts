@@ -1,5 +1,11 @@
+import { AnimeSourceType } from "@prisma/client";
 import { prisma } from "../src/lib/db";
-import { cacheAnimeCoverToCos, isCosCoverCacheConfigured } from "../src/lib/server/cos-cover-cache";
+import {
+  cacheAnimeCoverToCos,
+  coverSourceKey,
+  isCosCoverCacheConfigured,
+  pickCoverSource
+} from "../src/lib/server/cos-cover-cache";
 
 interface Args {
   poolId?: string;
@@ -8,6 +14,7 @@ interface Args {
   force: boolean;
   allLibrary: boolean;
   dryRun: boolean;
+  source?: string;
 }
 
 interface CacheCandidate {
@@ -37,7 +44,8 @@ function parseArgs(): Args {
     concurrency: 2,
     force: false,
     allLibrary: false,
-    dryRun: false
+    dryRun: false,
+    source: undefined
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -54,6 +62,8 @@ function parseArgs(): Args {
       result.allLibrary = true;
     } else if (arg === "--dry-run") {
       result.dryRun = true;
+    } else if (arg === "--source" && args[index + 1]) {
+      result.source = args[++index].trim().toUpperCase();
     }
   }
 
@@ -90,17 +100,30 @@ async function main() {
         }
       };
 
-  const where = args.allLibrary ? {} : activePoolFilter;
-
-  const usedWhere = args.poolId ? activePoolFilter : {
-    poolEntries: {
-      some: {
-        pool: {
-          deletedAt: null,
-          status: { not: "ARCHIVED" as const }
-        }
-      }
+  const sourceFilter: { source?: AnimeSourceType } = {};
+  if (args.source) {
+    if (!(args.source in AnimeSourceType)) {
+      throw new Error(`Unknown --source ${args.source}. Allowed: ${Object.keys(AnimeSourceType).join(", ")}`);
     }
+    sourceFilter.source = AnimeSourceType[args.source as keyof typeof AnimeSourceType];
+  }
+
+  const where = { ...(args.allLibrary ? {} : activePoolFilter), ...sourceFilter };
+
+  const usedWhere = {
+    ...(args.poolId
+      ? activePoolFilter
+      : {
+          poolEntries: {
+            some: {
+              pool: {
+                deletedAt: null,
+                status: { not: "ARCHIVED" as const }
+              }
+            }
+          }
+        }),
+    ...sourceFilter
   };
   const [usedAnimeCount, usedCachedAnimeCount, usedAnimesForStats] = await Promise.all([
     prisma.anime.count({ where: usedWhere }),
@@ -122,6 +145,7 @@ async function main() {
   console.log(JSON.stringify({
     scope: args.allLibrary ? "all-library" : args.poolId ? "pool" : "active-pool-anime",
     poolId: args.poolId ?? null,
+    source: args.source ?? null,
     usedAnimeCount,
     usedCachedAnimeCount,
     usedPendingAnimeCount,
@@ -197,7 +221,8 @@ function animeSelect() {
 }
 
 function getCacheState(anime: CacheCandidate): CacheState {
-  const sourceUrl = pickSourceCoverUrl(anime);
+  const source = pickCoverSource(anime);
+  const sourceUrl = source === null ? null : coverSourceKey(source);
   if (!sourceUrl) {
     return {
       sourceUrl: null,
@@ -228,34 +253,6 @@ function getCacheState(anime: CacheCandidate): CacheState {
     stale: false,
     reason: "fresh"
   };
-}
-
-function pickSourceCoverUrl(anime: CacheCandidate): string | null {
-  const candidates = [
-    anime.imageLargeUrl,
-    anime.imageMediumUrl,
-    anime.imageUrl,
-    anime.imageSmallUrl,
-    anime.thumbnailUrl
-  ];
-
-  for (const candidate of candidates) {
-    const url = candidate?.trim();
-    if (url && /^https?:\/\//i.test(url) && !isCosObjectUrl(url)) {
-      return url;
-    }
-  }
-
-  return null;
-}
-
-function isCosObjectUrl(url: string): boolean {
-  try {
-    const hostname = new URL(url).hostname.toLowerCase();
-    return /\.cos\.[a-z0-9-]+\.myqcloud\.com$/i.test(hostname) || hostname.endsWith(".file.myqcloud.com");
-  } catch {
-    return false;
-  }
 }
 
 main()

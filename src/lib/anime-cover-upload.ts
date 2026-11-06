@@ -79,6 +79,27 @@ export function localAnimeCoverPublicPathToFilePath(publicPath: string) {
   return path.join(getAnimeCoverUploadDir(), fileName);
 }
 
+export function isLocalUploadPublicPath(value: string | null | undefined): value is string {
+  return isLocalAnimeCoverPath(value) || isLocalCustomItemPath(value);
+}
+
+/** Maps either upload public prefix to the file on disk. */
+export function localUploadPublicPathToFilePath(publicPath: string): string | null {
+  const animeCoverPath = localAnimeCoverPublicPathToFilePath(publicPath);
+  if (animeCoverPath !== null) {
+    return animeCoverPath;
+  }
+
+  if (!isLocalCustomItemPath(publicPath)) {
+    return null;
+  }
+
+  return path.join(
+    getCustomItemUploadDir(),
+    publicPath.slice(CUSTOM_ITEM_UPLOAD_PUBLIC_PREFIX.length)
+  );
+}
+
 export async function saveAnimeCoverUpload({
   file,
   poolId,

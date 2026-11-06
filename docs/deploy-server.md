@@ -109,6 +109,16 @@ configuration is live:
 docker compose --env-file .env.production -f docker-compose.prod.yml exec app pnpm covers:cache-cos
 ```
 
+User-uploaded custom item art (`/uploads/custom-items/...`) is mirrored to the
+same COS prefix, so tier lists built from uploaded images are CDN-served too.
+The local file is kept on disk and stays the ultimate fallback. To backfill only
+uploaded items, filter by source:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml exec app \
+  pnpm covers:cache-cos --source CUSTOM_UPLOAD --limit 400 --concurrency 3
+```
+
 Run the command again until its first JSON summary reports
 `usedPendingAnimeCount: 0` and `usedStaleAnimeCount: 0`. If it reports upload
 failures or a full queue, keep serving the existing fallback URLs and inspect
