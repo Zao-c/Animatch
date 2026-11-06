@@ -5,6 +5,7 @@ import { AnimeCover } from "./AnimeCover";
 import { AppBadge } from "./ui/AppBadge";
 import { getAnimeCoverUrl, getAnimeSourceCoverCandidates } from "@/lib/anime-cover-url";
 import { getAnimeDisplayTitle, getAnimeImageFitMode } from "@/lib/anime-display";
+import { smartCoverUrl } from "@/lib/smart-cover-url";
 import { getAniScore } from "@/lib/ranking-display";
 import type { RankingScoreDistribution, TierListItem } from "@/lib/client-api";
 
@@ -50,8 +51,9 @@ export function TierAnimeCard({
 }) {
   const title = getAnimeDisplayTitle(item);
   const coverUrl = getAnimeCoverUrl(item, { intent: "display" });
-  const secondaryUrl = getAnimeSourceCoverCandidates(item).find((url) => url !== coverUrl);
-  const coverFit = getAnimeImageFitMode(item);
+  const smartUrl = smartCoverUrl(coverUrl, item.source, "card");
+  const secondaryUrl = smartUrl !== coverUrl ? coverUrl : getAnimeSourceCoverCandidates(item).find((url) => url !== coverUrl);
+  const coverFit = smartUrl !== coverUrl ? "cover" : getAnimeImageFitMode(item);
   const aniScore = getAniScore(item.eloScore, scoreDistribution);
   const [controlsOpen, setControlsOpen] = useState(false);
   const adjustButtonRef = useRef<HTMLButtonElement>(null);
@@ -80,9 +82,9 @@ export function TierAnimeCard({
       } ${className}`}
     >
       <AnimeCover
-        src={coverUrl}
+        src={smartUrl}
         secondarySrc={secondaryUrl}
-        fallbackSrcs={getAnimeSourceCoverCandidates(item)}
+        fallbackSrcs={[coverUrl, ...getAnimeSourceCoverCandidates(item)].filter((url): url is string => !!url)}
         title={title}
         size="md"
         fit={coverFit}
