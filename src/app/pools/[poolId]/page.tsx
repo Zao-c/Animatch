@@ -167,6 +167,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [editDescription, setEditDescription] = useState("");
   const [editVisibility, setEditVisibility] = useState<PoolVisibilityValue>("PRIVATE");
   const [editTags, setEditTags] = useState("");
+  const [editAllowPublicEdit, setEditAllowPublicEdit] = useState(false);
+  const [editAllowCommunityMatch, setEditAllowCommunityMatch] = useState(false);
   const [editingDisplayAnimeId, setEditingDisplayAnimeId] = useState<string | null>(null);
   const [displayForm, setDisplayForm] = useState<DisplayOverrideForm>({
     displayTitleOverride: "",
@@ -283,6 +285,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     setEditDescription(data.description ?? "");
     setEditVisibility(data.visibility);
     setEditTags(data.tags.join(", "));
+    setEditAllowPublicEdit(data.allowPublicEdit ?? false);
+    setEditAllowCommunityMatch(data.allowCommunityMatch ?? false);
   }, [params.poolId]);
 
   const closeInspector = useCallback(() => {
@@ -449,9 +453,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   useEffect(() => {
     if (
       pool === null ||
-      pool.visibility !== "PUBLIC" ||
-      pool.status === "ARCHIVED" ||
-      pool.deletedAt !== null
+      !isCommunityBattleVisiblePool(pool)
     ) {
       setCommunityRanking(null);
       setCommunityRankingError(null);
@@ -584,6 +586,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     setEditDescription(pool.description ?? "");
     setEditVisibility(pool.visibility);
     setEditTags(pool.tags.join(", "));
+    setEditAllowPublicEdit(pool.allowPublicEdit ?? false);
+    setEditAllowCommunityMatch(pool.allowCommunityMatch ?? false);
   }
 
   async function handleSavePool(event: FormEvent<HTMLFormElement>) {
@@ -606,9 +610,13 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           .split(",")
           .map((tag) => tag.trim())
           .filter(Boolean),
+        allowPublicEdit: editVisibility === "PUBLIC" && editAllowPublicEdit,
+        allowCommunityMatch: editVisibility === "PUBLIC" && editAllowCommunityMatch
       });
       setPool((current) => (current === null ? current : { ...current, ...updated }));
-      setNotice("番组信息已保存");
+      setEditAllowPublicEdit(updated.allowPublicEdit ?? false);
+      setEditAllowCommunityMatch(updated.allowCommunityMatch ?? false);
+      setNotice("番组信息与公开协作设置已保存");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "保存失败");
     } finally {
@@ -1145,7 +1153,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const canPromptLoginToMatch =
     pool.anime.length >= 2 && !isArchived && !canPlayPool && (permissions?.canRead ?? false);
   const canShowCommunityRanking =
-    pool.visibility === "PUBLIC" && !isArchived && !communityRankingUnavailable;
+    isCommunityBattleVisiblePool(pool) && !communityRankingUnavailable;
   const joinedAnimeIds = new Set(pool.anime.map((entry) => entry.animeId));
   const joinedBangumiIds = new Set(
     pool.anime
@@ -1416,8 +1424,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
               <h2 className="text-lg font-semibold text-white">番组设置</h2>
               <p className="mt-1 text-sm text-slate-400">
                 {pool.isOfficialDemo
-                  ? "管理基本信息、可见性和归档状态。编辑和导入开放给所有登录用户，基础设置和归档仍只有创建者可以操作。"
-                  : "管理基本信息、可见性和归档状态。编辑、导入和归档仍只有创建者可以操作。"}
+                  ? "管理基本信息、可见性和归档状态。体验番组开放内容协作；只有创建者可更改设置和归档。"
+                  : "管理基本信息、可见性和协作权限。默认只有创建者能维护内容；只有创建者可更改设置和归档。"}
               </p>
             </div>
           </div>
@@ -1464,7 +1472,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 <div>
                   <h3 className="text-sm font-semibold text-white">可见性</h3>
                   <p className="mt-1 text-xs leading-5 text-slate-500">
-                    可见性只影响谁能浏览和开始个人对决，不开放编辑权限。
+                    可见性控制谁能浏览和开始个人对决。只有公开番组才能另行开启协作与公共榜单。
                   </p>
                 </div>
                 <div>
@@ -1474,9 +1482,14 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                   <select
                     id="pool-visibility"
                     value={editVisibility}
-                    onChange={(event) =>
-                      setEditVisibility(event.target.value as PoolVisibilityValue)
-                    }
+                    onChange={(event) => {
+                      const next = event.target.value as PoolVisibilityValue;
+                      setEditVisibility(next);
+                      if (next !== "PUBLIC") {
+                        setEditAllowPublicEdit(false);
+                        setEditAllowCommunityMatch(false);
+                      }
+                    }}
                     className="anime-field mt-2"
                   >
                     {POOL_VISIBILITY_OPTIONS.map((option) => (
@@ -1505,7 +1518,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
               <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                 <p className="text-xs font-semibold text-slate-300">公开说明文案</p>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                  公开番组会出现在公开番组页，登录后任何人都可以开始自己的个人对决。管理操作仍只有创建者可以使用。
+                  公开番组可供大家浏览和个人对决。是否允许其他人修改内容、是否展示公共榜单由下面两个独立开关决定；只有创建者能修改番组设置。
                 </p>
               </div>
             </section>
@@ -1514,17 +1527,39 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
               <div>
                 <h3 className="text-sm font-semibold text-white">公开协作设置</h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                  体验番组会作为开放样板池，允许所有登录用户协作编辑。普通公开番组的协作开关暂未开放。
+                  默认全部关闭。只有公开番组可以开启；关闭公开后，两项权限会自动清除。
+                  开启协作后，其他登录用户能添加、修改和移除作品，但不能更改番组设置或归档番组。
                 </p>
               </div>
-              <label className="flex items-center gap-3 rounded-lg border-white/10 bg-white/[0.03] p-3 text-sm text-slate-500">
-                <input type="checkbox" disabled className="h-4 w-4 accent-cyan-400" />
-                允许其他人添加动画
+              <label className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm text-slate-200">
+                <input
+                  type="checkbox"
+                  checked={editAllowPublicEdit || !!pool.isOfficialDemo}
+                  onChange={(event) => setEditAllowPublicEdit(event.target.checked)}
+                  disabled={editVisibility !== "PUBLIC" || isMutating || !!pool.isOfficialDemo}
+                  className="h-4 w-4 accent-cyan-400"
+                />
+                <span>
+                  <span className="block font-semibold">允许其他人添加或修改动画</span>
+                  <span className="block text-xs text-slate-400">只开放作品墙内容维护，不开放番组管理权限。</span>
+                </span>
               </label>
-              <label className="flex items-center gap-3 rounded-lg border-white/10 bg-white/[0.03] p-3 text-sm text-slate-500">
-                <input type="checkbox" disabled className="h-4 w-4 accent-cyan-400" />
-                启用大乱斗公共榜单
+              <label className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm text-slate-200">
+                <input
+                  type="checkbox"
+                  checked={editAllowCommunityMatch}
+                  onChange={(event) => setEditAllowCommunityMatch(event.target.checked)}
+                  disabled={editVisibility !== "PUBLIC" || isMutating}
+                  className="h-4 w-4 accent-cyan-400"
+                />
+                <span>
+                  <span className="block font-semibold">启用大乱斗公共榜单</span>
+                  <span className="block text-xs text-slate-400">汇总登录用户个人对决结果，独立于协作编辑权限。</span>
+                </span>
               </label>
+              {editVisibility !== "PUBLIC" ? (
+                <p className="text-xs text-amber-200">请先将可见性设为「公开」，才能勾选这两项。</p>
+              ) : null}
             </section>
 
             {canManagePool && !isArchived ? (
