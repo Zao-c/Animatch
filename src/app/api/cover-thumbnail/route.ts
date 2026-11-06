@@ -42,7 +42,8 @@ async function withTransformSlot<T>(job: () => Promise<T>): Promise<T> {
 }
 
 function imageResponse(buffer: Buffer) {
-  return new NextResponse(new Uint8Array(buffer), {
+  const body = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+  return new NextResponse(body, {
     headers: {
       "Content-Type": "image/webp",
       "Cache-Control": CACHE_CONTROL,
