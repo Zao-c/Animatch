@@ -298,9 +298,9 @@ function PoolsPageContent() {
         </div>
         <div role="status" className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
           {isLoading ? "正在加载番组…" : <>
-          <span className="font-black text-white">{String(pools.length)}</span> 个番组
+          <span className="font-semibold text-slate-200">{String(pools.length)}</span> 个番组
           <span className="text-slate-500">·</span>
-          <span className="font-black text-emerald-200">{String(playableCount)}</span> 可对决
+          <span className="font-semibold text-slate-200">{String(playableCount)}</span> 可对决
           <span className="text-slate-500">·</span>
           <span className="text-slate-400">筛选 {FILTERS.find((item) => item.value === filter)?.label ?? "全部"}</span>
           </>}
@@ -365,7 +365,7 @@ function PoolsPageContent() {
           <p className="min-w-0 flex-1 break-words text-xs text-slate-300">
             {hasSearch ? `关键词：${appliedQuery}` : ""}{hasSearch && filter !== "ALL" ? " · " : ""}{filter !== "ALL" ? `状态：${FILTERS.find((item) => item.value === filter)?.label}` : ""}
           </p>
-          <AppButton type="button" variant="quiet" size="sm" onClick={resetFilters}>清除筛选</AppButton>
+          <AppButton type="button" variant="quiet" size="md" className="px-3 text-xs" onClick={resetFilters}>清除筛选</AppButton>
         </div> : null}
       </div>
 
@@ -535,6 +535,7 @@ function PoolCard({
   const canPlay = pool.permissions?.canPlay ?? canManage;
   const canMatch = !isArchived && animeCount >= 2 && canPlay;
   const canPromptLoginToMatch = !isArchived && animeCount >= 2 && !canPlay;
+  const hasOngoingMatch = canMatch && hasPersonalProgress && comparisonCount > 0;
   const canViewTier = pool.defaultRunId != null || !isArchived;
   const officialDemoLabel = formatOfficialDemo(pool.isOfficialDemo);
 
@@ -617,17 +618,15 @@ function PoolCard({
               ) : null}
             </div>
           ) : null}
-          <p className="mt-3 line-clamp-2 min-h-10 text-sm leading-5 text-slate-400">
-            {pool.description ?? "暂无描述"}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
+          {pool.description?.trim() ? (
+            <p className="mt-3 line-clamp-2 text-sm leading-5 text-slate-400">
+              {pool.description}
+            </p>
+          ) : null}
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-400">
             {!isPublicView ? <AppBadge tone={toneForStatus(uiStatus)}>{statusLabel}</AppBadge> : null}
-            {animeCount > 0 ? (
-              <AppBadge tone="muted">{animeCount} 部动画</AppBadge>
-            ) : null}
-            {!isPublicView && comparisonCount > 0 ? (
-              <AppBadge tone="muted">{comparisonLabel}</AppBadge>
-            ) : null}
+            {animeCount > 0 ? <span>{animeCount} 部动画</span> : null}
+            {!isPublicView && comparisonCount > 0 ? <span>{comparisonLabel}</span> : null}
             {!isPublicView && isArchived ? <AppBadge tone="danger">已归档</AppBadge> : null}
           </div>
           {isPublicView && pool.visibility === "PUBLIC" && pool.communitySummary ? (
@@ -669,37 +668,51 @@ function PoolCard({
             </div>
           ) : null}
 
-          <div className="mt-auto pt-4">
-            <div className={`grid gap-2 ${canMatch || canPromptLoginToMatch ? "grid-cols-2" : "grid-cols-1"}`}>
-              <Link href={`/pools/${pool.id}`} className={appButtonClasses({ variant: canMatch || canPromptLoginToMatch ? "ghost" : "primary", size: "md", className: "w-full min-w-0 px-2" })}>
+          <div className="mt-auto flex items-center gap-2 pt-4">
+            {canMatch || canPromptLoginToMatch ? (
+              <>
+                <AppButton
+                  onClick={() =>
+                    canPromptLoginToMatch
+                      ? window.location.assign(`/login?next=${encodeURIComponent(`/pools/${pool.id}`)}`)
+                      : onOpenRun(pool, "match")
+                  }
+                  disabled={isMutating}
+                  variant={hasOngoingMatch ? "primary" : "ghost"}
+                  size="md"
+                  className={`min-w-0 flex-1 px-3 ${hasOngoingMatch ? "" : "border-anime-cyan/30 text-cyan-100 hover:border-anime-cyan/50"}`}
+                >
+                  {isOpening ? "正在进入…" : isPublicView && pool.visibility === "PUBLIC"
+                    ? canPromptLoginToMatch
+                      ? "登录后对决"
+                      : "个人自由对决"
+                    : uiStatus === "READY"
+                      ? "开始对决"
+                      : "继续对决"}
+                </AppButton>
+                <Link
+                  href={`/pools/${pool.id}`}
+                  aria-label={`查看${pool.name}详情`}
+                  className={appButtonClasses({ variant: "quiet", size: "md", className: "shrink-0 px-3 text-xs" })}
+                >
+                  详情
+                </Link>
+              </>
+            ) : (
+              <Link
+                href={`/pools/${pool.id}`}
+                className={appButtonClasses({ variant: "ghost", size: "md", className: "w-full" })}
+              >
                 番组详情
               </Link>
-            {canMatch || canPromptLoginToMatch ? (
-              <AppButton
-                onClick={() =>
-                  canPromptLoginToMatch
-                    ? window.location.assign(`/login?next=${encodeURIComponent(`/pools/${pool.id}`)}`)
-                    : onOpenRun(pool, "match")
-                }
-                disabled={isMutating}
-                variant="primary"
-                size="md"
-                className="w-full min-w-0 px-2"
-              >
-                {isOpening ? "正在进入…" : isPublicView && pool.visibility === "PUBLIC"
-                  ? canPromptLoginToMatch
-                    ? "登录后对决"
-                    : "个人自由对决"
-                  : uiStatus === "READY"
-                    ? "开始对决"
-                    : "继续对决"}
-              </AppButton>
-            ) : null}
-            </div>
+            )}
           </div>
-          <details className="mt-3 rounded-xl border border-white/10 bg-slate-950/24 px-3 py-2">
-            <summary className="min-h-11 cursor-pointer select-none py-3 text-sm font-semibold text-slate-300">
+          <details className="mt-3 border-t border-white/10 pt-1">
+            <summary className="flex min-h-11 cursor-pointer select-none items-center justify-between rounded-lg px-2 text-sm text-slate-400 transition-colors hover:bg-white/[0.04] hover:text-slate-200">
               更多操作
+              <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
+                <path d="m4 6 4 4 4-4" />
+              </svg>
             </summary>
             <p className="mt-2 text-xs leading-5 text-slate-500">
               更新于 {formatDateTimeStable(pool.updatedAt)}
@@ -724,25 +737,25 @@ function PoolCard({
                 onClick={() => onOpenRun(pool, "tier")}
                 disabled={isMutating || !canViewTier}
                 variant="ghost"
-                size="sm"
+                size="md"
               >
                 查看 Tier
               </AppButton>
               {canManage ? (
                 <>
-                  <AppButton onClick={onBeginEdit} disabled={isMutating} variant="quiet" size="sm">
+                  <AppButton onClick={onBeginEdit} disabled={isMutating} variant="quiet" size="md">
                     番组设置
                   </AppButton>
                   {isArchived ? (
-                    <AppButton onClick={onRestore} disabled={isMutating} variant="secondary" size="sm">
+                    <AppButton onClick={onRestore} disabled={isMutating} variant="secondary" size="md">
                       恢复番组
                     </AppButton>
                   ) : (
-                    <AppButton onClick={onArchive} disabled={isMutating} variant="danger" size="sm">
+                    <AppButton onClick={onArchive} disabled={isMutating} variant="danger" size="md">
                       归档番组
                     </AppButton>
                   )}
-                  <AppButton onClick={onCopyPoolId} disabled={isMutating} variant="quiet" size="sm">
+                  <AppButton onClick={onCopyPoolId} disabled={isMutating} variant="quiet" size="md">
                     复制番组 ID
                   </AppButton>
                 </>
