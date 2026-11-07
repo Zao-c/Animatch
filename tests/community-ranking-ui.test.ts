@@ -23,9 +23,9 @@ describe("community ranking UI wiring", () => {
     expect(html).not.toContain("测试环境");
   });
 
-  it("shows the community ranking entry only for active public pool detail", () => {
+  it("shows the community ranking entry only for active opted-in public pool detail", () => {
     expect(detailSource).toContain("const canShowCommunityRanking");
-    expect(detailSource).toContain('pool.visibility === "PUBLIC"');
+    expect(detailSource).toContain("isCommunityBattleVisiblePool(pool)");
     expect(detailSource).toContain('pool.status === "ARCHIVED"');
     expect(detailSource).toContain("pool.deletedAt !== null");
     expect(detailSource).toContain("communityRankingUnavailable");
@@ -39,7 +39,7 @@ describe("community ranking UI wiring", () => {
     const expressionEnd = detailSource.indexOf("const joinedAnimeIds", expressionStart);
     const expression = detailSource.slice(expressionStart, expressionEnd);
 
-    expect(expression).toContain('pool.visibility === "PUBLIC"');
+    expect(expression).toContain("isCommunityBattleVisiblePool(pool)");
     expect(expression).not.toContain("canPlayPool");
     expect(expression).not.toContain("canManagePool");
   });

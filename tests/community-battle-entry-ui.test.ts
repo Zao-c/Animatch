@@ -18,6 +18,7 @@ describe("community battle entry UI wiring", () => {
     expect(
       isCommunityBattleVisiblePool({
         visibility: "PUBLIC",
+        allowCommunityMatch: true,
         status: "DRAFT",
         deletedAt: null
       })
@@ -25,10 +26,23 @@ describe("community battle entry UI wiring", () => {
     expect(
       isCommunityBattleVisiblePool({
         visibility: "PUBLIC",
+        allowCommunityMatch: true,
         status: "ACTIVE",
         deletedAt: null
       })
     ).toBe(true);
+  });
+
+  it("does not expose public community battle unless the owner opts in", () => {
+    expect(isCommunityBattleVisiblePool({
+      visibility: "PUBLIC", status: "DRAFT", deletedAt: null
+    })).toBe(false);
+    expect(isCommunityBattleVisiblePool({
+      visibility: "PUBLIC", allowCommunityMatch: false, status: "DRAFT", deletedAt: null
+    })).toBe(false);
+    expect(isCommunityBattleVisiblePool({
+      visibility: "PUBLIC", allowCommunityMatch: true, status: "DRAFT", deletedAt: null
+    })).toBe(true);
   });
 
   it("hides private, unlisted, archived, and deleted community battle pools", () => {
@@ -49,6 +63,7 @@ describe("community battle entry UI wiring", () => {
     expect(
       isCommunityBattleVisiblePool({
         visibility: "PUBLIC",
+        allowCommunityMatch: true,
         status: "ARCHIVED",
         deletedAt: null
       })
@@ -56,6 +71,7 @@ describe("community battle entry UI wiring", () => {
     expect(
       isCommunityBattleVisiblePool({
         visibility: "PUBLIC",
+        allowCommunityMatch: true,
         status: "DRAFT",
         deletedAt: "2026-06-16T00:00:00.000Z"
       })
@@ -79,6 +95,7 @@ describe("community battle entry UI wiring", () => {
 
   it("hides the community battle entry for non-public, archived, and deleted pools", () => {
     expect(helperSource).toContain('pool.visibility === "PUBLIC"');
+    expect(helperSource).toContain("pool.allowCommunityMatch === true");
     expect(helperSource).toContain('pool.status !== "ARCHIVED"');
     expect(helperSource).toContain("pool.deletedAt == null");
     expect(helperSource).not.toContain('pool.status === "ACTIVE"');
@@ -103,7 +120,7 @@ describe("community battle entry UI wiring", () => {
     expect(expression).not.toContain("canManagePool");
     expect(detailSource).toContain("更多番组操作");
     expect(detailSource).toContain("{canManagePool ? (");
-    expect(detailSource).toContain("编辑、导入和归档仍只有创建者可以操作");
+    expect(detailSource).toContain("只有创建者可更改设置和归档");
   });
 
   it("keeps previous personal run actions and community ranking entry available", () => {

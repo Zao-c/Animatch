@@ -173,7 +173,7 @@ export async function GET(request: Request) {
       .sort((left, right) => comparePoolSummary(left, right, sort));
 
     const publicPoolIds = items
-      .filter((pool) => pool.visibility === "PUBLIC")
+      .filter((pool) => pool.visibility === "PUBLIC" && pool.allowCommunityMatch === true)
       .map((pool) => pool.id);
 
     if (publicPoolIds.length > 0) {
