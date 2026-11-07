@@ -25,7 +25,7 @@ export default async function TierListsPage({ searchParams }: { searchParams: { 
     ]);
     return <PageShell><div className="mx-auto w-full max-w-6xl space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-black text-white">我的榜单</h1>
+        <h1 className="text-3xl font-semibold tracking-tight text-white">我的榜单</h1>
         <Link href="/tierlists" className={appButtonClasses({ variant: "secondary" })}>制作新榜单</Link>
       </header>
       <div className="grid gap-6 lg:grid-cols-2">
@@ -68,12 +68,38 @@ export default async function TierListsPage({ searchParams }: { searchParams: { 
   const totalPages = Math.max(1, Math.ceil(count / 12));
   if (page > totalPages) redirect(`/tierlists?q=${encodeURIComponent(q)}&page=${totalPages}`);
   return <PageShell><div className="space-y-6">
-    <header className="flex flex-wrap items-start justify-between gap-4"><h1 className="text-3xl font-black">自由排榜</h1>
+    <header className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-semibold tracking-tight">自由排榜</h1>
       <Link href="/pools/new" className={appButtonClasses({ variant: "secondary" })}>创建番组</Link></header>
     {!user && <p className="rounded-xl border border-cyan-300/20 bg-cyan-300/5 p-4 text-sm">登录后可保存榜单。</p>}
-    {drafts.length > 0 && <section><h2 className="mb-3 text-lg font-bold">继续我的榜单</h2><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{drafts.map((draft) => <Link key={draft.poolId} href={`/pools/${draft.poolId}/tier-maker`} className="rounded-2xl border border-cyan-300/25 bg-slate-950/40 p-4 transition hover:border-cyan-300 focus-visible:outline focus-visible:outline-cyan-300"><h3 className="truncate font-bold">{draft.title}</h3><p className="mt-2 text-xs text-slate-400">{draft.shareToken ? "已分享" : "私人草稿"}</p></Link>)}</div></section>}
-    <section><div className="mb-3 flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">番组</h2><form action="/tierlists" className="flex max-w-full gap-2"><label className="sr-only" htmlFor="tier-pool-search">搜索番组</label><input id="tier-pool-search" name="q" defaultValue={q} placeholder="搜索番组" className="anime-field min-w-0" /><button type="submit" className={appButtonClasses({ variant: "secondary" })}>搜索</button></form></div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{pools.map((pool) => <Link key={pool.id} href={`/pools/${pool.id}/tier-maker`} className="rounded-2xl border border-white/10 bg-slate-950/40 p-5 transition hover:border-cyan-300/50 focus-visible:outline focus-visible:outline-cyan-300"><h3 className="truncate font-bold">{pool.name}</h3><p className="mt-2 text-sm text-slate-400">{pool._count.poolAnime} 部作品</p><p className="mt-5 text-sm font-bold text-cyan-200">自由排榜 →</p></Link>)}</div>
+    {drafts.length > 0 && <section><h2 className="mb-3 text-lg font-semibold text-white">继续我的榜单</h2><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{drafts.map((draft, index) => (
+        <Link
+          key={draft.poolId}
+          href={`/pools/${draft.poolId}/tier-maker`}
+          aria-label={`继续编辑${draft.title}`}
+          className={`group flex min-h-24 flex-col justify-between rounded-xl border p-4 transition-colors hover:border-cyan-300/60 hover:bg-cyan-300/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 ${index === 0 ? "border-cyan-300/45 bg-cyan-300/[0.07]" : "border-white/10 bg-slate-950/40"}`}
+        >
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <h3 className="min-w-0 truncate font-semibold text-white">{draft.title}</h3>
+            <span aria-hidden="true" className="shrink-0 text-cyan-200 transition-transform group-hover:translate-x-0.5">→</span>
+          </div>
+          <span className="mt-2 text-xs text-slate-400">{draft.shareToken ? "已分享" : "私人草稿"}</span>
+        </Link>
+      ))}</div></section>}
+    <section><div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><h2 className="text-lg font-semibold">番组</h2><form action="/tierlists" role="search" className="flex w-full min-w-0 items-center gap-2 sm:w-auto"><label className="sr-only" htmlFor="tier-pool-search">搜索番组</label><input id="tier-pool-search" name="q" defaultValue={q} placeholder="搜索番组" className="anime-field min-w-0 flex-1 sm:w-56" /><button type="submit" className={appButtonClasses({ variant: "secondary", className: "shrink-0 whitespace-nowrap" })}>搜索</button></form></div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{pools.map((pool) => (
+        <Link
+          key={pool.id}
+          href={`/pools/${pool.id}/tier-maker`}
+          aria-label={`为${pool.name}制作自由榜，共${pool._count.poolAnime}部作品`}
+          className="group flex min-h-24 items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950/40 px-4 py-4 transition-colors hover:border-cyan-300/45 hover:bg-white/[0.045] focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
+        >
+          <div className="min-w-0">
+            <h3 className="truncate font-semibold text-white">{pool.name}</h3>
+            <p className="mt-1 text-sm text-slate-400">{pool._count.poolAnime} 部作品</p>
+          </div>
+          <span aria-hidden="true" className="shrink-0 text-lg text-cyan-200/80 transition-transform group-hover:translate-x-0.5">→</span>
+        </Link>
+      ))}</div>
       {!pools.length && <p className="py-8 text-slate-400">没有找到番组，可以换个关键词，或创建番组。</p>}
       {count > 12 && <nav aria-label="番组分页" className="mt-4 flex items-center justify-center gap-4">{page > 1 && <Link className={appButtonClasses({ variant: "ghost" })} href={`/tierlists?q=${encodeURIComponent(q)}&page=${page - 1}`}>上一页</Link>}<span className="text-sm text-slate-400">第 {page} / {Math.ceil(count / 12)} 页</span>{page * 12 < count && <Link className={appButtonClasses({ variant: "ghost" })} href={`/tierlists?q=${encodeURIComponent(q)}&page=${page + 1}`}>下一页</Link>}</nav>}
     </section>
