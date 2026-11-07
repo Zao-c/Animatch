@@ -5,7 +5,7 @@ type AppCardVariant = "default" | "soft" | "focus" | "modal";
 const VARIANT_CLASS: Record<AppCardVariant, string> = {
   default: "border-anime-border bg-anime-panel shadow-anime-panel",
   soft: "border-white/10 bg-white/[0.045] shadow-[0_18px_70px_rgba(0,0,0,0.22)]",
-  focus: "border-anime-cyan/25 bg-anime-panelStrong shadow-anime-focus",
+  focus: "border-anime-cyan/25 bg-anime-panelStrong shadow-[0_14px_38px_rgba(53,230,220,0.075)]",
   modal: "border-white/15 bg-anime-panelStrong shadow-[0_28px_100px_rgba(2,6,23,0.58)]"
 };
 
