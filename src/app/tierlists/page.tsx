@@ -4,12 +4,18 @@ import { PageShell } from "@/components/PageShell";
 import { appButtonClasses } from "@/components/ui/AppButton";
 import { getCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
+import { formatDateTimeStable } from "@/lib/date-format";
+import { groupTierSharesByRun } from "@/lib/tier-share-list";
 export const dynamic = "force-dynamic";
-export default async function TierListsPage({ searchParams }: { searchParams: { q?: string; page?: string; view?: string } }) {
+export default async function TierListsPage({ searchParams }: { searchParams: { q?: string; page?: string; view?: string; sharePage?: string } }) {
   const user = await getCurrentUser();
   if (searchParams.view === "mine") {
     if (!user) redirect("/login?next=" + encodeURIComponent("/tierlists?view=mine"));
-    const [myDrafts, myShares] = await Promise.all([
+
+    const sharePage = Math.max(1, Math.min(10000, Number.parseInt(searchParams.sharePage ?? "1", 10) || 1));
+    const sharePageSize = 36;
+    const sharesWhere = { run: { userId: user.id } };
+    const [myDrafts, myShares, shareCount] = await Promise.all([
       prisma.manualTierBoard.findMany({
         where: { ownerId: user.id, pool: { deletedAt: null,
           OR: [{ creatorId: user.id }, { visibility: { in: ["PUBLIC", "UNLISTED"] } }] } },
@@ -17,43 +23,132 @@ export default async function TierListsPage({ searchParams }: { searchParams: { 
         orderBy: { updatedAt: "desc" }, take: 60
       }),
       prisma.tierShare.findMany({
-        where: { run: { userId: user.id } },
-        select: { token: true, title: true, createdAt: true,
-          run: { select: { pool: { select: { name: true } } } } },
-        orderBy: { createdAt: "desc" }, take: 60
-      })
+        where: sharesWhere,
+        select: {
+          token: true, title: true, createdAt: true, runId: true,
+          run: { select: { pool: { select: { name: true } } } }
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: sharePageSize,
+        skip: (sharePage - 1) * sharePageSize
+      }),
+      prisma.tierShare.count({ where: sharesWhere })
     ]);
-    return <PageShell><div className="mx-auto w-full max-w-6xl space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight text-white">我的榜单</h1>
-        <Link href="/tierlists" className={appButtonClasses({ variant: "secondary" })}>制作新榜单</Link>
-      </header>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="min-w-0 space-y-3">
-          <h2 className="text-lg font-bold">我的自由榜 <span className="ml-1 text-xs text-slate-400">{myDrafts.length}</span></h2>
-          {myDrafts.length ? <div className="grid gap-3">{myDrafts.map(draft =>
-            <Link key={draft.poolId} href={`/pools/${draft.poolId}/tier-maker`}
-              className="rounded-2xl border border-white/10 bg-slate-950/40 p-4 transition hover:border-cyan-300/40">
-              <h3 className="truncate font-bold text-white">{draft.title}</h3>
-              <p className="mt-1 text-xs text-slate-400">{draft.shareToken ? "已分享" : "草稿"}</p>
-            </Link>)}</div> :
-            <div className="rounded-2xl border border-dashed border-white/15 p-6 text-sm text-slate-400">还没有保存自由榜。</div>}
-        </section>
-        <section className="min-w-0 space-y-3">
-          <h2 className="text-lg font-bold">已分享的 Tier List <span className="ml-1 text-xs text-slate-400">{myShares.length}</span></h2>
-          {myShares.length ? <div className="grid gap-3">{myShares.map(share =>
-            <Link key={share.token} href={`/share/tier/${share.token}`}
-              className="rounded-2xl border border-white/10 bg-slate-950/40 p-4 transition hover:border-cyan-300/40">
-              <h3 className="truncate font-bold text-white">{share.title}</h3>
-              <p className="mt-1 truncate text-xs text-slate-400">{share.run?.pool?.name ?? "未知番组"}</p>
-            </Link>)}</div> :
-            <div className="rounded-2xl border border-dashed border-white/15 p-6 text-sm text-slate-400">还没有分享 Tier List。</div>}
-        </section>
-      </div>
-      <div className="flex flex-wrap gap-3 border-t border-white/10 pt-4">
-        <Link href="/anisong/mine" className={appButtonClasses({ variant: "secondary" })}>我的音乐曲单</Link>
-      </div>
-    </div></PageShell>;
+    const totalSharePages = Math.max(1, Math.ceil(shareCount / sharePageSize));
+    if (sharePage > totalSharePages) {
+      redirect(`/tierlists?view=mine&sharePage=${totalSharePages}`);
+    }
+    const shareGroups = groupTierSharesByRun(myShares);
+
+    return (
+      <PageShell>
+        <div className="mx-auto w-full max-w-6xl space-y-8">
+          <header className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-3xl font-semibold tracking-tight text-white">我的榜单</h1>
+            <Link href="/tierlists" className={appButtonClasses({ variant: "secondary" })}>制作新榜单</Link>
+          </header>
+
+          <section aria-labelledby="my-tier-drafts-title" className="min-w-0 space-y-3">
+            <h2 id="my-tier-drafts-title" className="text-lg font-semibold text-white">
+              我的自由榜 <span className="ml-1 text-xs font-normal text-slate-400">{myDrafts.length}</span>
+            </h2>
+            {myDrafts.length ? (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {myDrafts.map((draft) => (
+                  <Link
+                    key={draft.poolId}
+                    href={`/pools/${draft.poolId}/tier-maker`}
+                    aria-label={`继续编辑${draft.title}`}
+                    className="group flex min-h-24 min-w-0 flex-col justify-between rounded-xl border border-cyan-300/25 bg-slate-950/40 p-4 transition-colors hover:border-cyan-300/50 hover:bg-cyan-300/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
+                  >
+                    <h3 className="truncate font-semibold text-white" title={draft.title}>{draft.title}</h3>
+                    <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-400">
+                      <span>{draft.shareToken ? "已分享" : "草稿"}</span>
+                      <span aria-hidden="true" className="text-cyan-200">→</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-xl border border-dashed border-white/15 p-5 text-sm text-slate-400">还没有保存自由榜。</p>
+            )}
+          </section>
+
+          <section aria-labelledby="my-tier-shares-title" className="min-w-0 space-y-3">
+            <h2 id="my-tier-shares-title" className="text-lg font-semibold text-white">
+              已分享的 Tier List <span className="ml-1 text-xs font-normal text-slate-400">{shareCount}</span>
+            </h2>
+            {shareGroups.length ? (
+              <div className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {shareGroups.map(({ runId, latest, history }) => (
+                  <article key={runId} className="min-w-0 rounded-xl border border-white/10 bg-slate-950/40 p-4">
+                    <div className="flex min-w-0 items-start justify-between gap-2">
+                      <h3 className="min-w-0 truncate font-semibold text-white" title={latest.title}>{latest.title}</h3>
+                      {history.length > 0 ? (
+                        <span className="shrink-0 rounded-md border border-white/10 px-2 py-1 text-xs text-slate-400">
+                          {history.length + 1} 版
+                        </span>
+                      ) : null}
+                    </div>
+                    {latest.run.pool.name !== latest.title ? (
+                      <p className="mt-1 truncate text-xs text-slate-400" title={latest.run.pool.name}>{latest.run.pool.name}</p>
+                    ) : null}
+                    <p className="mt-2 text-xs text-slate-400">
+                      最近分享 <time dateTime={latest.createdAt.toISOString()}>{formatDateTimeStable(latest.createdAt)}</time>
+                    </p>
+                    <Link
+                      href={`/share/tier/${latest.token}`}
+                      className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg border border-cyan-300/25 bg-cyan-300/[0.06] px-3 text-sm font-medium text-cyan-100 transition-colors hover:border-cyan-300/50 hover:bg-cyan-300/[0.1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
+                    >
+                      查看最新版本 <span aria-hidden="true">→</span>
+                    </Link>
+                    {history.length > 0 ? (
+                      <details className="mt-3 border-t border-white/10 pt-1">
+                        <summary className="flex min-h-11 cursor-pointer select-none items-center justify-between gap-2 rounded-lg px-1 text-sm text-slate-300 hover:text-white">
+                          历史版本（{history.length}）
+                          <span aria-hidden="true">⌄</span>
+                        </summary>
+                        <ol className="space-y-1 pb-1">
+                          {history.map((share) => (
+                            <li key={share.token}>
+                              <Link
+                                href={`/share/tier/${share.token}`}
+                                aria-label={`查看${share.title}于${formatDateTimeStable(share.createdAt)}分享的历史版本`}
+                                className="flex min-h-11 min-w-0 items-center justify-between gap-2 rounded-lg px-2 text-sm text-slate-300 transition-colors hover:bg-white/[0.05] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
+                              >
+                                <time dateTime={share.createdAt.toISOString()}>{formatDateTimeStable(share.createdAt)}</time>
+                                <span aria-hidden="true" className="shrink-0">→</span>
+                              </Link>
+                            </li>
+                          ))}
+                        </ol>
+                      </details>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-xl border border-dashed border-white/15 p-5 text-sm text-slate-400">还没有分享 Tier List。</p>
+            )}
+            {totalSharePages > 1 ? (
+              <nav aria-label="分享历史分页" className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                {sharePage > 1 ? (
+                  <Link href={`/tierlists?view=mine&sharePage=${sharePage - 1}`} className={appButtonClasses({ variant: "ghost" })}>上一页</Link>
+                ) : null}
+                <span className="text-sm text-slate-400">第 {sharePage} / {totalSharePages} 页</span>
+                {sharePage < totalSharePages ? (
+                  <Link href={`/tierlists?view=mine&sharePage=${sharePage + 1}`} className={appButtonClasses({ variant: "ghost" })}>下一页</Link>
+                ) : null}
+              </nav>
+            ) : null}
+          </section>
+
+          <div className="flex flex-wrap gap-3 border-t border-white/10 pt-4">
+            <Link href="/anisong/mine" className={appButtonClasses({ variant: "secondary" })}>我的音乐曲单</Link>
+          </div>
+        </div>
+      </PageShell>
+    );
   }
   const q = typeof searchParams.q === "string" ? searchParams.q.trim().slice(0, 100) : "";
   const page = Math.max(1, Math.min(10000, Number.parseInt(searchParams.page ?? "1", 10) || 1));
