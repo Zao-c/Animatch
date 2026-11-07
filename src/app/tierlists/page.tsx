@@ -13,31 +13,39 @@ export default async function TierListsPage({ searchParams }: { searchParams: { 
     if (!user) redirect("/login?next=" + encodeURIComponent("/tierlists?view=mine"));
 
     const sharePage = Math.max(1, Math.min(10000, Number.parseInt(searchParams.sharePage ?? "1", 10) || 1));
-    const sharePageSize = 36;
+    const sharePageSize = 12;
     const sharesWhere = { run: { userId: user.id } };
-    const [myDrafts, myShares, shareCount] = await Promise.all([
+    const [myDrafts, shareRuns] = await Promise.all([
       prisma.manualTierBoard.findMany({
         where: { ownerId: user.id, pool: { deletedAt: null,
           OR: [{ creatorId: user.id }, { visibility: { in: ["PUBLIC", "UNLISTED"] } }] } },
         select: { poolId: true, title: true, shareToken: true },
         orderBy: { updatedAt: "desc" }, take: 60
       }),
-      prisma.tierShare.findMany({
+      prisma.tierShare.groupBy({
+        by: ["runId"],
         where: sharesWhere,
-        select: {
-          token: true, title: true, createdAt: true, runId: true,
-          run: { select: { pool: { select: { name: true } } } }
-        },
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        take: sharePageSize,
-        skip: (sharePage - 1) * sharePageSize
-      }),
-      prisma.tierShare.count({ where: sharesWhere })
+        _count: { _all: true },
+        _max: { createdAt: true },
+        orderBy: [{ _max: { createdAt: "desc" } }, { runId: "asc" }]
+      })
     ]);
-    const totalSharePages = Math.max(1, Math.ceil(shareCount / sharePageSize));
+    const shareCount = shareRuns.reduce((sum, group) => sum + group._count._all, 0);
+    const totalSharePages = Math.max(1, Math.ceil(shareRuns.length / sharePageSize));
     if (sharePage > totalSharePages) {
       redirect(`/tierlists?view=mine&sharePage=${totalSharePages}`);
     }
+    const pageRunIds = shareRuns
+      .slice((sharePage - 1) * sharePageSize, sharePage * sharePageSize)
+      .map((group) => group.runId);
+    const myShares = await prisma.tierShare.findMany({
+      where: { ...sharesWhere, runId: { in: pageRunIds } },
+      select: {
+        token: true, title: true, createdAt: true, runId: true,
+        run: { select: { pool: { select: { name: true } } } }
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }]
+    });
     const shareGroups = groupTierSharesByRun(myShares);
 
     return (
