@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "AniMatch",
-  description: "Anime pairwise ranking and personal tier lists.",
+  description: "两两对决，排出你的番剧榜单。",
   icons: {
     icon: "/brand/animatch-logo-icon.png",
     apple: "/brand/animatch-logo-icon.png"
