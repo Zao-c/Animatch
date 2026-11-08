@@ -740,7 +740,7 @@ function PoolCard({
               </Link>
             ) : null}
           </div>
-          {!isPublicView && !isArchived && canAddAnime ? (
+          {!isArchived && canAddAnime && (!isPublicView || canManage) ? (
             <Link
               href={`/pools/${pool.id}#add-anime`}
               aria-label={`向${pool.name}添加动画`}
