@@ -5,24 +5,51 @@ describe("pool listing card hierarchy", () => {
   const source = readFileSync("src/app/pools/page.tsx", "utf8");
   const card = source.slice(source.indexOf("function PoolCard("), source.indexOf("function CoverStrip("));
 
-  it("keeps match and detail actions available while reducing competing solid buttons", () => {
+  it("uses one consistent primary duel action and retains a quiet details link", () => {
     expect(card).toContain("canMatch || canPromptLoginToMatch ? (");
-    expect(card).toContain('variant={hasOngoingMatch ? "primary" : "ghost"}');
+    expect(card).toContain('variant="primary"');
+    expect(card).not.toContain('variant={hasOngoingMatch ? "primary" : "ghost"}');
     expect(card).toContain('onOpenRun(pool, "match")');
     expect(card).toContain('href={`/pools/${pool.id}`}');
     expect(card).toContain("canPromptLoginToMatch");
     expect(card).toContain('aria-label={`查看${pool.name}详情`}');
+    expect(card).toContain('hasOngoingMatch');
+    expect(card).toContain('"继续对决"');
+    expect(card).toContain('"登录后对决"');
+    expect(card).toContain('"个人自由对决"');
   });
 
-  it("retains archive, restore, editing, and tier access behind a quiet disclosure", () => {
-    const more = card.slice(card.indexOf('<details className="mt-3 border-t'), card.indexOf("</details>"));
+  it("does not repeat public view context and keeps community count readable", () => {
+    expect(card).toContain("!officialDemoLabel && !isPublicView");
+    expect(card).not.toContain('<AppBadge tone="status">开放参与</AppBadge>');
+    expect(card).toContain('className="mt-0.5 text-xs text-slate-400"');
+  });
+
+  it("exposes Tier viewing next to duel and detail instead of burying it under more actions", () => {
+    const actionStart = card.indexOf('<div className="mt-auto grid');
+    const moreStart = card.indexOf('<details className="mt-3 border-t');
+    const actionRow = card.slice(actionStart, moreStart);
+    const more = card.slice(moreStart, card.indexOf("</details>", moreStart));
+
+    expect(actionRow).toContain('onOpenRun(pool, "match")');
+    expect(actionRow).toContain('onOpenRun(pool, "tier")');
+    expect(actionRow).toContain("查看 Tier");
+    expect(actionRow).toContain("详情");
+    expect(actionRow).toContain('canViewTier ? (');
+    expect(actionRow).toContain("canPlay");
+    expect(actionRow).toContain('window.location.assign');
+    expect(more).not.toContain("查看 Tier");
+  });
+
+  it("keeps only management actions in the accessible, expandable section", () => {
+    const moreStart = card.indexOf('<details className="mt-3 border-t');
+    const more = card.slice(moreStart, card.indexOf("</details>", moreStart));
     expect(more).toContain("更多操作");
+    expect(more).toContain('aria-label={`${pool.name}的更多操作`}');
     expect(more).toContain("番组设置");
     expect(more).toContain("恢复番组");
     expect(more).toContain("归档番组");
-    expect(more).toContain("查看 Tier");
     expect(more).toContain("添加动画");
-    expect(more).not.toContain('size="sm"');
     expect(more).toContain('min-h-11');
   });
 

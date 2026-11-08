@@ -299,10 +299,12 @@ function PoolsPageContent() {
         <div role="status" className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
           {isLoading ? "正在加载番组…" : <>
           <span className="font-semibold text-slate-200">{String(pools.length)}</span> 个番组
-          <span className="text-slate-500">·</span>
-          <span className="font-semibold text-slate-200">{String(playableCount)}</span> 可对决
-          <span className="text-slate-500">·</span>
-          <span className="text-slate-400">筛选 {FILTERS.find((item) => item.value === filter)?.label ?? "全部"}</span>
+          {playableCount < pools.length ? (
+            <>
+              <span className="text-slate-500">·</span>
+              <span className="font-semibold text-slate-200">{String(playableCount)}</span> 可对决
+            </>
+          ) : null}
           </>}
         </div>
       </section>
@@ -321,7 +323,13 @@ function PoolsPageContent() {
             搜索
           </AppButton>
           <details className="col-span-2">
-            <summary className="flex min-h-11 cursor-pointer items-center text-sm text-slate-300">筛选与排序 · {viewCopy.title} · {FILTERS.find((item) => item.value === filter)?.label} · {SORTS.find((item) => item.value === sort)?.label}</summary>
+            <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-slate-300 hover:text-white">
+              筛选与排序
+              {sort !== "UPDATED" ? <span className="text-xs text-cyan-200">{SORTS.find((item) => item.value === sort)?.label}</span> : null}
+              <svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="m4 6 4 4 4-4" />
+              </svg>
+            </summary>
             <div className="mt-2 grid gap-2 sm:grid-cols-3">
           <select
             value={view}
@@ -608,14 +616,11 @@ function PoolCard({
             </Link>
             {officialDemoLabel ? <AppBadge tone="source">{officialDemoLabel}</AppBadge> : null}
           </div>
-          {!officialDemoLabel ? (
-            <div className="flex flex-wrap gap-2">
+          {!officialDemoLabel && !isPublicView ? (
+            <div className="mt-1 flex flex-wrap gap-2">
               <AppBadge tone={visibilityTone(pool.visibility)}>
                 {formatPoolVisibility(pool.visibility)}
               </AppBadge>
-              {isPublicView && pool.visibility === "PUBLIC" && !isArchived ? (
-                <AppBadge tone="status">开放参与</AppBadge>
-              ) : null}
             </div>
           ) : null}
           {pool.description?.trim() ? (
@@ -652,7 +657,7 @@ function PoolCard({
                         <p className="line-clamp-2 text-xs font-semibold text-white">
                           {pool.communitySummary.topAnimeTitle}
                         </p>
-                        <p className="mt-0.5 text-[10px] text-slate-500">
+                        <p className="mt-0.5 text-xs text-slate-400">
                           {pool.communitySummary.participantCount} 人参与
                           {sampleLabelText(pool.communitySummary.sampleLabel)}
                         </p>
@@ -668,47 +673,65 @@ function PoolCard({
             </div>
           ) : null}
 
-          <div className="mt-auto flex items-center gap-2 pt-4">
+          <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1.5 pt-4">
             {canMatch || canPromptLoginToMatch ? (
-              <>
-                <AppButton
-                  onClick={() =>
-                    canPromptLoginToMatch
-                      ? window.location.assign(`/login?next=${encodeURIComponent(`/pools/${pool.id}`)}`)
-                      : onOpenRun(pool, "match")
-                  }
-                  disabled={isMutating}
-                  variant={hasOngoingMatch ? "primary" : "ghost"}
-                  size="md"
-                  className={`min-w-0 flex-1 px-3 ${hasOngoingMatch ? "" : "border-anime-cyan/30 text-cyan-100 hover:border-anime-cyan/50"}`}
-                >
-                  {isOpening ? "正在进入…" : isPublicView && pool.visibility === "PUBLIC"
-                    ? canPromptLoginToMatch
-                      ? "登录后对决"
-                      : "个人自由对决"
-                    : uiStatus === "READY"
-                      ? "开始对决"
-                      : "继续对决"}
-                </AppButton>
-                <Link
-                  href={`/pools/${pool.id}`}
-                  aria-label={`查看${pool.name}详情`}
-                  className={appButtonClasses({ variant: "quiet", size: "md", className: "shrink-0 px-3 text-xs" })}
-                >
-                  详情
-                </Link>
-              </>
+              <AppButton
+                onClick={() =>
+                  canPromptLoginToMatch
+                    ? window.location.assign(`/login?next=${encodeURIComponent(`/pools/${pool.id}`)}`)
+                    : onOpenRun(pool, "match")
+                }
+                disabled={isMutating}
+                variant="primary"
+                size="md"
+                className="min-w-0 whitespace-nowrap px-2 text-xs sm:px-3 sm:text-sm"
+              >
+                {isOpening ? "正在进入…" : canPromptLoginToMatch
+                  ? "登录后对决"
+                  : hasOngoingMatch
+                    ? "继续对决"
+                    : isPublicView && pool.visibility === "PUBLIC"
+                      ? "个人自由对决"
+                      : uiStatus === "READY"
+                        ? "开始对决"
+                        : "继续对决"}
+              </AppButton>
             ) : (
               <Link
                 href={`/pools/${pool.id}`}
-                className={appButtonClasses({ variant: "ghost", size: "md", className: "w-full" })}
+                className={appButtonClasses({ variant: "ghost", size: "md", className: "min-w-0 px-2 text-xs sm:px-3" })}
               >
                 番组详情
               </Link>
             )}
+            {canViewTier ? (
+              <AppButton
+                onClick={() =>
+                  canPlay
+                    ? onOpenRun(pool, "tier")
+                    : window.location.assign(`/login?next=${encodeURIComponent(`/pools/${pool.id}`)}`)
+                }
+                aria-label={`${canPlay ? "查看" : "登录后查看"}${pool.name}的 Tier 榜单`}
+                disabled={isMutating}
+                variant="ghost"
+                size="md"
+                className="shrink-0 whitespace-nowrap px-2 text-xs sm:px-3"
+              >
+                {canPlay ? "查看 Tier" : "登录看 Tier"}
+              </AppButton>
+            ) : null}
+            {canMatch || canPromptLoginToMatch ? (
+              <Link
+                href={`/pools/${pool.id}`}
+                aria-label={`查看${pool.name}详情`}
+                className={appButtonClasses({ variant: "quiet", size: "md", className: "shrink-0 px-2 text-xs sm:px-3" })}
+              >
+                详情
+              </Link>
+            ) : null}
           </div>
           <details className="mt-3 border-t border-white/10 pt-1">
-            <summary className="flex min-h-11 cursor-pointer select-none items-center justify-between rounded-lg px-2 text-sm text-slate-400 transition-colors hover:bg-white/[0.04] hover:text-slate-200">
+            <summary className="flex min-h-11 cursor-pointer select-none items-center justify-between rounded-lg px-2 text-sm text-slate-400 transition-colors hover:bg-white/[0.04] hover:text-slate-200" aria-label={`${pool.name}的更多操作`}>
               更多操作
               <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
                 <path d="m4 6 4 4 4-4" />
@@ -733,14 +756,6 @@ function PoolCard({
                   添加动画
                 </Link>
               ) : null}
-              <AppButton
-                onClick={() => onOpenRun(pool, "tier")}
-                disabled={isMutating || !canViewTier}
-                variant="ghost"
-                size="md"
-              >
-                查看 Tier
-              </AppButton>
               {canManage ? (
                 <>
                   <AppButton onClick={onBeginEdit} disabled={isMutating} variant="quiet" size="md">
