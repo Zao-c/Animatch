@@ -14,6 +14,9 @@ export type PoolTierEntry =
   | { kind: "none" };
 
 export function resolvePoolTierEntry(pool: PoolTierEntryInput): PoolTierEntry {
+  // Archived pools are not readable via the personal Tier or community ranking APIs.
+  if (pool.isArchived) return { kind: "none" };
+
   if (pool.defaultRunId) {
     return {
       kind: "personal",
@@ -21,8 +24,6 @@ export function resolvePoolTierEntry(pool: PoolTierEntryInput): PoolTierEntry {
       label: "查看 Tier"
     };
   }
-
-  if (pool.isArchived) return { kind: "none" };
 
   if (pool.visibility === "PUBLIC") {
     return {
