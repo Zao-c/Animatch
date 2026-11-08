@@ -21,6 +21,7 @@ import {
   type PoolSummary
 } from "@/lib/client-api";
 import { formatDateTimeStable } from "@/lib/date-format";
+import { resolvePoolTierEntry } from "@/lib/pool-tier-entry";
 import { copyTextWithFallback } from "@/lib/browser-copy";
 import {
   formatOfficialDemo,
@@ -544,7 +545,13 @@ function PoolCard({
   const canMatch = !isArchived && animeCount >= 2 && canPlay;
   const canPromptLoginToMatch = !isArchived && animeCount >= 2 && !canPlay;
   const hasOngoingMatch = canMatch && hasPersonalProgress && comparisonCount > 0;
-  const canViewTier = pool.defaultRunId != null || !isArchived;
+  const tierEntry = resolvePoolTierEntry({
+    poolId: pool.id,
+    visibility: pool.visibility,
+    defaultRunId: pool.defaultRunId,
+    isArchived,
+    canPlay
+  });
   const officialDemoLabel = formatOfficialDemo(pool.isOfficialDemo);
 
   return (
@@ -704,21 +711,24 @@ function PoolCard({
                 番组详情
               </Link>
             )}
-            {canViewTier ? (
+            {tierEntry.kind === "create" ? (
               <AppButton
-                onClick={() =>
-                  canPlay
-                    ? onOpenRun(pool, "tier")
-                    : window.location.assign(`/login?next=${encodeURIComponent(`/pools/${pool.id}`)}`)
-                }
-                aria-label={`${canPlay ? "查看" : "登录后查看"}${pool.name}的 Tier 榜单`}
+                onClick={() => onOpenRun(pool, "tier")}
                 disabled={isMutating}
                 variant="ghost"
                 size="md"
                 className="shrink-0 whitespace-nowrap px-2 text-xs sm:px-3"
               >
-                {canPlay ? "查看 Tier" : "登录看 Tier"}
+                {tierEntry.label}
               </AppButton>
+            ) : tierEntry.kind !== "none" ? (
+              <Link
+                href={tierEntry.href}
+                aria-label={`${pool.name} · ${tierEntry.label}`}
+                className={appButtonClasses({ variant: "ghost", size: "md", className: "shrink-0 whitespace-nowrap px-2 text-xs sm:px-3" })}
+              >
+                {tierEntry.label}
+              </Link>
             ) : null}
             {canMatch || canPromptLoginToMatch ? (
               <Link
@@ -730,6 +740,15 @@ function PoolCard({
               </Link>
             ) : null}
           </div>
+          {!isPublicView && !isArchived && canAddAnime ? (
+            <Link
+              href={`/pools/${pool.id}#add-anime`}
+              aria-label={`向${pool.name}添加动画`}
+              className={appButtonClasses({ variant: "quiet", size: "md", className: "mt-2 w-full justify-center border border-white/10 text-sm text-cyan-100 hover:border-cyan-300/30" })}
+            >
+              添加动画
+            </Link>
+          ) : null}
           <details className="mt-3 border-t border-white/10 pt-1">
             <summary className="flex min-h-11 cursor-pointer select-none items-center justify-between rounded-lg px-2 text-sm text-slate-400 transition-colors hover:bg-white/[0.04] hover:text-slate-200" aria-label={`${pool.name}的更多操作`}>
               更多操作
@@ -751,11 +770,6 @@ function PoolCard({
               </div>
             ) : null}
             <div className="mt-3 flex flex-wrap gap-2">
-              {!isPublicView && !isArchived && canAddAnime ? (
-                <Link href={`/pools/${pool.id}#add-anime`} className={appButtonClasses({ variant: "ghost", size: "sm" })}>
-                  添加动画
-                </Link>
-              ) : null}
               {canManage ? (
                 <>
                   <AppButton onClick={onBeginEdit} disabled={isMutating} variant="quiet" size="md">
