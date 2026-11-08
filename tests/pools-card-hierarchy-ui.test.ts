@@ -5,13 +5,24 @@ describe("pool listing card hierarchy", () => {
   const source = readFileSync("src/app/pools/page.tsx", "utf8");
   const card = source.slice(source.indexOf("function PoolCard("), source.indexOf("function CoverStrip("));
 
-  it("keeps match and detail actions available while reducing competing solid buttons", () => {
+  it("uses one consistent primary duel action and retains a quiet details link", () => {
     expect(card).toContain("canMatch || canPromptLoginToMatch ? (");
-    expect(card).toContain('variant={hasOngoingMatch ? "primary" : "ghost"}');
+    expect(card).toContain('variant="primary"');
+    expect(card).not.toContain('variant={hasOngoingMatch ? "primary" : "ghost"}');
     expect(card).toContain('onOpenRun(pool, "match")');
     expect(card).toContain('href={`/pools/${pool.id}`}');
     expect(card).toContain("canPromptLoginToMatch");
     expect(card).toContain('aria-label={`查看${pool.name}详情`}');
+    expect(card).toContain('hasOngoingMatch');
+    expect(card).toContain('"继续对决"');
+    expect(card).toContain('"登录后对决"');
+    expect(card).toContain('"个人自由对决"');
+  });
+
+  it("does not repeat public view context and keeps community count readable", () => {
+    expect(card).toContain("!officialDemoLabel && !isPublicView");
+    expect(card).not.toContain('<AppBadge tone="status">开放参与</AppBadge>');
+    expect(card).toContain('className="mt-0.5 text-xs text-slate-400"');
   });
 
   it("retains archive, restore, editing, and tier access behind a quiet disclosure", () => {
