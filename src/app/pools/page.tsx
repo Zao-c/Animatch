@@ -78,6 +78,7 @@ function PoolsPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const latestRequestRef = useRef(0);
+  const lastUrlQueryRef = useRef(searchParams.get("q") ?? "");
 
   const loadPools = useCallback(async () => {
     const requestId = latestRequestRef.current + 1;
@@ -112,9 +113,15 @@ function PoolsPageContent() {
   }, [loadPools]);
 
   useEffect(() => {
+    const urlQuery = searchParams.get("q") ?? "";
+    // Sorting or filtering must not discard text that has not been searched yet.
+    // Browser back/forward and new search URLs still update the visible input.
+    if (urlQuery !== lastUrlQueryRef.current) {
+      lastUrlQueryRef.current = urlQuery;
+      setQuery(urlQuery);
+    }
+    setAppliedQuery(urlQuery.trim());
     setView(parsePoolView(searchParams.get("view")));
-    setQuery(searchParams.get("q") ?? "");
-    setAppliedQuery((searchParams.get("q") ?? "").trim());
     setFilter(parsePoolFilter(searchParams.get("status")));
     setSort(parsePoolSort(searchParams.get("sort")));
   }, [searchParams]);
