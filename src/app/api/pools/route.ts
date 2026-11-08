@@ -1,4 +1,4 @@
-import { PoolComparisonResult, PoolStatus, Prisma, Visibility } from "@prisma/client";
+import { PersonalRunStatus, PoolComparisonResult, PoolStatus, Prisma, Visibility } from "@prisma/client";
 import { badRequest, forbidden, ok, fromError } from "@/lib/api-response";
 import { AppError } from "@/lib/app-error";
 import { getCurrentUser, requireCurrentUser, type FriendAuthUser } from "@/lib/auth-session";
@@ -125,9 +125,8 @@ export async function GET(request: Request) {
           where: {
             userId: user?.id ?? "__anonymous__",
             isDefault: true,
-            status: {
-              not: "DELETED"
-            }
+            status: PersonalRunStatus.ACTIVE,
+            deletedAt: null
           },
           orderBy: {
             updatedAt: "desc"
@@ -234,9 +233,8 @@ function serializePoolSummary(pool: Prisma.CustomPoolGetPayload<{
       where: {
         userId: string;
         isDefault: true;
-        status: {
-          not: "DELETED";
-        };
+        status: "ACTIVE";
+        deletedAt: null;
       };
       orderBy: {
         updatedAt: "desc";
