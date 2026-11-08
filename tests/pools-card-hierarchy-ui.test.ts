@@ -58,7 +58,7 @@ describe("pool listing card hierarchy", () => {
     const moreIndex = card.indexOf('<details className="mt-3 border-t');
     expect(shortcutIndex).toBeGreaterThan(0);
     expect(shortcutIndex).toBeLessThan(moreIndex);
-    expect(card).toContain('!isPublicView && !isArchived && canAddAnime ? (');
+    expect(card).toContain('!isArchived && canAddAnime && (!isPublicView || canManage) ? (');
     expect(card).toContain('href={`/pools/${pool.id}#add-anime`}');
     expect(card).toContain('size: "md"');
   });
