@@ -299,10 +299,12 @@ function PoolsPageContent() {
         <div role="status" className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
           {isLoading ? "正在加载番组…" : <>
           <span className="font-semibold text-slate-200">{String(pools.length)}</span> 个番组
-          <span className="text-slate-500">·</span>
-          <span className="font-semibold text-slate-200">{String(playableCount)}</span> 可对决
-          <span className="text-slate-500">·</span>
-          <span className="text-slate-400">筛选 {FILTERS.find((item) => item.value === filter)?.label ?? "全部"}</span>
+          {playableCount < pools.length ? (
+            <>
+              <span className="text-slate-500">·</span>
+              <span className="font-semibold text-slate-200">{String(playableCount)}</span> 可对决
+            </>
+          ) : null}
           </>}
         </div>
       </section>
@@ -321,7 +323,13 @@ function PoolsPageContent() {
             搜索
           </AppButton>
           <details className="col-span-2">
-            <summary className="flex min-h-11 cursor-pointer items-center text-sm text-slate-300">筛选与排序 · {viewCopy.title} · {FILTERS.find((item) => item.value === filter)?.label} · {SORTS.find((item) => item.value === sort)?.label}</summary>
+            <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-slate-300 hover:text-white">
+              筛选与排序
+              {sort !== "UPDATED" ? <span className="text-xs text-cyan-200">{SORTS.find((item) => item.value === sort)?.label}</span> : null}
+              <svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="m4 6 4 4 4-4" />
+              </svg>
+            </summary>
             <div className="mt-2 grid gap-2 sm:grid-cols-3">
           <select
             value={view}
@@ -608,14 +616,11 @@ function PoolCard({
             </Link>
             {officialDemoLabel ? <AppBadge tone="source">{officialDemoLabel}</AppBadge> : null}
           </div>
-          {!officialDemoLabel ? (
-            <div className="flex flex-wrap gap-2">
+          {!officialDemoLabel && !isPublicView ? (
+            <div className="mt-1 flex flex-wrap gap-2">
               <AppBadge tone={visibilityTone(pool.visibility)}>
                 {formatPoolVisibility(pool.visibility)}
               </AppBadge>
-              {isPublicView && pool.visibility === "PUBLIC" && !isArchived ? (
-                <AppBadge tone="status">开放参与</AppBadge>
-              ) : null}
             </div>
           ) : null}
           {pool.description?.trim() ? (
@@ -652,7 +657,7 @@ function PoolCard({
                         <p className="line-clamp-2 text-xs font-semibold text-white">
                           {pool.communitySummary.topAnimeTitle}
                         </p>
-                        <p className="mt-0.5 text-[10px] text-slate-500">
+                        <p className="mt-0.5 text-xs text-slate-400">
                           {pool.communitySummary.participantCount} 人参与
                           {sampleLabelText(pool.communitySummary.sampleLabel)}
                         </p>
@@ -678,17 +683,19 @@ function PoolCard({
                       : onOpenRun(pool, "match")
                   }
                   disabled={isMutating}
-                  variant={hasOngoingMatch ? "primary" : "ghost"}
+                  variant="primary"
                   size="md"
-                  className={`min-w-0 flex-1 px-3 ${hasOngoingMatch ? "" : "border-anime-cyan/30 text-cyan-100 hover:border-anime-cyan/50"}`}
+                  className="min-w-0 flex-1 px-3"
                 >
-                  {isOpening ? "正在进入…" : isPublicView && pool.visibility === "PUBLIC"
-                    ? canPromptLoginToMatch
-                      ? "登录后对决"
-                      : "个人自由对决"
-                    : uiStatus === "READY"
-                      ? "开始对决"
-                      : "继续对决"}
+                  {isOpening ? "正在进入…" : canPromptLoginToMatch
+                    ? "登录后对决"
+                    : hasOngoingMatch
+                      ? "继续对决"
+                      : isPublicView && pool.visibility === "PUBLIC"
+                        ? "个人自由对决"
+                        : uiStatus === "READY"
+                          ? "开始对决"
+                          : "继续对决"}
                 </AppButton>
                 <Link
                   href={`/pools/${pool.id}`}
