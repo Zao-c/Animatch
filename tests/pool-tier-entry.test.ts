@@ -45,11 +45,10 @@ describe("pool Tier entry", () => {
     });
   });
 
-  it("does not offer a new Tier on an archived pool without a personal run", () => {
+  it("does not offer a broken Tier link on an archived pool, even when a run ID exists", () => {
     expect(resolvePoolTierEntry({ ...publicPool, isArchived: true })).toEqual({ kind: "none" });
-    expect(resolvePoolTierEntry({ ...publicPool, isArchived: true, defaultRunId: "run-1" })).toMatchObject({
-      kind: "personal",
-      href: "/pools/pool-1/runs/run-1/tier"
+    expect(resolvePoolTierEntry({ ...publicPool, isArchived: true, defaultRunId: "run-1" })).toEqual({
+      kind: "none"
     });
   });
 });
