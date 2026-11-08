@@ -233,7 +233,7 @@ function serializePoolSummary(pool: Prisma.CustomPoolGetPayload<{
       where: {
         userId: string;
         isDefault: true;
-        status: PersonalRunStatus.ACTIVE;
+        status: "ACTIVE";
         deletedAt: null;
       };
       orderBy: {
