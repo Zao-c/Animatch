@@ -673,49 +673,65 @@ function PoolCard({
             </div>
           ) : null}
 
-          <div className="mt-auto flex items-center gap-2 pt-4">
+          <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1.5 pt-4">
             {canMatch || canPromptLoginToMatch ? (
-              <>
-                <AppButton
-                  onClick={() =>
-                    canPromptLoginToMatch
-                      ? window.location.assign(`/login?next=${encodeURIComponent(`/pools/${pool.id}`)}`)
-                      : onOpenRun(pool, "match")
-                  }
-                  disabled={isMutating}
-                  variant="primary"
-                  size="md"
-                  className="min-w-0 flex-1 px-3"
-                >
-                  {isOpening ? "正在进入…" : canPromptLoginToMatch
-                    ? "登录后对决"
-                    : hasOngoingMatch
-                      ? "继续对决"
-                      : isPublicView && pool.visibility === "PUBLIC"
-                        ? "个人自由对决"
-                        : uiStatus === "READY"
-                          ? "开始对决"
-                          : "继续对决"}
-                </AppButton>
-                <Link
-                  href={`/pools/${pool.id}`}
-                  aria-label={`查看${pool.name}详情`}
-                  className={appButtonClasses({ variant: "quiet", size: "md", className: "shrink-0 px-3 text-xs" })}
-                >
-                  详情
-                </Link>
-              </>
+              <AppButton
+                onClick={() =>
+                  canPromptLoginToMatch
+                    ? window.location.assign(`/login?next=${encodeURIComponent(`/pools/${pool.id}`)}`)
+                    : onOpenRun(pool, "match")
+                }
+                disabled={isMutating}
+                variant="primary"
+                size="md"
+                className="min-w-0 whitespace-nowrap px-2 text-xs sm:px-3 sm:text-sm"
+              >
+                {isOpening ? "正在进入…" : canPromptLoginToMatch
+                  ? "登录后对决"
+                  : hasOngoingMatch
+                    ? "继续对决"
+                    : isPublicView && pool.visibility === "PUBLIC"
+                      ? "个人自由对决"
+                      : uiStatus === "READY"
+                        ? "开始对决"
+                        : "继续对决"}
+              </AppButton>
             ) : (
               <Link
                 href={`/pools/${pool.id}`}
-                className={appButtonClasses({ variant: "ghost", size: "md", className: "w-full" })}
+                className={appButtonClasses({ variant: "ghost", size: "md", className: "min-w-0 px-2 text-xs sm:px-3" })}
               >
                 番组详情
               </Link>
             )}
+            {canViewTier ? (
+              <AppButton
+                onClick={() =>
+                  canPlay
+                    ? onOpenRun(pool, "tier")
+                    : window.location.assign(`/login?next=${encodeURIComponent(`/pools/${pool.id}`)}`)
+                }
+                aria-label={`${canPlay ? "查看" : "登录后查看"}${pool.name}的 Tier 榜单`}
+                disabled={isMutating}
+                variant="ghost"
+                size="md"
+                className="shrink-0 whitespace-nowrap px-2 text-xs sm:px-3"
+              >
+                {canPlay ? "查看 Tier" : "登录看 Tier"}
+              </AppButton>
+            ) : null}
+            {canMatch || canPromptLoginToMatch ? (
+              <Link
+                href={`/pools/${pool.id}`}
+                aria-label={`查看${pool.name}详情`}
+                className={appButtonClasses({ variant: "quiet", size: "md", className: "shrink-0 px-2 text-xs sm:px-3" })}
+              >
+                详情
+              </Link>
+            ) : null}
           </div>
           <details className="mt-3 border-t border-white/10 pt-1">
-            <summary className="flex min-h-11 cursor-pointer select-none items-center justify-between rounded-lg px-2 text-sm text-slate-400 transition-colors hover:bg-white/[0.04] hover:text-slate-200">
+            <summary className="flex min-h-11 cursor-pointer select-none items-center justify-between rounded-lg px-2 text-sm text-slate-400 transition-colors hover:bg-white/[0.04] hover:text-slate-200" aria-label={`${pool.name}的更多操作`}>
               更多操作
               <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
                 <path d="m4 6 4 4 4-4" />
@@ -740,14 +756,6 @@ function PoolCard({
                   添加动画
                 </Link>
               ) : null}
-              <AppButton
-                onClick={() => onOpenRun(pool, "tier")}
-                disabled={isMutating || !canViewTier}
-                variant="ghost"
-                size="md"
-              >
-                查看 Tier
-              </AppButton>
               {canManage ? (
                 <>
                   <AppButton onClick={onBeginEdit} disabled={isMutating} variant="quiet" size="md">
