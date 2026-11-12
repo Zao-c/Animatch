@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PoolStatus, Visibility } from "@prisma/client";
-import { canAddAnime, canEditPoolContent, canManagePool } from "../src/lib/pool-permissions";
+import { canAddAnime, canEditPoolContent, canManagePool, canReadCommunityRanking } from "../src/lib/pool-permissions";
 import type { FriendAuthUser } from "../src/lib/auth-session";
 
 function makeUser(id: string): FriendAuthUser {
@@ -33,6 +33,33 @@ describe("pool permissions", () => {
 
     it("returns false for anonymous", () => {
       expect(canManagePool(makePool(), null)).toBe(false);
+    });
+  });
+
+  describe("independent public permissions", () => {
+    it("keeps community ranking off unless explicitly enabled", () => {
+      expect(canReadCommunityRanking(makePool())).toBe(false);
+      expect(canReadCommunityRanking(makePool({ allowCommunityMatch: true }))).toBe(true);
+      expect(canReadCommunityRanking(makePool({
+        visibility: Visibility.PRIVATE, allowCommunityMatch: true
+      }))).toBe(false);
+      expect(canReadCommunityRanking(makePool({
+        visibility: Visibility.UNLISTED, allowCommunityMatch: true
+      }))).toBe(false);
+      expect(canReadCommunityRanking(makePool({
+        status: PoolStatus.ARCHIVED, allowCommunityMatch: true
+      }))).toBe(false);
+    });
+
+    it("does not grant editing just because community ranking is enabled", () => {
+      expect(canEditPoolContent(makePool({
+        allowCommunityMatch: true,
+        allowPublicEdit: false
+      }), makeUser("other-user"))).toBe(false);
+    });
+
+    it("does not expose community ranking just because editing is enabled", () => {
+      expect(canReadCommunityRanking(makePool({ allowPublicEdit: true }))).toBe(false);
     });
   });
 
