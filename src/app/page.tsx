@@ -8,7 +8,8 @@ export default function Home() {
       <section className="grid items-center gap-8 py-6 lg:min-h-[65vh] lg:grid-cols-[minmax(0,1fr)_minmax(420px,600px)] lg:gap-12">
         <div className="min-w-0">
           <h1 className="text-4xl font-black leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">AniMatch</h1>
-          <div className="mt-7"><HomeActions /></div>
+          <p className="mt-3 max-w-md text-sm text-slate-300 sm:text-base">两两对决，排出你的番剧榜单。</p>
+          <div className="mt-6"><HomeActions /></div>
         </div>
         <HomeMiniMatchDemo />
       </section>

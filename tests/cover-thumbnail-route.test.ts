@@ -48,14 +48,14 @@ describe("cover-thumbnail GET", () => {
     }
   });
 
-  it("processes existing local image uploads without re-import and caches both layouts", async () => {
+  it("processes existing uploads without re-import and caches card, tier and HD match layouts", async () => {
     const source = await sharp({
       create: { width: 480, height: 240, channels: 4, background: "#336699" }
     }).png().toBuffer();
     await writeFile(path.join(uploads, "wide.png"), source);
 
     for (const [variant, width, height] of [
-      ["card", 320, 480], ["tier", 256, 256]
+      ["card", 320, 480], ["tier", 256, 256], ["match", 768, 1152]
     ] as const) {
       const url = `http://localhost/api/cover-thumbnail?variant=${variant}&src=%2Fuploads%2Fcustom-items%2Fwide.png`;
       const result = await GET(new Request(url));
@@ -68,7 +68,7 @@ describe("cover-thumbnail GET", () => {
       expect(Buffer.from(await second.arrayBuffer())).toEqual(firstBytes);
     }
 
-    expect((await readdir(cache)).filter((file) => file.endsWith(".webp"))).toHaveLength(2);
+    expect((await readdir(cache)).filter((file) => file.endsWith(".webp"))).toHaveLength(3);
   });
 
   it("serves uploaded override covers from the anime-covers volume", async () => {

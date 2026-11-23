@@ -82,7 +82,7 @@ export function HomeMiniMatchDemo() {
 
   if (preview === null) {
     return (
-      <AppCard variant="focus" className="overflow-hidden p-5" aria-label="mini match demo">
+      <AppCard variant="focus" className="overflow-hidden p-4 sm:p-5" aria-label="mini match demo">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">番剧擂台</p>
         <h2 className="mt-2 text-lg font-semibold text-white">正在加载对决…</h2>
       </AppCard>
@@ -91,7 +91,7 @@ export function HomeMiniMatchDemo() {
 
   if (pair === null) {
     return (
-      <AppCard variant="focus" className="overflow-hidden p-5" aria-label="mini match demo empty">
+      <AppCard variant="focus" className="overflow-hidden p-4 sm:p-5" aria-label="mini match demo empty">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">番剧擂台</p>
@@ -130,15 +130,15 @@ export function HomeMiniMatchDemo() {
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-2">
-        <ChoiceButton label="左边" onClick={() => choose("left")} active={choice === "left"} disabled={choice !== null} />
-        <ChoiceButton label="差不多" onClick={() => choose("draw")} active={choice === "draw"} disabled={choice !== null} />
-        <ChoiceButton label="右边" onClick={() => choose("right")} active={choice === "right"} disabled={choice !== null} />
+        <ChoiceButton label="左边" ariaLabel={`更喜欢${pair.left.titleCn ?? pair.left.title}`} onClick={() => choose("left")} active={choice === "left"} disabled={choice !== null} />
+        <ChoiceButton label="差不多" ariaLabel="两部同样喜欢" onClick={() => choose("draw")} active={choice === "draw"} disabled={choice !== null} />
+        <ChoiceButton label="右边" ariaLabel={`更喜欢${pair.right.titleCn ?? pair.right.title}`} onClick={() => choose("right")} active={choice === "right"} disabled={choice !== null} />
       </div>
 
       {preview.ctaHref ? (
         <Link
           href={preview.ctaHref}
-          className={appButtonClasses({ variant: "primary", className: "mt-4 w-full" })}
+          className={appButtonClasses({ variant: "ghost", className: "mt-4 w-full" })}
         >
           {preview.ctaLabel}
         </Link>
@@ -146,7 +146,7 @@ export function HomeMiniMatchDemo() {
         <AppButton
           type="button"
           className="mt-4 w-full"
-          variant="primary"
+          variant="ghost"
           onClick={handleDemoPool}
           disabled={isPreparingDemoPool}
         >
@@ -178,7 +178,7 @@ function PreviewCard({
         className={[
           "overflow-hidden rounded-anime border bg-slate-950/70 transition duration-anime",
           selected
-            ? "border-anime-pink/70 shadow-[0_0_28px_rgba(255,79,169,0.25)]"
+            ? "border-anime-pink/70 shadow-[0_0_16px_rgba(255,79,169,0.12)]"
             : "border-white/12"
         ].join(" ")}
       >
@@ -196,11 +196,13 @@ function PreviewCard({
 
 function ChoiceButton({
   label,
+  ariaLabel,
   active,
   disabled,
   onClick
 }: {
   label: string;
+  ariaLabel: string;
   active: boolean;
   disabled: boolean;
   onClick: () => void;
@@ -209,11 +211,12 @@ function ChoiceButton({
     <button
       type="button"
       onClick={onClick}
+      aria-label={ariaLabel}
       disabled={disabled}
       className={[
         "min-h-11 rounded-xl border px-2 text-sm font-semibold transition duration-anime active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70",
         active
-          ? "border-anime-pink/55 bg-anime-pink/18 text-pink-50 shadow-[0_0_18px_rgba(255,79,169,0.16)]"
+          ? "border-anime-pink/55 bg-anime-pink/18 text-pink-50"
           : "border-anime-cyan/25 bg-anime-cyan/10 text-cyan-100 hover:bg-anime-cyan/16"
       ].join(" ")}
     >

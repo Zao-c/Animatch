@@ -23,9 +23,9 @@ const config: Config = {
         "anime-lg": "1.25rem"
       },
       boxShadow: {
-        "anime-panel": "0 22px 70px rgba(2, 6, 23, 0.34)",
-        "anime-focus": "0 24px 80px rgba(53, 230, 220, 0.14)",
-        "anime-amber": "0 20px 60px rgba(246, 196, 83, 0.12)"
+        "anime-panel": "0 16px 44px rgba(2, 6, 23, 0.28)",
+        "anime-focus": "0 14px 36px rgba(53, 230, 220, 0.08)",
+        "anime-amber": "0 10px 24px rgba(246, 196, 83, 0.08)"
       },
       transitionDuration: {
         anime: "180ms"

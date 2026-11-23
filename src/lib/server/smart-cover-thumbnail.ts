@@ -10,7 +10,10 @@ export const SMART_COVER_VERSION = "v1";
 
 export const SMART_COVER_SIZES: Record<SmartCoverVariant, { width: number; height: number }> = {
   card: { width: 320, height: 480 },
-  tier: { width: 256, height: 256 }
+  tier: { width: 256, height: 256 },
+  // Duel cards are large on desktop and need enough pixels for HiDPI screens.
+  // A 2048×1024 splash crop provides ~683×1024 effective source pixels.
+  match: { width: 768, height: 1152 }
 };
 
 export interface CropRegion {
@@ -183,6 +186,6 @@ export async function generateSmartCover(input: Buffer, variant: SmartCoverVaria
 
   return sharp(background)
     .composite([{ input: foreground }])
-    .webp({ quality: 83, effort: 4 })
+    .webp({ quality: variant === "match" ? 94 : 83, effort: 4 })
     .toBuffer();
 }

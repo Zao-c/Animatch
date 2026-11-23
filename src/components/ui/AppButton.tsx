@@ -5,7 +5,7 @@ type AppButtonSize = "sm" | "md" | "lg";
 
 const VARIANT_CLASS: Record<AppButtonVariant, string> = {
   primary:
-    "border-anime-cyan/80 bg-anime-cyan text-slate-950 shadow-anime-focus hover:bg-cyan-200 hover:shadow-[0_20px_70px_rgba(53,230,220,0.22)]",
+    "border-anime-cyan/80 bg-anime-cyan text-slate-950 shadow-[0_8px_24px_rgba(53,230,220,0.10)] hover:bg-cyan-200 hover:shadow-[0_10px_28px_rgba(53,230,220,0.14)]",
   secondary:
     "border-anime-purple/35 bg-anime-purple/12 text-purple-100 hover:border-purple-200/60 hover:bg-anime-purple/20",
   danger:
@@ -17,7 +17,7 @@ const VARIANT_CLASS: Record<AppButtonVariant, string> = {
 };
 
 const SIZE_CLASS: Record<AppButtonSize, string> = {
-  sm: "min-h-11 px-3 py-2 text-xs sm:min-h-9 sm:py-1.5",
+  sm: "min-h-11 px-3 py-2 text-xs",
   md: "min-h-11 px-4 py-2 text-sm",
   lg: "min-h-12 px-5 py-3 text-sm"
 };

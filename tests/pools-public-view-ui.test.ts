@@ -179,7 +179,7 @@ describe("public pools community summary", () => {
 
   it("keeps the card focused by folding metadata and avoiding duplicate demo badges", () => {
     expect(poolsSource).toContain('size="md"');
-    expect(poolsSource).toContain("!officialDemoLabel ?");
+    expect(poolsSource).toContain("!officialDemoLabel && !isPublicView ?");
     expect(poolsSource).toContain("pool.tags.slice(0, 4)");
     expect(poolsSource).toContain("!isPublicView ? <AppBadge tone={toneForStatus(uiStatus)}>");
   });

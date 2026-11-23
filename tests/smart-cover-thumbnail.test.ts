@@ -48,7 +48,7 @@ describe("smart cover composition", () => {
     const source = await sharp(rgba, { raw: { width, height, channels: 4 } })
       .png().toBuffer();
     for (const [kind, expectedWidth, expectedHeight] of [
-      ["card", 320, 480], ["tier", 256, 256]
+      ["card", 320, 480], ["tier", 256, 256], ["match", 768, 1152]
     ] as const) {
       const result = await generateSmartCover(source, kind);
       const metadata = await sharp(result).metadata();

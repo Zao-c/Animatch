@@ -28,10 +28,10 @@ function NavLinkView({ className = "", active = false, ...props }: ComponentProp
       {...props}
       aria-current={active ? "page" : undefined}
       className={[
-        "inline-flex min-h-11 min-w-0 items-center whitespace-nowrap rounded-xl border px-4 py-2 text-xs font-medium transition duration-anime",
-        active ? "border-anime-purple/50 bg-anime-purple/20 text-white" : "border-white/10 bg-white/[0.04] text-slate-300",
-        "hover:border-anime-purple/35 hover:bg-anime-purple/10 hover:text-white",
-        "active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-anime-cyan/40",
+        "inline-flex min-h-11 min-w-0 items-center whitespace-nowrap rounded-lg border border-transparent px-3 py-2 text-xs font-medium transition-colors duration-anime",
+        active ? "bg-anime-purple/15 text-purple-100" : "text-slate-300",
+        "hover:bg-white/[0.06] hover:text-white",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-anime-cyan",
         className
       ]
         .filter(Boolean)

@@ -16,8 +16,17 @@ describe("preload source coverage",()=>{
     const anime={source:"TIERMAKER_IMPORT",imageUrl:"/uploads/custom-items/duel.png"};
     expect(await preloadPairs([{left:anime,right:anime}] as any)).toEqual({loaded:2,total:2});
     const [sources]=vi.mocked(loadCoverImage).mock.calls[0];
-    expect(sources[0]).toBe("/api/cover-thumbnail?variant=card&src=%2Fuploads%2Fcustom-items%2Fduel.png");
+    expect(sources[0]).toBe("/api/cover-thumbnail?variant=match&src=%2Fuploads%2Fcustom-items%2Fduel.png");
     expect(sources).toContain("/uploads/custom-items/duel.png");
+  });
+  it("preloads original import artwork rather than the smaller COS mirror",async()=>{
+    const cos="https://bucket.cos.ap-shanghai.myqcloud.com/animatch/covers/low-res.webp";
+    const raw="https://example.com/original-2048.png";
+    const anime={source:"TIERMAKER_IMPORT",cachedCoverUrl:cos,imageLargeUrl:raw};
+    await preloadPairs([{left:anime,right:anime}] as any);
+    const [sources]=vi.mocked(loadCoverImage).mock.calls[0];
+    expect(sources[0]).toContain("variant=match&src="+encodeURIComponent(raw));
+    expect(sources).toContain("/api/cover-thumbnail?variant=match&src="+encodeURIComponent(cos));
   });
   it("does not require all preloads to succeed",async()=>{
     vi.mocked(loadCoverImage).mockRejectedValueOnce(new Error("unavailable"));
