@@ -1,0 +1,76 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+describe("onboarding guide copy", () => {
+  const homeSource = readFileSync("src/app/page.tsx", "utf8");
+  const detailSource = readFileSync("src/app/pools/[poolId]/page.tsx", "utf8");
+  const matchSource = readFileSync("src/app/pools/[poolId]/runs/[runId]/match/page.tsx", "utf8");
+  const tierSource = readFileSync("src/app/pools/[poolId]/runs/[runId]/tier/page.tsx", "utf8");
+
+  it("shows the home onboarding guide", () => {
+    expect(homeSource).toContain("三步生成榜单");
+    expect(homeSource).toContain("从公开番组体验一次大乱斗");
+    expect(homeSource).toContain("添加动画");
+    expect(homeSource).toContain("开始对决");
+    expect(homeSource).toContain("生成榜单");
+  });
+
+  it("shows public pool anonymous onboarding copy", () => {
+    expect(detailSource).toContain("你可以先浏览作品墙，登录后开始自己的个人对决。");
+    expect(detailSource).toContain("!canManagePool");
+    expect(detailSource).toContain("!canPlayPool");
+  });
+
+  it("shows logged-in non-owner personal-run copy", () => {
+    expect(detailSource).toContain("你的对决和榜单只属于你，不会影响创建者。");
+    expect(detailSource).toContain("canPlayPool");
+  });
+
+  it("shows owner pool settings copy", () => {
+    expect(detailSource).toContain("你可以在番组设置里切换公开/私有，并继续维护作品墙。");
+    expect(detailSource).toContain("canManagePool");
+  });
+
+  it("explains match undo, skip, unseen, and reset actions", () => {
+    expect(matchSource).toContain("ShortcutKey");
+    expect(matchSource).toContain("选择左边");
+    expect(matchSource).toContain("选择右边");
+    expect(matchSource).toContain("对决设置");
+    expect(matchSource).toContain("getComparisonResultForShortcut");
+    expect(matchSource).toContain("撤回上次选择");
+    expect(matchSource).toContain("重开本轮");
+    expect(matchSource).toContain("左边没看过");
+  });
+
+  it("explains tier sharing, export, and manual display behavior", () => {
+    expect(tierSource).toContain("Tier List 根据你的对决结果生成");
+    expect(tierSource).toContain("分享榜单");
+    expect(tierSource).toContain("导出图片");
+    expect(tierSource).toContain("继续对决");
+    expect(tierSource).toContain("查看社区榜单");
+    expect(tierSource).toContain("社区大乱斗");
+    expect(tierSource).toContain("匿名聚合方式参与社区榜单");
+    expect(tierSource).toContain("手动调整只影响榜单展示和当前手动排序");
+    expect(tierSource).toContain("不会改写对决历史");
+  });
+
+  it("explains add-anime search flow concisely", () => {
+    expect(detailSource).toContain("搜索动画名称");
+  });
+
+  it("warns about TierMaker import cover expiration and cover repair", () => {
+    expect(detailSource).toContain("TierMaker 模板图片可能会失效");
+    expect(detailSource).toContain("修复导入封面");
+  });
+
+  it("keeps onboarding surfaces wrapped for narrow mobile widths", () => {
+    expect(homeSource).toContain("sm:grid-cols-3");
+    expect(detailSource).toContain("flex flex-wrap");
+    expect(matchSource).toContain("flex flex-wrap");
+    expect(tierSource).toContain("sm:flex-row sm:flex-wrap");
+    for (const source of [homeSource, detailSource, matchSource, tierSource]) {
+      expect(source).not.toMatch(/\b(?:w|mini?-w)-screen\b/);
+      expect(source).not.toMatch(/(?:w|mini?-w)-\[1264px\]/);
+    }
+  });
+});

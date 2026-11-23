@@ -1,11 +1,17 @@
-import { badRequest, forbidden, notFound, ok, serverError } from "@/lib/api-response";
+import { PoolStatus, type Anime } from "@prisma/client";
+import { NextResponse } from "next/server";
+import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
 import {
   importBangumiSubjects,
   toPublicAnime,
   type PublicAnime
 } from "@/lib/anime-service";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { requireCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
+import { canAddAnime } from "@/lib/pool-permissions";
+import { serializePoolAnime } from "@/lib/pool-anime-serializer";
+import { getNextPoolAnimePosition, withPoolAnimePositionTransaction } from "@/lib/pool-anime-position";
+import { enqueuePoolAnimeCoversCache } from "@/lib/server/pool-cover-cache";
 
 interface RouteContext {
   params: {
@@ -17,14 +23,6 @@ interface BulkImportBody {
   input?: unknown;
 }
 
-interface AddedPoolAnime {
-  id: string;
-  poolId: string;
-  animeId: string;
-  position: number;
-  anime: PublicAnime;
-}
-
 export async function POST(request: Request, context: RouteContext) {
   const body = (await request.json().catch(() => null)) as BulkImportBody | null;
   const input = typeof body?.input === "string" ? body.input.trim() : "";
@@ -34,67 +32,75 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const pool = await prisma.customPool.findUnique({
       where: {
         id: context.params.poolId
       }
     });
 
-    if (pool === null || pool.deletedAt !== null) {
+    if (pool === null) {
       return notFound("Pool not found");
     }
 
-    if (pool.creatorId !== user.id) {
-      return forbidden("Pool does not belong to the current dev user");
+    if (pool.deletedAt !== null || pool.status === PoolStatus.ARCHIVED) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            message: "Archived pools cannot import anime"
+          }
+        },
+        { status: 409 }
+      );
+    }
+
+    if (!canAddAnime(pool, user)) {
+      return forbidden("你没有权限管理这个番组。");
     }
 
     const importedResult = await importBangumiSubjects(input);
-    const added: AddedPoolAnime[] = [];
+    const added: ReturnType<typeof serializePoolAnime>[] = [];
     const skipped: PublicAnime[] = [];
 
-    for (const anime of importedResult.imported) {
-      const existingEntry = await prisma.poolAnime.findUnique({
-        where: {
-          poolId_animeId: {
-            poolId: pool.id,
-            animeId: anime.id
+    const animesToCache: Anime[] = [];
+
+    await withPoolAnimePositionTransaction(async (tx) => {
+      let nextPosition = await getNextPoolAnimePosition(tx, pool.id);
+
+      for (const anime of importedResult.imported) {
+        const existingEntry = await tx.poolAnime.findUnique({
+          where: {
+            poolId_animeId: {
+              poolId: pool.id,
+              animeId: anime.id
+            }
           }
-        }
-      });
+        });
 
-      if (existingEntry !== null) {
-        skipped.push(toPublicAnime(anime));
-        continue;
+        if (existingEntry !== null) {
+          skipped.push(toPublicAnime(anime));
+          animesToCache.push(anime);
+          continue;
+        }
+
+        const createdEntry = await tx.poolAnime.create({
+          data: {
+            poolId: pool.id,
+            animeId: anime.id,
+            position: nextPosition++
+          },
+          include: {
+            anime: true
+          }
+        });
+
+        added.push(serializePoolAnime(createdEntry));
+        animesToCache.push(createdEntry.anime);
       }
+    });
 
-      const maxPosition = await prisma.poolAnime.aggregate({
-        where: {
-          poolId: pool.id
-        },
-        _max: {
-          position: true
-        }
-      });
-      const createdEntry = await prisma.poolAnime.create({
-        data: {
-          poolId: pool.id,
-          animeId: anime.id,
-          position: (maxPosition._max.position ?? 0) + 1
-        },
-        include: {
-          anime: true
-        }
-      });
-
-      added.push({
-        id: createdEntry.id,
-        poolId: createdEntry.poolId,
-        animeId: createdEntry.animeId,
-        position: createdEntry.position,
-        anime: toPublicAnime(createdEntry.anime)
-      });
-    }
+    enqueuePoolAnimeCoversCache(animesToCache);
 
     return ok({
       added,
@@ -102,6 +108,6 @@ export async function POST(request: Request, context: RouteContext) {
       failed: importedResult.failed
     });
   } catch (error) {
-    return serverError(error instanceof Error ? error.message : "Pool bulk import failed");
+    return fromError(error);
   }
 }

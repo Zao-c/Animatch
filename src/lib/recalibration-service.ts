@@ -42,7 +42,8 @@ export async function getRecalibrationSuggestions(params: {
       where: {
         userId: params.userId,
         poolId: params.poolId,
-        runId: params.runId
+        runId: params.runId,
+        undoneAt: null
       },
       select: {
         pairKey: true
@@ -52,7 +53,8 @@ export async function getRecalibrationSuggestions(params: {
       where: {
         userId: params.userId,
         poolId: params.poolId,
-        runId: params.runId
+        runId: params.runId,
+        undoneAt: null
       },
       orderBy: {
         createdAt: "desc"

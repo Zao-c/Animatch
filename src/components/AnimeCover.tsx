@@ -1,48 +1,192 @@
 "use client";
 
-import Image from "next/image";
-import { useState } from "react";
+/* eslint-disable @next/next/no-img-element */
+
+import React, { useEffect, useMemo, useState } from "react";
+import { getProxiedCoverCandidates, isDirectImageUrl, warmImageProxyCache } from "@/lib/image-proxy";
 
 const SIZE_CLASS = {
   sm: "h-20 w-14",
   md: "h-36 w-24",
-  lg: "h-[420px] w-full"
+  lg: "aspect-[2/3] w-full sm:max-h-[420px]"
 } as const;
+const IMAGE_CANDIDATE_TIMEOUT_MS = 5000;
+const FINAL_IMAGE_TIMEOUT_MS = 8000;
+const DIRECT_IMAGE_TIMEOUT_MS = 15000;
+const IMAGE_ERROR_RETRY_DELAY_MS = 2500;
+const IMAGE_ERROR_RETRY_LIMIT = 2;
 
 export function AnimeCover({
   src,
+  secondarySrc,
   title,
   size = "md",
-  className = ""
+  fit = "cover",
+  className = "",
+  animeId,
+  loading = "lazy",
+  warm = false
 }: {
   src: string | null | undefined;
+  secondarySrc?: string | null;
   title: string;
   size?: "sm" | "md" | "lg";
+  fit?: "cover" | "contain";
   className?: string;
+  animeId?: string;
+  loading?: "eager" | "lazy";
+  warm?: boolean;
 }) {
-  const [failed, setFailed] = useState(false);
-  const shouldShowImage = Boolean(src) && !failed;
-  const imageSrc = src ?? "";
+  const candidates = useMemo(() => buildImageCandidates(src, secondarySrc), [src, secondarySrc]);
+  const [state, setState] = useState<"loading" | "loaded" | "error" | "empty">(
+    candidates.length > 0 ? "loading" : "empty"
+  );
+  const [candidateIndex, setCandidateIndex] = useState(0);
+  const [retryAttempt, setRetryAttempt] = useState(0);
+
+  useEffect(() => {
+    setCandidateIndex(0);
+    setRetryAttempt(0);
+    setState(candidates.length > 0 ? "loading" : "empty");
+  }, [candidates, animeId]);
+
+  useEffect(() => {
+    if (!warm) return;
+    warmImageProxyCache(src);
+    warmImageProxyCache(secondarySrc);
+  }, [src, secondarySrc, warm]);
+
+  const imageSrc = candidates[candidateIndex] ?? null;
+
+  useEffect(() => {
+    if (state !== "loading" || candidates.length === 0 || imageSrc === null) {
+      return;
+    }
+
+    const hasNextCandidate = candidateIndex < candidates.length - 1;
+    const timeoutMs = isDirectImageUrl(imageSrc)
+      ? DIRECT_IMAGE_TIMEOUT_MS
+      : hasNextCandidate
+        ? IMAGE_CANDIDATE_TIMEOUT_MS
+        : FINAL_IMAGE_TIMEOUT_MS;
+    const timeout = window.setTimeout(
+      () => {
+        if (hasNextCandidate) {
+          setCandidateIndex((current) => Math.min(current + 1, candidates.length - 1));
+          setState("loading");
+        } else {
+          setState("error");
+        }
+      },
+      timeoutMs
+    );
+
+    return () => window.clearTimeout(timeout);
+  }, [candidateIndex, candidates.length, imageSrc, state]);
+
+  useEffect(() => {
+    if (state !== "error" || candidates.length === 0 || retryAttempt >= IMAGE_ERROR_RETRY_LIMIT) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setCandidateIndex(0);
+      setRetryAttempt((current) => current + 1);
+      setState("loading");
+    }, IMAGE_ERROR_RETRY_DELAY_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [candidates.length, retryAttempt, state]);
+
+  const shouldShowImage = Boolean(imageSrc) && state !== "empty" && state !== "error";
+  const coverState: "loading" | "loaded" | "error" | "empty" =
+    candidates.length === 0 ? "empty" : state;
+  const isCoverUnavailable = coverState === "error" || coverState === "empty";
+
+  const imageFitClass =
+    fit === "contain"
+      ? "object-contain bg-slate-950"
+      : "object-cover";
 
   return (
     <div
-      className={`${SIZE_CLASS[size]} relative overflow-hidden rounded-lg border border-white/10 bg-zinc-900 ${className}`}
+      className={`${SIZE_CLASS[size]} relative overflow-hidden rounded-lg border border-white/10 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 ${className}`}
+      data-cover-fit={fit}
+      data-cover-state={coverState}
+      data-cover-url-present={String(candidates.length > 0)}
+      data-cover-candidate-count={candidates.length}
+      data-anime-id={animeId ?? ""}
+      title={isCoverUnavailable ? "封面加载失败，刷新页面或稍后再试。" : undefined}
+      aria-label={isCoverUnavailable ? `${title}：封面加载失败，刷新页面或稍后再试。` : undefined}
     >
-      {shouldShowImage ? (
-        <Image
-          src={imageSrc}
+      <div className="absolute inset-0 flex h-full w-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-cyan-900/30 via-zinc-900 to-purple-900/20 p-3">
+        <span className="text-lg font-bold text-cyan-400/60">
+          {title.charAt(0).toUpperCase() || "A"}
+        </span>
+        {size !== "sm" && (
+          <>
+            <span className="text-center text-[10px] font-semibold leading-tight text-zinc-400">
+              {isCoverUnavailable ? "封面加载失败" : ""}
+            </span>
+            <span className="line-clamp-2 text-center text-[10px] font-medium leading-tight text-zinc-500">
+              {isCoverUnavailable ? "刷新页面或稍后再试" : ""}
+            </span>
+            <span className="line-clamp-1 text-center text-[10px] font-medium leading-tight text-zinc-600">
+              {isCoverUnavailable ? title : ""}
+            </span>
+          </>
+        )}
+      </div>
+      {isCoverUnavailable && size === "sm" ? (
+        <span
+          className="absolute right-1 top-1 z-20 flex h-4 w-4 items-center justify-center rounded-full border border-amber-200/50 bg-slate-950/85 text-[10px] font-black leading-none text-amber-100"
+          aria-hidden="true"
+        >
+          !
+        </span>
+      ) : null}
+
+      {shouldShowImage && (
+        <img
+          src={imageSrc ?? ""}
           alt={title}
-          fill
-          sizes={size === "lg" ? "(max-width: 768px) 90vw, 38vw" : "160px"}
-          className="object-cover"
-          onError={() => setFailed(true)}
-          priority={size === "lg"}
+          loading={loading}
+          referrerPolicy="no-referrer"
+          data-export-secondary-src={secondarySrc ?? undefined}
+          data-cover-candidate-index={candidateIndex}
+          className={`relative z-10 h-full w-full ${imageFitClass} transition-opacity duration-300 ${
+            state === "loaded" ? "opacity-100" : "opacity-0"
+          }`}
+          onLoad={() => {
+            setState("loaded");
+            setRetryAttempt(0);
+            if (warm) warmImageProxyCache(imageSrc);
+          }}
+          onError={() => {
+            if (candidateIndex < candidates.length - 1) {
+              setCandidateIndex((current) => current + 1);
+              setState("loading");
+            } else {
+              setState("error");
+            }
+          }}
         />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center bg-zinc-900 p-3 text-center text-xs font-medium leading-5 text-zinc-400">
-          {title}
-        </div>
       )}
     </div>
   );
+}
+
+function buildImageCandidates(
+  primary: string | null | undefined,
+  secondary: string | null | undefined
+): string[] {
+  const rawPrimary = normalizeImageUrl(primary);
+  const rawSecondary = normalizeImageUrl(secondary);
+  return getProxiedCoverCandidates(rawPrimary, rawSecondary);
+}
+
+function normalizeImageUrl(value: string | null | undefined): string | null {
+  if (value === undefined || value === null) return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }

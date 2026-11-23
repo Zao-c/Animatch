@@ -1,5 +1,5 @@
 import { badRequest, fromError, ok } from "@/lib/api-response";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { requireCurrentUser } from "@/lib/auth-session";
 import {
   clearManualTier,
   saveManualTierList,
@@ -29,7 +29,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const tierList = await saveManualTierList({
       userId: user.id,
       poolId: context.params.poolId,
@@ -47,7 +47,7 @@ export async function DELETE(request: Request, context: RouteContext) {
   const body = (await request.json().catch(() => null)) as ClearBody | null;
 
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const tierList = await clearManualTier({
       userId: user.id,
       poolId: context.params.poolId,

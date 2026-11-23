@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { PlaytestFeedbackButton } from "@/components/PlaytestFeedbackButton";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "AniMatch",
-  description: "Anime pairwise ranking and personal tier lists."
+  description: "Anime pairwise ranking and personal tier lists.",
+  icons: {
+    icon: "/brand/animatch-logo-icon.png",
+    apple: "/brand/animatch-logo-icon.png"
+  }
 };
 
 export default function RootLayout({
@@ -13,7 +19,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body>
+        {children}
+        <Suspense fallback={null}>
+          <PlaytestFeedbackButton />
+        </Suspense>
+      </body>
     </html>
   );
 }

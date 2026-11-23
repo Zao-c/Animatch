@@ -21,8 +21,16 @@ export function badRequest(message: string): NextResponse<ApiFailure> {
   return errorResponse(message, 400);
 }
 
+export function unauthorized(message: string): NextResponse<ApiFailure> {
+  return errorResponse(message, 401);
+}
+
 export function forbidden(message: string): NextResponse<ApiFailure> {
   return errorResponse(message, 403);
+}
+
+export function conflict(message: string): NextResponse<ApiFailure> {
+  return errorResponse(message, 409);
 }
 
 export function notFound(message: string): NextResponse<ApiFailure> {
@@ -67,6 +75,17 @@ function toFriendlyServerMessage(message: string): string {
     message.includes("P1001")
   ) {
     return "Can't reach database server. Start PostgreSQL with docker compose up -d, then run pnpm prisma migrate dev.";
+  }
+
+  if (message === "fetch failed" || message.includes("fetch failed")) {
+    return "无法连接 Bangumi 数据源，请稍后重试或使用 Bangumi ID 直接导入。";
+  }
+
+  if (
+    message.includes("Bangumi API request timed out") ||
+    message.includes("timed out")
+  ) {
+    return "Bangumi API 请求超时，请稍后重试。";
   }
 
   return message;

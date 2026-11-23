@@ -1,6 +1,6 @@
 import { RecalibrationSessionType } from "@prisma/client";
 import { badRequest, fromError, ok } from "@/lib/api-response";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { requireCurrentUser } from "@/lib/auth-session";
 import { createRecalibrationSession } from "@/lib/recalibration-service";
 
 interface RouteContext {
@@ -26,7 +26,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const result = await createRecalibrationSession({
       userId: user.id,
       poolId: context.params.poolId,

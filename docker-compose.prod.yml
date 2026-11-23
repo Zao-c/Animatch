@@ -19,18 +19,58 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_COS_PUBLIC_BASE_URL: ${NEXT_PUBLIC_COS_PUBLIC_BASE_URL:-${COS_PUBLIC_BASE_URL:-}}
+        NEXT_PUBLIC_DIRECT_IMAGE_HOSTS: ${NEXT_PUBLIC_DIRECT_IMAGE_HOSTS:-}
     container_name: animatch-app
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
+    dns:
+      - 223.5.5.5
+      - 119.29.29.29
     environment:
       DATABASE_URL: ${DATABASE_URL}
+      FRIEND_INVITE_CODE: ${FRIEND_INVITE_CODE}
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       NODE_ENV: production
+      NODE_OPTIONS: --dns-result-order=ipv4first
+      BANGUMI_PROXY_URL: ${BANGUMI_PROXY_URL:-}
+      BANGUMI_ACCESS_TOKEN: ${BANGUMI_ACCESS_TOKEN:-}
+      ANIMATCH_OUTBOUND_PROXY_URL: ${ANIMATCH_OUTBOUND_PROXY_URL:-}
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1,postgres,animatch-postgres,registry.npmjs.org,npmjs.org}
+      SITE_ADMIN_USER_IDS: ${SITE_ADMIN_USER_IDS}
+      SITE_ADMIN_CODE: ${SITE_ADMIN_CODE}
+      COS_SECRET_ID: ${COS_SECRET_ID:-}
+      COS_SECRET_KEY: ${COS_SECRET_KEY:-}
+      COS_BUCKET: ${COS_BUCKET:-}
+      COS_REGION: ${COS_REGION:-}
+      COS_PUBLIC_BASE_URL: ${COS_PUBLIC_BASE_URL:-}
+      COS_COVER_PREFIX: ${COS_COVER_PREFIX:-animatch/covers}
+      COS_OBJECT_ACL: ${COS_OBJECT_ACL:-public-read}
+      NEXT_PUBLIC_COS_PUBLIC_BASE_URL: ${NEXT_PUBLIC_COS_PUBLIC_BASE_URL:-${COS_PUBLIC_BASE_URL:-}}
+      NEXT_PUBLIC_DIRECT_IMAGE_HOSTS: ${NEXT_PUBLIC_DIRECT_IMAGE_HOSTS:-}
+      ANIMATCH_IMAGE_PROXY_ALLOWED_HOSTS: ${ANIMATCH_IMAGE_PROXY_ALLOWED_HOSTS:-}
+      ANIMATCH_IMAGE_PROXY_BLOCKED_HOSTS: ${ANIMATCH_IMAGE_PROXY_BLOCKED_HOSTS:-}
     ports:
       - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/api/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    volumes:
+      - anime_uploads:/app/public/uploads
+      - animatch_image_cache:/app/data/image-cache
 
 volumes:
   animatch_postgres_data:
+  anime_uploads:
+  animatch_image_cache:

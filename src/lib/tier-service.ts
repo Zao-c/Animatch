@@ -1,12 +1,17 @@
 import type { Anime, UserPoolScore } from "@prisma/client";
 import { toPublicAnime } from "./anime-service";
+import { getEffectiveAnimeDisplay, type EffectiveAnimeDisplay } from "./anime-display";
 import { prisma } from "./db";
-import { buildTierList, calculateRankingConfidence, type Tier } from "./tier";
+import { buildScoreDistribution, type RankingScoreDistribution } from "./ranking-display";
+import { buildRankingProgress, type RankingProgress } from "./ranking-progress";
+import { buildTierList, calculateRankingConfidence } from "./tier";
+import { resolveTierRows, type TierRowConfig, type PoolTierConfig } from "./tier-config";
 import { assertRunAccess } from "./run-service";
 
 type ScoreWithAnime = UserPoolScore & { anime: Anime };
 
 export interface TierListItem extends ReturnType<typeof toPublicAnime> {
+  display?: EffectiveAnimeDisplay;
   animeId: string;
   eloScore: number;
   uncertainty: number;
@@ -22,16 +27,24 @@ export interface TierListItem extends ReturnType<typeof toPublicAnime> {
 }
 
 export interface RunTierListResult {
-  tiers: Record<Tier, TierListItem[]>;
+  tiers: Record<string, TierListItem[]>;
+  tierRows: TierRowConfig[];
   confidenceScore: number;
   totalAnime: number;
   comparedAnime: number;
   totalComparisons: number;
+  effectiveComparisons: number;
+  scoreDistribution: RankingScoreDistribution;
+  progress: RankingProgress;
 }
 
-export function toTierListItem(score: ScoreWithAnime): TierListItem {
+export function toTierListItem(
+  score: ScoreWithAnime,
+  display?: EffectiveAnimeDisplay
+): TierListItem {
   return {
     ...toPublicAnime(score.anime),
+    display,
     animeId: score.animeId,
     eloScore: score.eloScore,
     uncertainty: score.uncertainty,
@@ -54,7 +67,7 @@ export async function getRunTierList(params: {
 }): Promise<RunTierListResult> {
   await assertRunAccess(params);
 
-  const [scores, totalComparisons] = await Promise.all([
+  const [scores, poolAnimeEntries, pool] = await Promise.all([
     prisma.userPoolScore.findMany({
       where: {
         userId: params.userId,
@@ -65,22 +78,71 @@ export async function getRunTierList(params: {
         anime: true
       }
     }),
+    prisma.poolAnime.findMany({
+      where: {
+        poolId: params.poolId
+      },
+      include: {
+        anime: true
+      }
+    }),
+    prisma.customPool.findUnique({
+      where: { id: params.poolId },
+      select: { tierConfig: true }
+    })
+  ]);
+
+  const tierConfig = (pool?.tierConfig ?? null) as PoolTierConfig | null;
+  const tierRows = resolveTierRows(tierConfig);
+
+  const activeAnimeIds = new Set(poolAnimeEntries.map((entry) => entry.animeId));
+  const displayByAnimeId = new Map(
+    poolAnimeEntries.map((entry) => [entry.animeId, getEffectiveAnimeDisplay(entry)])
+  );
+  const activeScores = scores.filter((score) => activeAnimeIds.has(score.animeId));
+  const visibleScores = activeScores.filter((score) => !score.isHidden);
+  const activeComparisonsWhere = {
+    userId: params.userId,
+    poolId: params.poolId,
+    runId: params.runId,
+    undoneAt: null,
+    leftAnimeId: {
+      in: [...activeAnimeIds]
+    },
+    rightAnimeId: {
+      in: [...activeAnimeIds]
+    }
+  };
+  const [activeTotalComparisons, activeEffectiveComparisons] = await Promise.all([
+    prisma.poolComparison.count({
+      where: activeComparisonsWhere
+    }),
     prisma.poolComparison.count({
       where: {
-        userId: params.userId,
-        poolId: params.poolId,
-        runId: params.runId
+        ...activeComparisonsWhere,
+        isEffective: true
       }
     })
   ]);
-  const items = scores.map(toTierListItem);
-  const tiers = buildTierList(items);
+  const items = visibleScores.map((score) =>
+    toTierListItem(score, displayByAnimeId.get(score.animeId))
+  );
+  const tiers = buildTierList(items, tierRows);
 
   return {
     tiers,
+    tierRows,
     confidenceScore: calculateRankingConfidence(items),
-    totalAnime: scores.length,
-    comparedAnime: scores.filter((score) => score.compareCount > 0).length,
-    totalComparisons
+    totalAnime: activeAnimeIds.size,
+    comparedAnime: visibleScores.filter((score) => score.compareCount > 0).length,
+    totalComparisons: activeTotalComparisons,
+    effectiveComparisons: activeEffectiveComparisons,
+    scoreDistribution: buildScoreDistribution(items.map((item) => item.eloScore)),
+    progress: buildRankingProgress({
+      totalItems: visibleScores.length,
+      effectiveComparisons: activeEffectiveComparisons,
+      comparedItems: visibleScores.filter((score) => score.compareCount > 0).length,
+      totalComparisons: activeTotalComparisons
+    })
   };
 }

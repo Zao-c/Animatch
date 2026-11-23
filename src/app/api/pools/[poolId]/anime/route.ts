@@ -1,8 +1,13 @@
 import { Prisma } from "@prisma/client";
-import { badRequest, forbidden, notFound, ok, serverError } from "@/lib/api-response";
-import { getOrImportAnimeByBgmId, toPublicAnime } from "@/lib/anime-service";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
+import { getOrImportAnimeByBgmId } from "@/lib/anime-service";
+import { requireCurrentUser } from "@/lib/auth-session";
+import { isAdminEditSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
+import { canAddAnime } from "@/lib/pool-permissions";
+import { serializePoolAnime } from "@/lib/pool-anime-serializer";
+import { getNextPoolAnimePosition, withPoolAnimePositionTransaction } from "@/lib/pool-anime-position";
+import { enqueuePoolAnimeCoverCache } from "@/lib/server/pool-cover-cache";
 
 interface RouteContext {
   params: {
@@ -25,7 +30,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const pool = await prisma.customPool.findUnique({
       where: {
         id: context.params.poolId
@@ -36,8 +41,8 @@ export async function POST(request: Request, context: RouteContext) {
       return notFound("Pool not found");
     }
 
-    if (pool.creatorId !== user.id) {
-      return forbidden("Pool does not belong to the current dev user");
+    if (!canAddAnime(pool, user) && !(await isAdminEditSession(user))) {
+      return forbidden("你没有权限管理这个番组。");
     }
 
     const anime = animeId
@@ -61,30 +66,27 @@ export async function POST(request: Request, context: RouteContext) {
     });
 
     if (existingEntry !== null) {
+      enqueuePoolAnimeCoverCache(existingEntry.anime);
       return ok({
         poolAnime: serializePoolAnime(existingEntry)
       });
     }
 
-    const maxPosition = await prisma.poolAnime.aggregate({
-      where: {
-        poolId: pool.id
-      },
-      _max: {
-        position: true
-      }
+    const createdEntry = await withPoolAnimePositionTransaction(async (tx) => {
+      const position = await getNextPoolAnimePosition(tx, pool.id);
+      return tx.poolAnime.create({
+        data: {
+          poolId: pool.id,
+          animeId: anime.id,
+          position
+        },
+        include: {
+          anime: true
+        }
+      });
     });
 
-    const createdEntry = await prisma.poolAnime.create({
-      data: {
-        poolId: pool.id,
-        animeId: anime.id,
-        position: (maxPosition._max.position ?? 0) + 1
-      },
-      include: {
-        anime: true
-      }
-    });
+    enqueuePoolAnimeCoverCache(anime);
 
     return ok(
       {
@@ -100,21 +102,6 @@ export async function POST(request: Request, context: RouteContext) {
       return badRequest("Anime already exists in this pool");
     }
 
-    return serverError(error instanceof Error ? error.message : "Adding anime failed");
+    return fromError(error);
   }
-}
-
-function serializePoolAnime(
-  entry: Prisma.PoolAnimeGetPayload<{ include: { anime: true } }>
-) {
-  return {
-    id: entry.id,
-    poolId: entry.poolId,
-    animeId: entry.animeId,
-    position: entry.position,
-    note: entry.note,
-    initialElo: entry.initialElo,
-    createdAt: entry.createdAt,
-    anime: toPublicAnime(entry.anime)
-  };
 }

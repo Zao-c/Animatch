@@ -72,27 +72,27 @@ describe("pairing", () => {
     expect(pickNextPair([baseScores[0]], new Set(), new Set())).toBeNull();
   });
 
-  it("picks from eligible top candidates", () => {
+  it("picks an eligible v2 candidate", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
 
     const pair = pickNextPair(baseScores, new Set(), new Set());
 
     expect(pair).not.toBeNull();
-    expect(pair?.leftAnimeId).toBe("a");
-    expect(pair?.rightAnimeId).toBe("b");
-    expect(pair?.reason).toContain("new-pair");
+    expect(pair?.leftAnimeId).not.toBe(pair?.rightAnimeId);
+    expect(pair?.reason).toContain("pairing=v2");
+    expect(pair?.reason).toContain("new_pair");
 
     vi.restoreAllMocks();
   });
 
-  it("skips recent pairs and returns null when no pair is eligible", () => {
+  it("falls back to recent pairs when no non-recent pair is eligible", () => {
     const allPairs = new Set([
       makePairKey("a", "b"),
       makePairKey("a", "c"),
       makePairKey("b", "c")
     ]);
 
-    expect(pickNextPair(baseScores, new Set(), allPairs)).toBeNull();
+    expect(pickNextPair(baseScores, new Set(), allPairs)).not.toBeNull();
   });
 
   it("rejects invalid score input", () => {

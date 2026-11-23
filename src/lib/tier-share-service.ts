@@ -1,0 +1,328 @@
+import { Prisma } from "@prisma/client";
+import { getAnimeCoverUrl } from "./anime-cover-url";
+import { AppError } from "./app-error";
+import { prisma } from "./db";
+import { getRunTierList, type RunTierListResult, type TierListItem } from "./tier-service";
+import {
+  DEFAULT_TIER_LABELS,
+  normalizeTierLabels,
+  type TierLabels
+} from "./tier-labels";
+import { DEFAULT_TIER_CONFIG, type TierRowConfig } from "./tier-config";
+
+export interface TierShareSnapshotItem {
+  animeId: string;
+  title: string;
+  subtitle?: string;
+  coverUrl?: string | null;
+  imageUrl?: string | null;
+  imageSmallUrl?: string | null;
+  imageMediumUrl?: string | null;
+  imageLargeUrl?: string | null;
+  thumbnailUrl?: string | null;
+  source: string;
+  animeType?: string;
+  tags?: string[];
+  elo?: number;
+  isLocked?: boolean;
+  isEdited?: boolean;
+}
+
+export interface TierShareSnapshotTier {
+  key: string;
+  label: string;
+  color?: string;
+  items: TierShareSnapshotItem[];
+}
+
+export interface TierShareSnapshot {
+  version: 1;
+  generatedAt: string;
+  pool: {
+    id: string;
+    name: string;
+  };
+  run: {
+    id: string;
+  };
+  creator?: {
+    id: string;
+    displayName: string;
+    username: string | null;
+  };
+  tiers: TierShareSnapshotTier[];
+  tierRows?: TierRowConfig[];
+  animeCount: number;
+  comparisonCount: number;
+  isInitialEstimate?: boolean;
+}
+
+export interface PublicTierShare {
+  token: string;
+  title: string;
+  description: string | null;
+  tierLabels: TierLabels;
+  snapshot: TierShareSnapshot;
+  createdAt: string;
+}
+
+export function generateTierShareToken(): string {
+  return globalThis.crypto.randomUUID().replace(/-/g, "");
+}
+
+export function sanitizeTierShareDescription(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().replace(/\s+/g, " ");
+  if (normalized.length === 0) {
+    return null;
+  }
+
+  return normalized.slice(0, 500);
+}
+
+export function sanitizeTierShareLabels(value: unknown): TierLabels {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return DEFAULT_TIER_LABELS;
+  }
+
+  return normalizeTierLabels(value as Partial<Record<string, string>>);
+}
+
+export function buildTierShareSnapshot(params: {
+  poolId: string;
+  poolName: string;
+  runId: string;
+  creator?: {
+    id: string;
+    name: string | null;
+    username: string | null;
+  } | null;
+  tierList: RunTierListResult;
+  tierLabels: TierLabels;
+  generatedAt?: Date;
+}): TierShareSnapshot {
+  const generatedAt = params.generatedAt ?? new Date();
+  const tierRows = params.tierList.tierRows ?? DEFAULT_TIER_CONFIG.rows;
+
+  return {
+    version: 1,
+    generatedAt: generatedAt.toISOString(),
+    pool: {
+      id: params.poolId,
+      name: params.poolName
+    },
+    run: {
+      id: params.runId
+    },
+    ...(params.creator
+      ? {
+          creator: {
+            id: params.creator.id,
+            displayName: getShareCreatorDisplayName(params.creator),
+            username: params.creator.username ?? null
+          }
+        }
+      : {}),
+    tiers: tierRows.map((row) => ({
+      key: row.id,
+      label: lookupTierLabel(params.tierLabels, row.id) ?? row.label,
+      color: row.color,
+      items: (params.tierList.tiers[row.id] ?? []).map(toSnapshotItem)
+    })),
+    tierRows,
+    animeCount: params.tierList.comparedAnime,
+    comparisonCount: params.tierList.effectiveComparisons
+  };
+}
+
+export async function createTierShare(params: {
+  userId: string;
+  poolId: string;
+  runId: string;
+  tierLabels?: unknown;
+  description?: unknown;
+}): Promise<{ token: string; url: string; share: PublicTierShare }> {
+  if (!params.poolId.trim() || !params.runId.trim()) {
+    throw new AppError("poolId and runId are required", 400, "INVALID_SHARE_INPUT");
+  }
+
+  const [pool, run, creator] = await Promise.all([
+    prisma.customPool.findUnique({
+      where: {
+        id: params.poolId
+      },
+      select: {
+        id: true,
+        name: true
+      }
+    }),
+    prisma.personalRun.findUnique({
+      where: {
+        id: params.runId
+      },
+      select: {
+        id: true,
+        userId: true,
+        poolId: true,
+        deletedAt: true
+      }
+    }),
+    prisma.user.findUnique({
+      where: {
+        id: params.userId
+      },
+      select: {
+        id: true,
+        name: true,
+        username: true
+      }
+    })
+  ]);
+
+  if (pool === null) {
+    throw new AppError("Pool not found", 404, "POOL_NOT_FOUND");
+  }
+
+  if (run === null || run.deletedAt !== null) {
+    throw new AppError("Run not found", 404, "RUN_NOT_FOUND");
+  }
+
+  if (run.userId !== params.userId) {
+    throw new AppError("Run does not belong to the current user", 403, "RUN_FORBIDDEN");
+  }
+
+  if (run.poolId !== pool.id) {
+    throw new AppError("Run does not belong to pool", 404, "RUN_POOL_MISMATCH");
+  }
+
+  const tierList = await getRunTierList({
+    userId: params.userId,
+    poolId: params.poolId,
+    runId: params.runId
+  });
+  const tierLabels = sanitizeTierShareLabels(params.tierLabels);
+  const description = sanitizeTierShareDescription(params.description);
+  if (tierList.totalComparisons === 0 || tierList.effectiveComparisons === 0) {
+    throw new AppError(
+      "Complete at least one comparison before creating a public Tier share",
+      422,
+      "TIER_SHARE_NOT_READY"
+    );
+  }
+  const snapshot = buildTierShareSnapshot({
+    poolId: pool.id,
+    poolName: pool.name,
+    runId: params.runId,
+    creator,
+    tierList,
+    tierLabels
+  });
+  const token = generateTierShareToken();
+
+  const share = await prisma.tierShare.create({
+    data: {
+      token,
+      poolId: pool.id,
+      runId: params.runId,
+      title: pool.name,
+      description,
+      tierLabels: tierLabels as unknown as Prisma.InputJsonValue,
+      snapshot: snapshot as unknown as Prisma.InputJsonValue
+    }
+  });
+
+  return {
+    token,
+    url: `/share/tier/${token}`,
+    share: toPublicTierShare(share)
+  };
+}
+
+export async function getPublicTierShare(token: string): Promise<PublicTierShare> {
+  if (!isValidShareToken(token)) {
+    throw new AppError("Tier share not found", 404, "TIER_SHARE_NOT_FOUND");
+  }
+
+  const share = await prisma.tierShare.findUnique({
+    where: {
+      token
+    }
+  });
+
+  if (share === null) {
+    throw new AppError("Tier share not found", 404, "TIER_SHARE_NOT_FOUND");
+  }
+
+  return toPublicTierShare(share);
+}
+
+function toSnapshotItem(item: TierListItem): TierShareSnapshotItem {
+  const title = item.display?.title ?? item.titleCn ?? item.title;
+  const subtitle = item.display?.subtitle ?? item.titleJa ?? item.titleEn ?? undefined;
+  const coverUrl = getAnimeCoverUrl(item, { intent: "export" }) ?? undefined;
+  const animeType = item.display?.animeType ?? item.animeType ?? undefined;
+  const tags = item.display?.tags ?? item.tags;
+
+  return {
+    animeId: item.animeId,
+    title,
+    ...(subtitle ? { subtitle } : {}),
+    coverUrl: coverUrl ?? null,
+    imageUrl: item.imageUrl ?? null,
+    imageSmallUrl: item.imageSmallUrl ?? null,
+    imageMediumUrl: item.imageMediumUrl ?? null,
+    imageLargeUrl: item.imageLargeUrl ?? null,
+    thumbnailUrl: item.thumbnailUrl ?? null,
+    source: item.source,
+    ...(animeType ? { animeType } : {}),
+    ...(tags.length > 0 ? { tags } : {}),
+    elo: Number(item.eloScore.toFixed(1)),
+    isLocked: item.manualLocked,
+    isEdited: item.display?.isOverridden === true
+  };
+}
+
+function toPublicTierShare(share: {
+  token: string;
+  title: string;
+  description: string | null;
+  tierLabels: Prisma.JsonValue;
+  snapshot: Prisma.JsonValue;
+  createdAt: Date;
+}): PublicTierShare {
+  return {
+    token: share.token,
+    title: share.title,
+    description: share.description,
+    tierLabels: sanitizeTierShareLabels(share.tierLabels),
+    snapshot: share.snapshot as unknown as TierShareSnapshot,
+    createdAt: share.createdAt.toISOString()
+  };
+}
+
+function getShareCreatorDisplayName(creator: {
+  name: string | null;
+  username: string | null;
+}): string {
+  return nonEmpty(creator.name) ?? nonEmpty(creator.username) ?? "AniMatch 玩家";
+}
+
+function isValidShareToken(token: string): boolean {
+  return /^[a-zA-Z0-9_-]{24,80}$/.test(token);
+}
+
+function nonEmpty(value: string | null | undefined): string | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function lookupTierLabel(labels: Record<string, string>, rowId: string): string | undefined {
+  return labels[rowId] ?? labels[rowId.toUpperCase()] ?? labels[rowId.toLowerCase()];
+}

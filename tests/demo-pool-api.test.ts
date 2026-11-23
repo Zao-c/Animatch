@@ -1,0 +1,333 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { PoolStatus, Visibility } from "@prisma/client";
+import { POST } from "../src/app/api/demo-pool/route";
+import { prisma } from "../src/lib/db";
+import { getOrCreateDefaultRun, initializeScoresForRun } from "../src/lib/run-service";
+import * as bangumi from "../src/lib/bangumi";
+
+vi.mock("../src/lib/auth-session", () => ({
+  requireCurrentUser: vi.fn(async () => ({ id: "user-1", username: "user-1", name: "User 1", image: null })),
+  getCurrentUser: vi.fn(async () => ({ id: "user-1", username: "user-1", name: "User 1", image: null }))
+}));
+
+vi.mock("../src/lib/bangumi", () => ({
+  getBangumiSubject: vi.fn(),
+  parseBangumiSubjectIds: vi.fn(),
+  searchBangumiAnime: vi.fn()
+}));
+
+vi.mock("../src/lib/run-service", () => ({
+  getOrCreateDefaultRun: vi.fn(),
+  initializeScoresForRun: vi.fn()
+}));
+
+vi.mock("../src/lib/db", () => ({
+  prisma: {
+    customPool: {
+      findFirst: vi.fn(),
+      create: vi.fn()
+    },
+    user: {
+      upsert: vi.fn()
+    },
+    anime: {
+      upsert: vi.fn()
+    },
+    poolAnime: {
+      findMany: vi.fn(),
+      create: vi.fn()
+    }
+  }
+}));
+
+const mockedCustomPool = vi.mocked(prisma.customPool);
+const mockedUser = vi.mocked(prisma.user);
+const mockedAnime = vi.mocked(prisma.anime);
+const mockedPoolAnime = vi.mocked(prisma.poolAnime);
+const mockedGetOrCreateDefaultRun = vi.mocked(getOrCreateDefaultRun);
+const mockedInitializeScoresForRun = vi.mocked(initializeScoresForRun);
+const mockedBangumi = vi.mocked(bangumi);
+
+function pool(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "pool-demo",
+    creatorId: "user-1",
+    name: "Demo Pool",
+    description: "Demo description",
+    coverUrl: null,
+    visibility: Visibility.PRIVATE,
+    status: PoolStatus.DRAFT,
+    tags: ["animatch-demo-v1", "demo"],
+    sourcePoolId: null,
+    affectsGlobalTaste: false,
+    allowPublicEdit: false,
+    allowCommunityMatch: false,
+    isOfficialDemo: false,
+    tierConfig: null,
+    cloneCount: 0,
+    useCount: 0,
+    likeCount: 0,
+    publishedAt: null,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    deletedAt: null,
+    ...overrides
+  };
+}
+
+function run(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "run-demo",
+    userId: "user-1",
+    poolId: "pool-demo",
+    name: "榛樿姒滃崟",
+    status: "ACTIVE",
+    isDefault: true,
+    algorithmVersion: "elo-v1",
+    pairingVersion: "active-v1",
+    tierRuleVersion: "percentile-v1",
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    deletedAt: null,
+    ...overrides
+  };
+}
+
+describe("POST /api/demo-pool", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    mockedCustomPool.findFirst.mockResolvedValue(null);
+    mockedCustomPool.create.mockResolvedValue(pool());
+    mockedUser.upsert.mockResolvedValue({
+      id: "official-user",
+      username: "animatch-official-demo",
+      name: "AniMatch Official Demo",
+      email: null,
+      image: null,
+      profileVisibility: Visibility.PUBLIC,
+      allowTasteMatching: true,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      deletedAt: null
+    } as any);
+    (mockedAnime.upsert as any).mockImplementation(async (args: any) => ({
+      id: `anime-${Math.abs(args.where.bgmId)}`,
+      bgmId: args.where.bgmId,
+      title: args.create.title,
+      titleCn: args.create.titleCn,
+      titleJa: null,
+      titleEn: null,
+      summary: null,
+      imageUrl: args.create.imageUrl,
+      imageSmallUrl: args.create.imageSmallUrl,
+      imageMediumUrl: args.create.imageMediumUrl,
+      imageLargeUrl: args.create.imageLargeUrl,
+      thumbnailUrl: args.create.thumbnailUrl,
+      airDate: args.create.airDate,
+      bangumiRank: args.create.bangumiRank,
+      bangumiScore: args.create.bangumiScore,
+      bangumiVotes: null,
+      tags: args.create.tags,
+      aliases: args.create.aliases,
+      year: null,
+      season: null,
+      animeType: null,
+      episodes: null,
+      status: null,
+      studios: args.create.studios,
+      externalLinks: args.create.externalLinks,
+      source: args.create.source,
+      sourceId: args.create.sourceId,
+      rawJson: null,
+      fetchedAt: null,
+      imageStatus: args.create.imageStatus,
+      imageCheckedAt: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      deletedAt: null
+    }));
+    mockedPoolAnime.findMany.mockResolvedValue([]);
+    mockedPoolAnime.create.mockResolvedValue({} as any);
+    mockedGetOrCreateDefaultRun.mockResolvedValue(run() as any);
+    mockedInitializeScoresForRun.mockResolvedValue(
+      Array.from({ length: 10 }, (_, index) => ({ id: `score-${index}` }) as any)
+    );
+  });
+
+  it("creates the official public demo pool, local anime, and pool entries", async () => {
+    const response = await POST();
+    const payload = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(payload.data).toMatchObject({
+      poolId: "pool-demo",
+      created: true,
+      animeCount: 10,
+      redirectTo: "/pools/pool-demo",
+      isOfficialDemo: true
+    });
+    expect(mockedCustomPool.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          visibility: Visibility.PUBLIC,
+          affectsGlobalTaste: false,
+          allowPublicEdit: true,
+          allowCommunityMatch: false,
+          isOfficialDemo: true
+        })
+      })
+    );
+    expect(mockedAnime.upsert).toHaveBeenCalledTimes(10);
+    expect(mockedPoolAnime.create).toHaveBeenCalledTimes(10);
+    expect(mockedGetOrCreateDefaultRun).not.toHaveBeenCalled();
+    expect(mockedInitializeScoresForRun).not.toHaveBeenCalled();
+    expect(payload.data.animeCount).toBeGreaterThanOrEqual(8);
+    expect(mockedBangumi.getBangumiSubject).not.toHaveBeenCalled();
+    expect(mockedBangumi.searchBangumiAnime).not.toHaveBeenCalled();
+  });
+
+  it("creates demo anime with null imageUrl allowing fallback to real covers", async () => {
+    await POST();
+
+    expect(mockedAnime.upsert).toHaveBeenCalledTimes(10);
+
+    const firstCall = (mockedAnime.upsert as any).mock.calls[0][0];
+    expect(firstCall.where.bgmId).toBe(-900001);
+    expect(firstCall.create.imageUrl).toBeNull();
+    expect(firstCall.create.imageStatus).toBe("MISSING");
+    expect(firstCall.update.imageUrl).toBeUndefined();
+    expect(firstCall.create.source).toBe("DEMO");
+  });
+
+  it("creates official demo pool with allowPublicEdit enabled", async () => {
+    await POST();
+
+    expect(mockedCustomPool.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          isOfficialDemo: true,
+          allowPublicEdit: true,
+          visibility: "PUBLIC"
+        })
+      })
+    );
+  });
+
+  it("reuses an active demo pool and does not duplicate existing pool anime", async () => {
+    mockedCustomPool.findFirst.mockResolvedValue(pool());
+    mockedPoolAnime.findMany.mockResolvedValue(
+      Array.from({ length: 10 }, (_, index) => ({
+        animeId: `anime-${900001 + index}`,
+        position: index + 1
+      })) as any
+    );
+
+    const response = await POST();
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data.created).toBe(false);
+    expect(payload.data.animeCount).toBe(10);
+    expect(mockedCustomPool.create).not.toHaveBeenCalled();
+    expect(mockedAnime.upsert).not.toHaveBeenCalled();
+    expect(mockedPoolAnime.create).not.toHaveBeenCalled();
+    expect(payload.data.redirectTo).toBe("/pools/pool-demo");
+  });
+
+  it("does not restore a removed default anime in an active demo pool", async () => {
+    mockedCustomPool.findFirst.mockResolvedValue(pool());
+    mockedPoolAnime.findMany.mockResolvedValue(
+      Array.from({ length: 9 }, (_, index) => ({
+        animeId: `anime-${900001 + index}`,
+        position: index + 1
+      })) as any
+    );
+
+    const response = await POST();
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data).toMatchObject({
+      created: false,
+      animeCount: 9,
+      redirectTo: "/pools/pool-demo"
+    });
+    expect(mockedAnime.upsert).not.toHaveBeenCalled();
+    expect(mockedPoolAnime.create).not.toHaveBeenCalled();
+  });
+
+  it("does not restore defaults when an active demo pool has been emptied", async () => {
+    mockedCustomPool.findFirst.mockResolvedValue(pool());
+    mockedPoolAnime.findMany.mockResolvedValue([]);
+
+    const response = await POST();
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data).toMatchObject({
+      created: false,
+      animeCount: 0,
+      redirectTo: "/pools/pool-demo"
+    });
+    expect(mockedAnime.upsert).not.toHaveBeenCalled();
+    expect(mockedPoolAnime.create).not.toHaveBeenCalled();
+  });
+
+  it("redirects existing active demo pools with fewer than 2 anime to pool detail", async () => {
+    mockedCustomPool.findFirst.mockResolvedValue(pool());
+    mockedPoolAnime.findMany.mockResolvedValue([
+      {
+        animeId: "anime-900001",
+        position: 1
+      }
+    ] as any);
+
+    const response = await POST();
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data).toMatchObject({
+      created: false,
+      animeCount: 1,
+      redirectTo: "/pools/pool-demo"
+    });
+    expect(mockedAnime.upsert).not.toHaveBeenCalled();
+    expect(mockedPoolAnime.create).not.toHaveBeenCalled();
+  });
+
+  it("creates a fresh demo pool when the previous one is archived", async () => {
+    mockedCustomPool.findFirst.mockResolvedValue(null);
+    mockedCustomPool.create.mockResolvedValue(pool({ id: "pool-demo-next" }));
+
+    const response = await POST();
+    const payload = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(payload.data).toMatchObject({
+      poolId: "pool-demo-next",
+      created: true,
+      redirectTo: "/pools/pool-demo-next",
+      isOfficialDemo: true
+    });
+    expect(mockedCustomPool.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { not: PoolStatus.ARCHIVED },
+          deletedAt: null
+        })
+      })
+    );
+  });
+
+  it("keeps the created pool match-ready", async () => {
+    const response = await POST();
+    const payload = await response.json();
+
+    expect(response.status).toBeLessThan(300);
+    expect(payload.data.animeCount).toBeGreaterThanOrEqual(2);
+    expect(payload.data.redirectTo).toBe("/pools/pool-demo");
+    expect(mockedInitializeScoresForRun).not.toHaveBeenCalled();
+  });
+});
+

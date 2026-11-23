@@ -1,13 +1,20 @@
 FROM node:20-alpine AS base
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN corepack enable
+ENV COREPACK_NPM_REGISTRY=https://registry.npmmirror.com
+ENV npm_config_registry=https://registry.npmmirror.com
+ENV PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma
+RUN corepack enable && apk add --no-cache ca-certificates
 
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 FROM base AS builder
+ARG NEXT_PUBLIC_COS_PUBLIC_BASE_URL=
+ARG NEXT_PUBLIC_DIRECT_IMAGE_HOSTS=
+ENV NEXT_PUBLIC_COS_PUBLIC_BASE_URL=$NEXT_PUBLIC_COS_PUBLIC_BASE_URL
+ENV NEXT_PUBLIC_DIRECT_IMAGE_HOSTS=$NEXT_PUBLIC_DIRECT_IMAGE_HOSTS
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm prisma generate
@@ -23,5 +30,6 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/src ./src
 EXPOSE 3000
 CMD ["sh", "scripts/docker-entrypoint.sh"]

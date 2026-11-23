@@ -1,23 +1,152 @@
 "use client";
 
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { DragEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { AnimeCover } from "@/components/AnimeCover";
+import { TierAnimeCard } from "@/components/TierAnimeCard";
+import { TierSharePanel } from "@/components/TierSharePanel";
+import { TierShareCard } from "@/components/TierShareView";
+import { CommunityDivergenceCard } from "@/components/CommunityDivergenceCard";
 import { PageShell } from "@/components/PageShell";
+import { PoolTierConfigEditor } from "@/components/PoolTierConfigEditor";
+import { RankingProgressCard } from "@/components/RankingProgressCard";
+import { StatusHint } from "@/components/StatusHint";
+import { AppBadge } from "@/components/ui/AppBadge";
+import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
+import { AppCard } from "@/components/ui/AppCard";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorAlert } from "@/components/ui/ErrorAlert";
+import { getAnimeDisplayTitle } from "@/lib/anime-display";
+import { copyToClipboard } from "@/lib/clipboard";
 import {
   clearManualTier,
   createRecalibrationSession,
+  createTierShare,
+  getCommunityRanking,
+  getPool,
   getTierList,
   saveManualTierList,
+  updatePoolTierConfig,
+  type CommunityRankingResponse,
+  type PoolTierConfig,
+  type PublicTierShare,
   type RecalibrationType,
   type TierListItem,
   type TierListResponse
 } from "@/lib/client-api";
+import { isCommunityBattleVisiblePool } from "@/lib/community-battle-visibility";
+import { computeCommunityDivergence, buildPersonalItemList, type DivergenceResult } from "@/lib/community-divergence";
+import { exportShareCardAsPng } from "@/lib/share-export";
+import { formatTierExportTimestamp } from "@/lib/tier-export";
+import { DEFAULT_TIER_CONFIG, type TierRowConfig } from "@/lib/tier-config";
+import { isSlowNetwork, prewarmCoverUrls } from "@/lib/cover-prewarm";
+import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import {
+  DEFAULT_TIER_LABELS,
+  readTierLabels,
+  resetTierLabels,
+  saveTierLabels,
+  type TierLabels
+} from "@/lib/tier-labels";
 
-const TIERS = ["S", "A", "B", "C", "D"] as const;
-type Tier = (typeof TIERS)[number];
-type TierMap = Record<Tier, TierListItem[]>;
+function deriveTierStyles(rows: TierRowConfig[]) {
+  const labelStyle: Record<string, string> = {};
+  const borderStyle: Record<string, string> = {};
+
+  for (const row of rows) {
+    const colorVar = `--tier-color-${row.order}`;
+    labelStyle[row.id] = `tier-row-bg text-slate-950`;
+    borderStyle[row.id] = `border-white/10`;
+  }
+
+  return { labelStyle, borderStyle };
+}
+
+function cloneTiers(tiers: Record<string, TierListItem[]>): Record<string, TierListItem[]> {
+  const result: Record<string, TierListItem[]> = {};
+  for (const key of Object.keys(tiers)) {
+    result[key] = [...tiers[key]];
+  }
+  return result;
+}
+
+function buildLocalTierExportShare(input: {
+  poolId: string;
+  runId: string;
+  poolName: string;
+  tierList: TierListResponse;
+  tiers: Record<string, TierListItem[]>;
+  tierRows: TierRowConfig[];
+  tierLabels: TierLabels;
+  generatedAt: Date;
+}): PublicTierShare {
+  const generatedAt = input.generatedAt.toISOString();
+
+  return {
+    token: `local-export-${input.runId}`,
+    title: input.poolName,
+    description: "本地导出图片，不会创建公开分享链接。",
+    tierLabels: input.tierLabels,
+    createdAt: generatedAt,
+    snapshot: {
+      version: 1,
+      generatedAt,
+      pool: {
+        id: input.poolId,
+        name: input.poolName
+      },
+      run: {
+        id: input.runId
+      },
+      tiers: input.tierRows.map((row) => ({
+        key: row.id,
+        label: input.tierLabels[row.id] ?? row.label,
+        color: row.color,
+        items: (input.tiers[row.id] ?? []).map((item) => ({
+          animeId: item.animeId,
+          title: item.titleCn ?? item.title,
+          subtitle: item.titleCn ? item.title : undefined,
+          coverUrl: getAnimeCoverUrl(item, { intent: "export" }),
+          imageUrl: item.imageUrl,
+          imageSmallUrl: item.imageSmallUrl,
+          imageMediumUrl: item.imageMediumUrl,
+          imageLargeUrl: item.imageLargeUrl,
+          thumbnailUrl: item.thumbnailUrl,
+          source: item.source,
+          animeType: item.animeType ?? undefined,
+          tags: item.tags,
+          elo: item.eloScore,
+          isLocked: item.manualLocked,
+          isEdited: item.manualTier !== null
+        }))
+      })),
+      tierRows: input.tierRows,
+      animeCount: input.tierList.totalAnime,
+      comparisonCount: input.tierList.totalComparisons,
+      isInitialEstimate: input.tierList.totalComparisons === 0 || input.tierList.effectiveComparisons === 0
+    }
+  };
+}
+
+const RECALIBRATION_MODES: { type: RecalibrationType; title: string; body: string }[] = [
+  { type: "SMART", title: "智能校准", body: "自动挑选最值得复核的组合。" },
+  { type: "RANGE", title: "区间校准", body: "围绕某个 Tier 边界做微调。" },
+  { type: "FOCUS", title: "焦点校准", body: "指定 1-3 部动画进行重点复核。" }
+];
+
+const fallbackScoreDistribution = {
+  count: 0,
+  mean: 1500,
+  median: 1500,
+  std: 120
+};
+
+const STALE_THRESHOLD_MS = 60 * 5000;
+const TIER_PAGE_LOAD_RETRY_DELAYS_MS = [700, 1600];
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export default function TierPage({
   params
@@ -25,39 +154,146 @@ export default function TierPage({
   params: { poolId: string; runId: string };
 }) {
   const router = useRouter();
+  const [poolName, setPoolName] = useState("当前番组");
+  const [poolTierConfig, setPoolTierConfig] = useState<PoolTierConfig | null>(null);
+  const [poolUpdatedAt, setPoolUpdatedAt] = useState<string | null>(null);
   const [tierList, setTierList] = useState<TierListResponse | null>(null);
-  const [editableTiers, setEditableTiers] = useState<TierMap | null>(null);
-  const [dragSource, setDragSource] = useState<{ tier: Tier; animeId: string } | null>(null);
+  const [editableTiers, setEditableTiers] = useState<Record<string, TierListItem[]> | null>(null);
+  const [dragSource, setDragSource] = useState<{ tier: string; animeId: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [tierConfigSaving, setTierConfigSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRecalibration, setShowRecalibration] = useState(false);
   const [recalibrationType, setRecalibrationType] = useState<RecalibrationType>("SMART");
-  const [targetTier, setTargetTier] = useState<Tier>("A");
+  const [targetTier, setTargetTier] = useState<string>("a");
   const [focusIds, setFocusIds] = useState<string[]>([]);
   const [plannedCount, setPlannedCount] = useState(20);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportedAt, setExportedAt] = useState<Date | null>(null);
+  const [exportPreviewedAt, setExportPreviewedAt] = useState<Date | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [shareCopyFallback, setShareCopyFallback] = useState(false);
+  const [shareToken, setShareToken] = useState<string | null>(null);
+  const [showShareConfirm, setShowShareConfirm] = useState(false);
+  const [shareSnapshot, setShareSnapshot] = useState<PublicTierShare | null>(null);
+  const exportCardRef = useRef<HTMLDivElement | null>(null);
+  const [tierLabels, setTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
+  const [draftTierLabels, setDraftTierLabels] = useState<TierLabels>(DEFAULT_TIER_LABELS);
+  const [showTierLabelEditor, setShowTierLabelEditor] = useState(false);
+  const [showAdvancedActions, setShowAdvancedActions] = useState(false);
+  const [showTierInfo, setShowTierInfo] = useState(false);
+  const [canShowCommunityRanking, setCanShowCommunityRanking] = useState(false);
+  const [communityRanking, setCommunityRanking] = useState<CommunityRankingResponse | null>(null);
+  const [divergenceResult, setDivergenceResult] = useState<DivergenceResult | null>(null);
 
   const loadTierList = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
-    try {
-      const data = await getTierList(params.poolId, params.runId);
-      setTierList(data);
-      if (!isEditing) {
-        setEditableTiers(cloneTiers(data.tiers));
+    let lastError: unknown = null;
+
+    for (let attempt = 0; attempt <= TIER_PAGE_LOAD_RETRY_DELAYS_MS.length; attempt += 1) {
+      try {
+        const [poolResult, tierResult] = await Promise.allSettled([
+          getPool(params.poolId),
+          getTierList(params.poolId, params.runId)
+        ]);
+
+        if (tierResult.status === "rejected") {
+          throw tierResult.reason;
+        }
+
+        if (poolResult.status === "fulfilled") {
+          const pool = poolResult.value;
+          setPoolName(pool.name);
+          setPoolTierConfig(pool.tierConfig ?? null);
+          setPoolUpdatedAt(pool.updatedAt);
+          setCanShowCommunityRanking(isCommunityBattleVisiblePool(pool));
+        } else {
+          setCanShowCommunityRanking(false);
+        }
+
+        const data = tierResult.value;
+        setTierList(data);
+        if (!isEditing) {
+          setEditableTiers(cloneTiers(data.tiers));
+        }
+        setError(null);
+        setIsLoading(false);
+        return;
+      } catch (reason: unknown) {
+        lastError = reason;
+        const retryDelay = TIER_PAGE_LOAD_RETRY_DELAYS_MS[attempt];
+        if (retryDelay === undefined) {
+          break;
+        }
+        await wait(retryDelay);
       }
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "加载 Tier List 失败");
-    } finally {
-      setIsLoading(false);
     }
+
+    setError(lastError instanceof Error ? lastError.message : "Tier List 暂时加载失败，请重试。");
+    setIsLoading(false);
   }, [isEditing, params.poolId, params.runId]);
 
   useEffect(() => {
     void loadTierList();
   }, [loadTierList]);
+
+  useEffect(() => {
+    if (canShowCommunityRanking && tierList !== null) {
+      getCommunityRanking(params.poolId)
+        .then((data) => {
+          setCommunityRanking(data);
+          setDivergenceResult(
+            computeCommunityDivergence(
+              buildPersonalItemList(tierList.tiers),
+              tierList.tiers,
+              tierList.tierRows ?? DEFAULT_TIER_CONFIG.rows,
+              data.items
+            )
+          );
+        })
+        .catch(() => {
+          setCommunityRanking(null);
+          setDivergenceResult(null);
+        });
+    }
+  }, [canShowCommunityRanking, tierList, params.poolId]);
+
+  useEffect(() => {
+    const labels = readTierLabels(params.poolId, params.runId);
+    setTierLabels(labels);
+    setDraftTierLabels(labels);
+  }, [params.poolId, params.runId]);
+
+  useEffect(() => {
+    if (tierList === null) return;
+
+    const allItems = Object.values(tierList.tiers).flat();
+    if (allItems.length === 0) return;
+
+    const coverUrls = allItems.map((item) =>
+      getAnimeCoverUrl(item, { intent: "display" })
+    );
+
+    const limit = isSlowNetwork() ? 6 : 12;
+    const controller = new AbortController();
+    prewarmCoverUrls(coverUrls, { limit, signal: controller.signal });
+
+    return () => controller.abort();
+  }, [tierList]);
+
+  useEffect(() => {
+    if (tierList !== null && exportPreviewedAt === null) {
+      setExportPreviewedAt(new Date());
+    }
+  }, [exportPreviewedAt, tierList]);
 
   function startEditing() {
     if (tierList === null) {
@@ -66,6 +302,14 @@ export default function TierPage({
 
     setEditableTiers(cloneTiers(tierList.tiers));
     setIsEditing(true);
+    setError(null);
+  }
+
+  function cancelEditing() {
+    if (tierList !== null) {
+      setEditableTiers(cloneTiers(tierList.tiers));
+    }
+    setIsEditing(false);
     setError(null);
   }
 
@@ -81,9 +325,9 @@ export default function TierPage({
       const data = await saveManualTierList(
         params.poolId,
         params.runId,
-        TIERS.map((tier) => ({
-          tier,
-          animeIds: editableTiers[tier].map((item) => item.animeId)
+        tierRows.map((row) => ({
+          tier: row.id,
+          animeIds: (editableTiers[row.id] ?? []).map((item) => item.animeId)
         }))
       );
       setTierList(data);
@@ -132,7 +376,141 @@ export default function TierPage({
     }
   }
 
-  function handleDrop(targetTierName: Tier, beforeAnimeId?: string) {
+  async function handleSaveTierConfig(config: PoolTierConfig) {
+    if (poolUpdatedAt === null) return;
+    setTierConfigSaving(true);
+    setError(null);
+
+    try {
+      const result = await updatePoolTierConfig(params.poolId, config, poolUpdatedAt);
+      const data = await getTierList(params.poolId, params.runId);
+      setPoolTierConfig(result.tierConfig);
+      setPoolUpdatedAt(result.updatedAt);
+      setTierList(data);
+      setEditableTiers(cloneTiers(data.tiers));
+      setIsEditing(false);
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : "保存 Tier 行配置失败");
+    } finally {
+      setTierConfigSaving(false);
+    }
+  }
+
+  function openTierLabelEditor() {
+    setDraftTierLabels(tierLabels);
+    setShowTierLabelEditor(true);
+  }
+
+  function handleSaveTierLabels() {
+    const labels = saveTierLabels(params.poolId, params.runId, draftTierLabels);
+    setTierLabels(labels);
+    setDraftTierLabels(labels);
+    setShowTierLabelEditor(false);
+  }
+
+  function handleResetTierLabels() {
+    const labels = resetTierLabels(params.poolId, params.runId);
+    setTierLabels(labels);
+    setDraftTierLabels(labels);
+  }
+
+  async function handleExportImage() {
+    if (tierList === null) {
+      return;
+    }
+
+    setIsExporting(true);
+    setExportError(null);
+    const generatedAt = new Date();
+    setExportedAt(generatedAt);
+
+    try {
+      const share = buildLocalTierExportShare({
+        poolId: params.poolId,
+        runId: params.runId,
+        poolName,
+        tierList,
+        tiers: visibleTiers ?? tierList.tiers,
+        tierRows,
+        tierLabels,
+        generatedAt
+      });
+      setShareSnapshot(share);
+
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+
+      if (exportCardRef.current === null) {
+        throw new Error("Export card not mounted");
+      }
+
+      await exportShareCardAsPng(exportCardRef.current, {
+        filename: `animatch-tier-${poolName.replace(/[^a-zA-Z0-9\u4e00-\u9fff_-]+/g, "-").slice(0, 40)}`
+      });
+    } catch (reason) {
+      setExportError(
+        reason instanceof Error
+          ? `导出图片失败，请刷新后重试。(${reason.message})`
+          : "导出图片失败，请刷新后重试。"
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  async function handleCreateShare() {
+    if (tierList === null) {
+      return;
+    }
+
+    setIsSharing(true);
+    setShowShareConfirm(false);
+    setShareError(null);
+    setShareCopied(false);
+    setShareCopyFallback(false);
+
+    try {
+      const result = await createTierShare({
+        poolId: params.poolId,
+        runId: params.runId,
+        tierLabels
+      });
+      const absoluteUrl = `${window.location.origin}${result.url}`;
+      setShareToken(result.token);
+      setShareUrl(absoluteUrl);
+      const copyResult = await copyToClipboard(absoluteUrl);
+      if (copyResult.ok) {
+        setShareCopied(true);
+        setShareCopyFallback(false);
+      } else {
+        setShareCopied(false);
+        setShareCopyFallback(true);
+      }
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : "请稍后重试。";
+      setShareError(`分享链接生成失败：${message}`);
+    } finally {
+      setIsSharing(false);
+    }
+  }
+
+  async function handleCopyShareUrl() {
+    if (shareUrl === null) {
+      return;
+    }
+
+    const result = await copyToClipboard(shareUrl);
+    if (result.ok) {
+      setShareCopied(true);
+      setShareCopyFallback(false);
+    } else {
+      setShareCopied(false);
+      setShareCopyFallback(true);
+    }
+  }
+
+  function handleDrop(targetTierName: string, beforeAnimeId?: string) {
     if (dragSource === null || editableTiers === null) {
       return;
     }
@@ -152,8 +530,8 @@ export default function TierPage({
 
       const next = cloneTiers(current);
 
-      for (const tier of TIERS) {
-        next[tier] = next[tier].filter((item) => item.animeId !== sourceItem.animeId);
+      for (const row of tierRows) {
+        next[row.id] = next[row.id].filter((item) => item.animeId !== sourceItem.animeId);
       }
 
       const insertIndex =
@@ -169,131 +547,373 @@ export default function TierPage({
     setDragSource(null);
   }
 
+  function moveAnimeToTier(animeId: string, targetTierId: string) {
+    if (editableTiers === null) {
+      return;
+    }
+
+    setEditableTiers((current) => {
+      if (current === null) {
+        return current;
+      }
+
+      const sourceTier = tierRows.find((row) =>
+        (current[row.id] ?? []).some((item) => item.animeId === animeId)
+      );
+      const sourceItem = sourceTier
+        ? current[sourceTier.id].find((item) => item.animeId === animeId)
+        : undefined;
+
+      if (!sourceTier || !sourceItem || sourceTier.id === targetTierId || !current[targetTierId]) {
+        return current;
+      }
+
+      const next = cloneTiers(current);
+      next[sourceTier.id] = next[sourceTier.id].filter((item) => item.animeId !== animeId);
+      next[targetTierId] = [...next[targetTierId], sourceItem];
+      return next;
+    });
+  }
+
+  function moveAnimeWithinTier(tierId: string, animeId: string, direction: -1 | 1) {
+    if (editableTiers === null) {
+      return;
+    }
+
+    setEditableTiers((current) => {
+      if (current === null) {
+        return current;
+      }
+
+      const items = current[tierId] ?? [];
+      const sourceIndex = items.findIndex((item) => item.animeId === animeId);
+      const targetIndex = sourceIndex + direction;
+      if (sourceIndex < 0 || targetIndex < 0 || targetIndex >= items.length) {
+        return current;
+      }
+
+      const next = cloneTiers(current);
+      const reordered = [...items];
+      const [sourceItem] = reordered.splice(sourceIndex, 1);
+      reordered.splice(targetIndex, 0, sourceItem);
+      next[tierId] = reordered;
+      return next;
+    });
+  }
+
   const visibleTiers = editableTiers ?? tierList?.tiers ?? null;
-  const allItems = useMemo(
-    () => (tierList === null ? [] : TIERS.flatMap((tier) => tierList.tiers[tier])),
+  const tierRows = useMemo(
+    () => tierList?.tierRows ?? DEFAULT_TIER_CONFIG.rows,
     [tierList]
   );
 
+  const tierStyles = useMemo(() => deriveTierStyles(tierRows), [tierRows]);
+
+  const allAnime = useMemo(
+    () => (tierList === null ? [] : tierRows.flatMap((row) => tierList.tiers[row.id] ?? [])),
+    [tierList, tierRows]
+  );
+  const scoreDistribution = tierList?.scoreDistribution ?? fallbackScoreDistribution;
+  const displayedExportedAt = exportedAt ?? exportPreviewedAt;
+  const isInitialEstimate =
+    tierList !== null &&
+    (tierList.totalComparisons === 0 || tierList.progress.stage === "EMPTY" || tierList.progress.stage === "DRAFTING");
+
   return (
     <PageShell>
-      <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-white">Tier List</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
-            手动设定不会删除 Elo，也不会删除对决历史，只影响最终展示和后续口味画像。
+          <div className="flex flex-wrap gap-2">
+            <AppBadge tone="tier">我的 Tier List</AppBadge>
+            <AppBadge tone="status">{poolName}</AppBadge>
+          </div>
+          <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
+            我的 Tier List
+          </h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
+            导出和分享是这里的主动作；校准和高级设定默认折叠。
           </p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href={`/pools/${params.poolId}`}
-            className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
-          >
-            返回番组
-          </Link>
-          <Link
-            href={`/pools/${params.poolId}/runs/${params.runId}/match`}
-            className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
-          >
-            继续对决
-          </Link>
-          <button
-            onClick={() => setShowRecalibration((value) => !value)}
-            className="rounded-lg border border-cyan-300/40 px-4 py-2 text-sm font-semibold text-cyan-200 hover:bg-cyan-300/10"
-          >
-            校准榜单
-          </button>
-          {isEditing ? (
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="rounded-lg bg-cyan-300 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-cyan-200 disabled:opacity-50"
-            >
-              保存最终设定
-            </button>
-          ) : (
-            <button
-              onClick={startEditing}
-              className="rounded-lg bg-cyan-300 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-cyan-200"
-            >
-              编辑最终设定
-            </button>
-          )}
-          <button
-            onClick={handleClearManual}
-            disabled={isSaving}
-            className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
-          >
-            恢复系统排序
-          </button>
         </div>
       </div>
 
-      {isLoading ? <p className="text-sm text-zinc-400">正在加载榜单...</p> : null}
-      {error ? <p className="mb-5 text-sm text-red-300">{error}</p> : null}
-
-      {tierList ? (
-        <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Stat label="信心指数" value={tierList.confidenceScore.toFixed(1)} />
-          <Stat label="总作品" value={String(tierList.totalAnime)} />
-          <Stat label="已比较作品" value={String(tierList.comparedAnime)} />
-          <Stat label="总对决" value={String(tierList.totalComparisons)} />
+      <AppCard className="mb-6 p-4" variant="focus">
+        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div>
+            <h2 className="text-lg font-semibold text-white">生成你的榜单作品</h2>
+            <p className="mt-1 text-sm text-slate-400">
+              导出、分享和继续对决是这个页面的主动作。
+            </p>
+          </div>
+          <p className="max-w-2xl text-xs leading-5 text-slate-500 lg:col-span-2">
+            Tier List 根据你的对决结果生成。手动调整只影响榜单展示和当前手动排序，不会改写对决历史。
+          </p>
+          {isInitialEstimate ? (
+            <p className="rounded-xl border border-amber-200/20 bg-amber-200/[0.06] px-3 py-2 text-xs font-medium leading-5 text-amber-100 lg:col-span-2">
+              当前榜单仍是初始估计。可以导出留存，但完成至少一轮对决前不能创建公开分享链接。
+            </p>
+          ) : null}
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <AppButton
+            onClick={handleExportImage}
+            disabled={isExporting || tierList === null}
+            variant="primary"
+          >
+            {isExporting ? "生成中..." : "导出图片"}
+          </AppButton>
+          <AppButton
+            onClick={() => {
+              setShareError(null);
+              setShowShareConfirm(true);
+            }}
+            disabled={isSharing || tierList === null || isInitialEstimate}
+            variant="secondary"
+            title={isInitialEstimate ? "完成至少一轮对决后才能创建公开分享链接" : undefined}
+          >
+            {isSharing ? "生成分享链接中..." : "分享榜单"}
+          </AppButton>
+          </div>
         </div>
+        <div className="mt-4 flex flex-wrap gap-3 border-t border-anime-border pt-4">
+          <Link href={`/pools/${params.poolId}/runs/${params.runId}/match`} className={appButtonClasses({ variant: "ghost" })}>
+            继续对决
+          </Link>
+          <Link href={`/pools/${params.poolId}`} className={appButtonClasses({ variant: "ghost" })}>
+            返回番组
+          </Link>
+          {canShowCommunityRanking ? (
+            <Link
+              href={`/pools/${params.poolId}#community-ranking`}
+              className={appButtonClasses({ variant: "quiet" })}
+            >
+              查看社区榜单
+            </Link>
+          ) : null}
+          <AppButton
+            onClick={() => setShowAdvancedActions((value) => !value)}
+            variant="quiet"
+            aria-expanded={showAdvancedActions}
+          >
+            高级控制
+          </AppButton>
+        </div>
+      </AppCard>
+
+      {canShowCommunityRanking ? (
+        <AppCard className="mb-5 p-4" variant="soft">
+          <div className="min-w-0">
+            <AppBadge tone="source">社区大乱斗</AppBadge>
+            <p className="mt-2 text-sm leading-6 text-slate-300">
+              这是你的个人榜单；它会以匿名聚合方式参与社区榜单。
+            </p>
+          </div>
+        </AppCard>
       ) : null}
 
-      {showRecalibration ? (
-        <section className="mb-8 rounded-lg border border-cyan-300/20 bg-cyan-300/10 p-5">
-          <h2 className="text-lg font-semibold text-white">校准模式</h2>
-          <div className="mt-4 grid gap-4 lg:grid-cols-4">
+      {error ? (
+        <div className="mb-5 space-y-3">
+          <ErrorAlert message={error} />
+          <AppButton type="button" onClick={loadTierList} variant="secondary" disabled={isLoading}>
+            {isLoading ? "正在重新加载..." : "重新加载 Tier List"}
+          </AppButton>
+        </div>
+      ) : null}
+      {exportError ? <ErrorAlert message={exportError} className="mb-5" /> : null}
+      <TierSharePanel
+        shareError={shareError}
+        shareUrl={shareUrl}
+        shareCopied={shareCopied}
+        shareCopyFallback={shareCopyFallback}
+        onCopyShareUrl={handleCopyShareUrl}
+      />
+      {isLoading ? <ErrorAlert message="正在加载榜单..." tone="notice" className="mb-5" /> : null}
+      {isEditing ? (
+        <ErrorAlert
+          message="正在编辑最终设定，保存后将锁定你的手动排序，但不会删除任何对决历史。"
+          tone="warning"
+          className="mb-5"
+        />
+      ) : null}
+
+      {showAdvancedActions ? (
+      <AppCard className="mb-8 p-4" variant="soft">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-white">高级控制</h2>
+            <p className="mt-1 text-sm text-slate-400">
+              这些操作会影响最终展示或进入校准流程，默认收起以保持榜单聚焦。
+            </p>
+          </div>
+          <AppButton onClick={() => setShowRecalibration((value) => !value)} variant="secondary">
+            {showRecalibration ? "收起校准" : "校准榜单"}
+          </AppButton>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {isEditing ? (
+            <>
+              <AppButton onClick={handleSave} disabled={isSaving} variant="primary">
+                保存最终设定
+              </AppButton>
+              <AppButton onClick={cancelEditing} disabled={isSaving} variant="ghost">
+                取消编辑
+              </AppButton>
+            </>
+          ) : (
+            <AppButton onClick={startEditing} variant="primary">
+              编辑最终设定
+            </AppButton>
+          )}
+          <AppButton onClick={handleClearManual} disabled={isSaving} variant="ghost">
+            恢复系统排序
+          </AppButton>
+          <AppButton onClick={openTierLabelEditor} variant="ghost">
+            编辑分层标签
+          </AppButton>
+        </div>
+        <div className="mt-5 border-t border-anime-border pt-5">
+          <PoolTierConfigEditor
+            tierConfig={poolTierConfig}
+            onSave={handleSaveTierConfig}
+            isSaving={tierConfigSaving}
+            compact
+          />
+        </div>
+      </AppCard>
+
+      ) : null}
+
+      {showShareConfirm ? (
+        <AppCard className="mb-5 border-cyan-300/25 p-4" variant="focus">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              <AppBadge tone="source">公开快照</AppBadge>
+              <h2 className="mt-2 text-lg font-semibold text-white">创建可访问的榜单链接</h2>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">
+                这会生成一份固定的公开快照。拿到链接的任何人都能查看当前榜单；之后的对决不会修改这份快照。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <AppButton type="button" onClick={() => setShowShareConfirm(false)} disabled={isSharing} variant="quiet">
+                取消
+              </AppButton>
+              <AppButton type="button" onClick={handleCreateShare} disabled={isSharing} variant="primary">
+                {isSharing ? "创建中..." : "确认创建公开链接"}
+              </AppButton>
+            </div>
+          </div>
+        </AppCard>
+      ) : null}
+
+      {showTierLabelEditor ? (
+        <AppCard className="mb-8 p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <AppBadge tone="source">显示设置</AppBadge>
+              <h2 className="mt-3 text-2xl font-black text-white">编辑分层标签</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                仅修改显示名称，不影响 Elo、对决历史和分层排序。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <AppButton onClick={handleSaveTierLabels} variant="primary">
+                保存
+              </AppButton>
+              <AppButton onClick={handleResetTierLabels} variant="ghost">
+                重置默认
+              </AppButton>
+              <AppButton onClick={() => setShowTierLabelEditor(false)} variant="ghost">
+                取消
+              </AppButton>
+            </div>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-5">
+            {tierRows.map((row) => (
+              <label key={row.id} className="block">
+                <span className="text-sm text-slate-300">{row.id}</span>
+                <input
+                  value={draftTierLabels[row.id] ?? row.label}
+                  onChange={(event) =>
+                    setDraftTierLabels((current) => ({
+                      ...current,
+                      [row.id]: event.target.value
+                    }))
+                  }
+                  maxLength={24}
+                  className="anime-field mt-2"
+                />
+              </label>
+            ))}
+          </div>
+        </AppCard>
+      ) : null}
+
+      {showAdvancedActions && showRecalibration ? (
+        <AppCard className="mb-8 p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <AppBadge tone="source">排名校准</AppBadge>
+              <h2 className="mt-3 text-2xl font-black text-white">微调你的榜单边界</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                选择校准方式和计划场数，系统会优先选择分数接近、信息不足或未直接比较过的作品。
+              </p>
+            </div>
+            <AppButton onClick={handleCreateRecalibration} disabled={isSaving} variant="primary">
+              开始校准
+            </AppButton>
+          </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            {RECALIBRATION_MODES.map((mode) => {
+              const selected = recalibrationType === mode.type;
+              return (
+                <button
+                  key={mode.type}
+                  type="button"
+                  onClick={() => setRecalibrationType(mode.type)}
+                  className={`rounded-2xl border p-4 text-left transition ${
+                    selected
+                      ? "border-cyan-300/50 bg-cyan-300/12 shadow-[0_0_28px_rgba(3,218,197,0.14)]"
+                      : "border-white/10 bg-slate-950/42 hover:border-white/20"
+                  }`}
+                >
+                  <h3 className="font-semibold text-white">{mode.title}</h3>
+                  <p className="mt-2 text-sm leading-5 text-slate-400">{mode.body}</p>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-3">
             <label className="block">
-              <span className="text-sm text-zinc-300">模式</span>
-              <select
-                value={recalibrationType}
-                onChange={(event) => setRecalibrationType(event.target.value as RecalibrationType)}
-                className="mt-2 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-white"
-              >
-                <option value="SMART">智能校准</option>
-                <option value="RANGE">区间校准</option>
-                <option value="FOCUS">焦点校准</option>
-              </select>
-            </label>
-            <label className="block">
-              <span className="text-sm text-zinc-300">目标 Tier</span>
+              <span className="text-sm text-slate-300">目标 Tier</span>
               <select
                 value={targetTier}
-                onChange={(event) => setTargetTier(event.target.value as Tier)}
+                onChange={(event) => setTargetTier(event.target.value)}
                 disabled={recalibrationType !== "RANGE"}
-                className="mt-2 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-white disabled:opacity-50"
+                className="anime-field mt-2 disabled:opacity-50"
               >
-                {TIERS.map((tier) => (
-                  <option key={tier} value={tier}>
-                    {tier}
+                {tierRows.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.label}
                   </option>
                 ))}
               </select>
             </label>
             <label className="block">
-              <span className="text-sm text-zinc-300">计划场数</span>
+              <span className="text-sm text-slate-300">计划场数</span>
               <input
                 type="number"
                 min={1}
                 max={50}
                 value={plannedCount}
                 onChange={(event) => setPlannedCount(Number(event.target.value))}
-                className="mt-2 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-white"
+                className="anime-field mt-2"
               />
             </label>
-            <button
-              onClick={handleCreateRecalibration}
-              disabled={isSaving}
-              className="self-end rounded-lg bg-cyan-300 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-cyan-200 disabled:opacity-50"
-            >
-              开始校准
-            </button>
           </div>
+
           {recalibrationType === "FOCUS" ? (
             <div className="mt-4 flex flex-wrap gap-2">
-              {allItems.map((item) => {
+              {allAnime.map((item) => {
                 const selected = focusIds.includes(item.animeId);
                 return (
                   <button
@@ -307,122 +927,186 @@ export default function TierPage({
                             : [...current, item.animeId]
                       )
                     }
-                    className={`rounded-md border px-3 py-1 text-xs ${
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
                       selected
-                        ? "border-cyan-300 bg-cyan-300 text-zinc-950"
-                        : "border-white/15 text-zinc-300"
+                        ? "border-cyan-300 bg-cyan-300 text-slate-950"
+                        : "border-white/15 text-slate-300 hover:border-cyan-300/35"
                     }`}
                   >
-                    {item.titleCn ?? item.title}
+                    {getAnimeDisplayTitle(item)}
                   </button>
                 );
               })}
             </div>
           ) : null}
-        </section>
+        </AppCard>
+      ) : null}
+
+      {tierList && visibleTiers ? (
+        <div className="tier-export-surface">
+          <div className="tier-export-header mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="flex flex-wrap gap-2">
+                <AppBadge tone="source">AniMatch</AppBadge>
+                <AppBadge tone="tier">Tier List</AppBadge>
+                <AppBadge tone="status">{poolName}</AppBadge>
+              </div>
+              <h2 className="tier-export-title mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
+                {poolName}
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-slate-400">
+                生成时间 {displayedExportedAt ? formatTierExportTimestamp(displayedExportedAt) : "--"}
+              </p>
+            </div>
+          </div>
+
+          <div className="mb-4 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.025] p-3">
+            <Stat label="我的稳定度" value={tierList.confidenceScore.toFixed(1)} />
+            <Stat label="当前阶段" value={tierList.progress.stageLabel} />
+            <Stat
+              label="有效对决"
+              value={`${tierList.effectiveComparisons}/${tierList.progress.highConfidenceTarget}`}
+            />
+            <Stat label="总作品" value={String(tierList.totalAnime)} />
+            {communityRanking !== null && communityRanking.totalParticipants > 0 ? (
+              <Stat label="社区参与" value={`${communityRanking.totalParticipants} 人`} />
+            ) : null}
+          </div>
+          <div className="mb-5">
+            <RankingProgressCard progress={tierList.progress} compact />
+          </div>
+          {isInitialEstimate ? (
+            <StatusHint
+              label="初始估计"
+              title={tierList.totalComparisons === 0 ? "还没有对决记录，榜单不是正式结果" : "对决样本还少，分档可能会明显变化"}
+              description={
+                tierList.totalComparisons === 0
+                  ? "当前 Tier List 只是按初始分数生成的占位预览。先完成几轮对决后，再导出或分享会更可信。"
+                  : "当前结果已经能作为临时参考，但稳定度还低。继续对决可以让相近作品重新排序，减少误分档。"
+              }
+              tone="warning"
+              className="mb-5"
+              actions={
+                <Link
+                  href={`/pools/${params.poolId}/runs/${params.runId}/match`}
+                  className={appButtonClasses({ variant: "primary", size: "sm" })}
+                >
+                  继续对决
+                </Link>
+              }
+            />
+          ) : null}
+          <div className="mb-6">
+            <AppButton
+              onClick={() => setShowTierInfo((value) => !value)}
+              variant="quiet"
+              size="sm"
+              aria-expanded={showTierInfo}
+            >
+              {showTierInfo ? "收起说明" : "榜单说明与初始估计"}
+            </AppButton>
+            {showTierInfo ? (
+              <div className="mt-3 space-y-3">
+                <StatusHint
+                  label="榜单说明"
+                  title="系统排序来自两两对决"
+                  description="每次选择都会更新作品的相对位置；手动最终设定不会删除对决历史，锁标记代表用户手动确认过最终排序。"
+                  tone="guide"
+                />
+                {tierList.totalComparisons === 0 ? (
+                  <StatusHint
+                    label="初始估计"
+                    title="还没有对决记录"
+                    description="当前 Tier List 只是初始估计。完成几轮对决后，分数、分层和稳定度会更准确。"
+                    tone="warning"
+                  />
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="space-y-4">
+            {tierRows.map((row) => {
+              const rowItems = visibleTiers?.[row.id] ?? [];
+              return (
+              <section
+                key={row.id}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={() => handleDrop(row.id)}
+                className="grid gap-4 rounded-2xl border border-white/10 bg-gradient-to-r from-slate-900/50 to-slate-950/46 p-3 backdrop-blur-xl lg:grid-cols-[104px_1fr]"
+              >
+                <div
+                  className="flex min-h-24 items-center justify-center rounded-xl border border-white/15 px-3 text-center shadow-anime-panel"
+                  style={{ backgroundColor: row.color }}
+                >
+                  <span className="max-w-full text-2xl font-black leading-tight text-slate-950 [overflow-wrap:anywhere]">
+                    {tierLabels[row.id] ?? row.label}
+                  </span>
+                </div>
+                {rowItems.length === 0 ? (
+                  <div className="flex min-h-24 items-center rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-4">
+                    <p className="text-sm text-slate-500">
+                      {row.label} Tier 暂无作品。继续对决后作品会自动进入对应区间。
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex gap-3 overflow-x-auto pb-2">
+                    {rowItems.map((item) => (
+                      <TierAnimeCard
+                        key={item.animeId}
+                        item={item}
+                        editable={isEditing}
+                        scoreDistribution={scoreDistribution}
+                        onDragStart={() => setDragSource({ tier: row.id, animeId: item.animeId })}
+                        onDropBefore={() => handleDrop(row.id, item.animeId)}
+                        moveOptions={tierRows
+                          .filter((candidate) => candidate.id !== row.id)
+                          .map((candidate) => ({
+                            id: candidate.id,
+                            label: tierLabels[candidate.id] ?? candidate.label
+                          }))}
+                        onMoveToTier={(targetTierId) => moveAnimeToTier(item.animeId, targetTierId)}
+                        onMoveEarlier={() => moveAnimeWithinTier(row.id, item.animeId, -1)}
+                        onMoveLater={() => moveAnimeWithinTier(row.id, item.animeId, 1)}
+                        canMoveEarlier={rowItems.findIndex((current) => current.animeId === item.animeId) > 0}
+                        canMoveLater={rowItems.findIndex((current) => current.animeId === item.animeId) < rowItems.length - 1}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {divergenceResult !== null && canShowCommunityRanking ? (
+        <CommunityDivergenceCard
+          result={divergenceResult}
+          className="mt-8"
+        />
       ) : null}
 
       {visibleTiers ? (
-        <div className="space-y-4">
-          {TIERS.map((tier) => (
-            <section
-              key={tier}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={() => handleDrop(tier)}
-              className="grid gap-4 rounded-lg border border-white/10 bg-white/[0.04] p-4 lg:grid-cols-[72px_1fr]"
-            >
-              <div className="flex h-16 items-center justify-center rounded-lg bg-zinc-950 text-3xl font-bold text-cyan-200">
-                {tier}
-              </div>
-              {visibleTiers[tier].length === 0 ? (
-                <div className="flex min-h-32 items-center text-sm text-zinc-500">暂无</div>
-              ) : (
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                  {visibleTiers[tier].map((item) => (
-                    <TierCard
-                      key={item.animeId}
-                      item={item}
-                      editable={isEditing}
-                      onDragStart={() => setDragSource({ tier, animeId: item.animeId })}
-                      onDropBefore={() => handleDrop(tier, item.animeId)}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-          ))}
+        <div className="tiermaker-export-host" aria-hidden="true">
+          <div ref={exportCardRef}>
+            {shareSnapshot !== null ? (
+              <TierShareCard share={shareSnapshot} exportMode />
+            ) : null}
+          </div>
         </div>
       ) : null}
     </PageShell>
   );
 }
 
-function cloneTiers(tiers: TierMap): TierMap {
-  return {
-    S: [...tiers.S],
-    A: [...tiers.A],
-    B: [...tiers.B],
-    C: [...tiers.C],
-    D: [...tiers.D]
-  };
-}
-
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
-      <p className="text-xs text-zinc-500">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
+    <div className="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/10 bg-slate-950/28 px-3 text-xs text-slate-400">
+      <span>{label}</span>
+      <span className="font-black text-white">{value}</span>
     </div>
   );
 }
 
-function TierCard({
-  item,
-  editable,
-  onDragStart,
-  onDropBefore
-}: {
-  item: TierListItem;
-  editable: boolean;
-  onDragStart: () => void;
-  onDropBefore: () => void;
-}) {
-  const title = item.titleCn ?? item.title;
-
-  return (
-    <div
-      draggable={editable}
-      onDragStart={onDragStart}
-      onDragOver={(event: DragEvent<HTMLDivElement>) => event.preventDefault()}
-      onDrop={(event) => {
-        event.stopPropagation();
-        onDropBefore();
-      }}
-      className={`w-52 shrink-0 rounded-lg border border-white/10 bg-zinc-950/60 p-3 ${
-        editable ? "cursor-grab active:cursor-grabbing" : ""
-      }`}
-    >
-      <div className="flex gap-3">
-        <AnimeCover
-          src={item.imageSmallUrl ?? item.imageMediumUrl ?? item.imageUrl}
-          title={title}
-          size="sm"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="line-clamp-2 text-sm font-semibold text-white">{title}</h3>
-            {item.manualLocked ? <span className="text-xs text-cyan-300">锁</span> : null}
-          </div>
-          <p className="mt-2 text-xs text-zinc-400">Elo {item.eloScore.toFixed(1)}</p>
-          <p className="mt-1 text-xs text-zinc-500">对决 {item.compareCount}</p>
-        </div>
-      </div>
-      <div className="mt-3 grid grid-cols-4 gap-1 text-center text-[11px] text-zinc-400">
-        <span>胜 {item.winCount}</span>
-        <span>负 {item.lossCount}</span>
-        <span>平 {item.drawCount}</span>
-        <span>未看 {item.unseenCount}</span>
-      </div>
-    </div>
-  );
-}

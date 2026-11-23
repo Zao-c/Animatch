@@ -1,5 +1,5 @@
 import { fromError, ok } from "@/lib/api-response";
-import { getOrCreateDevUser } from "@/lib/dev-user";
+import { requireCurrentUser } from "@/lib/auth-session";
 import { getOrCreateDefaultRun, initializeScoresForRun } from "@/lib/run-service";
 
 interface RouteContext {
@@ -10,7 +10,7 @@ interface RouteContext {
 
 export async function POST(_request: Request, context: RouteContext) {
   try {
-    const user = await getOrCreateDevUser();
+    const user = await requireCurrentUser();
     const run = await getOrCreateDefaultRun({
       userId: user.id,
       poolId: context.params.poolId

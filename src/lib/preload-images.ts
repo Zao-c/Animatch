@@ -1,23 +1,60 @@
 import type { MatchPair } from "./client-api";
+import { getAnimeCoverUrl, type AnimeCoverUrlFields } from "./anime-cover-url";
+import { getProxiedCoverCandidates } from "./image-proxy";
 
-export function preloadImage(src: string | null | undefined): Promise<boolean> {
+const DEFAULT_PRELOAD_TIMEOUT_MS = 4000;
+const inFlightPreloads = new Map<string, Promise<boolean>>();
+
+export function preloadImage(
+  src: string | null | undefined,
+  options: { timeoutMs?: number } = {}
+): Promise<boolean> {
   if (!src) {
     return Promise.resolve(false);
   }
 
-  return new Promise((resolve) => {
-    const image = new Image();
+  const existing = inFlightPreloads.get(src);
+  if (existing !== undefined) {
+    return existing;
+  }
 
-    image.onload = () => resolve(true);
-    image.onerror = () => resolve(false);
+  const preload = new Promise<boolean>((resolve) => {
+    const image = new Image();
+    const timeoutMs = Math.max(1, Math.trunc(options.timeoutMs ?? DEFAULT_PRELOAD_TIMEOUT_MS));
+    let settled = false;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+
+    function finish(result: boolean) {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      image.onload = null;
+      image.onerror = null;
+      if (timeout !== null) {
+        clearTimeout(timeout);
+      }
+      resolve(result);
+    }
+
+    timeout = setTimeout(() => finish(false), timeoutMs);
+    image.onload = () => finish(true);
+    image.onerror = () => finish(false);
     image.src = src;
   });
+
+  inFlightPreloads.set(src, preload);
+  void preload.then(() => {
+    inFlightPreloads.delete(src);
+  });
+  return preload;
 }
 
 export async function preloadPair(pair: MatchPair): Promise<boolean> {
   const [leftLoaded, rightLoaded] = await Promise.all([
-    preloadImage(bestImageSrc(pair.left)),
-    preloadImage(bestImageSrc(pair.right))
+    preloadAnimeImage(pair.left),
+    preloadAnimeImage(pair.right)
   ]);
 
   return leftLoaded || rightLoaded;
@@ -25,7 +62,7 @@ export async function preloadPair(pair: MatchPair): Promise<boolean> {
 
 export async function preloadPairs(
   pairs: MatchPair[],
-  options: { firstPairRequired?: boolean; preloadCount?: number } = {}
+  options: { preloadCount?: number } = {}
 ): Promise<{ loaded: number; total: number }> {
   const preloadCount = Math.max(0, Math.trunc(options.preloadCount ?? 4));
   const targetPairs = pairs.slice(0, preloadCount);
@@ -35,14 +72,10 @@ export async function preloadPairs(
     return { loaded: 0, total: 0 };
   }
 
-  if (options.firstPairRequired === true) {
-    await preloadPair(targetPairs[0]);
-  }
-
   const results = await Promise.all(
     targetPairs.flatMap((pair) => [
-      preloadImage(bestImageSrc(pair.left)),
-      preloadImage(bestImageSrc(pair.right))
+      preloadAnimeImage(pair.left),
+      preloadAnimeImage(pair.right)
     ])
   );
 
@@ -52,11 +85,19 @@ export async function preloadPairs(
   };
 }
 
-function bestImageSrc(anime: {
-  imageLargeUrl?: string | null;
-  imageMediumUrl?: string | null;
-  imageUrl?: string | null;
-  imageSmallUrl?: string | null;
-}): string | null {
-  return anime.imageLargeUrl ?? anime.imageMediumUrl ?? anime.imageUrl ?? anime.imageSmallUrl ?? null;
+async function preloadAnimeImage(anime: AnimeCoverUrlFields): Promise<boolean> {
+  for (const src of bestImageCandidates(anime)) {
+    const loaded = await preloadImage(src);
+    if (loaded) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function bestImageCandidates(anime: AnimeCoverUrlFields): string[] {
+  const heroUrl = getAnimeCoverUrl(anime, { intent: "hero" });
+  const exportUrl = getAnimeCoverUrl(anime, { intent: "export" });
+  return getProxiedCoverCandidates(heroUrl, exportUrl);
 }
