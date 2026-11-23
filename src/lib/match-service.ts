@@ -243,7 +243,7 @@ export async function submitComparison(
   validateSubmitComparisonParams(params);
   await assertRunAccess(params);
 
-  return prisma.$transaction(async (tx) => {
+  return withComparisonTransaction(async (tx) => {
     const existingComparison = await tx.poolComparison.findUnique({
       where: {
         userId_clientMutationId: {
@@ -393,6 +393,29 @@ export async function submitComparison(
       rightScore: toPublicScore(rightScore)
     };
   });
+}
+
+async function withComparisonTransaction(
+  operation: (tx: Prisma.TransactionClient) => Promise<SubmitComparisonResult>
+): Promise<SubmitComparisonResult> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await prisma.$transaction(operation, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+      });
+    } catch (error) {
+      // Two tabs or a retried request can read the same Elo before either write
+      // commits. Retry the whole transaction, including the idempotency lookup.
+      const retryable = error instanceof Prisma.PrismaClientKnownRequestError &&
+        (error.code === "P2034" || error.code === "P2002");
+      if (!retryable) throw error;
+      if (attempt === 2) {
+        throw new AppError("对决正在保存，请稍后重试", 409, "COMPARISON_WRITE_CONFLICT");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50 * (attempt + 1)));
+    }
+  }
+  throw new AppError("对决正在保存，请稍后重试", 409, "COMPARISON_WRITE_CONFLICT");
 }
 
 async function getLedgerScoreSnapshot(

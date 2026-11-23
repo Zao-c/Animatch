@@ -90,7 +90,9 @@ model User {
   image                String?
   username             String?                @unique
   profileVisibility    Visibility             @default(PUBLIC)
-  allowTasteMatching   Boolean                @default(true)
+  allowTasteMatching   Boolean                @default(false)
+  tasteProfilePublic   Boolean                @default(false)
+  collections          AnimeCollection[]
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
   deletedAt            DateTime?
@@ -199,6 +201,8 @@ model CustomPool {
   tierShares          TierShare[]            @relation("PoolTierShares")
   battleSeasons       BattleSeason[]
   battleSeasonScores  BattleSeasonUserScore[] @relation("PoolBattleSeasonUserScores")
+  collectionSources CollectionSource[]
+  annualFinals AnimeCollection[] @relation("AnnualFinal")
 
   @@index([creatorId])
   @@index([status])
@@ -524,6 +528,8 @@ model BattleSeason {
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 
+  archive    BattleSeasonArchive?
+  collectionSources CollectionSource[]
   votes      BattleVote[]
   userScores BattleSeasonUserScore[]
 
@@ -593,4 +599,38 @@ model BattleSeasonUserScore {
   @@index([userId])
   @@index([animeId])
   @@index([seasonId, eloScore])
+}
+
+model AnimeCollection {
+  id String @id @default(cuid())
+  ownerId String
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title String
+  year Int
+  finalPoolId String? @unique
+  finalPool CustomPool? @relation("AnnualFinal", fields: [finalPoolId], references: [id], onDelete: SetNull)
+  sources CollectionSource[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([ownerId, updatedAt])
+}
+model CollectionSource {
+  id String @id @default(cuid())
+  collectionId String
+  collection AnimeCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  poolId String
+  pool CustomPool @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  seasonId String
+  season BattleSeason @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  quarter Int
+  phase String
+  @@unique([collectionId, quarter, phase])
+  @@unique([collectionId, seasonId])
+}
+model BattleSeasonArchive {
+  seasonId String @id
+  season BattleSeason @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  version String @default("season-elo-v1")
+  capturedAt DateTime @default(now())
+  payload Json
 }

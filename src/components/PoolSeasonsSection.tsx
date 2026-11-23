@@ -78,7 +78,7 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
       </section>
     );
   }
-  if (seasons.length === 0 && !canEdit) return null;
+  if (seasons.length === 0 && !canEdit) return <AppCard className="mt-5 p-6"><h2 className="font-bold text-white">还没有赛季</h2><p className="mt-2 text-sm text-slate-400">创建者发布赛季后，你可以在这里参与对决、查看结果。</p></AppCard>;
 
   return (
     <section id="battle-seasons" className="mt-6 scroll-mt-24 sm:scroll-mt-32">
@@ -88,7 +88,7 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
             <AppBadge tone="tier">赛季大乱斗</AppBadge>
             <h2 className="mt-2 text-xl font-black text-white">限定票数赛季</h2>
             <p className="mt-1 text-sm leading-6 text-slate-400">
-              用独立赛季 Elo 生成个人赛季 Tier List，再匿名聚合成赛季共享榜；私心票只在赛季共享榜里加成。
+              用独立赛季 Elo 生成个人赛季 Tier List，再匿名聚合成赛季共享榜；私心票只在共享榜加成。口味对照会展示玩家昵称和共同作品的明显分歧。
             </p>
           </div>
           {canEdit ? (

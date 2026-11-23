@@ -1,3 +1,6 @@
+import { withTransactionRetry } from "./transaction-retry";
+import { rankingEvidence } from "./ranking-evidence";
+import { readSeasonArchiveData, getSeasonArchiveData, archivedSeasonRanking, archivedPersonalRanking } from "./season-archive";
 import { prisma } from "./db";
 import { AppError } from "./app-error";
 import { canEditPoolContent, canPlayPool, canReadPool } from "./pool-permissions";
@@ -107,6 +110,9 @@ export interface SeasonRankingItem {
   comparisonCount: number;
   insufficientSample: boolean;
   averageElo: number | null;
+  ratingDeviation?: number | null;
+  coverage?: number;
+  sampleLabel?: string;
   imageUrl: string | null;
 }
 
@@ -547,6 +553,8 @@ export async function getSeasonDetail(
   if (!season) throw new AppError("Season not found", 404, "SEASON_NOT_FOUND");
 
   await maybeRebuildSeasonScoresFromVotes(poolId, seasonId);
+  const archived = season.status === "ENDED" || (season.status === "ACTIVE" && season.endsAt !== null && season.endsAt <= new Date())
+    ? await getSeasonArchiveData(poolId, seasonId) : null;
 
   const [participantCount, totalVotes, biasCount, recentVotesRaw, ranking] = await Promise.all([
     prisma.battleVote.groupBy({
@@ -619,7 +627,7 @@ export async function getSeasonDetail(
       }),
       aggregateCurrentUserSeasonRanking(poolId, seasonId, userId)
     ]);
-    currentUserRanking = userRanking;
+    currentUserRanking = archived ? archivedPersonalRanking(archived.data, userId) : userRanking;
 
     let dailyUsed: number | undefined = undefined;
     if (season.maxVotesPerUserPerDay) {
@@ -659,7 +667,7 @@ export async function getSeasonDetail(
     participantCount,
       totalVotes,
       biasVotesUsed: biasCount,
-      ranking,
+      ranking: archived ? archivedSeasonRanking(archived.data) : ranking,
       currentUserRanking,
       recentVotes,
     currentUserState,
@@ -678,6 +686,7 @@ interface SeasonRankingAggregate {
   title: string;
   imageUrl: string | null;
   weightedEloSum: number;
+  ratings: number[];
   rawEloSum: number;
   weightSum: number;
   participantIds: Set<string>;
@@ -718,6 +727,7 @@ async function aggregateSeasonRanking(
       title: entry.anime.titleCn ?? entry.anime.titleJa ?? entry.anime.title ?? entry.animeId,
       imageUrl: entry.anime.cachedCoverUrl ?? entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl ?? entry.anime.imageUrl,
       weightedEloSum: 0,
+      ratings: [],
       rawEloSum: 0,
       weightSum: 0,
       participantIds: new Set(),
@@ -763,6 +773,7 @@ async function aggregateSeasonRanking(
         ? baseWeight * SEASON_BIAS_AGGREGATION_MULTIPLIER
         : baseWeight;
 
+    aggregate.ratings.push(score.eloScore);
     aggregate.rawEloSum += score.eloScore;
     aggregate.weightedEloSum += score.eloScore * userWeight;
     aggregate.weightSum += userWeight;
@@ -773,6 +784,7 @@ async function aggregateSeasonRanking(
     aggregate.biasWinCount += score.biasWinCount;
   }
 
+  const evidenceParticipants = new Set(scores.map((row) => row.userId)).size;
   return [...aggregates.values()]
     .map((aggregate) => {
       const participantCount = aggregate.participantIds.size;
@@ -792,6 +804,7 @@ async function aggregateSeasonRanking(
         participantCount,
         comparisonCount: aggregate.comparisonCount,
         insufficientSample,
+        ...rankingEvidence(aggregate.ratings, evidenceParticipants),
         averageElo:
           participantCount === 0 ? null : aggregate.rawEloSum / participantCount,
         imageUrl: aggregate.imageUrl
@@ -1629,11 +1642,12 @@ export async function endSeason(
   if (!season) throw new AppError("Season not found", 404, "SEASON_NOT_FOUND");
   if (season.status !== "ACTIVE") throw new AppError("Season is not active", 400, "SEASON_NOT_ACTIVE");
 
-  return prisma.battleSeason.update({
-    where: { id: seasonId },
-    data: {
-      status: "ENDED",
-      endsAt: new Date()
-    }
-  });
+  return withTransactionRetry(() => prisma.$transaction(async (tx) => {
+    const changed = await tx.battleSeason.updateMany({ where: { id: seasonId, poolId, status: "ACTIVE" }, data: { status: "ENDED", endsAt: new Date() } });
+    if (changed.count !== 1) throw new AppError("Season is not active", 400, "SEASON_NOT_ACTIVE");
+    const ended = await tx.battleSeason.findUniqueOrThrow({ where: { id: seasonId } });
+    const payload = await readSeasonArchiveData(tx, poolId, seasonId);
+    await tx.battleSeasonArchive.upsert({ where: { seasonId }, update: {}, create: { seasonId, payload: payload as unknown as Prisma.InputJsonValue } });
+    return ended;
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15000 }));
 }

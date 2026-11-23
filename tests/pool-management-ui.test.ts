@@ -164,9 +164,9 @@ describe("pool management UI", () => {
   });
 
   it("keeps long pool pages navigable without requiring a return to the top", () => {
-    expect(detailSource).toContain('aria-label="番组导航"');
-    expect(detailSource).toContain('href="#anime-wall"');
-    expect(detailSource).toContain('href="#battle-seasons"');
+    expect(detailSource).toContain('label="番组导航"');
+    expect(detailSource).toContain('id="pool-content-panel-wall"');
+    expect(detailSource).toContain('id="pool-content-panel-seasons"');
     expect(detailSource).toContain("sm:sticky sm:top-24");
     expect(detailSource).toContain('size="md"');
     expect(detailSource).toContain('canManagePool ? "返回我的番组" : "返回番组大厅"');
@@ -215,10 +215,10 @@ describe("pool management UI", () => {
   });
 
   it("keeps large anime walls compact and progressively rendered", () => {
-    expect(detailSource).toContain("animeWallVisibleCount");
-    expect(detailSource).toContain("filteredAnime.slice(0, animeWallVisibleCount)");
-    expect(detailSource).toContain("sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5");
-    expect(detailSource).toContain("显示更多作品（剩余");
+    expect(detailSource).toContain("animeWallPage");
+    expect(detailSource).toContain("filteredAnime.slice((currentWallPage - 1) * 12, currentWallPage * 12)");
+    expect(detailSource).toContain("sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6");
+    expect(detailSource).toContain("pageSize={12}");
     expect(detailSource).toContain('className="h-48 w-full rounded-none border-0 sm:h-52"');
   });
 

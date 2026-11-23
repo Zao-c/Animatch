@@ -61,7 +61,7 @@ describe("community ranking UI wiring", () => {
     expect(detailSource).toContain("ranking.totalAnime");
     expect(detailSource).toContain("ranking.minSampleThreshold.minUsers");
     expect(detailSource).toContain("ranking.minSampleThreshold.minComparisons");
-    expect(detailSource).toContain("ranking.items.map");
+    expect(detailSource).toContain("ranking.items.slice((currentRankingPage - 1) * 8, currentRankingPage * 8).map");
     expect(detailSource).toContain("item.communityScore");
     expect(detailSource).toContain("item.averageRating");
     expect(detailSource).toContain("item.participantCount");
@@ -111,7 +111,7 @@ describe("community ranking UI wiring", () => {
       : detailSource.slice(detailSource.indexOf("function CommunityRankingSection"));
 
     expect(section).not.toContain("<table");
-    expect(section).toContain("grid gap-3");
+    expect(section).toContain("grid gap-2 xl:grid-cols-2");
     expect(section).toContain("sm:grid-cols");
   });
 
@@ -122,8 +122,8 @@ describe("community ranking UI wiring", () => {
     expect(communityRender).toBeGreaterThan(-1);
     expect(animeWall).toBeGreaterThan(-1);
     expect(communityRender).toBeLessThan(animeWall);
-    expect(detailSource).toContain('document.getElementById("community-ranking")?.scrollIntoView');
-    expect(detailSource).toContain('prefers-reduced-motion: reduce');
+    expect(detailSource).toContain('id="pool-content-panel-community"');
+    expect(detailSource).toContain('if (!hashReady) return;');
   });
 
   it("adds a low-emphasis Tier page entry to the pool community ranking anchor", () => {

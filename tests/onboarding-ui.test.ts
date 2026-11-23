@@ -67,7 +67,7 @@ describe("onboarding guide copy", () => {
     expect(homeSource).toContain("sm:grid-cols-3");
     expect(detailSource).toContain("flex flex-wrap");
     expect(matchSource).toContain("flex flex-wrap");
-    expect(tierSource).toContain("sm:flex-row sm:flex-wrap");
+    expect(tierSource).toContain("grid grid-cols-2 gap-3 sm:flex sm:flex-wrap");
     for (const source of [homeSource, detailSource, matchSource, tierSource]) {
       expect(source).not.toMatch(/\b(?:w|mini?-w)-screen\b/);
       expect(source).not.toMatch(/(?:w|mini?-w)-\[1264px\]/);

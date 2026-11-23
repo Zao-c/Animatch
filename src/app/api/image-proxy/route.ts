@@ -5,6 +5,7 @@ import fs from "fs/promises";
 import net from "net";
 import path from "path";
 import { getDispatcher } from "@/lib/server/outbound-fetch";
+import { readLimitedBody } from "@/lib/server/read-limited-body";
 
 export const runtime = "nodejs";
 
@@ -27,37 +28,11 @@ function normalizeCacheUrl(raw: string): string {
   return raw;
 }
 
-/** Background re-fetch after all retries fail — so next visitor gets a cache hit */
-const pendingBgRefetch = new Set<string>();
-
-async function bgRefetch(
-  sourceUrl: string,
-  cacheKey: string,
-  headers: Record<string, string>,
-  blockedProxyHosts: ReadonlySet<string>
-): Promise<void> {
-  try {
-    const resp = await fetchWithValidatedRedirects(
-      sourceUrl,
-      headers,
-      AbortSignal.timeout(15000),
-      blockedProxyHosts
-    );
-    if (!resp.ok) return;
-    const buf = Buffer.from(await resp.arrayBuffer());
-    if (buf.byteLength > MAX_SIZE || buf.byteLength === 0) return;
-    const ctype = resp.headers.get("content-type") ?? "";
-    if (!ctype.startsWith("image/")) return;
-    const entry = { buffer: buf, contentType: ctype, cachedAt: Date.now(), lastAccessedAt: Date.now() };
-    setCacheEntry(cacheKey, entry);
-    await writeDiskCacheEntry(cacheKey, entry);
-  } catch {
-    // background retry failed — will be retried on next user request
-  }
-}
-
 const MAX_SIZE = 10 * 1024 * 1024;
 const TIMEOUT_MS = 6000;
+const QUEUE_TIMEOUT_MS = 1500;
+const FAILURE_COOLDOWN_MS = 5000;
+const recentFailures = new Map<string, { result: ImageFetchResult; expiresAt: number }>();
 const FRESH_TTL_MS = 24 * 60 * 60 * 1000;
 const STALE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MEM_MAX_CACHE_ENTRIES = 250;
@@ -124,13 +99,12 @@ type ImageFetchResult =
       cacheStatus: "MISS" | "COALESCED";
       error?: never;
       status?: never;
-      shouldBgRefetch?: never;
     }
   | {
       entry: null;
       error: string;
       status: number;
-      shouldBgRefetch?: boolean;
+      retryable?: boolean;
       cacheStatus?: never;
     };
 
@@ -383,7 +357,9 @@ export async function GET(request: Request) {
   }
 
   const blockedProxyHosts = getBlockedProxyHosts(request);
-  const validationError = await validateResolvedProxyTarget(parsed, blockedProxyHosts);
+  // Cached bytes require no DNS or outbound request. Resolve and validate DNS
+  // inside fetchWithValidatedRedirects only when actually fetching upstream.
+  const validationError = validateProxyTarget(parsed, blockedProxyHosts);
   if (validationError !== null) {
     return errorResponse({ error: validationError }, 400);
   }
@@ -416,30 +392,22 @@ export async function GET(request: Request) {
     headers["Referer"] = referer;
   }
 
+  // Serve a usable stale cover immediately; revalidation shares the same
+  // deduplication, queue and full-body download limits as foreground traffic.
+  const availableStale = staleEntry ?? staleDiskEntry;
+  if (availableStale !== null) {
+    setCacheEntry(cacheKey, availableStale);
+    void fetchImageWithCoalescing(parsed.toString(), cacheKey, headers, blockedProxyHosts)
+      .catch(() => undefined);
+    return cachedImageResponse(availableStale, staleEntry !== null ? "STALE" : "DISK-STALE");
+  }
+
   const result = await fetchImageWithCoalescing(parsed.toString(), cacheKey, headers, blockedProxyHosts);
   if (result.entry !== null) {
     return cachedImageResponse(result.entry, result.cacheStatus);
   }
 
-  if (result.entry === null) {
-    if (staleEntry !== null) {
-      return cachedImageResponse(staleEntry, "STALE");
-    }
-    if (staleDiskEntry !== null) {
-      setCacheEntry(cacheKey, staleDiskEntry);
-      return cachedImageResponse(staleDiskEntry, "DISK-STALE");
-    }
-    if (result.shouldBgRefetch && !pendingBgRefetch.has(cacheKey)) {
-      pendingBgRefetch.add(cacheKey);
-      setTimeout(() => {
-        pendingBgRefetch.delete(cacheKey);
-        bgRefetch(parsed.toString(), cacheKey, headers, blockedProxyHosts);
-      }, 3000);
-    }
-    return errorResponse({ error: result.error }, result.status);
-  }
-
-  return errorResponse({ error: "fetch failed" }, 502);
+  return errorResponse({ error: result.error }, result.status);
 }
 
 async function fetchImageWithCoalescing(
@@ -448,6 +416,9 @@ async function fetchImageWithCoalescing(
   headers: Record<string, string>,
   blockedProxyHosts: ReadonlySet<string>
 ): Promise<ImageFetchResult> {
+  const failure = recentFailures.get(cacheKey);
+  if (failure && failure.expiresAt > Date.now()) return failure.result;
+  recentFailures.delete(cacheKey);
   const existing = imageProxyFetchState.inFlightByCacheKey.get(cacheKey);
   if (existing !== undefined) {
     const result = await existing;
@@ -459,7 +430,14 @@ async function fetchImageWithCoalescing(
   const request = fetchAndCacheUpstreamImage(sourceUrl, cacheKey, headers, blockedProxyHosts);
   imageProxyFetchState.inFlightByCacheKey.set(cacheKey, request);
   try {
-    return await request;
+    const result = await request;
+    if (result.entry === null && result.status !== 503) {
+      recentFailures.set(cacheKey, { result, expiresAt: Date.now() + FAILURE_COOLDOWN_MS });
+      if (recentFailures.size > MEM_MAX_CACHE_ENTRIES) {
+        recentFailures.delete(recentFailures.keys().next().value!);
+      }
+    }
+    return result;
   } finally {
     imageProxyFetchState.inFlightByCacheKey.delete(cacheKey);
   }
@@ -472,85 +450,48 @@ async function fetchAndCacheUpstreamImage(
   blockedProxyHosts: ReadonlySet<string>
 ): Promise<ImageFetchResult> {
   const maxAttempts = 2;
-  let response: Response | undefined;
-  let lastError: unknown;
-
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
+    let result: ImageFetchResult;
     try {
-      response = await fetchWithValidatedRedirects(sourceUrl, headers, controller.signal, blockedProxyHosts);
+      result = await withUpstreamFetchSlot(async (): Promise<ImageFetchResult> => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        let response: Response | undefined;
+        try {
+          response = await fetchWithValidatedRedirects(sourceUrl, headers, controller.signal, blockedProxyHosts);
+          if (!response.ok) {
+            return { entry: null, error: `upstream returned ${response.status}`, status: 502,
+              retryable: response.status === 502 || response.status === 503 || response.status === 504 };
+          }
+          const contentType = response.headers.get("content-type") ?? "";
+          if (!contentType.startsWith("image/")) return { entry: null, error: "not an image", status: 400 };
+          if (Number(response.headers.get("content-length") ?? 0) > MAX_SIZE) {
+            return { entry: null, error: "image too large", status: 400 };
+          }
+          const buffer = await readLimitedBody(response, MAX_SIZE, controller.signal);
+          return { entry: { buffer, contentType, cachedAt: Date.now(), lastAccessedAt: Date.now() }, cacheStatus: "MISS" };
+        } finally {
+          clearTimeout(timeoutId);
+          if (response?.body && !response.body.locked) void response.body.cancel().catch(() => undefined);
+        }
+      });
     } catch (error) {
-      lastError = error;
       if (error instanceof ImageProxyOverloadedError) {
         return { entry: null, error: "image proxy busy", status: 503 };
       }
-      if (attempt < maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
-        continue;
-      }
-      const message =
-        lastError instanceof DOMException && lastError.name === "AbortError"
-          ? "upstream timeout"
-          : "fetch failed";
-      return { entry: null, error: message, status: 502 };
-    } finally {
-      clearTimeout(timeoutId);
+      const tooLarge = error instanceof Error && error.message === "image too large";
+      result = { entry: null, error: tooLarge ? "image too large" : "fetch failed",
+        status: tooLarge ? 400 : 502, retryable: !tooLarge };
     }
-
-    if (
-      !response.ok &&
-      attempt < maxAttempts &&
-      (response.status === 502 || response.status === 503)
-    ) {
-      await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
-      continue;
+    if (result.entry !== null) {
+      setCacheEntry(cacheKey, result.entry);
+      await writeDiskCacheEntry(cacheKey, result.entry);
+      return result;
     }
-
-    break;
+    if (!result.retryable || attempt === maxAttempts) return result;
+    await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
   }
-
-  if (!response || !response.ok) {
-    return {
-      entry: null,
-      error: response ? `upstream returned ${response.status}` : "fetch failed",
-      status: 502,
-      shouldBgRefetch: true
-    };
-  }
-
-  const contentType = response.headers.get("content-type") ?? "";
-  if (!contentType.startsWith("image/")) {
-    return { entry: null, error: "not an image", status: 400 };
-  }
-
-  const contentLength = response.headers.get("content-length");
-  if (contentLength !== null && Number(contentLength) > MAX_SIZE) {
-    return { entry: null, error: "image too large", status: 400 };
-  }
-
-  let buffer: ArrayBuffer;
-  try {
-    buffer = await response.arrayBuffer();
-  } catch {
-    return { entry: null, error: "read failed", status: 502 };
-  }
-
-  if (buffer.byteLength > MAX_SIZE) {
-    return { entry: null, error: "image too large", status: 400 };
-  }
-
-  const cachedBuffer = Buffer.from(buffer);
-  const entry = setCacheEntry(cacheKey, {
-    buffer: cachedBuffer,
-    contentType,
-    cachedAt: Date.now(),
-    lastAccessedAt: Date.now()
-  });
-  await writeDiskCacheEntry(cacheKey, entry);
-
-  return { entry, cacheStatus: "MISS" };
+  return { entry: null, error: "fetch failed", status: 502 };
 }
 
 async function fetchWithValidatedRedirects(
@@ -568,7 +509,7 @@ async function fetchWithValidatedRedirects(
       throw new Error(validationError);
     }
 
-    const response = await withUpstreamFetchSlot(async () => {
+    signal.throwIfAborted();
       const dispatcher = await getDispatcher(currentUrl).catch(() => undefined);
       const fetchOptions: RequestInit & { dispatcher?: unknown } = {
         signal,
@@ -578,14 +519,14 @@ async function fetchWithValidatedRedirects(
       if (dispatcher !== undefined) {
         fetchOptions.dispatcher = dispatcher;
       }
-      return fetch(currentUrl, fetchOptions);
-    });
+    const response = await fetch(currentUrl, fetchOptions);
 
     if (!isRedirectResponse(response.status)) {
       return response;
     }
 
     const location = response.headers.get("location");
+    await response.body?.cancel();
     if (!location) {
       throw new Error("invalid redirect");
     }
@@ -611,20 +552,24 @@ async function withUpstreamFetchSlot<T>(operation: () => Promise<T>): Promise<T>
     if (imageProxyFetchState.upstreamFetchQueue.length >= UPSTREAM_FETCH_QUEUE_MAX) {
       throw new ImageProxyOverloadedError();
     }
-    await new Promise<void>((resolve) => {
-      imageProxyFetchState.upstreamFetchQueue.push(resolve);
+    await new Promise<void>((resolve, reject) => {
+      const grant = () => { clearTimeout(timer); resolve(); };
+      const timer = setTimeout(() => {
+        const index = imageProxyFetchState.upstreamFetchQueue.indexOf(grant);
+        if (index !== -1) imageProxyFetchState.upstreamFetchQueue.splice(index, 1);
+        reject(new ImageProxyOverloadedError());
+      }, QUEUE_TIMEOUT_MS);
+      imageProxyFetchState.upstreamFetchQueue.push(grant);
     });
+  } else {
+    imageProxyFetchState.activeUpstreamFetches += 1;
   }
-
-  imageProxyFetchState.activeUpstreamFetches += 1;
   try {
     return await operation();
   } finally {
-    imageProxyFetchState.activeUpstreamFetches = Math.max(
-      0,
-      imageProxyFetchState.activeUpstreamFetches - 1
-    );
-    imageProxyFetchState.upstreamFetchQueue.shift()?.();
+    const next = imageProxyFetchState.upstreamFetchQueue.shift();
+    if (next) next(); // Transfer the reserved slot to the oldest waiter.
+    else imageProxyFetchState.activeUpstreamFetches -= 1;
   }
 }
 
@@ -724,12 +669,13 @@ async function readDiskCacheEntry(
       cachedAt: metadata.cachedAt,
       lastAccessedAt: Date.now()
     };
+    // Best effort touch; filesystem failures must not reject a cached image.
     void writeDiskMetadata(paths.metaPath, {
       contentType: entry.contentType,
       cachedAt: entry.cachedAt,
       lastAccessedAt: entry.lastAccessedAt,
       byteLength: entry.buffer.byteLength
-    });
+    }).catch(() => undefined);
     return entry;
   } catch {
     return null;
@@ -738,11 +684,12 @@ async function readDiskCacheEntry(
 
 async function writeDiskCacheEntry(cacheKey: string, entry: ImageCacheEntry): Promise<void> {
   const paths = getDiskCachePaths(cacheKey);
-  await fs.mkdir(DISK_CACHE_DIR, { recursive: true });
-  const tmpBodyPath = paths.bodyPath + ".tmp";
-  const tmpMetaPath = paths.metaPath + ".tmp";
+  const suffix = `.${crypto.randomUUID()}.tmp`;
+  const tmpBodyPath = paths.bodyPath + suffix;
+  const tmpMetaPath = paths.metaPath + suffix;
 
   try {
+    await fs.mkdir(DISK_CACHE_DIR, { recursive: true });
     await fs.writeFile(tmpBodyPath, entry.buffer);
     await writeDiskMetadata(tmpMetaPath, {
       contentType: entry.contentType,
@@ -783,7 +730,13 @@ function scheduleDiskCachePrune(): void {
 
 async function writeDiskMetadata(metaPath: string, metadata: DiskCacheMetadata): Promise<void> {
   await fs.mkdir(DISK_CACHE_DIR, { recursive: true });
-  await fs.writeFile(metaPath, JSON.stringify(metadata), "utf8");
+  const temporaryPath = `${metaPath}.${crypto.randomUUID()}.tmp`;
+  try {
+    await fs.writeFile(temporaryPath, JSON.stringify(metadata), "utf8");
+    await fs.rename(temporaryPath, metaPath);
+  } finally {
+    await fs.unlink(temporaryPath).catch(() => undefined);
+  }
 }
 
 async function pruneDiskCache(): Promise<void> {
@@ -871,7 +824,8 @@ function cachedImageResponse(
 function errorResponse(body: Record<string, string>, status: number) {
   return NextResponse.json(body, {
     status,
-    headers: { "Cache-Control": ERROR_CACHE_CONTROL, "CDN-Cache-Control": ERROR_CACHE_CONTROL }
+    headers: { "Cache-Control": ERROR_CACHE_CONTROL, "CDN-Cache-Control": ERROR_CACHE_CONTROL,
+      ...(status === 503 ? { "Retry-After": "2" } : {}) }
   });
 }
 

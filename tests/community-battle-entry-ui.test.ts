@@ -65,8 +65,8 @@ describe("community battle entry UI wiring", () => {
   it("shows public pool community battle entry with anonymous and logged-in copy", () => {
     expect(detailSource).toContain("const canShowCommunityBattle");
     expect(detailSource).toContain("isCommunityBattleVisiblePool(pool)");
-    expect(detailSource).toContain("登录后参与大乱斗");
-    expect(detailSource).toContain("加入社区大乱斗");
+    expect(detailSource).toContain("登录后自由对决");
+    expect(detailSource).toContain("个人自由对决");
     expect(detailSource).toContain("每个人的对决");
     expect(detailSource).toContain("以匿名聚合方式贡献到社区榜单");
     expect(detailSource).toContain("不影响创建者的作品墙");

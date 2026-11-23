@@ -285,8 +285,8 @@ describe("image proxy disk cache", () => {
   });
 
   it("disk write uses atomic temp-file-then-rename pattern", () => {
-    expect(source).toContain('paths.bodyPath + ".tmp"');
-    expect(source).toContain('paths.metaPath + ".tmp"');
+    expect(source).toContain('paths.bodyPath + suffix');
+    expect(source).toContain('paths.metaPath + suffix');
     expect(source).toContain("fs.rename(tmpBodyPath, paths.bodyPath)");
     expect(source).toContain("fs.rename(tmpMetaPath, paths.metaPath)");
   });
@@ -369,8 +369,8 @@ describe("image proxy security boundaries", () => {
     expect(consoleCalls.length).toBe(0);
   });
 
-  it("bgRefetch uses cacheKey for disk write so normalized URLs share cache", () => {
-    expect(source).toContain("writeDiskCacheEntry(cacheKey, entry)");
-    expect(source).toContain("setCacheEntry(cacheKey, entry)");
+  it("successful downloads use cacheKey for memory and disk", () => {
+    expect(source).toContain("writeDiskCacheEntry(cacheKey, result.entry)");
+    expect(source).toContain("setCacheEntry(cacheKey, result.entry)");
   });
 });

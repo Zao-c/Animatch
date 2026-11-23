@@ -63,7 +63,7 @@ describe("image proxy LRU cache", () => {
   it("bounds cold-cache upstream waits", () => {
     expect(source).toContain("TIMEOUT_MS = 6000");
     expect(source).toContain("const maxAttempts = 2");
-    expect(source).toContain("AbortSignal.timeout(15000)");
+    expect(source).toContain("readLimitedBody(response, MAX_SIZE, controller.signal)");
     expect(source).toContain("UPSTREAM_FETCH_CONCURRENCY");
     expect(source).toContain("withUpstreamFetchSlot");
   });
@@ -97,8 +97,10 @@ describe("image proxy LRU cache", () => {
     const [firstResponse, secondResponse] = await Promise.all([first, second]);
     expect(firstResponse.status).toBe(200);
     expect(secondResponse.status).toBe(200);
-    expect(firstResponse.headers.get("X-Animatch-Image-Cache")).toBe("MISS");
-    expect(secondResponse.headers.get("X-Animatch-Image-Cache")).toBe("COALESCED");
+    expect([
+      firstResponse.headers.get("X-Animatch-Image-Cache"),
+      secondResponse.headers.get("X-Animatch-Image-Cache")
+    ].sort()).toEqual(["COALESCED", "MISS"]);
   });
 
   it("sets Cache-Control response header", () => {
@@ -281,15 +283,8 @@ describe("image proxy LRU cache", () => {
     expect(source).not.toContain("useDirect");
   });
 
-  it("bgRefetch writes to cache using normalized cacheKey", () => {
-    expect(source).toMatch(/async function bgRefetch\s*\(\s*sourceUrl: string,\s*cacheKey: string,/);
-    expect(source).toContain("setCacheEntry(cacheKey, entry)");
-    expect(source).toContain("writeDiskCacheEntry(cacheKey, entry)");
-  });
-
-  it("pendingBgRefetch uses cacheKey for deduplication", () => {
-    expect(source).toContain("pendingBgRefetch.has(cacheKey)");
-    expect(source).toContain("pendingBgRefetch.add(cacheKey)");
-    expect(source).toContain("bgRefetch(parsed.toString(), cacheKey, headers, blockedProxyHosts)");
+  it("revalidates stale covers through the bounded coalescing path", () => {
+    expect(source).toContain("void fetchImageWithCoalescing(parsed.toString(), cacheKey, headers, blockedProxyHosts)");
+    expect(source).toContain("readLimitedBody(response, MAX_SIZE, controller.signal)");
   });
 });

@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { DashboardTabs } from "@/components/ui/DashboardTabs";
+import { CollectionPager } from "@/components/ui/CollectionPager";
 import { AnimeCover } from "@/components/AnimeCover";
+import { AppButton } from "@/components/ui/AppButton";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppCard } from "@/components/ui/AppCard";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
@@ -19,6 +22,7 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
   const [impact, setImpact] = useState<BattleSeasonImpact | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
   const [tab, setTab] = useState<"players" | "support" | "suppress" | "keyvotes">("support");
 
   const load = useCallback(() => {
@@ -45,7 +49,7 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
   if (error) {
     return (
       <AppCard className="p-6">
-        <ErrorAlert message={error} />
+        <ErrorAlert message={error} /><AppButton className="mt-3" variant="secondary" onClick={load}>重新加载分析</AppButton>
       </AppCard>
     );
   }
@@ -62,6 +66,8 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
     );
   }
 
+  const total = tab === "players" ? impact.userImpactRanking.length : tab === "support" ? impact.animeSupportRanking.length : tab === "suppress" ? impact.animeSuppressionRanking.length : impact.keyVotes.length;
+  const currentPage = Math.min(page, Math.max(1, Math.ceil(total / 6)));
   const isEnded = status === "ENDED";
 
   return (
@@ -71,12 +77,14 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
         这里展示每张票带来的个人 Elo 变动和支持倾向，不代表社区共享榜单的排名影响；私心票只会在共享聚合时加成。
       </p>
 
+      <div className="mt-5 grid items-start gap-5 xl:grid-cols-[280px_minmax(0,1fr)]">
+      <aside className="order-2 rounded-xl border border-anime-border p-4 xl:order-1">
       <SeasonStory impact={impact} />
 
       {impact.currentUserImpact && impact.currentUserImpact.voteCount > 0 ? (
         <div className="mt-4 border-y border-anime-cyan/20 bg-anime-cyan/[0.03] px-4 py-3">
           <p className="text-sm font-semibold text-anime-cyan">我的参与</p>
-          <div className="mt-1.5 grid grid-cols-2 gap-2 text-xs text-slate-300 sm:grid-cols-4">
+          <div className="mt-1.5 grid grid-cols-2 gap-2 text-xs text-slate-300">
             <span>已投 {impact.currentUserImpact.voteCount} 票</span>
             <span>个人 Elo 变动 {formatImpactNumber(impact.currentUserImpact.totalScoreSwing)}</span>
             {impact.currentUserImpact.biasVoteCount > 0 ? (
@@ -93,44 +101,6 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
           <p className="text-sm text-slate-500">你还没有参与这个赛季，开始对决后会显示你的参与记录。</p>
         </div>
       )}
-
-      <div className="mt-5 flex flex-wrap gap-2" role="tablist" aria-label="Season impact views">
-        {(
-          [
-            ["support", "当前支持"],
-            ["players", "玩家参与"],
-            ["suppress", "较少被选择"],
-            ["keyvotes", "关键投票"],
-          ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={tab === key}
-            onClick={() => setTab(key)}
-            className={`min-h-11 rounded-full border px-4 py-1 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-anime-purple/40 ${
-              tab === key
-                ? "border-anime-purple/50 bg-anime-purple/12 text-purple-100"
-                : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-4">
-        {tab === "players" ? (
-          <PlayerImpactTable ranking={impact.userImpactRanking.slice(0, 10)} />
-        ) : tab === "support" ? (
-          <AnimeSupportTable items={impact.animeSupportRanking.slice(0, 10)} />
-        ) : tab === "suppress" ? (
-          <AnimeSuppressTable items={impact.animeSuppressionRanking.slice(0, 10)} />
-        ) : (
-          <KeyVotesTable votes={impact.keyVotes} />
-        )}
-      </div>
 
       {impact.biasVoteStats ? (
         <div className="mt-6 rounded-2xl border border-rose-400/20 bg-rose-400/[0.03] p-4">
@@ -151,6 +121,27 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
       ) : (
         <div className="mt-6 text-xs text-slate-600">本赛季还没有人使用私心票。</div>
       )}
+      </aside>
+      <div className="order-1 min-w-0 xl:order-2">
+      <div className="mb-4"><DashboardTabs id="impact-detail" label="影响分析视图" value={tab} onChange={(value) => { setTab(value); setPage(1); }} items={[
+        {value: "support", label: "当前支持"}, {value: "players", label: "玩家参与"},
+        {value: "suppress", label: "较少被选择"}, {value: "keyvotes", label: "关键投票"}
+      ]} /></div>
+      <div role="tabpanel" id={`impact-detail-panel-${tab}`} aria-labelledby={`impact-detail-tab-${tab}`} className="mt-4">
+        {tab === "players" ? (
+          <PlayerImpactTable offset={(currentPage - 1) * 6} ranking={impact.userImpactRanking.slice((currentPage - 1) * 6, currentPage * 6)} />
+        ) : tab === "support" ? (
+          <AnimeSupportTable offset={(currentPage - 1) * 6} items={impact.animeSupportRanking.slice((currentPage - 1) * 6, currentPage * 6)} />
+        ) : tab === "suppress" ? (
+          <AnimeSuppressTable offset={(currentPage - 1) * 6} items={impact.animeSuppressionRanking.slice((currentPage - 1) * 6, currentPage * 6)} />
+        ) : (
+          <KeyVotesTable votes={impact.keyVotes.slice((currentPage - 1) * 6, currentPage * 6)} />
+        )}
+      </div>
+
+      <div className="mt-4"><CollectionPager label="分析记录" page={currentPage} total={total} pageSize={6} onChange={setPage} /></div>
+      </div></div>
+
     </AppCard>
   );
 }
@@ -161,7 +152,7 @@ function SeasonStory({ impact }: { impact: BattleSeasonImpact }) {
 
   return (
     <section className="mt-5 border-y border-white/10 py-4" aria-label="赛季当前结论">
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4">
         <div className="min-w-0">
           <p className="text-xs text-slate-500">当前最受支持</p>
           <p className="mt-1 line-clamp-2 text-sm font-black leading-snug text-amber-100">{supportedTitle}</p>
@@ -192,7 +183,7 @@ function SeasonStory({ impact }: { impact: BattleSeasonImpact }) {
   );
 }
 
-function PlayerImpactTable({ ranking }: { ranking: NonNullable<BattleSeasonImpact>["userImpactRanking"] }) {
+function PlayerImpactTable({ ranking, offset }: { offset: number; ranking: NonNullable<BattleSeasonImpact>["userImpactRanking"] }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -209,7 +200,7 @@ function PlayerImpactTable({ ranking }: { ranking: NonNullable<BattleSeasonImpac
         <tbody>
           {ranking.map((u, idx) => (
             <tr key={u.userId} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
-              <td className="py-2.5 font-bold text-amber-200">{idx + 1}</td>
+              <td className="py-2.5 font-bold text-amber-200">{offset + idx + 1}</td>
               <td className="py-2.5 font-medium text-white/80">{u.displayName}</td>
               <td className="py-2.5 text-right text-slate-300">{u.voteCount}</td>
               <td className="py-2.5 text-right text-rose-300">{u.biasVoteCount || "-"}</td>
@@ -231,7 +222,7 @@ function PlayerImpactTable({ ranking }: { ranking: NonNullable<BattleSeasonImpac
   );
 }
 
-function AnimeSupportTable({ items }: { items: NonNullable<BattleSeasonImpact>["animeSupportRanking"] }) {
+function AnimeSupportTable({ items, offset }: { offset: number; items: NonNullable<BattleSeasonImpact>["animeSupportRanking"] }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -247,7 +238,7 @@ function AnimeSupportTable({ items }: { items: NonNullable<BattleSeasonImpact>["
         <tbody>
           {items.map((a, idx) => (
             <tr key={a.animeId} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
-              <td className="py-2.5 font-bold text-amber-200">{idx + 1}</td>
+              <td className="py-2.5 font-bold text-amber-200">{offset + idx + 1}</td>
               <td className="py-2.5">
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-6 flex-shrink-0 overflow-hidden rounded">
@@ -273,7 +264,7 @@ function AnimeSupportTable({ items }: { items: NonNullable<BattleSeasonImpact>["
   );
 }
 
-function AnimeSuppressTable({ items }: { items: NonNullable<BattleSeasonImpact>["animeSuppressionRanking"] }) {
+function AnimeSuppressTable({ items, offset }: { offset: number; items: NonNullable<BattleSeasonImpact>["animeSuppressionRanking"] }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -289,7 +280,7 @@ function AnimeSuppressTable({ items }: { items: NonNullable<BattleSeasonImpact>[
         <tbody>
           {items.map((a, idx) => (
             <tr key={a.animeId} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
-              <td className="py-2.5 font-bold text-amber-200">{idx + 1}</td>
+              <td className="py-2.5 font-bold text-amber-200">{offset + idx + 1}</td>
               <td className="py-2.5">
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-6 flex-shrink-0 overflow-hidden rounded">

@@ -27,15 +27,13 @@ export default function Home() {
       <section className="grid items-center gap-8 py-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,460px)] lg:py-7">
         <div className="min-w-0">
           <div className="flex flex-wrap gap-2">
-            <AppBadge tone="source">Manami 本地库</AppBadge>
-            <AppBadge tone="tier">TierMaker PNG</AppBadge>
-            <AppBadge tone="status">公开分享</AppBadge>
+            <AppBadge tone="tier">你的喜好，你来排</AppBadge>
           </div>
           <h1 className="mt-5 max-w-3xl text-4xl font-black leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
             用左右选择，生成你的动画 Tier List
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
-            添加几部动画，通过两两对决快速排出你的个人榜单。封面优先、选择更快，最后可以导出图片或生成公开分享链接。
+            两部动画，你更喜欢哪一部？选出心头好，慢慢排成个人 Tier List，再导出图片或生成公开分享链接。
           </p>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
             从公开番组体验一次大乱斗，或创建自己的番组开始私人排序。
@@ -50,7 +48,6 @@ export default function Home() {
 
       <section className="mt-7">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <AppBadge tone="status">Quick start</AppBadge>
           <h2 className="text-lg font-semibold text-white">三步生成榜单</h2>
         </div>
         <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.025] p-3 sm:grid-cols-3">

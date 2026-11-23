@@ -1,13 +1,18 @@
 "use client";
 
+import { RankingEvidencePanel, EvidenceLabel } from "@/components/RankingEvidence";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, DragEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimeCard } from "@/components/AnimeCard";
 import { AnimeCover } from "@/components/AnimeCover";
 import { CommunityAverageTierList } from "@/components/CommunityAverageTierList";
+import { TasteRivalryCard } from "@/components/TasteRivalryCard";
 import { CoverRepairCard } from "@/components/CoverRepairCard";
+import { SeasonPlayEntry } from "@/components/SeasonPlayEntry";
 import { PoolSeasonsSection } from "@/components/PoolSeasonsSection";
+import { DashboardTabs } from "@/components/ui/DashboardTabs";
+import { CollectionPager } from "@/components/ui/CollectionPager";
 import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
 import { TierShareCard } from "@/components/TierShareView";
@@ -98,7 +103,7 @@ import { QuickImportPanel } from "@/components/QuickImportPanel";
 import { DEFAULT_TIER_CONFIG, type PoolTierConfig, type TierRowConfig } from "@/lib/tier-config";
 
 type AddTab = "search" | "browse" | "manual" | "custom" | "bangumi" | "tiermaker" | "quick";
-type PoolWorkspaceMode = "add" | "edit" | "settings" | "cover" | "community" | null;
+type PoolWorkspaceMode = "add" | "edit" | "settings" | "cover" | "community" | "seasons" | null;
 
 const COMMUNITY_RANKING_RETRY_DELAYS_MS = [700, 1600];
 
@@ -174,6 +179,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [communityView, setCommunityView] = useState<"ranking" | "tierlist">("ranking");
   const [communityRankingReloadKey, setCommunityRankingReloadKey] = useState(0);
   const [activeTab, setActiveTab] = useState<AddTab>("search");
+  const [hashReady, setHashReady] = useState(false);
   const [workspaceMode, setWorkspaceMode] = useState<PoolWorkspaceMode>(null);
   const [isMobileInspector, setIsMobileInspector] = useState(false);
   const isInspectorOpen =
@@ -187,7 +193,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [animeWallFilter, setAnimeWallFilter] = useState<
     "all" | "missingCover" | "suspiciousTitle" | "tiermaker" | "custom"
   >("all");
-  const [animeWallVisibleCount, setAnimeWallVisibleCount] = useState(24);
+  const [animeWallPage, setAnimeWallPage] = useState(1);
   const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
   const [showMoreImportMethods, setShowMoreImportMethods] = useState(false);
 
@@ -334,13 +340,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     return items;
   }, [pool, animeWallSearch, animeWallFilter]);
 
-  const visibleAnime = useMemo(
-    () => filteredAnime.slice(0, animeWallVisibleCount),
-    [animeWallVisibleCount, filteredAnime]
-  );
+  const currentWallPage = Math.min(animeWallPage, Math.max(1, Math.ceil(filteredAnime.length / 12)));
+  const visibleAnime = filteredAnime.slice((currentWallPage - 1) * 12, currentWallPage * 12);
 
   useEffect(() => {
-    setAnimeWallVisibleCount(24);
+    setAnimeWallPage(1);
   }, [animeWallFilter, animeWallSearch]);
 
   const refreshRuns = useCallback(async () => {
@@ -374,9 +378,14 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.location.hash === "#add-anime") {
-      setWorkspaceMode("add");
-    }
+    const syncHash = () => {
+      const hash = window.location.hash;
+      setWorkspaceMode(hash === "#community-ranking" ? "community" : hash === "#battle-seasons" ? "seasons" : hash === "#add-anime" ? "add" : hash === "#pool-settings" ? "settings" : null);
+    };
+    syncHash();
+    setHashReady(true);
+    window.addEventListener("hashchange", syncHash);
+    return () => window.removeEventListener("hashchange", syncHash);
   }, []);
 
   useEffect(() => {
@@ -574,17 +583,10 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   }, [communityRankingReloadKey, params.poolId, pool, workspaceMode]);
 
   useEffect(() => {
-    if (workspaceMode !== "community" || typeof window === "undefined") return;
-
-    const frame = window.requestAnimationFrame(() => {
-      const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "auto"
-        : "smooth";
-      document.getElementById("community-ranking")?.scrollIntoView({ behavior, block: "start" });
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [workspaceMode]);
+    if (!hashReady) return;
+    const hash = workspaceMode === "community" ? "#community-ranking" : workspaceMode === "seasons" ? "#battle-seasons" : workspaceMode === "settings" ? "#pool-settings" : workspaceMode === "add" ? "#add-anime" : "#anime-wall";
+    window.history.replaceState(window.history.state, "", hash);
+  }, [workspaceMode, hashReady]);
 
   useEffect(() => {
     customUploadDraftsRef.current = customUploadDrafts;
@@ -1381,7 +1383,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
   return (
     <PageShell>
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_600px]">
         <div>
           <div className="flex flex-wrap gap-2">
             <AppBadge tone={isArchived ? "danger" : "status"}>
@@ -1393,14 +1395,14 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             <AppBadge tone="muted">{pool.anime.length} 部动画</AppBadge>
             <AppBadge tone="source">{sourceSummary}</AppBadge>
             <AppBadge tone={canStart ? "success" : "warning"}>
-              {canStart ? "可开始" : "待添加"}
+              {isArchived ? "已归档" : pool.anime.length >= 2 ? "可开始" : "待添加"}
             </AppBadge>
           </div>
-          <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
+          <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
             {pool.name}
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-            {pool.description ?? "暂无描述"}
+            {pool.description}
           </p>
           {pool.creator ? (
             <p className="mt-3 text-xs text-slate-500">
@@ -1439,8 +1441,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             </div>
           ) : null}
         </div>
-        <AppCard className="p-5" variant="focus">
-          <div className="grid gap-3">
+        <AppCard className="p-3" variant="focus">
+          <div className="grid min-w-0 grid-cols-1 items-stretch gap-3 sm:grid-cols-2">
+            <section aria-label="个人自由对决" className={`flex min-w-0 flex-col rounded-xl border border-anime-cyan/35 bg-anime-cyan/[0.06] p-3 ${isArchived ? "sm:col-span-2" : ""}`}>
+              <h2 className="mb-2 flex min-h-9 items-center text-sm font-bold text-cyan-100">个人自由对决</h2>
+              <p className="mb-2 min-h-11 text-sm leading-5 text-slate-300">按自己的节奏比较作品，排出专属榜单。</p>
             {canShowCommunityBattle ? (
               <>
                 <AppButton
@@ -1449,9 +1454,10 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                   }
                   disabled={(!canStart && !canPromptLoginToBattle) || isMutating}
                   variant="primary"
+                  className="w-full"
                   size="lg"
                 >
-                  {canPromptLoginToBattle ? "登录后参与大乱斗" : "加入社区大乱斗"}
+                  {canPromptLoginToBattle ? "登录后自由对决" : "个人自由对决"}
                 </AppButton>
               </>
             ) : (
@@ -1461,6 +1467,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 }
                 disabled={(!canStart && !canPromptLoginToMatch) || isMutating}
                 variant="primary"
+                className="w-full"
                 size="lg"
               >
                 {canPromptLoginToMatch
@@ -1470,7 +1477,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                     : "开始我的对决"}
               </AppButton>
             )}
+              <p className="mt-2 text-xs text-slate-400">自由比较 · 随时继续 · 生成个人 Tier List</p>
+            </section>
+            {!isArchived ? <SeasonPlayEntry key={params.poolId} poolId={params.poolId} canPlay={canPlayPool} onBrowse={() => { setWorkspaceMode("seasons"); document.getElementById("pool-navigation")?.scrollIntoView({ block: "start" }); }} /> : null}
             <AppButton
+              className="sm:col-span-2"
               onClick={() =>
                 isArchived && latestRun !== undefined
                   ? router.push(`/pools/${params.poolId}/runs/${latestRun.id}/tier`)
@@ -1481,6 +1492,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             >
               查看 Tier List
             </AppButton>
+            <details className="sm:col-span-2 border-t border-anime-border pt-1">
+              <summary className="min-h-11 cursor-pointer py-3 text-center text-xs font-semibold text-slate-300">分享与更多操作</summary>
+              <div className="grid min-w-0 grid-cols-2 gap-2">
             <AppButton
               type="button"
               onClick={handleCopyPoolShare}
@@ -1539,6 +1553,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
             >
               {canManagePool ? "返回我的番组" : "返回番组大厅"}
             </Link>
+              </div>
+            </details>
             {!canManagePool && canPlayPool ? (
               <p className="mt-2 text-center text-xs leading-5 text-slate-500">
                 你的对决和榜单只属于你，不影响创建者。
@@ -1548,64 +1564,18 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         </AppCard>
       </section>
 
-      <nav
-        aria-label="番组导航"
-        className="z-20 mt-5 rounded-xl border border-white/10 bg-slate-950/90 p-1.5 shadow-lg shadow-slate-950/25 backdrop-blur sm:sticky sm:top-24"
-      >
-        <div className="flex flex-wrap gap-1.5">
-          <a href="#anime-wall" className={appButtonClasses({ variant: "quiet", size: "md" })}>
-            作品
-          </a>
-          <AppButton
-            type="button"
-            onClick={() =>
-              canShowCommunityBattle
-                ? canPromptLoginToBattle
-                  ? router.push(loginToPoolPath)
-                  : enterRun("match")
-                : canPromptLoginToMatch
-                  ? router.push(loginToPoolPath)
-                  : enterRun("match")
-            }
-            disabled={
-              (canShowCommunityBattle
-                ? !canStart && !canPromptLoginToBattle
-                : !canStart && !canPromptLoginToMatch) || isMutating
-            }
-            variant="quiet"
-            size="md"
-          >
-            对决
-          </AppButton>
-          <AppButton
-            type="button"
-            onClick={() =>
-              isArchived && latestRun !== undefined
-                ? router.push(`/pools/${params.poolId}/runs/${latestRun.id}/tier`)
-                : enterRun("tier")
-            }
-            disabled={isMutating || (isArchived && latestRun === undefined)}
-            variant="quiet"
-            size="md"
-          >
-            我的 Tier
-          </AppButton>
-          {canShowCommunityRanking ? (
-            <AppButton
-              type="button"
-              onClick={() => setWorkspaceMode("community")}
-              variant={workspaceMode === "community" ? "secondary" : "quiet"}
-              size="md"
-              aria-current={workspaceMode === "community" ? "page" : undefined}
-            >
-              社区榜
-            </AppButton>
-          ) : null}
-          <a href="#battle-seasons" className={appButtonClasses({ variant: "quiet", size: "md" })}>
-            赛季
-          </a>
-        </div>
-      </nav>
+      <div className="mt-5 sm:sticky sm:top-24 z-20" id="pool-navigation">
+        <DashboardTabs id="pool-content" label="番组导航"
+          value={workspaceMode === "community" || workspaceMode === "seasons" || workspaceMode === "settings" ? workspaceMode : "wall"}
+          items={[
+            { value: "wall", label: "作品墙", count: pool.anime.length },
+            ...(canShowCommunityRanking ? [{ value: "community", label: "社区榜" }] : []),
+            { value: "seasons", label: "赛季" },
+            ...(canManagePool ? [{ value: "settings", label: "管理" }] : [])
+          ]}
+          onChange={(value) => setWorkspaceMode(value === "wall" ? null : value as PoolWorkspaceMode)}
+        />
+      </div>
 
       <div className="mt-5 space-y-3">
         {isArchived ? (
@@ -1621,7 +1591,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           <div className="mt-3 space-y-3 border-t border-white/8 pt-3 text-xs leading-5 text-slate-400">
             <p>{poolOnboardingHint}</p>
             {canShowCommunityBattle ? (
-              <p>公开番组的社区榜单玩法：每个人的对决产生个人榜单，你的选择以匿名聚合方式贡献到社区榜单。不影响创建者的作品墙，不覆盖你的个人 Tier List，不公开单次选择或个人身份。</p>
+              <p>公开番组的社区榜单会聚合每个人的对决结果，不影响创建者的作品墙或你的个人 Tier List。口味对照会展示玩家昵称，以及在共同作品上的高低分歧。</p>
             ) : null}
           </div>
         </details>
@@ -1629,10 +1599,10 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         {notice ? <ErrorAlert message={notice} tone="notice" /> : null}
       </div>
 
-      <PoolSeasonsSection poolId={pool.id} canEdit={canEditContent} />
+      {workspaceMode === "seasons" ? <div role="tabpanel" id="pool-content-panel-seasons" aria-labelledby="pool-content-tab-seasons"><PoolSeasonsSection poolId={pool.id} canEdit={canEditContent} /></div> : null}
 
       {workspaceMode === "community" && canShowCommunityRanking ? (
-        <CommunitySection
+        <div role="tabpanel" id="pool-content-panel-community" aria-labelledby="pool-content-tab-community"><CommunitySection
           poolId={params.poolId}
           poolName={pool?.name ?? "AniMatch"}
           ranking={communityRanking}
@@ -1643,11 +1613,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           onRetry={() => setCommunityRankingReloadKey((value) => value + 1)}
           tierRows={pool?.tierConfig?.rows ?? null}
           previewItems={communityTierPreviewItems}
-        />
+        /></div>
       ) : null}
 
       {workspaceMode === "settings" && canManagePool ? (
-        <AppCard className="mt-6 p-5" variant="soft">
+        <AppCard role="tabpanel" id="pool-content-panel-settings" aria-labelledby="pool-content-tab-settings" className="mt-6 p-5" variant="soft">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-white">番组设置</h2>
@@ -1827,7 +1797,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         </AppCard>
       ) : null}
 
-      {canManagePool && !isArchived ? (
+      {workspaceMode === "settings" && canManagePool && !isArchived ? (
         <details className="mt-8 rounded-2xl border border-white/10 bg-white/[0.025] p-3">
           <summary className="cursor-pointer select-none text-sm font-semibold text-slate-300">
             公开检查
@@ -1838,6 +1808,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         </details>
       ) : null}
 
+      {workspaceMode !== "community" && workspaceMode !== "seasons" && workspaceMode !== "settings" ? <div role="tabpanel" id="pool-content-panel-wall" aria-labelledby="pool-content-tab-wall">
       <section id="anime-wall" className={`mt-8 scroll-mt-24 grid gap-6 ${
         isInspectorOpen
           ? "lg:grid-cols-[minmax(0,1fr)_410px]"
@@ -1847,7 +1818,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           <SectionHeader
             eyebrow="Anime pool"
             title="作品墙"
-            description="封面优先展示；显示修正和移除操作保持低调。"
+            description="找一部想看的动画，或开始对决排出你的喜好。"
           />
 
           {pool.anime.length === 0 ? (
@@ -1959,7 +1930,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 </div>
               ) : (
                 <>
-                <div className="mt-5 grid gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                   {visibleAnime.map((entry) => (
                     <PoolAnimeCard
                       key={entry.id}
@@ -1975,17 +1946,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                     />
                   ))}
                 </div>
-                {visibleAnime.length < filteredAnime.length ? (
-                  <div className="mt-5 flex justify-center">
-                    <AppButton
-                      type="button"
-                      variant="secondary"
-                      onClick={() => setAnimeWallVisibleCount((count) => count + 24)}
-                    >
-                      显示更多作品（剩余 {filteredAnime.length - visibleAnime.length} 部）
-                    </AppButton>
-                  </div>
-                ) : null}
+                <div className="mt-4"><CollectionPager page={currentWallPage} total={filteredAnime.length} pageSize={12} onChange={(page) => { setAnimeWallPage(page); document.getElementById("anime-wall")?.scrollIntoView({ block: "start" }); }} /></div>
                 </>
               )}
             </>
@@ -2706,7 +2667,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         </div>
         </>
         ) : null}
-      </section>
+      </section></div> : null}
 
       {false && canEditContent ? (
         <details className="mt-6 rounded-2xl border border-white/10 bg-white/[0.025] p-3">
@@ -2762,6 +2723,8 @@ function CommunitySection({
   }[];
   compact?: boolean;
 }) {
+  const [rankingPage, setRankingPage] = useState(1);
+  const currentRankingPage = Math.min(rankingPage, Math.max(1, Math.ceil((ranking?.items.length ?? 0) / 8)));
   const hasItems = (ranking?.items.length ?? 0) > 0;
   const resolvedTierRows = tierRows ?? DEFAULT_TIER_CONFIG.rows;
   const communityExportCardRef = useRef<HTMLDivElement | null>(null);
@@ -2838,6 +2801,7 @@ function CommunitySection({
   
   return (
     <section id="community-ranking" className={compact ? "scroll-mt-24" : "mt-8 scroll-mt-24"}>
+      {ranking && <RankingEvidencePanel items={ranking.items} />}
       <AppCard className={compact ? "p-4" : "p-5"}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <SectionHeader
@@ -2851,7 +2815,7 @@ function CommunitySection({
         </div>
 
         {ranking ? (
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
             <CommunityRankingMetric
               label="参与人数"
               value={String(ranking.totalParticipants)}
@@ -2929,15 +2893,7 @@ function CommunitySection({
 
         {view === "ranking" ? (
           <>
-            <div className="mt-3 rounded-xl border border-cyan-300/18 bg-cyan-300/[0.07] p-4">
-              <AppBadge tone="source">样本说明</AppBadge>
-              <h3 className="mt-3 text-sm font-semibold text-white">
-                参与人数或有效比较次数还不够时，排名仅供参考
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-slate-300">
-                样本不足的作品会保留在列表中，但不会获得正式排名。登录后开始普通对决，也可以帮助这个番组生成共享榜。
-              </p>
-            </div>
+            <p className="mt-3 text-xs leading-5 text-slate-400">样本不足的作品保留作参考，不计入正式排名。</p>
 
             {isLoading ? (
               <ErrorAlert message="正在加载社区榜单..." tone="notice" className="mt-5" />
@@ -2961,21 +2917,22 @@ function CommunitySection({
             ) : null}
 
             {ranking !== null && hasItems ? (
-              <div className="mt-5 grid gap-3">
-                {ranking.items.map((item) => (
+              <div className="mt-4 grid gap-2 xl:grid-cols-2">
+                {ranking.items.slice((currentRankingPage - 1) * 8, currentRankingPage * 8).map((item) => (
                   <CommunityRankingCard key={item.animeId} item={item} />
                 ))}
+                <div className="mt-2 xl:col-span-2"><CollectionPager label="排名" page={currentRankingPage} total={ranking.items.length} pageSize={8} onChange={setRankingPage} /></div>
               </div>
             ) : null}
           </>
         ) : (
-          <CommunityAverageTierList
+          <div role="region" aria-label="社区分层榜单" tabIndex={0} className="max-h-[65dvh] overflow-y-auto overscroll-contain pr-1"><CommunityAverageTierList
               ranking={ranking}
               isLoading={isLoading && !ranking}
               error={error}
               tierRows={resolvedTierRows}
               previewItems={previewItems}
-            />
+            /></div>
           )}
           {communityTierShare !== null ? (
             <div className="tiermaker-export-host" aria-hidden="true">
@@ -2985,6 +2942,7 @@ function CommunitySection({
             </div>
           ) : null}
         </AppCard>
+        <TasteRivalryCard scope={`pool:${poolId}`} />
       </section>
     );
   }
@@ -3023,38 +2981,18 @@ function CommunityRankingCard({
     item.averageRating === null ? "--" : formatCommunityRating(item.averageRating);
 
   return (
-    <div className="grid min-w-0 gap-3 rounded-xl border border-white/10 bg-slate-950/45 p-3 sm:grid-cols-[72px_minmax(0,1fr)_minmax(120px,auto)] sm:items-center">
-      <div className="flex items-center gap-3 sm:block">
-        <AnimeCover
-          src={item.imageUrl}
-          title={item.title}
-          size="sm"
-          className="h-24 w-16 shrink-0 rounded-lg sm:h-24 sm:w-full"
-        />
-        <div className="sm:hidden">
-          <CommunityRankingRank item={item} />
-        </div>
-      </div>
-
+    <article className="grid min-w-0 grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-anime-border bg-white/[0.025] p-3">
+      <AnimeCover src={item.imageUrl} title={item.title} size="sm" className="h-16 w-12 rounded-lg" />
       <div className="min-w-0">
-        <div className="hidden sm:block">
-          <CommunityRankingRank item={item} />
-        </div>
-        <h3 className="mt-2 line-clamp-2 break-words text-base font-semibold text-white sm:mt-1">
-          {item.title}
-        </h3>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {item.insufficientSample ? <AppBadge tone="warning">样本不足</AppBadge> : null}
-          <AppBadge tone="muted">{item.participantCount} 人参与</AppBadge>
-          <AppBadge tone="muted">{item.comparisonCount} 次有效比较</AppBadge>
-        </div>
+        <h3 className="line-clamp-2 text-sm font-semibold text-white">{item.title}</h3>
+        <p className="mt-1 text-xs text-slate-400">{item.insufficientSample || item.rank === null ? '样本不足' : '#' + item.rank} · {item.participantCount} 人 · {item.comparisonCount} 次比较</p>
+        <EvidenceLabel item={item} />
       </div>
-
-      <div className="grid min-w-0 grid-cols-2 gap-2 sm:w-36 sm:grid-cols-1">
-        <CommunityScoreCell label="社区分" value={scoreText} strong />
-        <CommunityScoreCell label="平均 Elo" value={averageText} />
+      <div className="text-right" title={'平均 Elo ' + averageText}>
+        <p className="text-base font-black text-cyan-100">{scoreText}</p>
+        <p className="text-xs text-slate-400">社区分</p>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -3295,10 +3233,10 @@ function PoolAnimeCard({
           ) : null}
         </label>
       ) : null}
-      <div className="p-3 pb-14">
+      <div className={`p-3 ${canManage && !batchMode ? "pb-24 sm:pb-14" : ""}`}>
         <div className="flex min-h-11 items-start gap-2">
           <h3 className="line-clamp-2 flex-1 text-sm font-semibold text-white">{title}</h3>
-          <AppBadge tone="muted">{display.sourceLabel}</AppBadge>
+          <span className="sr-only">{display.sourceLabel}</span>
           {display.isOverridden ? <AppBadge tone="source">已修正</AppBadge> : null}
         </div>
         {display.subtitle ? <p className="mt-1 line-clamp-1 text-xs text-slate-500">{display.subtitle}</p> : null}

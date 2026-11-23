@@ -1,3 +1,4 @@
+import { rankingEvidence } from "./ranking-evidence";
 import { PersonalRunStatus } from "@prisma/client";
 import { AppError } from "./app-error";
 import { getAnimeCoverUrl } from "./anime-cover-url";
@@ -15,6 +16,9 @@ export interface CommunityRankingItem {
   comparisonCount: number;
   rank: number | null;
   insufficientSample: boolean;
+  ratingDeviation?: number | null;
+  coverage?: number;
+  sampleLabel?: string;
 }
 
 export interface CommunityRankingResponse {
@@ -37,6 +41,7 @@ interface AnimeAggregate {
   animeId: string;
   title: string;
   imageUrl: string | null;
+  ratings: number[];
   ratingSum: number;
   weightedEloSum: number;
   weightSum: number;
@@ -309,6 +314,7 @@ export async function getCommunityRanking(poolId: string): Promise<CommunityRank
       animeId: entry.animeId,
       title: display.title,
       imageUrl: displayCoverUrl,
+      ratings: [],
       ratingSum: 0,
       weightedEloSum: 0,
       weightSum: 0,
@@ -392,6 +398,7 @@ export async function getCommunityRanking(poolId: string): Promise<CommunityRank
 
       seenUserAnime.add(userAnimeKey);
       const userWeight = Math.min(score.compareCount / 5, 1);
+      aggregate.ratings.push(score.eloScore);
       aggregate.ratingSum += score.eloScore;
       aggregate.weightedEloSum += score.eloScore * userWeight;
       aggregate.weightSum += userWeight;
@@ -427,7 +434,7 @@ export async function getCommunityRanking(poolId: string): Promise<CommunityRank
       minUsers: MIN_USERS,
       minComparisons: MIN_COMPARISONS
     },
-    items: [...sufficientItems, ...insufficientItems]
+    items: [...sufficientItems, ...insufficientItems].map((item) => ({ ...item, ...rankingEvidence(aggregates.get(item.animeId)!.ratings, totalParticipants) }))
   };
 }
 

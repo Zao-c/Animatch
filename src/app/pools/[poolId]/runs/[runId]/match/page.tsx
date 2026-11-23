@@ -1,5 +1,6 @@
 "use client";
 
+import { MatchRecap } from "@/components/MatchRecap";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -32,6 +33,7 @@ export default function MatchPage({
   params: { poolId: string; runId: string };
 }) {
   const router = useRouter();
+  const [effectiveCount, setEffectiveCount] = useState(0);
   const [poolName, setPoolName] = useState("当前番组");
   const [poolAnimeCount, setPoolAnimeCount] = useState<number | null>(null);
   const [queue, setQueue] = useState<MatchPair[]>([]);
@@ -79,6 +81,7 @@ export default function MatchPage({
         getPool(params.poolId),
         getMatchQueue(params.poolId, params.runId, 8)
       ]);
+      setEffectiveCount(data.progress.effectiveComparisons);
       setPoolName(pool.name);
       setPoolAnimeCount(pool.anime.length);
       setCanShowCommunityBattle(isCommunityBattleVisiblePool(pool));
@@ -160,12 +163,13 @@ export default function MatchPage({
       result === "LEFT_UNSEEN" || result === "RIGHT_UNSEEN" || result === "BOTH_UNSEEN";
 
     try {
-      await submitComparison(params.poolId, params.runId, {
+      const submitted = await submitComparison(params.poolId, params.runId, {
         leftAnimeId: currentPair.left.id,
         rightAnimeId: currentPair.right.id,
         result,
         clientMutationId: createClientMutationId("comparison")
       });
+      if (submitted.comparison.isEffective && ["LEFT_WIN", "RIGHT_WIN", "DRAW"].includes(result)) setEffectiveCount((count) => count + 1);
       setFeedbackResult(result);
       await waitForMatchFeedback();
       setQueue((current) => current.slice(1));
@@ -244,6 +248,7 @@ export default function MatchPage({
   if (isLoading) {
     return (
       <PageShell>
+      <MatchRecap count={effectiveCount} scopeKey={params.runId} endpoint={`/api/pools/${params.poolId}/runs/${params.runId}/tierlist`} resultHref={`/pools/${params.poolId}/runs/${params.runId}/tier`} />
         <LoadingRoom />
       </PageShell>
     );
@@ -465,7 +470,7 @@ function CommunityBattleMatchHint() {
     <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
         <AppBadge tone="source">社区大乱斗</AppBadge>
         <p className="min-w-0 flex-1 text-xs leading-5 text-slate-400">
-          你正在参与这个公开番组的社区大乱斗。你的选择只会更新你的个人榜单，并以匿名聚合方式贡献到社区榜单。
+          你正在参与这个公开番组的社区大乱斗。你的选择会更新个人榜单并匿名汇入社区榜；口味对照还会展示玩家昵称和共同作品上的明显分歧。
         </p>
     </div>
   );

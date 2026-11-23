@@ -3,6 +3,7 @@ import sharp from "sharp";
 import COS from "cos-nodejs-sdk-v5";
 import { prisma } from "../db";
 import { getDispatcher } from "./outbound-fetch";
+import { readLimitedBody } from "./read-limited-body";
 
 interface CacheableAnimeCover {
   id: string;
@@ -48,6 +49,7 @@ const DOWNLOAD_TIMEOUT_MS = 6500;
 const MAX_BACKGROUND_QUEUE = 2000;
 const BACKGROUND_CONCURRENCY = 2;
 const DEFAULT_COVER_PREFIX = "animatch/covers";
+const retryAfterByAnimeId = new Map<string, number>();
 
 export type CosCoverBackgroundQueueResult =
   | "queued"
@@ -74,6 +76,7 @@ export function cacheAnimeCoverToCosBackground(
   const sourceUrl = pickSourceCoverUrl(anime);
   if (!sourceUrl) return "no-source";
   if (hasFreshCachedCover(anime, sourceUrl)) return "fresh";
+  if ((retryAfterByAnimeId.get(anime.id) ?? 0) > Date.now()) return "duplicate";
 
   const state = getBackgroundState();
   if (state.queuedAnimeIds.has(anime.id)) return "duplicate";
@@ -190,20 +193,24 @@ async function drainBackgroundQueue(state: BackgroundCosCacheState): Promise<voi
   try {
     while (state.queue.length > 0) {
       const batch = state.queue.splice(0, BACKGROUND_CONCURRENCY);
-      for (const anime of batch) {
-        state.queuedAnimeIds.delete(anime.id);
-      }
 
       await Promise.allSettled(
         batch.map(async (anime) => {
           try {
             await cacheAnimeCoverToCos(anime);
+            retryAfterByAnimeId.delete(anime.id);
           } catch (error) {
+            retryAfterByAnimeId.set(anime.id, Date.now() + 60000);
+            if (retryAfterByAnimeId.size > MAX_BACKGROUND_QUEUE) {
+              retryAfterByAnimeId.delete(retryAfterByAnimeId.keys().next().value!);
+            }
             console.warn("[COS cover cache] failed", {
               animeId: anime.id,
               bgmId: anime.bgmId,
               message: error instanceof Error ? error.message : "Unknown error"
             });
+          } finally {
+            state.queuedAnimeIds.delete(anime.id);
           }
         })
       );
@@ -286,12 +293,7 @@ async function downloadImage(url: string): Promise<Buffer> {
       throw new Error("source image is too large");
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.byteLength > MAX_SOURCE_BYTES) {
-      throw new Error("source image is too large");
-    }
-
-    return buffer;
+    return await readLimitedBody(response, MAX_SOURCE_BYTES, controller.signal);
   } finally {
     clearTimeout(timer);
   }

@@ -93,7 +93,7 @@ describe("P1 tier wall UI", () => {
   it("treats export and share as primary tier actions", () => {
     expect(source).toContain("导出图片");
     expect(source).toContain("分享榜单");
-    expect(source).toContain("生成你的榜单作品");
+    expect(source).toContain("保存这份榜单");
   });
 
   it("groups advanced tier controls behind a collapsible section", () => {

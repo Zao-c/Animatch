@@ -215,9 +215,9 @@ function CommunityAverageCard({ item }: { item: CommunityRankingItem }) {
             #{item.rank}
           </span>
         ) : null}
-        {item.insufficientSample ? (
+        {item.insufficientSample || (item.participantCount > 0 && item.participantCount < 10) ? (
           <span className="rounded-full bg-amber-300/12 px-2 py-0.5 text-[10px] font-bold text-amber-200">
-            样本不足
+            {item.insufficientSample ? "样本不足" : "小样本"}
           </span>
         ) : null}
       </div>
