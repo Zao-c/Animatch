@@ -151,24 +151,18 @@ describe("pools API management", () => {
     );
   });
 
-  it("PATCH ignores reserved public permission fields", async () => {
-    mockedCustomPool.findUnique.mockResolvedValue(pool());
+  it("PATCH lets owners independently enable both permissions on public pools", async () => {
+    mockedCustomPool.findUnique.mockResolvedValue(pool({ visibility: Visibility.PUBLIC }));
     mockedCustomPool.update.mockResolvedValue(
-      pool({
-        name: "Updated",
-        visibility: Visibility.UNLISTED,
-        allowPublicEdit: false,
-        allowCommunityMatch: false
-      })
+      pool({ visibility: Visibility.PUBLIC, allowPublicEdit: true, allowCommunityMatch: true })
     );
-
     const response = await PATCH(
       new Request("http://test.local/api/pools/pool-1", {
         method: "PATCH",
         body: JSON.stringify({
           name: "Updated",
           description: "Next description",
-          visibility: "UNLISTED",
+          visibility: "PUBLIC",
           tags: ["test"],
           allowPublicEdit: true,
           allowCommunityMatch: true
@@ -176,18 +170,135 @@ describe("pools API management", () => {
       }),
       { params: { poolId: "pool-1" } }
     );
-
     expect(response.status).toBe(200);
+    const payload = await response.json();
+    expect(payload.data.allowPublicEdit).toBe(true);
+    expect(payload.data.allowCommunityMatch).toBe(true);
     expect(mockedCustomPool.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: {
-          name: "Updated",
-          description: "Next description",
-          visibility: "UNLISTED",
-          tags: ["test"]
-        }
+        data: expect.objectContaining({
+          allowPublicEdit: true,
+          allowCommunityMatch: true,
+          visibility: "PUBLIC"
+        })
       })
     );
+  });
+
+  it("PATCH supports independent public leaderboard without enabling content collaboration", async () => {
+    mockedCustomPool.findUnique.mockResolvedValue(pool({ visibility: Visibility.PUBLIC }));
+    mockedCustomPool.update.mockResolvedValue(pool({ visibility: Visibility.PUBLIC, allowCommunityMatch: true }));
+    const response = await PATCH(
+      new Request("http://test.local/api/pools/pool-1", {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: "Original", visibility: "PUBLIC", tags: [],
+          allowPublicEdit: false, allowCommunityMatch: true
+        })
+      }),
+      { params: { poolId: "pool-1" } }
+    );
+    expect(response.status).toBe(200);
+    expect(mockedCustomPool.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({
+        allowPublicEdit: false, allowCommunityMatch: true
+      }) })
+    );
+  });
+
+  it("PATCH closes both permissions when returning a public pool to private", async () => {
+    mockedCustomPool.findUnique.mockResolvedValue(pool({
+      visibility: Visibility.PUBLIC, allowPublicEdit: true, allowCommunityMatch: true
+    }));
+    mockedCustomPool.update.mockResolvedValue(pool());
+    const response = await PATCH(
+      new Request("http://test.local/api/pools/pool-1", {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: "Original", visibility: "PRIVATE", tags: []
+        })
+      }),
+      { params: { poolId: "pool-1" } }
+    );
+    expect(response.status).toBe(200);
+    expect(mockedCustomPool.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({
+        visibility: "PRIVATE", allowPublicEdit: false, allowCommunityMatch: false
+      }) })
+    );
+  });
+
+  it("PATCH rejects enabling opt-ins on private or unlisted pools", async () => {
+    for (const visibility of ["PRIVATE", "UNLISTED"]) {
+      const response = await PATCH(
+        new Request("http://test.local/api/pools/pool-1", {
+          method: "PATCH",
+          body: JSON.stringify({
+            name: "Original", visibility, tags: [], allowPublicEdit: true
+          })
+        }),
+        { params: { poolId: "pool-1" } }
+      );
+      expect(response.status).toBe(400);
+    }
+    expect(mockedCustomPool.update).not.toHaveBeenCalled();
+  });
+
+  it("PATCH rejects non-boolean collaboration options", async () => {
+    for (const badField of [
+      { allowPublicEdit: "true" },
+      { allowCommunityMatch: 1 }
+    ]) {
+      const response = await PATCH(
+        new Request("http://test.local/api/pools/pool-1", {
+          method: "PATCH",
+          body: JSON.stringify({
+            name: "Original", visibility: "PUBLIC", tags: [], ...badField
+          })
+        }),
+        { params: { poolId: "pool-1" } }
+      );
+      expect(response.status).toBe(400);
+    }
+    expect(mockedCustomPool.update).not.toHaveBeenCalled();
+  });
+
+  it("PATCH preserves existing toggles for old clients updating public metadata", async () => {
+    mockedCustomPool.findUnique.mockResolvedValue(pool({
+      visibility: Visibility.PUBLIC, allowPublicEdit: true, allowCommunityMatch: false
+    }));
+    mockedCustomPool.update.mockResolvedValue(pool({ visibility: Visibility.PUBLIC, allowPublicEdit: true }));
+    const response = await PATCH(
+      new Request("http://test.local/api/pools/pool-1", {
+        method: "PATCH",
+        body: JSON.stringify({ name: "Updated", visibility: "PUBLIC", tags: [] })
+      }),
+      { params: { poolId: "pool-1" } }
+    );
+    expect(response.status).toBe(200);
+    expect(mockedCustomPool.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ allowPublicEdit: true, allowCommunityMatch: false })
+    }));
+  });
+
+  it("PATCH rejects collaborator attempts to change pool settings", async () => {
+    mockedRequireCurrentUser.mockResolvedValue({
+      id: "collaborator", username: "collaborator", name: "Collaborator", image: null
+    });
+    mockedCustomPool.findUnique.mockResolvedValue(pool({
+      visibility: Visibility.PUBLIC, allowPublicEdit: true
+    }));
+    const response = await PATCH(
+      new Request("http://test.local/api/pools/pool-1", {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: "Takeover", visibility: "PUBLIC", tags: [], allowCommunityMatch: true
+        })
+      }),
+      { params: { poolId: "pool-1" } }
+    );
+    expect(response.status).toBe(403);
+    expect(mockedCustomPool.update).not.toHaveBeenCalled();
   });
 
   it("PATCH returns 400 for empty name", async () => {
