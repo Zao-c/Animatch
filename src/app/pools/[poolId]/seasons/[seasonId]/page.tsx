@@ -21,7 +21,7 @@ import { copyTextWithFallback } from "@/lib/browser-copy";
 import { exportShareCardAsPng } from "@/lib/share-export";
 import { formatTierExportTimestamp, sanitizeFilenameSegment } from "@/lib/tier-export";
 import { DEFAULT_TIER_CONFIG, type TierRowConfig } from "@/lib/tier-config";
-import { getSeasonScheduleState } from "@/lib/season-schedule";
+import { getSeasonMatchEntry, getSeasonScheduleState } from "@/lib/season-schedule";
 import { dateTimeLocalToIso, toDateTimeLocalInputValue } from "@/lib/date-time-local";
 
 interface SeasonTierBucket {
@@ -61,6 +61,7 @@ export default function SeasonDetailPage() {
   const [exportError, setExportError] = useState<string | null>(null);
   const [isPersonalExporting, setIsPersonalExporting] = useState(false);
   const [isSharedExporting, setIsSharedExporting] = useState(false);
+  const [showSeasonExportTitles, setShowSeasonExportTitles] = useState(false);
   const personalExportRef = useRef<HTMLDivElement | null>(null);
   const sharedExportRef = useRef<HTMLDivElement | null>(null);
   const [editForm, setEditForm] = useState({
@@ -262,6 +263,7 @@ export default function SeasonDetailPage() {
   if (!detail) return null;
 
   const seasonState = getSeasonDisplayState(detail);
+  const matchEntry = getSeasonMatchEntry(poolId, seasonId, detail.currentUserState !== null);
   const seasonModeLabel = detail.mode === "BIAS" ? "加成票模式" : "标准对决";
 
   return (
@@ -308,8 +310,8 @@ export default function SeasonDetailPage() {
 
           <div className="mt-5 flex flex-wrap gap-3">
             {seasonState.canVote ? (
-              <Link href={`/pools/${poolId}/seasons/${seasonId}/match`} className={appButtonClasses({ variant: "primary" })}>
-                开始对决
+              <Link href={matchEntry.href} className={appButtonClasses({ variant: "primary" })}>
+                {matchEntry.label}
               </Link>
             ) : null}
             {detail.currentUserCanManage && detail.status === "DRAFT" ? (
@@ -485,6 +487,8 @@ export default function SeasonDetailPage() {
             mode={detail.mode}
             onExport={() => handleExportSeasonTier("personal")}
             isExporting={isPersonalExporting}
+            showTitles={showSeasonExportTitles}
+            onShowTitlesChange={setShowSeasonExportTitles}
           />
         </div> : null}
 
@@ -543,6 +547,8 @@ export default function SeasonDetailPage() {
           minSampleThreshold={detail.minSampleThreshold}
           onExport={() => handleExportSeasonTier("shared")}
           isExporting={isSharedExporting}
+          showTitles={showSeasonExportTitles}
+          onShowTitlesChange={setShowSeasonExportTitles}
         />
           )}</div>
         </> : null}
@@ -568,9 +574,19 @@ export default function SeasonDetailPage() {
             <AppCard className="p-5">
               <h2 className="text-base font-bold text-white">保存与分享</h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">把赛季成绩保存为图片，或邀请朋友一起参与。</p>
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-4 flex flex-wrap items-center gap-2">
                 <AppButton variant="secondary" disabled={isPersonalExporting || !detail.currentUserState?.votesUsed} onClick={() => handleExportSeasonTier("personal")}>{isPersonalExporting ? "导出中…" : "导出我的结果"}</AppButton>
                 <AppButton variant="ghost" disabled={isSharedExporting || !hasSharedVotes} onClick={() => handleExportSeasonTier("shared")}>{isSharedExporting ? "导出中…" : "导出共享榜"}</AppButton>
+                <label className="flex min-h-11 items-center gap-2 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 shrink-0 accent-cyan-400"
+                    checked={showSeasonExportTitles}
+                    disabled={isPersonalExporting || isSharedExporting}
+                    onChange={(event) => setShowSeasonExportTitles(event.target.checked)}
+                  />
+                  显示作品名称
+                </label>
               </div>
               <AppButton className="mt-3" variant="quiet" onClick={() => setSeasonView("impact")}>看看投票带来了什么 →</AppButton>
             </AppCard>
@@ -616,14 +632,14 @@ export default function SeasonDetailPage() {
         {personalSeasonShare !== null ? (
           <div className="tiermaker-export-host" aria-hidden="true">
             <div ref={personalExportRef}>
-              <TierShareCard share={personalSeasonShare} exportMode />
+              <TierShareCard share={personalSeasonShare} exportMode showItemTitles={showSeasonExportTitles} />
             </div>
           </div>
         ) : null}
         {sharedSeasonShare !== null ? (
           <div className="tiermaker-export-host" aria-hidden="true">
             <div ref={sharedExportRef}>
-              <TierShareCard share={sharedSeasonShare} exportMode />
+              <TierShareCard share={sharedSeasonShare} exportMode showItemTitles={showSeasonExportTitles} />
             </div>
           </div>
         ) : null}
@@ -862,9 +878,11 @@ function toPersonalShareItem(item: SeasonPersonalRankingItem): TierShareSnapshot
     animeId: item.animeId,
     title: item.title,
     coverUrl: item.imageUrl,
-    imageUrl: item.imageUrl,
-    imageMediumUrl: item.imageUrl,
-    imageLargeUrl: item.imageUrl,
+    imageUrl: item.sourceImageUrl ?? item.imageUrl,
+    imageLargeUrl: item.imageLargeUrl,
+    imageMediumUrl: item.imageMediumUrl,
+    imageSmallUrl: item.imageSmallUrl,
+    thumbnailUrl: item.thumbnailUrl,
     source: "season-personal",
     elo: item.score
   };
@@ -875,9 +893,11 @@ function toSharedShareItem(item: SeasonRankingItem): TierShareSnapshotItem {
     animeId: item.animeId,
     title: item.title,
     coverUrl: item.imageUrl,
-    imageUrl: item.imageUrl,
-    imageMediumUrl: item.imageUrl,
-    imageLargeUrl: item.imageUrl,
+    imageUrl: item.sourceImageUrl ?? item.imageUrl,
+    imageLargeUrl: item.imageLargeUrl,
+    imageMediumUrl: item.imageMediumUrl,
+    imageSmallUrl: item.imageSmallUrl,
+    thumbnailUrl: item.thumbnailUrl,
     source: "season-shared",
     elo: item.score
   };
@@ -890,7 +910,9 @@ function SeasonPersonalResult({
   maxVotesPerUser,
   mode,
   onExport,
-  isExporting
+  isExporting,
+  showTitles,
+  onShowTitlesChange
 }: {
   ranking: SeasonPersonalRankingItem[];
   buckets: SeasonPersonalTierBucket[];
@@ -899,6 +921,8 @@ function SeasonPersonalResult({
   mode: SeasonDetail["mode"];
   onExport: () => void;
   isExporting: boolean;
+  showTitles: boolean;
+  onShowTitlesChange: (value: boolean) => void;
 }) {
   const hasItems = votesUsed > 0 && ranking.length > 0;
   const progress = maxVotesPerUser > 0
@@ -924,9 +948,21 @@ function SeasonPersonalResult({
             </div>
           </div>
           {hasItems ? (
-            <AppButton type="button" onClick={onExport} disabled={isExporting} variant="secondary" size="sm">
-              {isExporting ? "导出中..." : "导出我的赛季图"}
-            </AppButton>
+            <div className="flex flex-col gap-2 sm:items-end">
+              <AppButton type="button" onClick={onExport} disabled={isExporting} variant="secondary" size="sm">
+                {isExporting ? "导出中..." : "导出我的赛季图"}
+              </AppButton>
+              <label className="flex min-h-11 items-center gap-2 text-xs text-slate-300">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 shrink-0 accent-cyan-400"
+                  checked={showTitles}
+                  disabled={isExporting}
+                  onChange={(event) => onShowTitlesChange(event.target.checked)}
+                />
+                显示作品名称
+              </label>
+            </div>
           ) : null}
         </div>
       </div>
@@ -995,7 +1031,9 @@ function SeasonSharedTierList({
   totalVotes,
   minSampleThreshold,
   onExport,
-  isExporting
+  isExporting,
+  showTitles,
+  onShowTitlesChange
 }: {
   buckets: SeasonTierBucket[];
   insufficientItems: SeasonRankingItem[];
@@ -1004,6 +1042,8 @@ function SeasonSharedTierList({
   minSampleThreshold: SeasonDetail["minSampleThreshold"];
   onExport: () => void;
   isExporting: boolean;
+  showTitles: boolean;
+  onShowTitlesChange: (value: boolean) => void;
 }) {
   const hasItems = buckets.some((bucket) => bucket.items.length > 0);
   const formalItemCount = buckets.reduce((sum, bucket) => sum + bucket.items.length, 0);
@@ -1021,9 +1061,21 @@ function SeasonSharedTierList({
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           <AppBadge tone="tier">{participantCount} 人 / {totalVotes} 票</AppBadge>
           {hasAnyItems ? (
-            <AppButton type="button" onClick={onExport} disabled={isExporting} variant="secondary" size="sm">
-              {isExporting ? "导出中..." : "导出共享赛季图"}
-            </AppButton>
+            <>
+              <AppButton type="button" onClick={onExport} disabled={isExporting} variant="secondary" size="sm">
+                {isExporting ? "导出中..." : "导出共享赛季图"}
+              </AppButton>
+              <label className="flex min-h-11 items-center gap-2 text-xs text-slate-300">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 shrink-0 accent-cyan-400"
+                  checked={showTitles}
+                  disabled={isExporting}
+                  onChange={(event) => onShowTitlesChange(event.target.checked)}
+                />
+                显示作品名称
+              </label>
+            </>
           ) : null}
         </div>
       </div>

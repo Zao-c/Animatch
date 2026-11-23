@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getAnimeCoverUrl, type AnimeCoverUrlFields } from "../src/lib/anime-cover-url";
+import { getAnimeCoverUrl, getAnimeSourceCoverCandidates, type AnimeCoverUrlFields } from "../src/lib/anime-cover-url";
 
 function coverFields(overrides: Partial<AnimeCoverUrlFields> = {}): AnimeCoverUrlFields {
   return {
@@ -13,6 +13,18 @@ function coverFields(overrides: Partial<AnimeCoverUrlFields> = {}): AnimeCoverUr
 }
 
 describe("getAnimeCoverUrl", () => {
+  it("provides distinct original variants after a cached cover", () => {
+    expect(getAnimeSourceCoverCandidates(coverFields({
+      cachedCoverUrl: "https://cos.example.test/cached.webp",
+      imageLargeUrl: "https://example.com/large.jpg",
+      imageMediumUrl: "https://example.com/high.jpg"
+    }))).toEqual([
+      "https://example.com/large.jpg",
+      "https://example.com/high.jpg",
+      "https://example.com/small.jpg",
+      "https://example.com/thumb.jpg"
+    ]);
+  });
   it("prefers thumbnailUrl for thumbnail intent", () => {
     expect(getAnimeCoverUrl(coverFields(), { intent: "thumbnail" })).toBe(
       "https://example.com/thumb.jpg"

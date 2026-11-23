@@ -16,6 +16,25 @@ export interface AnimeCoverUrlFields {
 
 export type AnimeCoverIntent = "thumbnail" | "display" | "hero" | "export";
 
+/** Original source images to try when a saved cover or COS object is unavailable. */
+export function getAnimeSourceCoverCandidates(anime: AnimeCoverUrlFields): string[] {
+  const values = [
+    anime.imageLargeUrl,
+    anime.imageMediumUrl,
+    anime.imageUrl,
+    anime.imageSmallUrl,
+    anime.thumbnailUrl,
+    anime.posterUrl
+  ];
+  const seen = new Set<string>();
+  return values.flatMap((value) => {
+    const url = nonEmpty(value);
+    if (url === null || seen.has(url)) return [];
+    seen.add(url);
+    return [url];
+  });
+}
+
 export function getAnimeCoverUrl(
   anime: AnimeCoverUrlFields,
   options: { intent?: AnimeCoverIntent } = {}

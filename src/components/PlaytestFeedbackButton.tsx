@@ -83,6 +83,10 @@ export function PlaytestFeedbackButton() {
   }, [copyStatus]);
 
   useEffect(() => {
+    setCopyStatus((prev) => (prev === "copied" ? "idle" : prev));
+  }, [type, content, name]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && open) {
         handleClose();
@@ -155,6 +159,8 @@ export function PlaytestFeedbackButton() {
     resetForm();
     setOpen(true);
   }, [resetForm]);
+
+  if (/^\/ceremonies\/[^/]+\/screen\/?$/.test(pathname)) return null;
 
   return (
     <>

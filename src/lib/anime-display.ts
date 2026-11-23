@@ -118,6 +118,11 @@ export function isGeneratedOrNoisyTitle(title: string): boolean {
     return true;
   }
 
+  // Image imports occasionally keep a filename with its extension merged into the title.
+  if (/^[a-z0-9_-]{3,}\.?(?:png|jpe?g|webp|gif)$/i.test(trimmed)) {
+    return true;
+  }
+
   const compact = trimmed.replace(/[\s._-]/g, "");
   if (/^[a-f0-9]{16,}$/i.test(compact)) {
     return true;

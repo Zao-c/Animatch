@@ -15,7 +15,7 @@ vi.mock("../src/lib/db", () => ({
 }));
 
 vi.mock("../src/lib/run-service", () => ({
-  assertRunAccess: vi.fn(),
+  assertRunAccess: vi.fn().mockResolvedValue({ matchExcludedAnimeIds: [] }),
   initializeScoresForRun: vi.fn()
 }));
 
@@ -167,7 +167,8 @@ describe("comparison ledger service", () => {
       runId: "run-1",
       leftAnimeId: "left",
       rightAnimeId: "right",
-      result: PoolComparisonResult.LEFT_WIN
+      result: PoolComparisonResult.LEFT_WIN,
+      mode: PoolComparisonMode.NORMAL
     };
     const tx = createTx({
       existingComparison,

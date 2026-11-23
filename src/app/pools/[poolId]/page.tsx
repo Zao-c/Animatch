@@ -4,7 +4,7 @@ import { RankingEvidencePanel, EvidenceLabel } from "@/components/RankingEvidenc
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, DragEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnimeCard } from "@/components/AnimeCard";
+import { AnimeDiscoveryPanel } from "@/components/AnimeDiscoveryPanel";
 import { AnimeCover } from "@/components/AnimeCover";
 import { CommunityAverageTierList } from "@/components/CommunityAverageTierList";
 import { TasteRivalryCard } from "@/components/TasteRivalryCard";
@@ -16,8 +16,9 @@ import { CollectionPager } from "@/components/ui/CollectionPager";
 import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
 import { TierShareCard } from "@/components/TierShareView";
-import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { getAnimeCoverUrl, getAnimeSourceCoverCandidates } from "@/lib/anime-cover-url";
 import { getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
+import { isSuspiciousPoolAnimeTitle, matchesPoolAnimeSearch } from "@/lib/pool-anime-search";
 import { isSlowNetwork, prewarmCoverUrls } from "@/lib/cover-prewarm";
 import { formatAnimeSource } from "@/lib/anime-source";
 import { copyTextWithFallback } from "@/lib/browser-copy";
@@ -31,15 +32,7 @@ import {
 } from "@/lib/pool-share";
 import { exportShareCardAsPng } from "@/lib/share-export";
 import { formatTierExportTimestamp, sanitizeFilenameSegment } from "@/lib/tier-export";
-import {
-  ANIME_TAG_DICTIONARY,
-  getTagGroupLabel,
-  labelAnimeTag,
-  normalizeTagKey,
-  suggestAnimeTags,
-  type AnimeTagDictionaryEntry,
-  type AnimeTagGroup
-} from "@/lib/anime-tag-dictionary";
+import { labelAnimeTag } from "@/lib/anime-tag-dictionary";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
@@ -62,10 +55,9 @@ import {
 import {
   addAnimeToPool,
   archivePool,
-  bulkImportAnimeToPool,
+  batchUpdatePoolAnime,
   clearPoolAnimeDisplayOverrides,
   createManualAnime,
-  discoverAnime,
   getCommunityRanking,
   getOrCreateDefaultRun,
   getPool,
@@ -75,20 +67,17 @@ import {
   removeAnimeFromPool,
   batchRemoveAnimeFromPool,
   restorePool,
-  searchBangumiAnime,
   uploadCustomItemToPool,
   uploadPoolAnimeCover,
   updatePoolAnimeDisplay,
   updatePool,
   updatePoolTierConfig,
   ApiClientError,
-  type BangumiSearchItem,
   type CommunityRankingResponse,
   type PersonalRun,
   type PoolAnimeEntry,
   type PoolDetail,
   type PublicTierShare,
-  type PublicAnime,
   type TierMakerPreviewItem,
 } from "@/lib/client-api";
 import {
@@ -102,7 +91,7 @@ import { PoolTierConfigEditor } from "@/components/PoolTierConfigEditor";
 import { QuickImportPanel } from "@/components/QuickImportPanel";
 import { DEFAULT_TIER_CONFIG, type PoolTierConfig, type TierRowConfig } from "@/lib/tier-config";
 
-type AddTab = "search" | "browse" | "manual" | "custom" | "bangumi" | "tiermaker" | "quick";
+type AddTab = "search" | "manual" | "custom" | "tiermaker" | "quick";
 type PoolWorkspaceMode = "add" | "edit" | "settings" | "cover" | "community" | "seasons" | null;
 
 const COMMUNITY_RANKING_RETRY_DELAYS_MS = [700, 1600];
@@ -129,38 +118,13 @@ type CustomUploadDraft = {
 const ANIME_TYPE_OPTIONS = ["", "TV", "MOVIE", "OVA", "ONA", "SPECIAL", "MUSIC", "CM", "PV", "UNKNOWN"];
 const COVER_UPLOAD_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
 const COVER_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
-const BANGUMI_RESULT_PAGE_SIZE = 12;
 const TABS: { key: AddTab; label: string }[] = [
-  { key: "search", label: "本地搜索" },
-  { key: "browse", label: "分类浏览" },
-  { key: "manual", label: "手动添加" },
+  { key: "search", label: "查找作品" },
+  { key: "quick", label: "批量筛选" },
   { key: "custom", label: "上传图片" },
-  { key: "bangumi", label: "Bangumi 搜索" },
-  { key: "tiermaker", label: "TierMaker 导入" },
-  { key: "quick", label: "批量添加作品" },
+  { key: "tiermaker", label: "TierMaker" },
+  { key: "manual", label: "手动创建" },
 ];
-const QUICK_SEARCH_TAG_KEYS = [
-  "romance",
-  "school",
-  "isekai",
-  "slice of life",
-  "healing",
-  "hot blooded",
-  "action",
-  "mystery",
-  "fantasy",
-  "comedy",
-];
-const QUICK_SEARCH_TAGS = QUICK_SEARCH_TAG_KEYS
-  .map((key) => ANIME_TAG_DICTIONARY.find((tag) => tag.key === key))
-  .filter((tag): tag is AnimeTagDictionaryEntry => tag !== undefined);
-const MORE_SEARCH_TAG_GROUPS: AnimeTagGroup[] = ["类型", "场景", "氛围", "题材", "形式"];
-const GROUPED_SEARCH_TAGS = MORE_SEARCH_TAG_GROUPS.map((group) => ({
-  group,
-  tags: ANIME_TAG_DICTIONARY
-    .filter((tag) => tag.group === group)
-    .sort((left, right) => right.weight - left.weight || left.label.localeCompare(right.label))
-}));
 
 export default function PoolDetailPage({ params }: { params: { poolId: string } }) {
   const router = useRouter();
@@ -189,13 +153,15 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
   const [batchMode, setBatchMode] = useState(false);
   const [selectedAnimeIds, setSelectedAnimeIds] = useState<Set<string>>(new Set());
+  const [batchTitle, setBatchTitle] = useState("");
+  const [batchType, setBatchType] = useState("");
+  const [batchNote, setBatchNote] = useState("");
   const [animeWallSearch, setAnimeWallSearch] = useState("");
   const [animeWallFilter, setAnimeWallFilter] = useState<
     "all" | "missingCover" | "suspiciousTitle" | "tiermaker" | "custom"
   >("all");
   const [animeWallPage, setAnimeWallPage] = useState(1);
   const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
-  const [showMoreImportMethods, setShowMoreImportMethods] = useState(false);
 
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -210,38 +176,12 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     overrideNote: "",
   });
 
-  const [searchKeyword, setSearchKeyword] = useState("");
-  const [lastSearchKeyword, setLastSearchKeyword] = useState("");
-  const [lastSearchTags, setLastSearchTags] = useState<string[]>([]);
-  const [selectedSearchTags, setSelectedSearchTags] = useState<string[]>([]);
-  const [showMoreSearchTags, setShowMoreSearchTags] = useState(false);
-  const [searchResults, setSearchResults] = useState<PublicAnime[]>([]);
-  const [searchMessage, setSearchMessage] = useState<string | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
-
-  const [browseTag, setBrowseTag] = useState("");
-  const [browseYearFrom, setBrowseYearFrom] = useState("");
-  const [browseYearTo, setBrowseYearTo] = useState("");
-  const [browseType, setBrowseType] = useState("");
-  const [browseSort, setBrowseSort] = useState("title");
-  const [browseResults, setBrowseResults] = useState<PublicAnime[]>([]);
-  const [browseTotal, setBrowseTotal] = useState(0);
-  const [browseOffset, setBrowseOffset] = useState(0);
-  const [isBrowsing, setIsBrowsing] = useState(false);
-
   const [manualTitle, setManualTitle] = useState("");
   const [manualTitleCn, setManualTitleCn] = useState("");
   const [manualImageUrl, setManualImageUrl] = useState("");
   const [manualYear, setManualYear] = useState("");
   const [manualType, setManualType] = useState("");
   const [manualTags, setManualTags] = useState("");
-  const [bangumiKeyword, setBangumiKeyword] = useState("");
-  const [bangumiResults, setBangumiResults] = useState<BangumiSearchItem[]>([]);
-  const [bangumiVisibleCount, setBangumiVisibleCount] = useState(BANGUMI_RESULT_PAGE_SIZE);
-  const [bangumiSearched, setBangumiSearched] = useState(false);
-  const [bangumiSearchError, setBangumiSearchError] = useState<string | null>(null);
-  const [isBangumiSearching, setIsBangumiSearching] = useState(false);
-  const [bangumiAddingId, setBangumiAddingId] = useState<number | null>(null);
   const [customUploadDrafts, setCustomUploadDrafts] = useState<CustomUploadDraft[]>([]);
   const [isUploadingCustomItems, setIsUploadingCustomItems] = useState(false);
   const customUploadInputRef = useRef<HTMLInputElement>(null);
@@ -294,14 +234,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     let items = pool.anime;
 
     if (animeWallSearch.length > 0) {
-      const lower = animeWallSearch.toLowerCase();
-      items = items.filter((entry) => {
-        const t = entry.anime.titleCn ?? entry.anime.title;
-        return (
-          t.toLowerCase().includes(lower) ||
-          entry.anime.aliases.some((a) => a.toLowerCase().includes(lower))
-        );
-      });
+      items = items.filter((entry) => matchesPoolAnimeSearch(entry, animeWallSearch));
     }
 
     switch (animeWallFilter) {
@@ -316,17 +249,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         break;
       }
       case "suspiciousTitle": {
-        const source = items;
-        items = [];
-        for (const entry of source) {
-          const title = entry.anime.titleCn ?? entry.anime.title;
-          if (!/^未命名/.test(title) &&
-              !/^untitled$/i.test(title) &&
-              !/^unknown$/i.test(title) &&
-              !/^image[_\s-]?\d+$/i.test(title) &&
-              !/^\d{15,}$/.test(title)) continue;
-          items.push(entry);
-        }
+        items = items.filter((entry) => isSuspiciousPoolAnimeTitle(entry));
         break;
       }
       case "tiermaker":
@@ -365,6 +288,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const closeInspector = useCallback(() => {
     setWorkspaceMode(null);
     setEditingDisplayAnimeId(null);
+    if (window.location.hash === "#add-anime") {
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
+    }
   }, []);
 
   useEffect(() => {
@@ -466,6 +392,19 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   }, [closeInspector, isInspectorOpen, isMobileInspector]);
 
   useEffect(() => {
+    if (!isInspectorOpen || isMobileInspector) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); closeInspector(); }
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+    };
+  }, [closeInspector, isInspectorOpen, isMobileInspector]);
+
+  useEffect(() => {
     if (pool === null || pool.anime.length === 0) return;
 
     const animeList = pool.anime;
@@ -483,9 +422,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     const controller = new AbortController();
     prewarmCoverUrls(coverUrls, { limit, signal: controller.signal });
 
-    if (slowNet) return;
-
-    const idleId = window.requestIdleCallback
+    const idleId = !slowNet && window.requestIdleCallback
       ? window.requestIdleCallback(() => {
           const remaining = coverUrls.slice(12, 24);
           if (remaining.length > 0) {
@@ -502,6 +439,10 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
   useEffect(() => {
     if (pool === null) return;
+    if (!pool.permissions?.canPlay) {
+      setRuns([]);
+      return;
+    }
     void refreshRuns().catch(() => setRuns([]));
   }, [pool, refreshRuns]);
 
@@ -597,14 +538,6 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       customUploadDraftsRef.current.forEach((draft) => URL.revokeObjectURL(draft.previewUrl));
     };
   }, []);
-
-  const tagSuggestions = useMemo(
-    () =>
-      searchKeyword.trim()
-        ? suggestAnimeTags(searchKeyword, 6).filter((tag) => !selectedSearchTags.includes(tag.key))
-        : [],
-    [searchKeyword, selectedSearchTags]
-  );
 
   function clearMessage() {
     setError(null);
@@ -744,113 +677,6 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     }
   }
 
-  async function handleSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (archived() || (!searchKeyword.trim() && selectedSearchTags.length === 0)) return;
-    clearMessage();
-    setIsSearching(true);
-
-    try {
-      setLastSearchKeyword(searchKeyword.trim());
-      setLastSearchTags(selectedSearchTags);
-      const data = await discoverAnime({
-        q: searchKeyword.trim() || undefined,
-        tags: selectedSearchTags,
-        limit: 12,
-        offset: 0,
-      });
-      setSearchResults(data.items);
-      setSearchMessage(null);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "搜索失败");
-    } finally {
-      setIsSearching(false);
-    }
-  }
-
-  function toggleSearchTag(tagKey: string) {
-    setSelectedSearchTags((current) =>
-      current.includes(tagKey)
-        ? current.filter((tag) => tag !== tagKey)
-        : [...current, tagKey]
-    );
-  }
-
-  function addSuggestedSearchTag(tag: AnimeTagDictionaryEntry) {
-    setSelectedSearchTags((current) =>
-      current.includes(tag.key) ? current : [...current, tag.key]
-    );
-
-    const normalizedQuery = normalizeTagKey(searchKeyword);
-    const isExactTagQuery = [tag.key, tag.label, ...tag.aliases]
-      .map(normalizeTagKey)
-      .includes(normalizedQuery);
-
-    if (isExactTagQuery) {
-      setSearchKeyword("");
-    }
-  }
-
-  function clearSearchFilters() {
-    setSearchKeyword("");
-    setSelectedSearchTags([]);
-    setLastSearchKeyword("");
-    setLastSearchTags([]);
-    setSearchResults([]);
-    setSearchMessage(null);
-  }
-
-  async function handleBrowse(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (archived()) return;
-    clearMessage();
-    setIsBrowsing(true);
-
-    try {
-      const data = await discoverAnime({
-        tag: browseTag || undefined,
-        yearFrom: browseYearFrom ? Number(browseYearFrom) : undefined,
-        yearTo: browseYearTo ? Number(browseYearTo) : undefined,
-        type: browseType || undefined,
-        sort: browseSort,
-        limit: 12,
-        offset: 0,
-      });
-      setBrowseResults(data.items);
-      setBrowseTotal(data.total);
-      setBrowseOffset(0);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "浏览失败");
-    } finally {
-      setIsBrowsing(false);
-    }
-  }
-
-  async function handleBrowseMore() {
-    if (archived()) return;
-    const nextOffset = browseOffset + 12;
-    clearMessage();
-    setIsBrowsing(true);
-
-    try {
-      const data = await discoverAnime({
-        tag: browseTag || undefined,
-        yearFrom: browseYearFrom ? Number(browseYearFrom) : undefined,
-        yearTo: browseYearTo ? Number(browseYearTo) : undefined,
-        type: browseType || undefined,
-        sort: browseSort,
-        limit: 12,
-        offset: nextOffset,
-      });
-      setBrowseResults((current) => [...current, ...data.items]);
-      setBrowseOffset(nextOffset);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "加载更多失败");
-    } finally {
-      setIsBrowsing(false);
-    }
-  }
-
   async function handleManualAdd(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (archived() || !manualTitle.trim()) return;
@@ -883,74 +709,6 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "手动添加失败");
     } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function handleAdd(anime: PublicAnime) {
-    if (archived()) return;
-    clearMessage();
-    setIsMutating(true);
-
-    try {
-      await addAnimeToPool(params.poolId, { animeId: anime.id });
-      await refreshPool();
-      setNotice(`已加入：${anime.titleCn ?? anime.title}`);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "加入番组失败");
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function handleBangumiSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (archived() || bangumiKeyword.trim().length < 2) return;
-    clearMessage();
-    setBangumiSearched(true);
-    setBangumiSearchError(null);
-    setIsBangumiSearching(true);
-
-    try {
-      const result = await searchBangumiAnime(bangumiKeyword.trim(), 20);
-      setBangumiResults(result.items);
-      setBangumiVisibleCount(BANGUMI_RESULT_PAGE_SIZE);
-    } catch (error) {
-      setBangumiResults([]);
-      const message =
-        error instanceof Error && error.message
-          ? error.message
-          : "Bangumi 搜索暂时不可用，请稍后重试。";
-      setBangumiSearchError(message);
-      setError("Bangumi 搜索暂时不可用，请稍后重试。");
-    } finally {
-      setIsBangumiSearching(false);
-    }
-  }
-
-  async function handleAddBangumiResult(item: BangumiSearchItem) {
-    if (archived()) return;
-    clearMessage();
-    setBangumiAddingId(item.bangumiId);
-    setIsMutating(true);
-
-    try {
-      const result = await bulkImportAnimeToPool(params.poolId, String(item.bangumiId));
-      await refreshPool();
-      if (result.failed.length > 0) {
-        setError("添加失败，请稍后重试。");
-        return;
-      }
-      const displayTitle = item.titleCn ?? item.title;
-      setNotice(
-        result.added.length > 0
-          ? `已加入：${displayTitle}`
-          : `已在番组中：${displayTitle}`
-      );
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "添加失败，请稍后重试。");
-    } finally {
-      setBangumiAddingId(null);
       setIsMutating(false);
     }
   }
@@ -1229,9 +987,55 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     });
   }
 
+  async function handleBatchEdit() {
+    if (archived() || selectedAnimeIds.size === 0) return;
+
+    const title = batchTitle.trim();
+    const note = batchNote.trim();
+    const patch: {
+      displayTitleOverride?: string;
+      animeTypeOverride?: string;
+      overrideNote?: string;
+    } = {};
+
+    if (title) {
+      patch.displayTitleOverride = title;
+    }
+    if (batchType) {
+      patch.animeTypeOverride = batchType;
+    }
+    if (note) {
+      patch.overrideNote = note;
+    }
+
+    if (Object.keys(patch).length === 0) {
+      setError("请至少填写标题、类型或备注中的一项。");
+      return;
+    }
+
+    clearMessage();
+    setIsMutating(true);
+
+    try {
+      const result = await batchUpdatePoolAnime(params.poolId, Array.from(selectedAnimeIds), patch);
+      setNotice(`已更新 ${result.updated} 个作品`);
+      setBatchTitle("");
+      setBatchType("");
+      setBatchNote("");
+      await refreshPool();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "批量更新失败");
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
   function exitBatchMode() {
     setBatchMode(false);
     setSelectedAnimeIds(new Set());
+    setBatchTitle("");
+    setBatchType("");
+    setBatchNote("");
     setBatchConfirmOpen(false);
   }
 
@@ -1352,16 +1156,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const canPromptLoginToBattle =
     canShowCommunityBattle && !canPlayPool && (permissions?.canRead ?? false);
   const loginToPoolPath = `/login?next=${encodeURIComponent(`/pools/${params.poolId}`)}`;
-  const poolGuidance = getPoolGuidance(pool.anime.length, isArchived);
   const sourceSummary = formatPoolSourceSummary(pool.anime.map((entry) => entry.anime.source));
   const selectedDisplayEntry =
     editingDisplayAnimeId === null
       ? null
       : pool.anime.find((entry) => entry.animeId === editingDisplayAnimeId) ?? null;
-  const searchHadNoResults =
-    (lastSearchKeyword.length > 0 || lastSearchTags.length > 0) && !isSearching && searchResults.length === 0;
-  const visibleBangumiResults = bangumiResults.slice(0, bangumiVisibleCount);
-  const remainingBangumiResults = Math.max(0, bangumiResults.length - bangumiVisibleCount);
   const poolOnboardingHint = canManagePool
     ? "你可以在番组设置里切换公开/私有，并继续维护作品墙。"
     : canPlayPool
@@ -1401,9 +1200,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
             {pool.name}
           </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-            {pool.description}
-          </p>
+          {pool.description ? <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">{pool.description}</p> : null}
           {pool.creator ? (
             <p className="mt-3 text-xs text-slate-500">
               由{" "}
@@ -1425,12 +1222,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           {pool.isOfficialDemo && canPlayPool ? (
             <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-medium text-emerald-300">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400"></span>
-              这是开放体验池，登录后可以添加或调整作品，方便一起测试 AniMatch。
+              开放编辑
             </div>
           ) : null}
-          <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-cyan-100">
-            下一步：{poolGuidance.title}
-          </p>
           {pool.tags.length > 0 ? (
             <div className="mt-4 flex flex-wrap gap-2">
               {pool.tags.map((tag) => (
@@ -1445,7 +1239,6 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           <div className="grid min-w-0 grid-cols-1 items-stretch gap-3 sm:grid-cols-2">
             <section aria-label="个人自由对决" className={`flex min-w-0 flex-col rounded-xl border border-anime-cyan/35 bg-anime-cyan/[0.06] p-3 ${isArchived ? "sm:col-span-2" : ""}`}>
               <h2 className="mb-2 flex min-h-9 items-center text-sm font-bold text-cyan-100">个人自由对决</h2>
-              <p className="mb-2 min-h-11 text-sm leading-5 text-slate-300">按自己的节奏比较作品，排出专属榜单。</p>
             {canShowCommunityBattle ? (
               <>
                 <AppButton
@@ -1477,11 +1270,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                     : "开始我的对决"}
               </AppButton>
             )}
-              <p className="mt-2 text-xs text-slate-400">自由比较 · 随时继续 · 生成个人 Tier List</p>
             </section>
             {!isArchived ? <SeasonPlayEntry key={params.poolId} poolId={params.poolId} canPlay={canPlayPool} onBrowse={() => { setWorkspaceMode("seasons"); document.getElementById("pool-navigation")?.scrollIntoView({ block: "start" }); }} /> : null}
             <AppButton
-              className="sm:col-span-2"
               onClick={() =>
                 isArchived && latestRun !== undefined
                   ? router.push(`/pools/${params.poolId}/runs/${latestRun.id}/tier`)
@@ -1490,8 +1281,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
               disabled={isMutating || (isArchived && latestRun === undefined)}
               variant="secondary"
             >
-              查看 Tier List
+              查看对决榜单
             </AppButton>
+            <Link href={`/pools/${params.poolId}/tier-maker`} className={appButtonClasses({ variant: "secondary" })}>直接制作 Tier List</Link>
             <details className="sm:col-span-2 border-t border-anime-border pt-1">
               <summary className="min-h-11 cursor-pointer py-3 text-center text-xs font-semibold text-slate-300">分享与更多操作</summary>
               <div className="grid min-w-0 grid-cols-2 gap-2">
@@ -1516,6 +1308,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
               <AppButton
                 type="button"
                 onClick={() => {
+                  if (workspaceMode === "add") { closeInspector(); return; }
                   setEditingDisplayAnimeId(null);
                   setWorkspaceMode("add");
                   window.history.replaceState(null, "", "#add-anime");
@@ -1523,7 +1316,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 variant="quiet"
                 size="sm"
               >
-                添加动画
+                {workspaceMode === "add" ? "收起添加" : "添加动画"}
               </AppButton>
             ) : null}
             {canEditContent ? (
@@ -1811,19 +1604,18 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
       {workspaceMode !== "community" && workspaceMode !== "seasons" && workspaceMode !== "settings" ? <div role="tabpanel" id="pool-content-panel-wall" aria-labelledby="pool-content-tab-wall">
       <section id="anime-wall" className={`mt-8 scroll-mt-24 grid gap-6 ${
         isInspectorOpen
-          ? "lg:grid-cols-[minmax(0,1fr)_410px]"
+          ? workspaceMode === "add" ? "lg:grid-cols-[minmax(0,1fr)_410px] xl:grid-cols-[minmax(0,1fr)_560px]" : "lg:grid-cols-[minmax(0,1fr)_410px]"
           : "lg:grid-cols-1"
       }`}>
         <AppCard className="p-5">
           <SectionHeader
             eyebrow="Anime pool"
             title="作品墙"
-            description="找一部想看的动画，或开始对决排出你的喜好。"
           />
 
           {pool.anime.length === 0 ? (
             <div className="mt-5">
-              <EmptyState title="还没有添加动画" description="从右侧本地搜索、分类浏览或手动添加开始。" />
+              <EmptyState title="还没有添加动画" description="从“查找作品”、批量筛选或上传图片开始。" />
             </div>
           ) : (
             <>
@@ -1897,6 +1689,55 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 ) : null}
               </div>
 
+              {batchMode ? (
+                <div className="mt-3 rounded-xl border border-white/10 bg-slate-950/60 p-4">
+                  <p className="text-sm font-semibold text-white">批量编辑</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    留空的字段不会被修改，只对已选中的 {selectedAnimeIds.size} 个作品生效。
+                  </p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <input
+                      value={batchTitle}
+                      onChange={(event) => setBatchTitle(event.target.value)}
+                      placeholder="标题（留空不修改）"
+                      className="anime-field"
+                      maxLength={120}
+                      disabled={isMutating}
+                    />
+                    <select
+                      value={batchType}
+                      onChange={(event) => setBatchType(event.target.value)}
+                      className="anime-field"
+                      disabled={isMutating}
+                    >
+                      {ANIME_TYPE_OPTIONS.map((type) => (
+                        <option key={type || "none"} value={type}>
+                          {type || "类型（不修改）"}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      value={batchNote}
+                      onChange={(event) => setBatchNote(event.target.value)}
+                      placeholder="备注（留空不修改）"
+                      className="anime-field"
+                      maxLength={500}
+                      disabled={isMutating}
+                    />
+                  </div>
+                  <div className="mt-3">
+                    <AppButton
+                      onClick={handleBatchEdit}
+                      disabled={selectedAnimeIds.size === 0 || isMutating}
+                      variant="primary"
+                      size="sm"
+                    >
+                      {isMutating ? "应用中..." : `应用到选中的 ${selectedAnimeIds.size} 个作品`}
+                    </AppButton>
+                  </div>
+                </div>
+              ) : null}
+
               {batchConfirmOpen ? (
                 <div className="mt-3 rounded-xl border border-red-400/30 bg-red-400/10 p-4">
                   <p className="text-sm font-semibold text-red-300">确认移出作品</p>
@@ -1967,17 +1808,18 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           aria-modal={isMobileInspector ? true : undefined}
           aria-labelledby={isMobileInspector ? "pool-workspace-title" : undefined}
           tabIndex={isMobileInspector ? -1 : undefined}
-          className="fixed inset-x-0 bottom-0 z-40 max-h-[85dvh] overflow-y-auto rounded-t-3xl border border-cyan-300/20 bg-slate-950 p-4 shadow-2xl shadow-cyan-950/30 lg:sticky lg:top-24 lg:z-auto lg:max-h-[calc(100dvh-7rem)] lg:rounded-2xl lg:bg-transparent lg:p-0 lg:shadow-none"
+          className="fixed inset-x-0 bottom-0 z-40 max-h-[85dvh] overflow-y-auto rounded-t-3xl border border-cyan-300/20 bg-slate-950 p-4 shadow-2xl shadow-cyan-950/30 lg:sticky lg:top-32 lg:z-auto lg:max-h-[calc(100dvh-9rem)] lg:rounded-2xl lg:bg-transparent lg:p-0 lg:shadow-none xl:top-24 xl:max-h-[calc(100dvh-7rem)]"
         >
-        <div className="mb-3 flex items-center justify-between gap-3 lg:hidden">
-          <p id="pool-workspace-title" className="text-sm font-semibold text-white">番组工作台</p>
+        <div className="sticky top-0 z-20 mb-3 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 py-1">
+          <p id="pool-workspace-title" className="text-sm font-semibold text-white">{workspaceMode === "add" ? "添加作品" : "番组工作台"}</p>
           <button
             type="button"
             onClick={closeInspector}
+            aria-label={workspaceMode === "add" ? "关闭添加作品" : "关闭番组工作台"}
             data-inspector-initial-focus
             className="min-h-11 rounded-full border border-white/10 px-4 text-sm font-semibold text-slate-300"
           >
-            关闭
+            {workspaceMode === "add" ? "完成 / 关闭" : "关闭"}
           </button>
         </div>
         {workspaceMode === "edit" && selectedDisplayEntry !== null && canEditContent ? (
@@ -1998,239 +1840,14 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
 
         {workspaceMode === "add" && canAddAnimeToPool && editingDisplayAnimeId === null ? (
         <AppCard id="add-anime" className="p-5">
-          <SectionHeader eyebrow="Add anime" title="添加动画" />
           {isArchived ? (
             <p className="mt-4 text-sm text-slate-400">归档番组不能继续添加动画。</p>
           ) : (
             <>
-              <div className="mt-4 border-b border-anime-border pb-3">
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("search")}
-                    className={`min-h-11 rounded-full border px-4 py-2 text-xs font-semibold transition duration-anime ${
-                      activeTab === "search"
-                        ? "border-anime-cyan/50 bg-anime-cyan/12 text-cyan-100"
-                        : "border-anime-border bg-white/[0.03] text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    本地搜索
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowMoreImportMethods((value) => !value)}
-                    className="min-h-11 rounded-full border border-anime-border bg-white/[0.03] px-4 py-2 text-xs font-semibold text-slate-300 transition duration-anime hover:text-white"
-                    aria-expanded={showMoreImportMethods}
-                  >
-                    更多导入方式
-                  </button>
-                </div>
-                {showMoreImportMethods ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {TABS.filter((tab) => tab.key !== "search").map((tab) => (
-                      <button
-                        key={tab.key}
-                        type="button"
-                        onClick={() => setActiveTab(tab.key)}
-                        className={`min-h-10 rounded-full border px-3 py-1.5 text-xs font-semibold transition duration-anime ${
-                          activeTab === tab.key
-                            ? "border-anime-purple/50 bg-anime-purple/12 text-purple-100"
-                            : "border-anime-border bg-white/[0.03] text-slate-400 hover:text-white"
-                        }`}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-                ) : activeTab !== "search" ? (
-                  <div className="mt-3">
-                    <AppButton type="button" variant="quiet" size="sm" onClick={() => setActiveTab("search")}>
-                      收起导入方式并返回本地搜索
-                    </AppButton>
-                  </div>
-                ) : null}
+              <div className="grid grid-cols-3 gap-2 border-b border-anime-border pb-3" role="group" aria-label="添加作品方式">
+                {TABS.map((tab) => <button key={tab.key} type="button" aria-pressed={activeTab === tab.key} onClick={() => setActiveTab(tab.key)} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-semibold transition ${activeTab === tab.key ? "border-cyan-300/40 bg-cyan-300/10 text-cyan-100" : "border-white/10 text-slate-400 hover:text-white"}`}>{tab.label}</button>)}
               </div>
-
-              {activeTab === "search" ? (
-                <div className="mt-4">
-                  <form onSubmit={handleSearch} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                    <input
-                      value={searchKeyword}
-                      onChange={(event) => setSearchKeyword(event.target.value)}
-                      placeholder="搜索动画名称"
-                      className="anime-field min-w-0 flex-1"
-                    />
-                    <AppButton type="submit" disabled={isSearching} variant="primary">
-                      搜索
-                    </AppButton>
-                  </form>
-                  {tagSuggestions.length > 0 ? (
-                    <div className="mt-2 rounded-xl border border-cyan-300/20 bg-slate-950/75 p-2">
-                      <p className="px-2 pb-1 text-[11px] font-semibold text-slate-500">标签联想</p>
-                      <div className="grid gap-1">
-                        {tagSuggestions.map((tag) => (
-                          <button
-                            key={tag.key}
-                            type="button"
-                            onClick={() => addSuggestedSearchTag(tag)}
-                            className="min-w-0 rounded-lg px-2 py-2 text-left transition hover:bg-white/[0.06]"
-                          >
-                            <span className="block text-sm font-semibold text-cyan-100">{tag.label}</span>
-                            <span className="block truncate text-xs text-slate-500">
-                              {formatTagSuggestionMeta(tag)}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                  <div className="mt-4">
-                    <p className="mb-2 text-xs font-semibold text-slate-400">常用标签</p>
-                    <div className="flex flex-wrap gap-2">
-                      {QUICK_SEARCH_TAGS.map((tag) => {
-                        const selected = selectedSearchTags.includes(tag.key);
-                        return (
-                          <button
-                            key={tag.key}
-                            type="button"
-                            onClick={() => toggleSearchTag(tag.key)}
-                            className={`min-h-9 rounded-full border px-3 py-1.5 text-xs font-semibold transition duration-anime ${
-                              selected
-                                ? "border-cyan-300/60 bg-cyan-300/12 text-cyan-100"
-                                : "border-anime-border bg-white/[0.03] text-slate-400 hover:text-white"
-                            }`}
-                          >
-                            {tag.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <AppButton
-                      type="button"
-                      onClick={() => setShowMoreSearchTags((value) => !value)}
-                      variant="quiet"
-                      size="sm"
-                      aria-expanded={showMoreSearchTags}
-                    >
-                      更多标签
-                    </AppButton>
-                  </div>
-                  {showMoreSearchTags ? (
-                    <div className="mt-3 grid gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                      {GROUPED_SEARCH_TAGS.map((group) => (
-                        <div key={group.group} className="min-w-0">
-                          <p className="mb-2 text-xs font-semibold text-slate-400">
-                            {getTagGroupLabel(group.group)}
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {group.tags.map((tag) => {
-                              const selected = selectedSearchTags.includes(tag.key);
-                              return (
-                                <button
-                                  key={tag.key}
-                                  type="button"
-                                  onClick={() => toggleSearchTag(tag.key)}
-                                  className={`min-h-8 rounded-full border px-3 py-1 text-xs font-semibold transition duration-anime ${
-                                    selected
-                                      ? "border-purple-300/60 bg-purple-300/12 text-purple-100"
-                                      : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
-                                  }`}
-                                >
-                                  {tag.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                  {selectedSearchTags.length > 0 ? (
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {selectedSearchTags.map((tag) => (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => toggleSearchTag(tag)}
-                          className="min-h-8 rounded-full border border-cyan-300/35 bg-cyan-300/[0.08] px-3 py-1 text-xs font-semibold text-cyan-100"
-                        >
-                          {labelAnimeTag(tag)}
-                        </button>
-                      ))}
-                      <AppButton type="button" onClick={clearSearchFilters} variant="quiet" size="sm">
-                        清空筛选
-                      </AppButton>
-                    </div>
-                  ) : null}
-                  {searchMessage ? <p className="mt-3 text-sm text-slate-400">{searchMessage}</p> : null}
-                  {searchHadNoResults ? (
-                    <StatusHint
-                      label="无结果"
-                      title="没有找到匹配动画"
-                      description={
-                        hasChineseText(lastSearchKeyword)
-                          ? "可以换用英文、日文或更短关键词再试；当前数据库可能还不是全量导入。也可以切到“手动添加”先创建条目。"
-                          : "可以换用更短关键词、原标题或别名再试；也可以切到“手动添加”先创建条目。"
-                      }
-                      tone="warning"
-                      className="mt-4"
-                    />
-                  ) : null}
-                  <div className="mt-4 space-y-3">
-                    {searchResults.map((anime) => (
-                      <AnimeCard
-                        key={anime.id}
-                        anime={anime}
-                        disabled={isMutating || joinedAnimeIds.has(anime.id)}
-                        actionLabel={joinedAnimeIds.has(anime.id) ? "已加入" : "加入番组"}
-                        onClick={() => handleAdd(anime)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {activeTab === "browse" ? (
-                <div className="mt-4">
-                  <form onSubmit={handleBrowse} className="space-y-3">
-                    <input value={browseTag} onChange={(event) => setBrowseTag(event.target.value)} placeholder="标签 e.g. mystery" className="anime-field" />
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <input value={browseYearFrom} onChange={(event) => setBrowseYearFrom(event.target.value)} placeholder="年份起" className="anime-field" />
-                      <input value={browseYearTo} onChange={(event) => setBrowseYearTo(event.target.value)} placeholder="年份止" className="anime-field" />
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <input value={browseType} onChange={(event) => setBrowseType(event.target.value)} placeholder="类型 e.g. TV" className="anime-field" />
-                      <select value={browseSort} onChange={(event) => setBrowseSort(event.target.value)} className="anime-field">
-                        <option value="title">按标题</option>
-                        <option value="year">按年份</option>
-                        <option value="score">按评分</option>
-                      </select>
-                    </div>
-                    <AppButton type="submit" disabled={isBrowsing} variant="primary" className="w-full">
-                      浏览
-                    </AppButton>
-                  </form>
-                  {browseTotal > 0 ? <p className="mt-3 text-xs text-slate-500">共 {browseTotal} 部</p> : null}
-                  <div className="mt-4 space-y-3">
-                    {browseResults.map((anime) => (
-                      <AnimeCard
-                        key={anime.id}
-                        anime={anime}
-                        disabled={isMutating || joinedAnimeIds.has(anime.id)}
-                        actionLabel={joinedAnimeIds.has(anime.id) ? "已加入" : "加入番组"}
-                        onClick={() => handleAdd(anime)}
-                      />
-                    ))}
-                  </div>
-                  {browseResults.length < browseTotal ? (
-                    <AppButton onClick={handleBrowseMore} disabled={isBrowsing} variant="ghost" className="mt-3 w-full">
-                      加载更多
-                    </AppButton>
-                  ) : null}
-                </div>
-              ) : null}
+              {activeTab === "search" ? <AnimeDiscoveryPanel poolId={params.poolId} joinedAnimeIds={joinedAnimeIds} joinedBangumiIds={joinedBangumiIds} onAdded={refreshPool} /> : null}
 
               {activeTab === "manual" ? (
                 <form onSubmit={handleManualAdd} className="mt-4 space-y-3">
@@ -2238,7 +1855,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                   <input value={manualTitleCn} onChange={(event) => setManualTitleCn(event.target.value)} placeholder="中文名（可选）" className="anime-field" />
                   <input value={manualImageUrl} onChange={(event) => setManualImageUrl(event.target.value)} placeholder="封面图 URL（可选）" className="anime-field" />
                   <p className="text-xs leading-5 text-slate-500">
-                    如果外部封面加载失败，页面会自动显示 fallback，不会阻塞对决。
+                    也可以选择“上传图片”，使用本地封面。
                   </p>
                   <div className="grid gap-2 sm:grid-cols-2">
                     <input value={manualYear} onChange={(event) => setManualYear(event.target.value)} placeholder="年份" className="anime-field" />
@@ -2338,91 +1955,6 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                         {isUploadingCustomItems ? "上传中..." : "上传并加入番组"}
                       </AppButton>
                     </div>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {activeTab === "bangumi" ? (
-                <div className="mt-4 space-y-4">
-                  <p className="text-xs leading-5 text-slate-400">
-                    从 Bangumi 搜索公开条目并添加。
-                  </p>
-                  <form onSubmit={handleBangumiSearch} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                    <input
-                      value={bangumiKeyword}
-                      onChange={(event) => setBangumiKeyword(event.target.value)}
-                      aria-label="Bangumi keyword"
-                      placeholder="输入 Bangumi 关键词"
-                      className="anime-field min-w-0 flex-1"
-                    />
-                    <AppButton
-                      type="submit"
-                      disabled={isBangumiSearching || bangumiKeyword.trim().length < 2}
-                      variant="primary"
-                    >
-                      {isBangumiSearching ? "搜索中..." : "搜索"}
-                    </AppButton>
-                  </form>
-                  {isBangumiSearching ? (
-                    <p role="status" aria-live="polite" className="text-xs text-slate-500">
-                      正在搜索 Bangumi...
-                    </p>
-                  ) : null}
-                  {bangumiSearchError && !isBangumiSearching ? (
-                    <StatusHint
-                      label="连接失败"
-                      title="Bangumi 搜索暂时不可用"
-                      description={`${bangumiSearchError} 可以稍后重试，或先用本地库/手动添加。`}
-                      tone="warning"
-                    />
-                  ) : null}
-                  {bangumiSearched && !isBangumiSearching && !bangumiSearchError && bangumiResults.length === 0 ? (
-                    <StatusHint
-                      label="无结果"
-                      title="没有找到匹配条目。"
-                      description="可以换用原标题、中文名或更短关键词再试。"
-                      tone="warning"
-                    />
-                  ) : null}
-                  <div
-                    className="grid gap-3"
-                    role="status"
-                    aria-live="polite"
-                    aria-busy={isBangumiSearching}
-                  >
-                    {visibleBangumiResults.map((item) => {
-                      const alreadyJoined = joinedBangumiIds.has(item.bangumiId);
-
-                      return (
-                        <BangumiResultCard
-                          key={item.bangumiId}
-                          item={item}
-                          disabled={isMutating || alreadyJoined}
-                          isAdding={bangumiAddingId === item.bangumiId}
-                          actionLabel={
-                            alreadyJoined
-                              ? "已加入"
-                              : bangumiAddingId === item.bangumiId
-                                ? "添加中..."
-                                : "添加到当前番组"
-                          }
-                          onAdd={() => handleAddBangumiResult(item)}
-                        />
-                      );
-                    })}
-                  </div>
-                  {remainingBangumiResults > 0 ? (
-                    <AppButton
-                      type="button"
-                      onClick={() =>
-                        setBangumiVisibleCount((count) => count + BANGUMI_RESULT_PAGE_SIZE)
-                      }
-                      variant="quiet"
-                      size="sm"
-                      className="w-full"
-                    >
-                      显示更多 Bangumi 结果（剩余 {remainingBangumiResults}）
-                    </AppButton>
                   ) : null}
                 </div>
               ) : null}
@@ -2678,17 +2210,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         </details>
       ) : null}
 
-      <p className="mt-10 text-center text-xs text-slate-600">
-        Anime metadata powered by{" "}
-        <a
-          href="https://github.com/manami-project/anime-offline-database"
-          target="_blank"
-          className="underline hover:text-slate-400"
-        >
-          anime-offline-database
-        </a>
-        . License: ODbL-1.0 + DbCL-1.0.
-      </p>
+      <footer className="mt-10 text-center text-xs text-slate-500">
+        <Link href="/data-sources" className="inline-flex min-h-11 items-center px-3 hover:text-slate-300">数据来源与许可</Link>
+      </footer>
     </PageShell>
   );
 }
@@ -2729,6 +2253,7 @@ function CommunitySection({
   const resolvedTierRows = tierRows ?? DEFAULT_TIER_CONFIG.rows;
   const communityExportCardRef = useRef<HTMLDivElement | null>(null);
   const [isCommunityTierExporting, setIsCommunityTierExporting] = useState(false);
+  const [communityShowTitles, setCommunityShowTitles] = useState(false);
   const [communityTierExportError, setCommunityTierExportError] = useState<string | null>(null);
   const [communityTierExportedAt, setCommunityTierExportedAt] = useState<Date | null>(null);
   const communityTierShare = useMemo<PublicTierShare | null>(() => {
@@ -2807,7 +2332,6 @@ function CommunitySection({
           <SectionHeader
             eyebrow="Community"
             title="个人对决共享榜"
-            description="来自普通对决模式的匿名聚合结果；赛季大乱斗会在赛季详情页生成独立榜单。"
           />
           <AppBadge tone="source" className="w-fit">
             实时聚合
@@ -2856,16 +2380,28 @@ function CommunitySection({
               </button>
             </div>
             {view === "tierlist" && communityTierShare !== null ? (
-              <AppButton
-                type="button"
-                onClick={handleExportCommunityTier}
-                disabled={isCommunityTierExporting}
-                variant="secondary"
-                size="sm"
-                className="w-full sm:w-auto"
-              >
-                {isCommunityTierExporting ? "导出中..." : "导出共享 Tier 图"}
-              </AppButton>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                <AppButton
+                  type="button"
+                  onClick={handleExportCommunityTier}
+                  disabled={isCommunityTierExporting}
+                  variant="secondary"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                >
+                  {isCommunityTierExporting ? "导出中..." : "导出共享 Tier 图"}
+                </AppButton>
+                <label className="flex min-h-11 items-center gap-2 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 shrink-0 accent-cyan-400"
+                    checked={communityShowTitles}
+                    disabled={isCommunityTierExporting}
+                    onChange={(event) => setCommunityShowTitles(event.target.checked)}
+                  />
+                  显示作品名称
+                </label>
+              </div>
             ) : null}
           </div>
 
@@ -2937,7 +2473,7 @@ function CommunitySection({
           {communityTierShare !== null ? (
             <div className="tiermaker-export-host" aria-hidden="true">
               <div ref={communityExportCardRef}>
-                <TierShareCard share={communityTierShare} exportMode />
+                <TierShareCard share={communityTierShare} exportMode showItemTitles={communityShowTitles} />
               </div>
             </div>
           ) : null}
@@ -3087,60 +2623,6 @@ function formatPoolSourceSummary(sources: string[]) {
   return `Mixed: ${labels.join(" / ")}`;
 }
 
-function getPoolGuidance(animeCount: number, isArchived: boolean) {
-  if (isArchived) {
-    return {
-      label: "只读",
-      title: "该番组已归档",
-      description: "该番组已归档，只能查看历史结果。如需继续对决，请新建或复制番组。",
-      tone: "warning" as const
-    };
-  }
-
-  if (animeCount === 0) {
-    return {
-      label: "下一步",
-      title: "先添加几部动画",
-      description: "建议至少添加 4 部，这样系统才能生成更稳定的对决和 Tier List。",
-      tone: "guide" as const
-    };
-  }
-
-  if (animeCount === 1) {
-    return {
-      label: "还差一步",
-      title: "还需要至少 1 部动画才能开始对决",
-      description: "建议添加 4-8 部进行第一次体验，动画越多，排序越有参考价值。",
-      tone: "warning" as const
-    };
-  }
-
-  if (animeCount < 4) {
-    return {
-      label: "可开始",
-      title: "已经可以开始对决，但 pair 很少",
-      description: "添加更多动画可以让 Tier List 更准确；现在也可以先体验一次完整流程。",
-      tone: "success" as const
-    };
-  }
-
-  return {
-    label: "准备好了",
-    title: "可以开始对决",
-    description: "完成更多比较后，Tier List 会更稳定；标题或封面不理想时，可在作品卡片里编辑显示。",
-    tone: "success" as const
-  };
-}
-
-function hasChineseText(value: string) {
-  return /[\u4e00-\u9fff]/.test(value);
-}
-
-function formatTagSuggestionMeta(tag: AnimeTagDictionaryEntry) {
-  const aliases = tag.aliases.slice(0, 2).join(" / ");
-  return aliases ? `${aliases} / ${tag.key}` : tag.key;
-}
-
 function validateCustomUploadFile(file: File) {
   if (!COVER_UPLOAD_ACCEPT.split(",").includes(file.type)) {
     return "只支持 jpg、png、webp、gif 图片，不支持 svg。";
@@ -3200,38 +2682,57 @@ function PoolAnimeCard({
   const coverFit = shouldUseContainCover(displayAnime) ? "contain" : "cover";
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-slate-950/36 transition duration-anime hover:-translate-y-0.5 hover:border-anime-cyan/25 hover:shadow-anime-panel focus-within:border-anime-cyan/35">
+    <div
+      className={
+        "group relative overflow-hidden rounded-2xl border bg-slate-950/36 transition duration-anime " +
+        (batchMode
+          ? "cursor-pointer " +
+            (isBatchSelected
+              ? "border-cyan-400/70 ring-2 ring-cyan-400/40"
+              : "border-white/10 hover:border-cyan-300/40")
+          : "border-white/10 hover:-translate-y-0.5 hover:border-anime-cyan/25 hover:shadow-anime-panel focus-within:border-anime-cyan/35")
+      }
+      onClick={batchMode ? () => onToggleBatchSelect?.() : undefined}
+      onKeyDown={
+        batchMode
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onToggleBatchSelect?.();
+              }
+            }
+          : undefined
+      }
+      role={batchMode ? "button" : undefined}
+      tabIndex={batchMode ? 0 : undefined}
+      aria-pressed={batchMode ? isBatchSelected : undefined}
+      aria-label={batchMode ? `${isBatchSelected ? "取消选择" : "选择"} ${title}` : undefined}
+    >
       <AnimeCover
         src={coverUrl}
         secondarySrc={entry.anime.imageSmallUrl ?? entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl}
+        fallbackSrcs={getAnimeSourceCoverCandidates(entry.anime)}
         title={title}
         size="md"
         fit={coverFit}
         className="h-48 w-full rounded-none border-0 sm:h-52"
       />
       {batchMode ? (
-        <label
-          aria-label={`${isBatchSelected ? "取消选择" : "选择"} ${title}`}
+        <span
+          aria-hidden="true"
           className={
-            "absolute right-2 top-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg border-2 transition focus-within:ring-2 focus-within:ring-cyan-300/60 " +
+            "pointer-events-none absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-lg border-2 transition " +
             (isBatchSelected
               ? "border-cyan-400 bg-cyan-400/30"
               : "border-white/40 bg-slate-950/60")
           }
-          onClick={(e) => e.stopPropagation()}
         >
-          <input
-            type="checkbox"
-            checked={isBatchSelected}
-            onChange={() => onToggleBatchSelect?.()}
-            className="sr-only"
-          />
           {isBatchSelected ? (
             <svg className="h-4 w-4 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
               <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
             </svg>
           ) : null}
-        </label>
+        </span>
       ) : null}
       <div className={`p-3 ${canManage && !batchMode ? "pb-24 sm:pb-14" : ""}`}>
         <div className="flex min-h-11 items-start gap-2">
@@ -3261,80 +2762,6 @@ function PoolAnimeCard({
           </AppButton>
         </div>
         ) : null}
-      </div>
-    </div>
-  );
-}
-
-function BangumiResultCard({
-  item,
-  disabled,
-  isAdding,
-  actionLabel,
-  onAdd
-}: {
-  item: BangumiSearchItem;
-  disabled: boolean;
-  isAdding: boolean;
-  actionLabel: string;
-  onAdd: () => void;
-}) {
-  const title = item.titleCn ?? item.title;
-  const subtitle = item.titleCn ? item.title : null;
-  const meta = [
-    `Bangumi ID ${item.bangumiId}`,
-    item.year !== null ? String(item.year) : null
-  ].filter((value): value is string => value !== null);
-
-  return (
-    <div className="flex w-full min-w-0 gap-3 min-h-[132px] rounded-2xl border border-white/10 bg-slate-950/55 p-3">
-      <AnimeCover src={item.imageUrl} title={title} size="sm" className="shrink-0 rounded-xl" />
-      <div className="min-w-0 flex-1">
-        <h3 className="line-clamp-2 break-words text-sm font-semibold text-white">{title}</h3>
-        {subtitle ? (
-          <p className="mt-1 line-clamp-1 break-words text-xs text-slate-400">{subtitle}</p>
-        ) : null}
-        <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-medium text-slate-400">
-          {meta.map((itemMeta) => (
-            <span key={itemMeta}>{itemMeta}</span>
-          ))}
-        </div>
-        {item.summary ? (
-          <p className="mt-2 line-clamp-2 break-words text-xs leading-5 text-slate-500">
-            {item.summary}
-          </p>
-        ) : null}
-        {item.tags.length > 0 ? (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {item.tags.slice(0, 3).map((tag) => (
-              <span
-                key={tag}
-                className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] font-medium text-slate-300"
-              >
-                {labelAnimeTag(tag)}
-              </span>
-            ))}
-          </div>
-        ) : null}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <AppButton
-            type="button"
-            onClick={onAdd}
-            disabled={disabled || isAdding}
-            variant="primary"
-            size="sm"
-          >
-            {actionLabel}
-          </AppButton>
-          <a
-            href={item.sourceUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs font-semibold text-slate-400 hover:text-cyan-200"
-          >
-            查看 Bangumi
-          </a>
-        </div>
       </div>
     </div>
   );
@@ -3466,6 +2893,7 @@ function PoolAnimeDisplayPanel({
         <AnimeCover
           src={coverUrl}
           secondarySrc={entry.anime.imageSmallUrl ?? entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl}
+        fallbackSrcs={getAnimeSourceCoverCandidates(entry.anime)}
           title={title}
           size="sm"
           fit={coverFit}

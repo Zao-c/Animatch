@@ -107,7 +107,7 @@ export default function CollectionsPage() {
     <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div><p className="text-xs font-bold tracking-widest text-cyan-200">年度与阶段回顾</p><h1 className="mt-2 text-3xl font-black">把四季，连成你的这一年</h1>
         <p className="mt-3 text-sm text-slate-400">组合开播与完结记录，回顾变化，再开启一轮年度对决。组合仅本人可见。</p></div>
-      <AppButton onClick={() => openEditor()} disabled={busy}>新建组合</AppButton>
+      <div className="flex flex-wrap gap-2"><Link href="/ceremonies" className={appButtonClasses({ variant: "ghost", className: "border-amber-200/25 text-amber-100" })}>年度动画大赏 →</Link><AppButton onClick={() => openEditor()} disabled={busy}>新建组合</AppButton></div>
     </header>
     {error && <div role="alert" className="mb-4 rounded-xl border border-rose-400/30 bg-rose-400/10 p-4 text-sm text-rose-100">{error}<div className="mt-3 flex flex-wrap gap-3">{error !== "请先登录后继续" && <button className="min-h-11 rounded-xl border border-white/15 px-4" onClick={() => window.location.reload()}>重试加载</button>}<Link className={appButtonClasses({ variant: "primary" })} href="/login?next=%2Fcollections">前往登录</Link></div></div>}
     {loading ? <p role="status" className={panel}>正在加载年度组合…</p> : <div className="grid min-w-0 gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">

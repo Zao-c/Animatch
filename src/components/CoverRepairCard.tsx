@@ -119,7 +119,7 @@ export function CoverRepairCard({
         <p className="mt-3 text-sm text-emerald-300">{applyResult}</p>
       ) : null}
 
-      {scanResult === null && applyResult === null ? (
+      {scanResult === null ? (
         <AppButton
           onClick={handleScan}
           disabled={loading}
@@ -127,7 +127,7 @@ export function CoverRepairCard({
           size="sm"
           className="mt-3"
         >
-          {loading ? "扫描中..." : "修复导入封面"}
+          {loading ? "扫描中..." : applyResult !== null ? "再次扫描" : "修复导入封面"}
         </AppButton>
       ) : null}
 

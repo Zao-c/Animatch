@@ -3,6 +3,7 @@ import * as http from "node:http";
 import * as https from "node:https";
 import * as tls from "node:tls";
 import type { Socket } from "node:net";
+import { animeMonthRange, bangumiFormatTag } from "./anime-filter-options";
 
 export const BANGUMI_BASE_URL = (process.env.BANGUMI_PROXY_URL || "").trim() || "https://api.bgm.tv/v0";
 const DEFAULT_USER_AGENT = "AniMatch/0.1 (https://github.com/Zao-c/Animatch)";
@@ -515,6 +516,12 @@ export interface BangumiSearchItem {
   title: string;
   titleCn: string | null;
   imageUrl: string | null;
+  imageSmallUrl: string | null;
+  imageMediumUrl: string | null;
+  imageLargeUrl: string | null;
+  bangumiScore: number | null;
+  bangumiRank: number | null;
+  animeType: string | null;
   sourceUrl: string;
   summary: string | null;
   tags: string[];
@@ -554,25 +561,34 @@ interface BangumiSearchResponse {
 
 export async function searchBangumiAnime(
   keyword: string,
-  options: { limit?: number; offset?: number } = {}
+  options: { limit?: number; offset?: number; yearFrom?: number; yearTo?: number; month?: number; type?: string; tags?: string[]; sort?: string } = {}
 ): Promise<NormalizedBangumiSubject[]> {
   const trimmedKeyword = keyword.trim();
 
-  if (!trimmedKeyword) {
-    throw new Error("keyword is required");
-  }
+  // Empty keywords intentionally support browsing by year, format and tags.
 
   const limit = clampInteger(options.limit ?? 20, 1, 30);
   const offset = Math.max(0, Math.trunc(options.offset ?? 0));
+  const filter: Record<string, unknown> = { type: [2] };
+  const dates: string[] = [];
+  if (options.yearFrom) dates.push(`>=${options.yearFrom}-01-01`);
+  if (options.yearTo) dates.push(`<${options.yearTo + 1}-01-01`);
+  if (dates.length) filter.air_date = dates;
+  if (options.month && options.yearFrom) {
+    const { start, end } = animeMonthRange(options.yearFrom, options.month);
+    filter.air_date = [`>=${start.toISOString().slice(0, 10)}`, `<${end.toISOString().slice(0, 10)}`];
+  }
+  if (options.tags?.length) filter.tag = options.tags;
+  const platform = bangumiFormatTag(options.type);
+  if (platform) filter.meta_tags = [platform];
   const url = `${BANGUMI_BASE_URL}/search/subjects?limit=${limit}&offset=${offset}`;
   const response = await bangumiRequest(url, {
     method: "POST",
     headers: buildHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
       keyword: trimmedKeyword,
-      filter: {
-        type: [2]
-      }
+      filter,
+      sort: options.sort === "score" || options.sort === "rank" ? options.sort : "match"
     })
   });
 
@@ -583,7 +599,9 @@ export async function searchBangumiAnime(
   const body = (await response.json()) as BangumiSearchResponse;
   const rawItems = Array.isArray(body.data) ? body.data : [];
 
-  return rawItems.map((item) => normalizeBangumiSubject(item));
+  return rawItems.flatMap((item) => {
+    try { return [normalizeBangumiSubject(item)]; } catch { return []; }
+  });
 }
 
 export async function getBangumiSubject(
@@ -657,6 +675,12 @@ export function toBangumiSearchItem(subject: NormalizedBangumiSubject): BangumiS
       subject.imageMediumUrl ??
       subject.imageSmallUrl ??
       subject.imageLargeUrl,
+    imageSmallUrl: subject.imageSmallUrl,
+    imageMediumUrl: subject.imageMediumUrl,
+    imageLargeUrl: subject.imageLargeUrl,
+    bangumiScore: subject.bangumiScore,
+    bangumiRank: subject.bangumiRank,
+    animeType: subject.animeType ?? null,
     sourceUrl: buildBangumiSubjectUrl(subject.bgmId),
     summary: subject.summary,
     tags: subject.tags,

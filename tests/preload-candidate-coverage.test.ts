@@ -1,45 +1,19 @@
-import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
-
-describe("preload-images cover candidate alignment", () => {
-  const source = readFileSync("src/lib/preload-images.ts", "utf8");
-  const coverSource = readFileSync("src/components/AnimeCover.tsx", "utf8");
-
-  it("preload candidate order uses the shared proxy-only helper", () => {
-    expect(source).toContain("const heroUrl = getAnimeCoverUrl");
-    expect(source).toContain("const exportUrl = getAnimeCoverUrl");
-    expect(source).toContain("getProxiedCoverCandidates(heroUrl, exportUrl)");
+import { beforeEach,describe,expect,it,vi } from "vitest";
+import { preloadPairs } from "../src/lib/preload-images";
+import { loadCoverImage } from "../src/lib/cover-loader";
+vi.mock("../src/lib/cover-loader",()=>({loadCoverImage:vi.fn()}));
+beforeEach(()=>{vi.resetAllMocks();vi.mocked(loadCoverImage).mockResolvedValue("/loaded");});
+describe("preload source coverage",()=>{
+  it("warms both the COS and original-source routes with lower priority",async()=>{
+    const cos="https://bucket.cos.ap-shanghai.myqcloud.com/animatch/covers/preload.webp", original="https://lain.bgm.tv/pic/cover/l/preload.jpg";
+    const anime={cachedCoverUrl:cos,imageLargeUrl:original};
+    expect(await preloadPairs([{left:anime,right:anime}] as any)).toEqual({loaded:2,total:2});
+    const [sources,options]=vi.mocked(loadCoverImage).mock.calls[0];
+    expect(sources).toContain(cos);expect(sources).toContain(`/api/image-proxy?url=${encodeURIComponent(cos)}`);expect(sources).toContain(`/api/image-proxy?url=${encodeURIComponent(original)}`);
+    expect(options.priority).toBe(2);
   });
-
-  it("does not maintain a raw remote fallback queue in preload", () => {
-    expect(source).not.toContain("const values = [");
-    expect(source).not.toContain("proxyExternalImageUrl(heroUrl)");
-    expect(source).not.toContain("proxyExternalImageUrl(exportUrl)");
-  });
-
-  it("delegates candidate deduplication to the shared helper", () => {
-    const imageProxySource = readFileSync("src/lib/image-proxy.ts", "utf8");
-    expect(source).toContain("getProxiedCoverCandidates");
-    expect(imageProxySource).toContain("const seen = new Set");
-    expect(imageProxySource).toContain("seen.add(url)");
-  });
-
-  it("uses getAnimeCoverUrl with hero and export intents", () => {
-    expect(source).toContain('getAnimeCoverUrl(anime, { intent: "hero" })');
-    expect(source).toContain('getAnimeCoverUrl(anime, { intent: "export" })');
-  });
-
-  it("imports the shared proxied candidate helper", () => {
-    expect(source).toContain('import { getProxiedCoverCandidates } from "./image-proxy"');
-  });
-
-  it("AnimeCover and preload use same candidate wrapping function", () => {
-    expect(coverSource).toContain("getProxiedCoverCandidates");
-    expect(source).toContain("getProxiedCoverCandidates");
-  });
-
-  it("preloadPixelImage returns false for empty src", () => {
-    expect(source).toContain("return Promise.resolve(false)");
-    expect(source).toContain("if (!src)");
+  it("does not require all preloads to succeed",async()=>{
+    vi.mocked(loadCoverImage).mockRejectedValueOnce(new Error("unavailable"));
+    expect(await preloadPairs([{left:{imageUrl:"/a"},right:{imageUrl:"/b"}}] as any)).toEqual({loaded:1,total:2});
   });
 });

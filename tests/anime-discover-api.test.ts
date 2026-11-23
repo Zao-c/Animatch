@@ -84,6 +84,21 @@ describe("anime discover API tag search", () => {
       })
     );
   });
+  it("puts missing scores last and uses stable pagination ordering", async () => {
+    await GET(new Request("http://test.local/api/anime/discover?sort=score&offset=12"));
+    const args = mockedAnime.findMany.mock.calls.at(-1)![0]!;
+    expect(args.orderBy).toEqual([{ bangumiScore: { sort: "desc", nulls: "last" } }, { bangumiVotes: { sort: "desc", nulls: "last" } }, { id: "asc" }]);
+    expect(args.skip).toBe(12);
+  });
+  it("finds existing Bangumi records using airDate when year is missing", async () => {
+    await GET(new Request("http://test.local/api/anime/discover?yearFrom=2026&yearTo=2026"));
+    expect(lastWhere().AND).toContainEqual({ OR: [{ year: { gte: 2026, lte: 2026 } }, { year: null, airDate: { gte: new Date("2026-01-01"), lt: new Date("2027-01-01") } }] });
+  });
+  it("rejects reversed years before querying the database", async () => {
+    expect((await GET(new Request("http://test.local/api/anime/discover?yearFrom=2027&yearTo=2026"))).status).toBe(400);
+    expect(mockedAnime.findMany).not.toHaveBeenCalled();
+  });
+
 });
 
 function lastWhere() {

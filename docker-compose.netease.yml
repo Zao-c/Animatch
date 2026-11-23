@@ -1,0 +1,21 @@
+# Standalone optional music provider. Shares the default Compose network with AniMatch.
+services:
+  netease-api:
+    image: moefurina/ncm-api@sha256:2fcf4dc49313109a91f6cec99c6b36ebd17e8f1fdc89686121dfd14525937896
+    container_name: animatch-ncm-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3301:3000"
+    environment:
+      ENABLE_GENERAL_UNBLOCK: "false"
+      ENABLE_PROXY: "false"
+      NODE_ENV: production
+    # Upstream errors may contain credential-bearing response objects.
+    logging:
+      driver: none
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

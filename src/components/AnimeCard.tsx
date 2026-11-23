@@ -3,7 +3,7 @@
 import React from "react";
 import type { PublicAnime } from "@/lib/client-api";
 import { formatAnimeSource } from "@/lib/anime-source";
-import { getAnimeCoverUrl } from "@/lib/anime-cover-url";
+import { getAnimeCoverUrl, getAnimeSourceCoverCandidates } from "@/lib/anime-cover-url";
 import { getAnimeDisplaySubtitle, getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
 import { labelAnimeTag } from "@/lib/anime-tag-dictionary";
 import { AnimeCover } from "./AnimeCover";
@@ -35,10 +35,12 @@ export function AnimeCard({
         selected
           ? "border-cyan-300/60 bg-cyan-300/12 shadow-[0_0_26px_rgba(3,218,197,0.14)]"
           : "border-white/10 bg-slate-950/45 hover:border-cyan-300/25 hover:bg-white/[0.07]"
-      } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+      } ${disabled ? "cursor-default" : ""}`}
     >
       <AnimeCover
+        animeId={anime.id}
         src={coverUrl}
+        fallbackSrcs={getAnimeSourceCoverCandidates(anime)}
         title={title}
         size="md"
         fit={coverFit}

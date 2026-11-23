@@ -62,7 +62,7 @@ export function SeasonPlayEntry({ poolId, canPlay, onBrowse }: {
           <Link href={canPlay ? matchPath : `/login?next=${encodeURIComponent(matchPath)}`} className={appButtonClasses({ variant: "primary", size: "lg", className: "w-full" })}>
             {canPlay ? "参与赛季投票 →" : "登录并参与赛季投票 →"}
           </Link>
-          <p className="mt-2 text-xs text-slate-400">{selected.participantCount} 人参与 · {selected.totalVotes} 票 · 选出你更喜欢的作品</p>
+          <p className="mt-2 text-xs text-slate-400">{selected.participantCount} 人参与 · {selected.totalVotes} 票</p>
         </>
       ) : (
         <><p className="mb-2 text-xs text-slate-400">暂时没有开放投票的赛季</p><AppButton variant="secondary" className="w-full" onClick={onBrowse}>查看赛季与结果</AppButton></>

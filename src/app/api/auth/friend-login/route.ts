@@ -21,10 +21,14 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => ({}))) as {
       username?: unknown;
       inviteCode?: unknown;
+      password?: unknown;
+      recoveryCode?: unknown;
     };
     const user = await loginWithFriendCode({
       username: body.username,
-      inviteCode: body.inviteCode
+      inviteCode: body.inviteCode,
+      password: body.password,
+      recoveryCode: body.recoveryCode
     });
     clearFriendLoginFailures(rateLimitKey);
 

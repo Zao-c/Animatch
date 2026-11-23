@@ -1,4 +1,4 @@
-import { proxyExternalImageUrl } from "../image-proxy";
+import { getSameOriginImageUrl } from "../image-proxy";
 
 interface BackgroundPrewarmState {
   running: boolean;
@@ -57,7 +57,8 @@ async function warmBatch(
       if (signal?.aborted) return;
       try {
         const resp = await fetch(`${baseUrl}${path}`, { signal });
-        if (resp.ok || resp.status === 404 || resp.status === 502) {
+        await resp.body?.cancel();
+        if (resp.ok) {
           return;
         }
       } catch {
@@ -89,7 +90,7 @@ export function prewarmCoverCacheBackground(
   if (remote.length === 0) return;
 
   const proxyPaths = remote
-    .map((raw) => proxyExternalImageUrl(raw))
+    .map((raw) => getSameOriginImageUrl(raw))
     .filter((p): p is string => typeof p === "string" && p.startsWith("/"));
 
   if (proxyPaths.length === 0) return;
@@ -125,12 +126,8 @@ async function drainBackgroundPrewarmQueue(
   try {
     while (state.queue.length > 0) {
       const batch = state.queue.splice(0, concurrency);
-      for (const path of batch) {
-        state.queued.delete(path);
-      }
-
       await Promise.allSettled(
-        batch.map((path) => fetchWarmPath(`${baseUrl}${path}`, timeoutMs))
+        batch.map((path) => fetchWarmPath(`${baseUrl}${path}`, timeoutMs).finally(() => state.queued.delete(path)))
       );
     }
   } finally {
@@ -143,10 +140,11 @@ async function fetchWarmPath(url: string, timeoutMs: number): Promise<void> {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    await fetch(url, {
+    const response = await fetch(url, {
       cache: "no-store",
       signal: controller.signal
     });
+    await response.body?.cancel();
   } catch {
     // Prewarm is best-effort and must not affect user requests.
   } finally {
@@ -167,7 +165,7 @@ export async function prewarmCoverCacheAwait(
   if (remote.length === 0) return { success: 0, failed: 0 };
 
   const proxyPaths = remote
-    .map((raw) => proxyExternalImageUrl(raw))
+    .map((raw) => getSameOriginImageUrl(raw))
     .filter((p): p is string => typeof p === "string" && p.startsWith("/"));
 
   if (proxyPaths.length === 0) return { success: 0, failed: 0 };

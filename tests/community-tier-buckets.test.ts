@@ -62,4 +62,17 @@ describe("community tier buckets", () => {
       source: "community"
     });
   });
+
+  it("preserves original cover variants when the public ranking uses COS", () => {
+    const cachedItem = item("1", 1800);
+    cachedItem.imageUrl = "https://bucket.cos.ap-shanghai.myqcloud.com/animatch/covers/1.webp";
+    cachedItem.sourceImageUrl = "https://lain.bgm.tv/pic/cover/c/1.jpg";
+    cachedItem.imageLargeUrl = "https://lain.bgm.tv/pic/cover/l/1.jpg";
+    const exported = buildCommunityTierShareTiers([cachedItem], DEFAULT_TIER_CONFIG.rows);
+    expect(exported[0].items[0]).toMatchObject({
+      coverUrl: cachedItem.imageUrl,
+      imageUrl: cachedItem.sourceImageUrl,
+      imageLargeUrl: cachedItem.imageLargeUrl
+    });
+  });
 });

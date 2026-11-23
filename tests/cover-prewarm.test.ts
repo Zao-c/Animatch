@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { isSlowNetwork, prewarmCoverUrls } from "../src/lib/cover-prewarm";
 
 describe("prewarmCoverUrls", () => {
@@ -36,19 +36,19 @@ describe("prewarmCoverUrls", () => {
   });
 
   it("does not throw on prewarm failure, resolves silently", () => {
-    expect(source).toContain('done("skipped")');
-    expect(source).toContain("image.onerror = () => done");
+    expect(source).toContain('"cancelled" : "skipped"');
+    expect(source).toContain("await loadCoverImage");
   });
 
   it("handles AbortSignal for cancellation", () => {
     expect(source).toContain("signal?.aborted");
     expect(source).toContain('signal?.addEventListener("abort"');
     expect(source).toContain("signal?.removeEventListener");
-    expect(source).toContain('resolve("cancelled")');
+    expect(source).toContain('return "cancelled"');
   });
 
   it("uses timeout per single prewarm to avoid stuck requests", () => {
-    expect(source).toContain("setTimeout(() => done");
+    expect(source).toContain("setTimeout(abort, timeoutMs)");
   });
 
   it("returns PrewarmResult with warmed, skipped, cancelled counts", () => {
@@ -71,6 +71,35 @@ describe("prewarmCoverUrls", () => {
       signal: controller.signal
     });
     expect(result.cancelled).toBe(true);
+  });
+
+  it("stops a stalled image request on timeout or abort", async () => {
+    const assignedSources: string[] = [];
+    class StalledImage {
+      naturalWidth = 1; complete = false;
+      setAttribute() {}
+      removeAttribute() { assignedSources.push(""); }
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      set src(value: string) { assignedSources.push(value); }
+    }
+    vi.stubGlobal("Image", StalledImage);
+    vi.useFakeTimers();
+    try {
+      const timedOut = prewarmCoverUrls(["https://example.com/slow.jpg"], { timeoutMs: 500 });
+      await vi.advanceTimersByTimeAsync(500);
+      expect(await timedOut).toMatchObject({ skipped: 1, cancelled: false });
+      expect(assignedSources.at(-1)).toBe("");
+
+      const controller = new AbortController();
+      const aborted = prewarmCoverUrls(["https://example.com/other.jpg"], { signal: controller.signal });
+      controller.abort();
+      expect(await aborted).toMatchObject({ cancelled: true });
+      expect(assignedSources.at(-1)).toBe("");
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
   });
 });
 

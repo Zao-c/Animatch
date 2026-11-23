@@ -1,9 +1,11 @@
 import { AppShell } from "./ui/AppShell";
 
 export function PageShell({
-  children
+  children,
+  contentClassName
 }: Readonly<{
   children: React.ReactNode;
+  contentClassName?: string;
 }>) {
-  return <AppShell>{children}</AppShell>;
+  return <AppShell contentClassName={contentClassName}>{children}</AppShell>;
 }

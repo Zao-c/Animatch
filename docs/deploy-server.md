@@ -89,7 +89,7 @@ Configure the COS bucket or CDN as follows:
 - Add a CORS rule for the AniMatch site origin. Allow `GET` and `HEAD`; allow
   the `Content-Type` request header; expose no sensitive headers. For a bare
   IP deployment, the origin must include the port, for example
-  `http://182.61.136.105:3000`.
+  `http://<your-server-ip>:3000`.
 - Restrict direct image hosts to domains you own through
   `NEXT_PUBLIC_DIRECT_IMAGE_HOSTS`. Other remote cover hosts continue through
   `/api/image-proxy` and its allow-list.

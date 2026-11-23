@@ -13,6 +13,14 @@ const request = (url = `https://lain.bgm.tv/reliability-${randomUUID()}.png`) =>
 const imageResponse = () => new Response(new Uint8Array([1, 2, 3]), { headers: { "content-type": "image/png" } });
 
 describe("bounded image downloads", () => {
+  it.each(["cdn.myanimelist.net", "myanimelist.net", "s4.anilist.co", "media.kitsu.app", "cdn.animenewsnetwork.com", "cdn.anisearch.com", "cdn.anime-planet.com", "simkl.in", "raw.githubusercontent.com"])("accepts imported covers from %s without relaxing unknown-host restrictions", async (host) => {
+    const fetchMock = vi.fn(async () => imageResponse()); vi.stubGlobal("fetch", fetchMock);
+    const response = await GET(request(`https://${host}/imported-${randomUUID()}.png`));
+    expect(response.status).toBe(200);
+    const rejected = await GET(request(`https://${host}.untrusted.example/cover.png`));
+    expect(rejected.status).toBe(400);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
   it("serves cached bytes even when the origin DNS becomes unavailable", async () => {
     const fetchMock = vi.fn(async () => imageResponse());
     vi.stubGlobal("fetch", fetchMock);
@@ -83,6 +91,19 @@ describe("bounded image downloads", () => {
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([7]));
     await vi.waitFor(() => expect(release).toBeTypeOf("function"));
     release(imageResponse());
+    await vi.waitFor(() => expect(globalThis.__animatchImageProxyFetchState!.inFlightByCacheKey.size).toBe(0));
+  });
+  it("keeps a four-month-old cached cover available during an origin outage", async () => {
+    const url = `https://lain.bgm.tv/old-${randomUUID()}.png`;
+    globalThis.__animatchImageProxyCache!.entries.set(url, {
+      buffer: Buffer.from([9]), contentType: "image/png",
+      cachedAt: Date.now() - 120 * 86400000, lastAccessedAt: Date.now()
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 404 })));
+    const response = await GET(request(url));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("X-Animatch-Image-Cache")).toBe("STALE");
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([9]));
     await vi.waitFor(() => expect(globalThis.__animatchImageProxyFetchState!.inFlightByCacheKey.size).toBe(0));
   });
 });

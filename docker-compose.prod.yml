@@ -42,6 +42,16 @@ services:
       BANGUMI_PROXY_URL: ${BANGUMI_PROXY_URL:-}
       BANGUMI_ACCESS_TOKEN: ${BANGUMI_ACCESS_TOKEN:-}
       ANIMATCH_OUTBOUND_PROXY_URL: ${ANIMATCH_OUTBOUND_PROXY_URL:-}
+      NETEASE_API_URL: ${NETEASE_API_URL:-}
+      NETEASE_ACCOUNT_DIR: /app/data/netease-accounts
+      ANISONG_PUBLIC_AUDIO_DIR: /app/data/anisong-public-audio
+      ANISONG_PUBLIC_AUDIO_QUOTA_BYTES: ${ANISONG_PUBLIC_AUDIO_QUOTA_BYTES:-5368709120}
+      ANISONG_COS_SECRET_ID: ${ANISONG_COS_SECRET_ID:-}
+      ANISONG_COS_SECRET_KEY: ${ANISONG_COS_SECRET_KEY:-}
+      ANISONG_COS_BUCKET: ${ANISONG_COS_BUCKET:-}
+      ANISONG_COS_REGION: ${ANISONG_COS_REGION:-}
+      ANISONG_COS_PREFIX: ${ANISONG_COS_PREFIX:-AniMatch/audio-pool}
+      ANISONG_COS_PUBLIC_BASE_URL: ${ANISONG_COS_PUBLIC_BASE_URL:-}
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
       NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1,postgres,animatch-postgres,registry.npmjs.org,npmjs.org}
@@ -69,8 +79,14 @@ services:
     volumes:
       - anime_uploads:/app/public/uploads
       - animatch_image_cache:/app/data/image-cache
+      - anisong_audio:/app/data/anisong-audio
+      - netease_accounts:/app/data/netease-accounts
+      - public_song_audio:/app/data/anisong-public-audio
 
 volumes:
   animatch_postgres_data:
   anime_uploads:
   animatch_image_cache:
+  anisong_audio:
+  netease_accounts:
+  public_song_audio:

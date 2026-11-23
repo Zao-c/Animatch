@@ -10,14 +10,14 @@ describe("/api/pools list cover chain", () => {
     expect(routeSource).toContain('getAnimeCoverUrl(entry.anime, { intent: "display" })');
   });
 
-  it("returns coverImageFallbacks from export intent", () => {
+  it("returns an independent original source as coverImageFallbacks", () => {
     expect(routeSource).toContain("coverImageFallbacks");
-    expect(routeSource).toContain('getAnimeCoverUrl(entry.anime, { intent: "export" })');
+    expect(routeSource).toContain('getAnimeSourceCoverCandidates(entry.anime)');
   });
 
-  it("coverImageFallbacks uses different intent from primary (display vs export)", () => {
+  it("coverImageFallbacks does not repeat the cached primary", () => {
     expect(routeSource).toContain('intent: "display"');
-    expect(routeSource).toContain('intent: "export"');
+    expect(routeSource).toContain("url !== displayUrl");
   });
 
   it("uses getAnimeCoverUrl unified chain, not manual intent-by-intent fallback on raw fields", () => {
@@ -55,7 +55,7 @@ describe("/api/pools list cover chain", () => {
   });
 
   it("deriveCoverImages imports getAnimeCoverUrl from anime-cover-url", () => {
-    expect(routeSource).toContain('import { getAnimeCoverUrl } from "@/lib/anime-cover-url"');
+    expect(routeSource).toContain('import { getAnimeCoverUrl, getAnimeSourceCoverCandidates } from "@/lib/anime-cover-url"');
   });
 
   it("serializePoolSummary calls deriveCoverImages and maps to src/secondarySrc", () => {

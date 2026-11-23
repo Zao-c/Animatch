@@ -1,6 +1,8 @@
 import type { MatchPair } from "./client-api";
-import { getAnimeCoverUrl, type AnimeCoverUrlFields } from "./anime-cover-url";
-import { getProxiedCoverCandidates } from "./image-proxy";
+import { getAnimeCoverUrl, getAnimeSourceCoverCandidates, type AnimeCoverUrlFields } from "./anime-cover-url";
+import { getCoverDeliveryCandidates } from "./image-proxy";
+
+import { loadCoverImage } from "./cover-loader";
 
 const DEFAULT_PRELOAD_TIMEOUT_MS = 4000;
 const inFlightPreloads = new Map<string, Promise<boolean>>();
@@ -62,7 +64,7 @@ export async function preloadPair(pair: MatchPair): Promise<boolean> {
 
 export async function preloadPairs(
   pairs: MatchPair[],
-  options: { preloadCount?: number } = {}
+  options: { preloadCount?: number; signal?: AbortSignal } = {}
 ): Promise<{ loaded: number; total: number }> {
   const preloadCount = Math.max(0, Math.trunc(options.preloadCount ?? 4));
   const targetPairs = pairs.slice(0, preloadCount);
@@ -74,8 +76,8 @@ export async function preloadPairs(
 
   const results = await Promise.all(
     targetPairs.flatMap((pair) => [
-      preloadAnimeImage(pair.left),
-      preloadAnimeImage(pair.right)
+      preloadAnimeImage(pair.left, options.signal),
+      preloadAnimeImage(pair.right, options.signal)
     ])
   );
 
@@ -85,19 +87,17 @@ export async function preloadPairs(
   };
 }
 
-async function preloadAnimeImage(anime: AnimeCoverUrlFields): Promise<boolean> {
-  for (const src of bestImageCandidates(anime)) {
-    const loaded = await preloadImage(src);
-    if (loaded) {
-      return true;
-    }
-  }
-
-  return false;
+async function preloadAnimeImage(anime: AnimeCoverUrlFields, signal?: AbortSignal): Promise<boolean> {
+  const controller = new AbortController();
+  try {
+    await loadCoverImage(bestImageCandidates(anime), { signal: signal ?? controller.signal, priority: 2 });
+    return true;
+  } catch { return false; }
+  finally { controller.abort(); }
 }
 
 function bestImageCandidates(anime: AnimeCoverUrlFields): string[] {
   const heroUrl = getAnimeCoverUrl(anime, { intent: "hero" });
-  const exportUrl = getAnimeCoverUrl(anime, { intent: "export" });
-  return getProxiedCoverCandidates(heroUrl, exportUrl);
+  const originalSources = getAnimeSourceCoverCandidates(anime);
+  return getCoverDeliveryCandidates(heroUrl, originalSources.find((url) => url !== heroUrl), originalSources);
 }

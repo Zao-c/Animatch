@@ -33,6 +33,7 @@ describe("tier shares API", () => {
       new Request("http://test.local/api/tier-shares", {
         method: "POST",
         body: JSON.stringify({
+          expectedVersion: "fixture-share-version",
           poolId: "pool-1",
           runId: "run-1",
           tierLabels: { S: "神作" },
@@ -45,16 +46,26 @@ describe("tier shares API", () => {
     expect(response.status).toBe(200);
     expect(payload.data).toEqual({
       token: "token-1",
-      url: "/share/tier/token-1"
+      url: "/share/tier/token-1",
+      createdAt: shareFixture().createdAt
     });
     expect(mockedCreateTierShare).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
         poolId: "pool-1",
         runId: "run-1",
-        tierLabels: { S: "神作" }
+        tierLabels: { S: "神作" },
+        expectedVersion: "fixture-share-version"
       })
     );
+  });
+
+  it("requires a ranking version before asking the service to publish", async () => {
+    const response = await POST(new Request("http://test.local/api/tier-shares", {
+      method: "POST", body: JSON.stringify({ poolId: "pool-1", runId: "run-1" })
+    }));
+    expect(response.status).toBe(400);
+    expect(mockedCreateTierShare).not.toHaveBeenCalled();
   });
 
   it("POST returns Pool not found when the pool is missing", async () => {
@@ -66,6 +77,7 @@ describe("tier shares API", () => {
       new Request("http://test.local/api/tier-shares", {
         method: "POST",
         body: JSON.stringify({
+          expectedVersion: "fixture-share-version",
           poolId: "missing-pool",
           runId: "run-1"
         })
@@ -86,6 +98,7 @@ describe("tier shares API", () => {
       new Request("http://test.local/api/tier-shares", {
         method: "POST",
         body: JSON.stringify({
+          expectedVersion: "fixture-share-version",
           poolId: "pool-1",
           runId: "other-run"
         })

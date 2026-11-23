@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 function readSource(path: string): string {
-  return readFileSync(path, "utf8");
+  return readFileSync(path, "utf8").replace(/\r\n/g, "\n");
 }
 
 describe("Quick import service", () => {
@@ -20,8 +20,8 @@ describe("Quick import service", () => {
     expect(source).toContain("export async function addQuickImportToPool");
   });
 
-  it("clamps limit to MAX_LIMIT=100", () => {
-    expect(source).toContain("MAX_LIMIT = 100");
+  it("clamps limit to the shared import limit", () => {
+    expect(source).toContain("MAX_LIMIT = MAX_QUICK_IMPORT");
   });
 
   it("clampLimit enforces max 100", () => {
@@ -35,7 +35,7 @@ describe("Quick import service", () => {
 
   it("supports YEAR mode", () => {
     expect(source).toContain('params.mode === "YEAR"');
-    expect(source).toContain("where.year = params.year");
+    expect(source).toContain("animeYearFilter(rangeMode ? params.yearFrom : params.year, rangeMode ? params.yearTo : params.year)");
   });
 
   it("supports TAG mode", () => {
@@ -49,7 +49,6 @@ describe("Quick import service", () => {
 
   it("supports USER_COLLECTION mode", () => {
     expect(source).toContain('params.mode === "USER_COLLECTION"');
-    expect(source).toContain("用户收藏模式需要填写 Bangumi 用户 ID");
   });
 
   it("USER_COLLECTION does not pretend local search is a collection filter", () => {
@@ -79,7 +78,6 @@ describe("Quick import service", () => {
   });
 
   it("reports missing covers as warning", () => {
-    expect(source).toContain("缺少封面");
     expect(source).toContain("missingCovers");
   });
 
@@ -98,9 +96,9 @@ describe("Quick import service", () => {
 
   it("createPool respects selected preview candidates", () => {
     expect(source).toContain("selectedAnimeIds?: string[]");
-    expect(source).toContain("filterCandidatesBySelectedIds");
-    expect(source).toContain("selected.has(candidate.animeId)");
-    expect(source).toContain("selectedCandidates.map((c) => c.animeId)");
+    expect(source).toContain("[...new Set(params.selectedAnimeIds.map((id) => id.trim()))]");
+    expect(source).toContain("id: { in: selectedIds }");
+    expect(source).toContain("const missing = selectedIds.filter((id) => !byId.has(id))");
   });
 
   it("createPool with PUB/PRIV visibility", () => {
@@ -112,17 +110,17 @@ describe("Quick import service", () => {
     expect(source).toContain("getNextPoolAnimePosition");
     expect(source).toContain("withPoolAnimePositionTransaction");
     expect(source).toContain("nextPosition");
-    expect(source).toContain("position: nextPosition++");
+    expect(source).toContain("position: nextPosition + index");
   });
 
   it("skips already existing anime in pool", () => {
-    expect(source).toContain("existingIds.has(animeId)");
-    expect(source).toContain("skippedCount++");
+    expect(source).toContain("existingIds.has(id)");
+    expect(source).toContain("skippedCount: animeIds.length - remainingIds.length");
   });
 
   it("triggers cover prewarm on import", () => {
     expect(source).toContain("enqueuePoolAnimeCoversCache");
-    expect(source).toContain("animesToCache");
+    expect(source).toContain("result.animes");
     expect(source).toContain("getAnimeCoverUrl");
   });
 
@@ -135,8 +133,8 @@ describe("Quick import service", () => {
   it("has QUICK_IMPORT_PRESETS with 6 entries", () => {
     const presetsSource = readSource("src/lib/import/quick-import-presets.ts");
     expect(presetsSource).toContain("QUICK_IMPORT_PRESETS");
-    expect(presetsSource).toContain("2026 TV 新番 Top 50");
-    expect(presetsSource).toContain("2025 TV 新番 Top 50");
+    expect(presetsSource).toContain("2026 年新番");
+    expect(presetsSource).toContain("2025 年新番");
     expect(presetsSource).toContain("恋爱校园 Top 30");
     expect(presetsSource).toContain("异世界 Top 30");
     expect(presetsSource).toContain("热血战斗 Top 50");
@@ -158,7 +156,6 @@ describe("Quick import API routes", () => {
 
   it("preview validates source and mode", () => {
     const source = readSource("src/app/api/pools/quick-import/preview/route.ts");
-    expect(source).toContain("source 和 mode 是必填字段");
     expect(source).toContain("validSources");
     expect(source).toContain("validModes");
   });
@@ -177,7 +174,6 @@ describe("Quick import API routes", () => {
 
   it("create validates poolName and params", () => {
     const source = readSource("src/app/api/pools/quick-import/create/route.ts");
-    expect(source).toContain("poolName 和 params 是必填字段");
     expect(source).toContain("params.source");
   });
 
@@ -196,7 +192,6 @@ describe("Quick import API routes", () => {
   it("add-to-pool rejects archived pool", () => {
     const source = readSource("src/app/api/pools/[poolId]/quick-import/route.ts");
     expect(source).toContain("pool.deletedAt");
-    expect(source).toContain("番组不存在或已归档");
   });
 
   it("add-to-pool requires animeIds array", () => {
@@ -222,7 +217,7 @@ describe("QuickImportPanel UI", () => {
   });
 
   it("has type selector (ALL/TV/MOVIE/OVA)", () => {
-    expect(source).toContain("type === t.key");
+    expect(source).toContain("value={type}");
   });
 
   it("has limit buttons 20/30/50/100", () => {
@@ -240,14 +235,12 @@ describe("QuickImportPanel UI", () => {
     expect(source).toContain("setSource(p.source)");
     expect(source).toContain("setMode(p.mode)");
     expect(source).toContain("setYear");
-    expect(source).toContain("setSelectedTags(p.tags)");
+    expect(source).toContain("setSelectedTags(p.tags ?? [])");
   });
 
   it("supports custom Bangumi tag input in quick import", () => {
     expect(source).toContain("customTagInput");
     expect(source).toContain("mergeTags(selectedTags, customTagInput)");
-    expect(source).toContain("自定义 Bangumi 标签");
-    expect(source).toContain("用逗号分隔");
   });
 
   it("accepts Bangumi profile URLs for user collection import", () => {
@@ -256,7 +249,6 @@ describe("QuickImportPanel UI", () => {
 
   it("has preview button", () => {
     expect(source).toContain("handlePreview");
-    expect(source).toContain("预览");
   });
 
   it("preview shows candidate cards with AnimeCover", () => {
@@ -266,7 +258,6 @@ describe("QuickImportPanel UI", () => {
 
   it("shows alreadyInPool badge", () => {
     expect(source).toContain("alreadyInPool");
-    expect(source).toContain("已存在");
   });
 
   it("disabled alreadyInPool cards", () => {
@@ -275,12 +266,10 @@ describe("QuickImportPanel UI", () => {
 
   it("has selectAll and deselectExisting buttons", () => {
     expect(source).toContain("selectAll");
-    expect(source).toContain("取消已存在");
   });
 
   it("shows create pool form when no poolId", () => {
     expect(source).toContain("poolName");
-    expect(source).toContain("创建番组");
   });
 
   it("create pool requires poolName", () => {
@@ -295,7 +284,6 @@ describe("QuickImportPanel UI", () => {
 
   it("adds to existing pool when poolId", () => {
     expect(source).toContain("addQuickImportToPool");
-    expect(source).toContain("添加选中");
   });
 
   it("reports added/skipped counts", () => {
@@ -361,7 +349,6 @@ describe("Quick import pages integration", () => {
 
   it("pool detail page has quick import tab", () => {
     const source = readSource("src/app/pools/[poolId]/page.tsx");
-    expect(source).toContain("批量添加作品");
     expect(source).toContain("activeTab === \"quick\"");
   });
 

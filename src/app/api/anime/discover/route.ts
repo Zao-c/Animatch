@@ -1,8 +1,11 @@
-import { ok, serverError } from "@/lib/api-response";
+import { badRequest, ok, serverError } from "@/lib/api-response";
 import { GLOBAL_SEARCH_EXCLUDED_SOURCES, toPublicAnime } from "@/lib/anime-service";
 import { expandTagQuery, matchTagAliases, normalizeTagKey } from "@/lib/anime-tag-dictionary";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { validateDiscoveryYears } from "@/lib/anime-discovery";
+import { animeFormatAliases, animeMonthRange } from "@/lib/anime-filter-options";
+import { animeYearFilter } from "@/lib/anime-date-filter";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -17,7 +20,11 @@ export async function GET(request: Request) {
   const offset = parseOffset(url.searchParams.get("offset"));
 
   try {
+    const month = url.searchParams.get("month") ?? "";
+    const invalidYears = validateDiscoveryYears({ yearFrom: url.searchParams.get("yearFrom") ?? "", yearTo: url.searchParams.get("yearTo") ?? "", month });
+    if (invalidYears) return badRequest(invalidYears);
     const where: Prisma.AnimeWhereInput = {
+      deletedAt: null,
       source: {
         notIn: GLOBAL_SEARCH_EXCLUDED_SOURCES
       }
@@ -56,24 +63,26 @@ export async function GET(request: Request) {
       where.studios = { has: studio.toLowerCase() };
     }
 
-    if (yearFrom !== null || yearTo !== null) {
-      where.year = {};
-      if (yearFrom !== null) where.year.gte = yearFrom;
-      if (yearTo !== null) where.year.lte = yearTo;
-    }
+    const dateFilter = animeYearFilter(yearFrom, yearTo);
+    if (dateFilter) andConditions.push(dateFilter);
 
     if (type) {
-      where.animeType = type.toUpperCase();
+      where.animeType = { in: animeFormatAliases(type.toUpperCase()) };
+    }
+    if (month && yearFrom) {
+      const { start, end } = animeMonthRange(yearFrom, Number(month));
+      where.airDate = { gte: start, lt: end };
     }
 
     if (andConditions.length > 0) {
       where.AND = andConditions;
     }
 
-    const orderBy: Prisma.AnimeOrderByWithRelationInput =
-      sort === "year" ? { year: "desc" }
-      : sort === "score" ? { bangumiScore: "desc" }
-      : { title: "asc" };
+    const orderBy: Prisma.AnimeOrderByWithRelationInput[] =
+      sort === "year" ? [{ year: { sort: "desc", nulls: "last" } }, { airDate: { sort: "desc", nulls: "last" } }, { id: "asc" }]
+      : sort === "score" ? [{ bangumiScore: { sort: "desc", nulls: "last" } }, { bangumiVotes: { sort: "desc", nulls: "last" } }, { id: "asc" }]
+      : sort === "rank" ? [{ bangumiRank: { sort: "asc", nulls: "last" } }, { id: "asc" }]
+      : [{ title: "asc" }, { id: "asc" }];
 
     const [items, total] = await Promise.all([
       prisma.anime.findMany({

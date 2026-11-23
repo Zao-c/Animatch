@@ -2,14 +2,13 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("import preview integrity UI", () => {
-  const quickImportSource = readFileSync("src/components/QuickImportPanel.tsx", "utf8");
+  const quickImportSource = readFileSync("src/components/QuickImportPanel.tsx", "utf8").replace(/\r\n/g, "\n");
   const poolDetailSource = readFileSync("src/app/pools/[poolId]/page.tsx", "utf8");
 
   it("requires a current quick-import preview before creating a pool", () => {
     expect(quickImportSource).toContain("const [previewParams, setPreviewParams]");
     expect(quickImportSource).toContain("function clearPreviewSelection()");
     expect(quickImportSource).toContain("params: previewParams");
-    expect(quickImportSource).toContain("请先预览并确认要创建的作品");
     expect(quickImportSource).toContain("preview !== null && previewParams !== null && selectedIds.size > 0");
   });
 

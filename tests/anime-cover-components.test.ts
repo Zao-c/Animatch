@@ -89,8 +89,8 @@ describe("anime cover rendering", () => {
 
     expect(html).not.toContain("<img");
     expect(html).toContain("Fallback Title");
-    expect(html).toContain("封面加载失败");
-    expect(html).toContain("刷新页面或稍后再试");
+    expect(html).toContain("暂无封面");
+    expect(html).not.toContain("自动重试");
   });
 
   it("AnimeCover renders every image with no-referrer and supports contain mode", () => {
@@ -157,8 +157,8 @@ describe("anime cover rendering", () => {
     );
 
     expect(html).toContain("src=\"/api/image-proxy?url=https%3A%2F%2Fexample.com%2Fmedium.jpg\"");
-    expect(html).not.toContain("thumb.jpg");
-    expect(html).toContain('data-cover-fit="cover"');
+    expect(html).not.toContain('data-cover-primary-src="/api/image-proxy?url=https%3A%2F%2Fexample.com%2Fthumb.jpg"');
+    expect(html).toContain('data-cover-fit="contain"');
     expect(html).toContain('referrerPolicy="no-referrer"');
   });
 
@@ -177,9 +177,8 @@ describe("anime cover rendering", () => {
       })
     );
 
-    expect(html).toContain("flex h-full flex-col");
-    expect(html).toContain("min-h-[3.25rem]");
-    expect(html).toContain("mt-auto w-full");
+    expect(html).toContain("flex min-w-0 flex-col");
+    expect(html).toContain("mt-auto flex min-h-11 w-full");
     expect(html).toContain("未命名作品");
     expect(html).not.toContain("17750273769085f154");
   });
@@ -234,7 +233,7 @@ describe("anime cover rendering", () => {
       })
     );
 
-    expect(html).toContain('src="https://example.com/medium.jpg"');
+    expect(html).toContain('src="/api/image-proxy?url=https%3A%2F%2Fexample.com%2Fmedium.jpg"');
     expect(html).not.toContain('src="https://example.com/thumb.jpg"');
     expect(html).toContain('data-cover-fit="cover"');
   });
@@ -247,12 +246,42 @@ describe("anime cover rendering", () => {
         exportMode: true,
         scoreDistribution,
         onDragStart: () => undefined,
+        onMoveToTier: () => undefined,
         onDropBefore: () => undefined
       })
     );
 
     expect(html).not.toContain('draggable="true"');
     expect(html).toContain("Custom Upload");
+    expect(html).not.toContain('aria-label="调整 Custom Upload 的位置"');
+    expect(html).not.toContain("<select");
+  });
+
+  it("exposes a named adjustment button while preserving native card dragging", () => {
+    const html = renderToStaticMarkup(React.createElement(TierAnimeCard, {
+      item: tierItem(), editable: true, scoreDistribution,
+      onDragStart: () => undefined, onDropBefore: () => undefined,
+      onMoveToTier: () => undefined
+    }));
+
+    expect(html).toContain('draggable="true"');
+    expect(html).toContain('aria-label="调整 Custom Upload 的位置"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('aria-label="将 Custom Upload 移至其他 Tier"');
+  });
+
+  it("locks dragging and every ordering control while a save is pending", () => {
+    const html = renderToStaticMarkup(React.createElement(TierAnimeCard, {
+      item: tierItem(), editable: true, disabled: true, scoreDistribution,
+      onDragStart: () => undefined, onDropBefore: () => undefined,
+      onMoveToTier: () => undefined, onMoveEarlier: () => undefined, onMoveLater: () => undefined,
+      canMoveEarlier: true, canMoveLater: true
+    }));
+
+    expect(html).not.toContain('draggable="true"');
+    const controls = html.match(/<(?:button|select)\b[^>]*>/g) ?? [];
+    expect(controls).toHaveLength(4);
+    expect(controls.every((control) => control.includes('disabled=""'))).toBe(true);
   });
 
   it("DuelAnimeCard shows AniScore as the primary score", () => {
@@ -334,8 +363,8 @@ describe("match cover stability", () => {
     );
 
     expect(html).not.toContain("<img");
-    expect(html).toContain("封面加载失败");
-    expect(html).toContain("刷新页面或稍后再试");
+    expect(html).toContain("暂无封面");
+    expect(html).not.toContain("自动重试");
     expect(html).toContain("冰菓");
   });
 
@@ -350,8 +379,8 @@ describe("match cover stability", () => {
     );
 
     expect(html).not.toContain("<img");
-    expect(html).toContain("封面加载失败");
-    expect(html).toContain("刷新页面或稍后再试");
+    expect(html).toContain("暂无封面");
+    expect(html).not.toContain("自动重试");
     expect(html).toContain("葬送的芙莉莲");
     expect(html).toContain("aspect-[2/3]");
   });
@@ -428,8 +457,8 @@ describe("match cover stability", () => {
     );
 
     expect(html).not.toContain("<img");
-    expect(html).toContain("封面加载失败");
-    expect(html).toContain("刷新页面或稍后再试");
+    expect(html).toContain("暂无封面");
+    expect(html).not.toContain("自动重试");
     expect(html).toContain("无封面作品");
   });
 
@@ -485,7 +514,7 @@ describe("match cover stability", () => {
     );
   });
 
-  it("DuelAnimeCard includes side badge LEFT/RIGHT", () => {
+  it("DuelAnimeCard exposes the left side in its action label", () => {
     const html = renderToStaticMarkup(
       React.createElement(DuelAnimeCard, {
         anime: baseAnime(),
@@ -497,10 +526,10 @@ describe("match cover stability", () => {
       })
     );
 
-    expect(html).toContain("LEFT");
+    expect(html).toContain("选择左边：");
   });
 
-  it("DuelAnimeCard right side shows RIGHT badge", () => {
+  it("DuelAnimeCard exposes the right side in its action label", () => {
     const html = renderToStaticMarkup(
       React.createElement(DuelAnimeCard, {
         anime: baseAnime(),
@@ -512,7 +541,7 @@ describe("match cover stability", () => {
       })
     );
 
-    expect(html).toContain("RIGHT");
+    expect(html).toContain("选择右边：");
   });
 });
 
@@ -582,8 +611,8 @@ describe("match cover resilience", () => {
 
     expect(html).toContain('data-cover-state="empty"');
     expect(html).toContain('data-cover-url-present="false"');
-    expect(html).toContain("封面加载失败");
-    expect(html).toContain("刷新页面或稍后再试");
+    expect(html).toContain("暂无封面");
+    expect(html).not.toContain("自动重试");
   });
 
   it("AnimeCover shows a compact visible error badge for small covers", () => {
@@ -597,7 +626,8 @@ describe("match cover resilience", () => {
     );
 
     expect(html).toContain('data-cover-state="empty"');
-    expect(html).toContain("封面加载失败，刷新页面或稍后再试。");
+    expect(html).toContain('title="暂无封面"');
+    expect(html).not.toContain("自动重试");
     expect(html).toContain("right-1 top-1");
     expect(html).toContain(">!</span>");
   });
@@ -737,8 +767,8 @@ describe("match cover resilience", () => {
 
     expect(html).toContain('data-cover-state="empty"');
     expect(html).toContain('data-cover-url-present="false"');
-    expect(html).toContain("封面加载失败");
-    expect(html).toContain("刷新页面或稍后再试");
+    expect(html).toContain("暂无封面");
+    expect(html).not.toContain("自动重试");
     expect(html).toContain("无封面作品");
   });
 });

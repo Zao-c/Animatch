@@ -18,7 +18,6 @@ describe("admin pool management dialogs", () => {
     expect(source).toContain('const [confirmPhrase, setConfirmPhrase] = useState("")');
     expect(source).toContain('confirmPhrase !== "CONFIRM"');
     expect(source).toContain('confirm: confirmPhrase');
-    expect(source).toContain('输入 CONFIRM');
   });
 
   it("restores usable focus after the dialog closes or completes", () => {

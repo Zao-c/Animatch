@@ -3,11 +3,12 @@ import { prisma } from "../src/lib/db";
 import { getTasteProfile, findTasteMatches } from "../src/lib/taste-service";
 import { PATCH as updateTasteSettings } from "../src/app/api/taste/settings/route";
 import { getCollection, saveCollection, validateCollectionInput, createAnnualFinal } from "../src/lib/collection-service";
-import { archiveCommunity, archivedSeasonRanking, type SeasonArchiveData } from "../src/lib/season-archive";
+import { archiveCommunity, archivedPersonalRanking, archivedSeasonRanking, getSeasonArchiveData, type SeasonArchiveData } from "../src/lib/season-archive";
 
 vi.mock("../src/lib/db", () => ({ prisma: {
   user: { findFirst: vi.fn(), findUniqueOrThrow: vi.fn() },
   animeCollection: { findFirst: vi.fn() }, battleSeason: { findMany: vi.fn() },
+  battleSeasonArchive: { findUnique: vi.fn() }, anime: { findMany: vi.fn() },
   userPoolScore: { findMany: vi.fn(), groupBy: vi.fn() }, battleSeasonUserScore: { findMany: vi.fn(), groupBy: vi.fn() },
   poolAnime: { findMany: vi.fn() },
   userAnimeStatus: { findMany: vi.fn() },
@@ -111,5 +112,33 @@ describe("frozen season results", () => {
     expect(result.score).toBeCloseTo((4500 + 1700 * 3.5) / 6.5);
     expect(archiveCommunity(data)[0].score).toBeCloseTo(result.score);
     expect(result.insufficientSample).toBe(false);
+  });
+
+  it("keeps the saved cover while exposing original images for season exports", () => {
+    const data: SeasonArchiveData = {
+      items: [{ animeId: "a", title: "动画", imageUrl: "https://cos.example/cover.jpg",
+        sourceImageUrl: "https://source.example/original.jpg", imageLargeUrl: "https://source.example/large.jpg",
+        imageMediumUrl: "https://source.example/medium.jpg", imageSmallUrl: "https://source.example/small.jpg",
+        thumbnailUrl: "https://source.example/thumb.jpg", tags: [], score: 1500 }],
+      scores: [{ userId: "u1", animeId: "a", score: 1700, count: 5, bias: 0, wins: 4, losses: 1, uncertainty: 80 }]
+    };
+    for (const item of [archivedSeasonRanking(data)[0], archivedPersonalRanking(data, "u1")[0]]) {
+      expect(item).toMatchObject({ imageUrl: "https://cos.example/cover.jpg",
+        sourceImageUrl: "https://source.example/original.jpg", imageLargeUrl: "https://source.example/large.jpg",
+        imageMediumUrl: "https://source.example/medium.jpg", imageSmallUrl: "https://source.example/small.jpg",
+        thumbnailUrl: "https://source.example/thumb.jpg" });
+    }
+  });
+
+  it("restores original cover choices when reading a season frozen before these fields existed", async () => {
+    const oldData: SeasonArchiveData = { items: [{ animeId: "a", title: "动画", imageUrl: "https://cos.example/cover.jpg", tags: [], score: 1500 }], scores: [] };
+    vi.mocked(prisma.battleSeasonArchive.findUnique).mockResolvedValue({ payload: oldData, capturedAt: new Date("2026-01-01T00:00:00.000Z") } as any);
+    vi.mocked(prisma.anime.findMany).mockResolvedValue([{ id: "a", imageUrl: "https://source.example/original.jpg",
+      imageLargeUrl: "https://source.example/large.jpg", imageMediumUrl: null, imageSmallUrl: null, thumbnailUrl: null }] as any);
+
+    const result = await getSeasonArchiveData("pool-1", "season-1");
+    expect(result.data.items[0]).toMatchObject({ imageUrl: "https://cos.example/cover.jpg",
+      sourceImageUrl: "https://source.example/original.jpg", imageLargeUrl: "https://source.example/large.jpg" });
+    expect(prisma.anime.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { in: ["a"] } } }));
   });
 });

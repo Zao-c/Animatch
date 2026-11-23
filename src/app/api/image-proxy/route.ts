@@ -34,7 +34,9 @@ const QUEUE_TIMEOUT_MS = 1500;
 const FAILURE_COOLDOWN_MS = 5000;
 const recentFailures = new Map<string, { result: ImageFetchResult; expiresAt: number }>();
 const FRESH_TTL_MS = 24 * 60 * 60 * 1000;
-const STALE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+// Source URLs are versioned; retain usable bytes through origin outages.
+// Capacity is bounded separately by disk LRU, not by throwing away month-old covers.
+const STALE_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 const MEM_MAX_CACHE_ENTRIES = 250;
 const MEM_MAX_CACHE_BYTES = 48 * 1024 * 1024;
 const DISK_MAX_CACHE_ENTRIES = 20000;
@@ -60,7 +62,16 @@ const DNS_LOOKUP_TIMEOUT_MS = 1200;
 const DEFAULT_ALLOWED_PROXY_HOST_SUFFIXES = [
   "bgm.tv",
   "bangumi.tv",
-  "tiermaker.com"
+  "tiermaker.com",
+  // Cover providers present in imported Manami records. DNS/IP validation still applies.
+  "myanimelist.net",
+  "cdn.animenewsnetwork.com",
+  "raw.githubusercontent.com",
+  "cdn.anisearch.com",
+  "cdn.anime-planet.com",
+  "simkl.in",
+  "s4.anilist.co",
+  "media.kitsu.app"
 ];
 
 const BLOCKED_HOSTNAMES = new Set([
@@ -328,6 +339,7 @@ async function validateResolvedProxyTarget(
 }
 
 function pickReferer(hostname: string): string | null {
+  if (hostname === "myanimelist.net" || hostname.endsWith(".myanimelist.net")) return "https://myanimelist.net/";
   if (hostname.endsWith(".bgm.tv") || hostname === "bgm.tv") {
     return "https://bgm.tv/";
   }

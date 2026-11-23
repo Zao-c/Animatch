@@ -127,9 +127,11 @@ function toShareItem(item: CommunityRankingItem): TierShareSnapshotItem {
     animeId: item.animeId,
     title: item.title,
     coverUrl: item.imageUrl,
-    imageUrl: item.imageUrl,
-    imageMediumUrl: item.imageUrl,
-    imageLargeUrl: item.imageUrl,
+    imageUrl: item.sourceImageUrl ?? item.imageUrl,
+    imageMediumUrl: item.imageMediumUrl ?? null,
+    imageLargeUrl: item.imageLargeUrl ?? null,
+    imageSmallUrl: item.imageSmallUrl ?? null,
+    thumbnailUrl: item.thumbnailUrl ?? null,
     source: "community",
     elo: item.communityScore ?? item.averageRating ?? undefined
   };

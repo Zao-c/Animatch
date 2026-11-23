@@ -1,4 +1,4 @@
-import { getAnimeCoverUrl, type AnimeCoverUrlFields } from "@/lib/anime-cover-url";
+import { getAnimeCoverUrl, getAnimeSourceCoverCandidates, type AnimeCoverUrlFields } from "@/lib/anime-cover-url";
 import { prewarmCoverCacheBackground } from "@/lib/server/cover-cache-prewarm";
 import {
   cacheAnimeCoverToCosBackground,
@@ -24,7 +24,7 @@ export function enqueuePoolAnimeCoverCache(anime: PoolCoverCacheAnime | null | u
   }
 
   const primary = getAnimeCoverUrl(anime, { intent: "display" });
-  const secondary = getAnimeCoverUrl(anime, { intent: "export" });
+  const secondary = getAnimeSourceCoverCandidates(anime).find((url) => url !== primary);
   prewarmCoverCacheBackground([primary, secondary], { limit: 2 });
 }
 
@@ -49,7 +49,7 @@ export function enqueuePoolAnimeCoversCache(
 
   const urls = validAnimes.flatMap((anime) => [
     getAnimeCoverUrl(anime, { intent: "display" }),
-    getAnimeCoverUrl(anime, { intent: "export" })
+    getAnimeSourceCoverCandidates(anime).find((url) => url !== getAnimeCoverUrl(anime, { intent: "display" }))
   ]);
 
   prewarmCoverCacheBackground(urls, {

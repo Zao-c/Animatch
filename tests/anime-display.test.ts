@@ -139,6 +139,9 @@ describe("anime display helpers", () => {
     const noisy = "zzzzz 17750273769085f154 f2a3b4c5d6e7f8";
 
     expect(isGeneratedOrNoisyTitle(noisy)).toBe(true);
+    expect(isGeneratedOrNoisyTitle("ganyupng")).toBe(true);
+    expect(isGeneratedOrNoisyTitle("ganyu.png")).toBe(true);
+    expect(isGeneratedOrNoisyTitle("Ping Pong the Animation")).toBe(false);
     expect(
       getAnimeDisplayTitle({
         source: "TIERMAKER_IMPORT",

@@ -8,6 +8,11 @@ const EXPORT_IMAGE_PLACEHOLDER =
 const IMAGE_INLINE_CONCURRENCY = 4;
 const IMAGE_REQUEST_TIMEOUT_MS = 8000;
 
+export function getExportImageTimeoutMs(imageCount: number): number {
+  const batches = Math.ceil(Math.max(0, imageCount) / IMAGE_INLINE_CONCURRENCY);
+  return Math.min(180000, Math.max(30000, 10000 + batches * 6500));
+}
+
 export function getExportPixelRatio(width: number, height: number): number {
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
     throw new Error("榜单尺寸无效，请等待页面加载完成后重试。");
@@ -26,7 +31,7 @@ export async function exportShareCardAsPng(
   container: HTMLElement,
   options: ExportShareCardOptions = {}
 ): Promise<{ dataUrl: string }> {
-  const { timeoutMs = 30000, filename = "animatch-tier", onProgress } = options;
+  const { filename = "animatch-tier", onProgress } = options;
 
   const card = container.querySelector<HTMLElement>(
     "[data-tier-share-card=\"true\"]"
@@ -35,6 +40,7 @@ export async function exportShareCardAsPng(
   if (!card) {
     throw new Error("Export container has no share card element.");
   }
+  const timeoutMs = options.timeoutMs ?? getExportImageTimeoutMs(card.querySelectorAll("img").length);
 
   // Work on an isolated copy: React must not remove or replace images while
   // they are being fetched, decoded and captured.
@@ -164,41 +170,55 @@ function getExportImageCandidates(image: HTMLImageElement): string[] {
     image.currentSrc,
     image.src,
     image.dataset.exportSecondarySrc,
-    getOriginalUrlFromImageProxy(image.currentSrc || image.src)
+    ...readExportFallbackSources(image.dataset.exportFallbackSrcs)
   ];
   const seen = new Set<string>();
-
-  return values.flatMap((value) => {
-    if (value === undefined || value === null) {
-      return [];
+  const candidates: string[] = [];
+  const origin = typeof window === "undefined" ? "http://localhost" : window.location.origin;
+  const add = (url: string) => {
+    if (!seen.has(url)) {
+      seen.add(url);
+      candidates.push(url);
     }
+  };
 
-    const trimmed = value.trim();
-    if (trimmed.length === 0 || seen.has(trimmed)) {
-      return [];
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (!trimmed) continue;
+    if (!isRemoteImageUrl(trimmed)) {
+      add(trimmed);
+      const original = getOriginalUrlFromImageProxy(trimmed);
+      if (original && isRemoteImageUrl(original)) add(original);
+      continue;
     }
+    const parsed = new URL(trimmed);
+    if (parsed.origin === origin) {
+      add(trimmed);
+      const original = getOriginalUrlFromImageProxy(trimmed);
+      if (original && isRemoteImageUrl(original)) add(original);
+    } else {
+      // The proxy is readable even when the source image lacks browser CORS headers.
+      add(`/api/image-proxy?url=${encodeURIComponent(trimmed)}`);
+      add(trimmed);
+    }
+  }
 
-    seen.add(trimmed);
-    // A COS image can display in <img> without CORS while fetch cannot read it.
-    // Same-origin proxy is an export-only fallback, keeping normal views on COS.
-    if (isRemoteImageUrl(trimmed)) {
-      const origin = typeof window === "undefined" ? "http://localhost" : window.location.origin;
-      const parsed = new URL(trimmed);
-      if (parsed.origin !== origin) {
-        const proxy = `/api/image-proxy?url=${encodeURIComponent(trimmed)}`;
-        if (!seen.has(proxy)) {
-          seen.add(proxy);
-          return [trimmed, proxy];
-        }
-      }
-    }
-    return [trimmed];
-  });
+  return candidates;
+}
+
+function readExportFallbackSources(value: string | undefined): string[] {
+  if (!value) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
 }
 
 function getOriginalUrlFromImageProxy(value: string): string | null {
   try {
-    const parsed = new URL(value, window.location.href);
+    const parsed = new URL(value, typeof window === "undefined" ? "http://localhost" : window.location.href);
     if (parsed.pathname !== "/api/image-proxy") {
       return null;
     }

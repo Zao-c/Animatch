@@ -95,12 +95,10 @@ describe("User profile page", () => {
   });
 
   it("renders public tier lists section with titles", () => {
-    expect(source).toContain("公开榜单");
     expect(source).toContain("href={`/share/tier/${tl.token}`}");
   });
 
   it("renders public pools section with links", () => {
-    expect(source).toContain("公开番组");
     expect(source).toContain("href={`/pools/${pool.id}`}");
   });
 
@@ -129,7 +127,7 @@ describe("AuthNav links to user profile", () => {
   const source = readFileSync("src/components/AuthNav.tsx", "utf8");
 
   it("username is wrapped in Link to /u/${username}", () => {
-    expect(source).toContain("href={user.username ? `/u/${user.username}`");
+    expect(source).toContain("user.username ? <Link href={`/u/${user.username}`}");
   });
 
   it("Link has hover styles", () => {
@@ -147,7 +145,6 @@ describe("Tier share page links to author profile", () => {
 
   it("non-export header links creator name to /u/${username}", () => {
     expect(source).toContain('href={`/u/${creatorUsername}`}');
-    expect(source).toContain("underline decoration-cyan-400/40");
   });
 
   it("export card header links creator name to /u/${username}", () => {

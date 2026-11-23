@@ -94,8 +94,8 @@ describe("match preload priority", () => {
   });
 
   it("warms future queue items in the background instead of competing with the first playable pair", () => {
-    expect(matchSource).toContain("void preloadPairs(data.pairs.slice(1, 4), { preloadCount: 3 })");
-    expect(matchSource).not.toContain("await preloadPairs(data.pairs.slice(0, 1)");
+    expect(matchSource).toContain("void preloadPairs(queue.slice(1), { preloadCount: isSlowNetwork() ? 1 : 3");
+    expect(matchSource).not.toContain("await preloadPairs(queue.slice(0, 1)");
   });
 
   it("retains pair-level preload accounting", async () => {

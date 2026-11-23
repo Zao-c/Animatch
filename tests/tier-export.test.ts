@@ -50,6 +50,28 @@ describe("tier export helpers", () => {
     expect(source).toContain("ref={exportCardRef}");
   });
 
+  it("wires the optional item titles checkbox into every export surface", () => {
+    const pageSource = readFileSync(
+      "src/app/pools/[poolId]/runs/[runId]/tier/page.tsx",
+      "utf8"
+    );
+    const boardSource = readFileSync("src/components/ManualTierBoard.tsx", "utf8");
+    const communitySource = readFileSync("src/app/pools/[poolId]/page.tsx", "utf8");
+    const seasonSource = readFileSync(
+      "src/app/pools/[poolId]/seasons/[seasonId]/page.tsx",
+      "utf8"
+    );
+
+    expect(pageSource).toContain("显示作品名称");
+    expect(pageSource).toContain("showItemTitles={exportShowTitles}");
+    expect(boardSource).toContain("显示作品名称");
+    expect(boardSource).toContain("showItemTitles={showItemTitles}");
+    expect(communitySource).toContain("显示作品名称");
+    expect(communitySource).toContain("showItemTitles={communityShowTitles}");
+    expect(seasonSource).toContain("显示作品名称");
+    expect(seasonSource).toContain("showItemTitles={showSeasonExportTitles}");
+  });
+
   it("keeps the hidden export host renderable and waits after snapshot commit", () => {
     const pageSource = readFileSync(
       "src/app/pools/[poolId]/runs/[runId]/tier/page.tsx",

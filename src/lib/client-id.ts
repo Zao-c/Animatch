@@ -32,3 +32,10 @@ function createUuid(): string {
 export function createClientMutationId(prefix = "mutation"): string {
   return `${prefix}-${createUuid()}`;
 }
+
+// Import keys have a UUID-only wire format, including in HTTP and older browsers.
+export function createClientUuid(): string {
+  const id = createUuid();
+  if (/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(id)) return id;
+  return formatUuidV4(Uint8Array.from({ length: 16 }, () => Math.floor(Math.random() * 256)));
+}

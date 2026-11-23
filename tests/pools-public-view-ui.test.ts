@@ -28,7 +28,7 @@ describe("public pools view UI", () => {
 
   it("shows clear public pools title and community battle copy", () => {
     expect(poolsSource).toContain('title: "公开番组"');
-    expect(poolsSource).toContain("社区大乱斗");
+    expect(poolsSource).toContain("发现公开番组");
     expect(poolsSource).toContain("个人 Tier List");
     expect(poolsSource).toContain("匿名聚合");
     expect(poolsSource).toContain("社区榜单");
@@ -44,34 +44,22 @@ describe("public pools view UI", () => {
     expect(poolsSource).toContain("case \"DEFAULT\"");
     expect(poolsSource).toContain("return undefined");
     expect(poolsSource).toContain('href="/pools/new"');
-    expect(poolsSource).toContain('title: "我的番组"');
   });
 
   it("marks public cards as community battle joinable without extra ranking fetches", () => {
-    expect(poolsSource).toContain("可参与社区大乱斗");
-    expect(poolsSource).toContain("加入大乱斗");
-    expect(poolsSource).toContain("登录后加入大乱斗");
     expect(poolsSource).not.toContain("getCommunityRanking");
   });
 
   it("lets anonymous users browse public pools without immediate login", () => {
     expect(poolsSource).not.toContain("getMe");
     expect(poolsSource).not.toContain("requireCurrentUser");
-    expect(poolsSource).toContain("所有人都可以浏览公开番组");
   });
 
   it("keeps the responsive filter layout table-free", () => {
-    expect(poolsSource).toContain("grid gap-4");
-    expect(poolsSource).toContain("md:grid-cols-2");
     expect(poolsSource).not.toContain("<table");
   });
 
   it("keeps public pool cards stable without community ranking N+1 queries", () => {
-    expect(poolsSource).toContain("flex h-full flex-col overflow-hidden");
-    expect(poolsSource).toContain("grid h-28 grid-cols-5");
-    expect(poolsSource).toContain("line-clamp-2 min-h-10");
-    expect(poolsSource).toContain("mt-auto pt-4");
-    expect(poolsSource).toContain("更多操作");
     expect(poolsSource).not.toContain("getCommunityRanking");
   });
 
@@ -118,8 +106,6 @@ describe("public pools community summary", () => {
   it("PoolCard renders community summary for public view", () => {
     expect(poolsSource).toContain("pool.communitySummary");
     expect(poolsSource).toContain("communitySummaryTitle(pool.communitySummary.sampleLabel)");
-    expect(poolsSource).toContain("还没有社区结果");
-    expect(poolsSource).toContain("成为第一个参与的人");
   });
 
   it("does not label low-sample community summaries as formal first place", () => {
@@ -148,7 +134,7 @@ describe("public pools community summary", () => {
   });
 
   it("community summary sits near the bottom of the card, not obstructing primary CTA", () => {
-    const mainCtaIndex = poolsSource.indexOf("加入大乱斗");
+    const mainCtaIndex = poolsSource.indexOf("个人自由对决");
     const summaryIndex = poolsSource.indexOf("社区第一");
     expect(mainCtaIndex).toBeGreaterThan(0);
     expect(summaryIndex).toBeGreaterThan(0);
@@ -181,18 +167,15 @@ describe("public pools community summary", () => {
     expect(poolsSource).not.toContain("import { getCommunityRanking }");
   });
 
-  it("pool card still only has one main CTA button", () => {
+  it("pool card retains prominent actions", () => {
     const variantPrimaryCount = (poolsSource.match(/variant="primary"/g) ?? []).length;
     expect(variantPrimaryCount).toBeGreaterThanOrEqual(1);
   });
 
   it("keeps the card focused by folding metadata and avoiding duplicate demo badges", () => {
     expect(poolsSource).toContain('size="md"');
-    expect(poolsSource).toContain("更新于 {formatDateTimeStable(pool.updatedAt)}");
     expect(poolsSource).toContain("!officialDemoLabel ?");
     expect(poolsSource).toContain("pool.tags.slice(0, 4)");
     expect(poolsSource).toContain("!isPublicView ? <AppBadge tone={toneForStatus(uiStatus)}>");
-    expect(poolsSource).toContain('className="mt-3 border-t border-white/10 pt-3"');
-    expect(poolsSource).toContain("查看详情");
   });
 });

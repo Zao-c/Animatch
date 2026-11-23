@@ -11,6 +11,21 @@ type ContinueAction = {
   label: string;
 };
 
+export async function loadHomeContinueAction(
+  readDashboard: () => Promise<{
+    miniMatchPreview: { source: string; ctaHref?: string; ctaLabel: string };
+  }> = getDashboard
+): Promise<ContinueAction | null> {
+  try {
+    const preview = (await readDashboard()).miniMatchPreview;
+    return preview.source === "CONTINUE_RUN" && preview.ctaHref
+      ? { href: preview.ctaHref, label: preview.ctaLabel }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export function HomeActions() {
   const [continueAction, setContinueAction] = useState<ContinueAction | null>(null);
   const [isPreparingDemoPool, setIsPreparingDemoPool] = useState(false);
@@ -28,11 +43,8 @@ export function HomeActions() {
         setIsLoggedIn(me.user !== null);
         if (me.user === null) return;
 
-        const dashboard = await getDashboard();
-        const preview = dashboard.miniMatchPreview;
-        if (!cancelled && preview.source === "CONTINUE_RUN" && preview.ctaHref) {
-          setContinueAction({ href: preview.ctaHref, label: preview.ctaLabel });
-        }
+        const action = await loadHomeContinueAction();
+        if (!cancelled) setContinueAction(action);
       } catch {
         if (!cancelled) {
           setIsLoggedIn(false);
@@ -49,7 +61,7 @@ export function HomeActions() {
   }, []);
 
   const continueHref = continueAction?.href ?? "/pools/new";
-  const continueLabel = continueAction?.label ?? "创建第一个番组";
+  const continueLabel = continueAction?.label ?? "创建番组";
 
   async function handleCreateDemoPool() {
     setIsPreparingDemoPool(true);
@@ -102,9 +114,6 @@ export function HomeActions() {
             登录
           </Link>
         </div>
-        <p className="text-xs leading-5 text-slate-400">
-          不用登录也能进入番组大厅并体验对决。登录后可以创建自己的番组、生成个人 Tier List、参与社区榜单。
-        </p>
         {demoPoolError ? <ErrorAlert message={demoPoolError} /> : null}
       </div>
     );

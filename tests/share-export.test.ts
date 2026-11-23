@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { toPng } from "html-to-image";
-import { exportShareCardAsPng, getExportPixelRatio, inlineShareCardImagesForExport, waitForShareCardImages } from "../src/lib/share-export";
+import { exportShareCardAsPng, getExportImageTimeoutMs, getExportPixelRatio, inlineShareCardImagesForExport, waitForShareCardImages } from "../src/lib/share-export";
 
 const PNG = `data:image/png;base64,${"a".repeat(128)}`;
 vi.mock("html-to-image", () => ({ toPng: vi.fn() }));
@@ -19,7 +19,7 @@ function fakeCard(images: HTMLImageElement[]) {
 function imageResponse() { return new Response(new Uint8Array([1, 2, 3]), { headers: { "content-type": "image/png" } }); }
 
 describe("export image acquisition", () => {
-  it("reads COS through same-origin proxy when direct CORS fetch fails", async () => {
+  it("reads remote covers through the same-origin proxy first", async () => {
     const image = fakeImage();
     const fetchMock = vi.fn(async (url: string) => {
       if (url.startsWith("https:")) throw new TypeError("CORS blocked");
@@ -28,11 +28,41 @@ describe("export image acquisition", () => {
     vi.stubGlobal("fetch", fetchMock);
     await inlineShareCardImagesForExport(fakeCard([image]));
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
-      "https://cdn.example.test/cover.png",
       "/api/image-proxy?url=https%3A%2F%2Fcdn.example.test%2Fcover.png"
     ]);
     expect(image.src).toMatch(/^data:image\/png;base64,/);
     expect(image.style.opacity).toBe("1");
+  });
+  it("uses source image variants when a saved COS cover is missing", async () => {
+    const image = fakeImage("");
+    image.dataset.exportSrc = "https://bucket.cos.ap-shanghai.myqcloud.com/animatch/covers/missing.webp";
+    image.dataset.exportFallbackSrcs = JSON.stringify([
+      "https://lain.bgm.tv/pic/cover/l/working.jpg",
+      "https://lain.bgm.tv/pic/cover/m/working.jpg"
+    ]);
+    const fetchMock = vi.fn(async (url: string) =>
+      url.includes("missing.webp") ? new Response("missing", { status: 404 }) : imageResponse()
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await inlineShareCardImagesForExport(fakeCard([image]));
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "/api/image-proxy?url=https%3A%2F%2Fbucket.cos.ap-shanghai.myqcloud.com%2Fanimatch%2Fcovers%2Fmissing.webp",
+      "https://bucket.cos.ap-shanghai.myqcloud.com/animatch/covers/missing.webp",
+      "/api/image-proxy?url=https%3A%2F%2Flain.bgm.tv%2Fpic%2Fcover%2Fl%2Fworking.jpg"
+    ]);
+    expect(image.src).toMatch(/^data:image\/png;base64,/);
+  });
+  it("keeps a direct remote fallback if the same-origin proxy fails", async () => {
+    const image = fakeImage("https://cdn.example.test/cover.png");
+    const fetchMock = vi.fn(async (url: string) =>
+      url.startsWith("/api/image-proxy") ? new Response("busy", { status: 503 }) : imageResponse()
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await inlineShareCardImagesForExport(fakeCard([image]));
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "/api/image-proxy?url=https%3A%2F%2Fcdn.example.test%2Fcover.png",
+      "https://cdn.example.test/cover.png"
+    ]);
   });
   it("fetches repeated covers once and reads export-only source attributes", async () => {
     const fetchMock = vi.fn(async () => imageResponse());
@@ -112,6 +142,11 @@ describe("PNG capture", () => {
     expect(12000 * ratio).toBeLessThanOrEqual(4096);
     expect(1280 * 12000 * ratio ** 2).toBeLessThanOrEqual(8_000_000);
     expect(() => getExportPixelRatio(0, 100)).toThrow();
+  });
+  it("budgets more cover preparation time for a full pool", () => {
+    expect(getExportImageTimeoutMs(1)).toBe(30000);
+    expect(getExportImageTimeoutMs(58)).toBeGreaterThan(90000);
+    expect(getExportImageTimeoutMs(1000)).toBe(180000);
   });
   it("does not mistake complete broken images for decoded covers", async () => {
     vi.useFakeTimers();

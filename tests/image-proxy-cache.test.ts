@@ -48,9 +48,9 @@ beforeEach(() => {
 describe("image proxy LRU cache", () => {
   const source = readFileSync("src/app/api/image-proxy/route.ts", "utf8");
 
-  it("defines fresh TTL as 24h and stale TTL as 30d", () => {
+  it("defines fresh TTL as 24h and stale TTL as one year", () => {
     expect(source).toContain("FRESH_TTL_MS = 24 * 60 * 60 * 1000");
-    expect(source).toContain("STALE_TTL_MS = 30 * 24 * 60 * 60 * 1000");
+    expect(source).toContain("STALE_TTL_MS = 365 * 24 * 60 * 60 * 1000");
   });
 
   it("has separate memory and disk cache size limits", () => {
@@ -278,7 +278,7 @@ describe("image proxy LRU cache", () => {
   });
 
   it("does not use MAL-host special bypass path", () => {
-    expect(source).not.toContain("myanimelist.net");
+    expect(source).toContain("validateResolvedProxyTarget");
     expect(source).not.toContain("isMalHost");
     expect(source).not.toContain("useDirect");
   });
