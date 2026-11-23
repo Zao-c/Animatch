@@ -2,16 +2,17 @@
 
 import React, { useRef } from "react";
 
-export function DashboardTabs<T extends string>({ id, label, value, items, onChange }: {
+export function DashboardTabs<T extends string>({ id, label, value, items, onChange, mobileScroll = false }: {
   id: string;
   label: string;
   value: T;
   items: ReadonlyArray<{ value: T; label: string; count?: number }>;
   onChange: (value: T) => void;
+  mobileScroll?: boolean;
 }) {
   const buttons = useRef<Array<HTMLButtonElement | null>>([]);
   return (
-    <div role="tablist" aria-label={label} className="flex flex-wrap gap-1 rounded-2xl border border-anime-border bg-anime-panel p-1.5">
+    <div role="tablist" aria-label={label} className={"flex min-w-0 gap-1 rounded-2xl border border-anime-border bg-anime-panel p-1.5 " + (mobileScroll ? "flex-nowrap overflow-x-auto sm:flex-wrap sm:overflow-visible" : "flex-wrap")}>
       {items.map((item, index) => (
         <button key={item.value} ref={(node) => { buttons.current[index] = node; }} type="button"
           id={`${id}-tab-${item.value}`} role="tab" aria-selected={value === item.value}
@@ -28,7 +29,7 @@ export function DashboardTabs<T extends string>({ id, label, value, items, onCha
             onChange(items[next].value);
             buttons.current[next]?.focus();
           }}
-          className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 text-sm font-semibold transition sm:flex-none sm:px-5 ${value === item.value ? "bg-anime-purple/20 text-purple-100 ring-1 ring-anime-purple/35" : "text-slate-400 hover:bg-white/5 hover:text-white"}`}>
+          className={`inline-flex min-h-11 ${mobileScroll ? "flex-none" : "flex-1"} items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 text-sm font-semibold transition sm:flex-none sm:px-5 ${value === item.value ? "bg-anime-purple/20 text-purple-100 ring-1 ring-anime-purple/35" : "text-slate-400 hover:bg-white/5 hover:text-white"}`}>
           {item.label}
           {item.count !== undefined ? <span className="text-xs opacity-70">{item.count}</span> : null}
         </button>

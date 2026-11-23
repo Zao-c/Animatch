@@ -226,7 +226,7 @@ export default function UserProfilePage() {
 
             <section ref={contentRef} aria-label="公开作品和口味档案" className="scroll-mt-28 space-y-4">
               <h2 className="sr-only">公开作品</h2>
-              <DashboardTabs id="profile-library" label="公开内容" value={contentTab} onChange={(tab) => { setContentTab(tab); setContentPage(1); }} items={[
+              <DashboardTabs id="profile-library" label="公开内容" mobileScroll value={contentTab} onChange={(tab) => { setContentTab(tab); setContentPage(1); }} items={[
                 { value: "pools", label: "番组", count: profile.stats.publicPoolsCount },
                 { value: "shares", label: "动画榜单", count: profile.stats.sharedTierListCount },
                 { value: "songs", label: "音乐曲单", count: profile.stats.publicSongPlaylistsCount },
