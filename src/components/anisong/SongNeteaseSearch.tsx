@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppButton } from "@/components/ui/AppButton";
 import { songRequest } from "@/lib/anisong/client";
-import { KIND_LABELS, SONG_KINDS, type SongTrack } from "@/lib/anisong/types";
+import { MAX_TRACKS, KIND_LABELS, SONG_KINDS, type SongTrack } from "@/lib/anisong/types";
 import type { NeteaseAccount, NeteaseSong } from "@/lib/anisong/netease/types";
 import { SongCover } from "./SongCover";
 const accountUrl = "/api/anisong/netease/account";
@@ -107,7 +107,7 @@ function SearchPanel({ tracks, disabled, onSave }: { tracks: SongTrack[]; disabl
     {searched && <p className="text-xs text-slate-400">「{searched}」· {songs.length ? `显示 ${songs.length} 个版本，请核对歌手和专辑。` : "没有找到歌曲，试试日文歌名或歌手名。"}</p>}
     <ul className="max-h-[32rem] space-y-2 overflow-y-auto">{songs.map(song => {
       const exists = tracks.some(track => track.source.kind === "netease" && track.source.id === song.id);
-      return <li key={song.id} className="flex items-start gap-3 rounded-xl border border-white/10 p-3"><SongCover src={song.coverUrl} title={song.title} className="w-16 sm:w-20" /><div className="min-w-0 flex-1"><p className="break-words text-sm font-semibold">{song.title}</p><p className="mt-1 break-words text-xs text-slate-300">{song.artist}</p><p className="mt-1 break-words text-xs text-slate-500">{song.album} · {Math.floor(song.duration / 60000)}:{String(Math.floor(song.duration / 1000) % 60).padStart(2, "0")}</p><div className="mt-2 flex flex-wrap items-center gap-3"><AppButton size="sm" variant="secondary" disabled={disabled || Boolean(adding) || exists || tracks.length >= 64} onClick={() => void add(song)}>{exists ? "已在曲单" : adding === song.id ? "加入中…" : "加入曲单"}</AppButton><a href={`https://music.163.com/#/song?id=${song.id}`} target="_blank" rel="noreferrer" className="text-xs text-slate-400 underline">网易云 ↗</a>{song.restricted && <span className="text-xs text-amber-200">可能需要会员或购买</span>}</div></div></li>;
+      return <li key={song.id} className="flex items-start gap-3 rounded-xl border border-white/10 p-3"><SongCover src={song.coverUrl} title={song.title} className="w-16 sm:w-20" /><div className="min-w-0 flex-1"><p className="break-words text-sm font-semibold">{song.title}</p><p className="mt-1 break-words text-xs text-slate-300">{song.artist}</p><p className="mt-1 break-words text-xs text-slate-500">{song.album} · {Math.floor(song.duration / 60000)}:{String(Math.floor(song.duration / 1000) % 60).padStart(2, "0")}</p><div className="mt-2 flex flex-wrap items-center gap-3"><AppButton size="sm" variant="secondary" disabled={disabled || Boolean(adding) || exists || tracks.length >= MAX_TRACKS} onClick={() => void add(song)}>{exists ? "已在曲单" : adding === song.id ? "加入中…" : "加入曲单"}</AppButton><a href={`https://music.163.com/#/song?id=${song.id}`} target="_blank" rel="noreferrer" className="text-xs text-slate-400 underline">网易云 ↗</a>{song.restricted && <span className="text-xs text-amber-200">可能需要会员或购买</span>}</div></div></li>;
     })}</ul>
     <p className="text-xs leading-5 text-slate-500">加入后默认试听前30秒。平台可能只提供试听片段或暂无音源，可在曲单中更换版本或上传本地音频。</p>
   </div>;

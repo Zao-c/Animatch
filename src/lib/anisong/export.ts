@@ -31,7 +31,33 @@ async function loadBestCover(url: string, timeoutMs: number): Promise<HTMLImageE
   return null;
 }
 
+/** Keep each PNG within a bounded canvas size, even if every song is in one tier. */
+export function songPngPages(snapshot: SongSnapshot): SongSnapshot[] {
+  const pages: SongSnapshot[] = [];
+  let rows: SongSnapshot["rows"] = [], count = 0;
+  for (const row of snapshot.rows) {
+    if (!row.songs.length) { rows.push({ ...row, songs: [] }); continue; }
+    for (let start = 0; start < row.songs.length;) {
+      const songs = row.songs.slice(start, start + 150 - count);
+      rows.push({ ...row, songs }); count += songs.length; start += songs.length;
+      if (count === 150) { pages.push({ ...snapshot, rows }); rows = []; count = 0; }
+    }
+  }
+  if (count || !pages.length) pages.push({ ...snapshot, rows });
+  return pages;
+}
+
 export async function exportSongPng(snapshot: SongSnapshot) {
+  const pages = songPngPages(snapshot);
+  let missingCovers = 0;
+  for (let index = 0; index < pages.length; index++) {
+    const result = await exportSongPngPage(pages[index], pages.length > 1 ? `-${index + 1}of${pages.length}` : "");
+    missingCovers += result.missingCovers;
+  }
+  return { missingCovers, pages: pages.length };
+}
+
+async function exportSongPngPage(snapshot: SongSnapshot, suffix: string) {
   await document.fonts.ready;
   const width = 1200, margin = 40, labelWidth = 110, cardWidth = 200, cardHeight = 258, coverSize = 176;
   const rows = snapshot.rows.filter(r => r.songs.length || ["s", "a", "b", "c", "d"].includes(r.id));
@@ -92,6 +118,6 @@ export async function exportSongPng(snapshot: SongSnapshot) {
   });
   text("听一段，选一首。我的音乐偏好，由每一次选择组成。", margin, y + 40, 1100, 18, "#94a3b8");
   const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error("导出失败")), "image/png"));
-  downloadSongFile(`${snapshot.title.replace(/[\\/:*?"<>|]/g, "_")}-TierList.png`, blob);
+  downloadSongFile(`${snapshot.title.replace(/[\\/:*?"<>|]/g, "_")}-TierList${suffix}.png`, blob);
   return { missingCovers: [...covers.values()].filter(value => value === null).length };
 }

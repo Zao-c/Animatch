@@ -15,7 +15,8 @@ describe("home page UI refresh", () => {
     const html = renderToStaticMarkup(React.createElement(Home));
 
     expect(html).toContain("动画对决");
-    expect(html).toContain("进入番组大厅");
+    expect(html).toContain("音乐对决");
+    expect(html).toContain("AniMatch");
     expect(html).toContain("mini match demo");
     expect(html).not.toContain("三步生成榜单");
     expect(html).not.toContain("选出心头好");
@@ -23,14 +24,14 @@ describe("home page UI refresh", () => {
 });
 
 describe("home page preview copy", () => {
-  it("keeps the non-saving notice in the preview instead of a marketing introduction", () => {
+  it("keeps the preview concise instead of a marketing introduction", () => {
     const source = readFileSync("src/app/page.tsx", "utf8");
     const preview = readFileSync("src/components/home/HomeMiniMatchDemo.tsx", "utf8");
 
     expect(source).toContain("HomeActions");
     expect(source).toContain("HomeMiniMatchDemo");
     expect(source).not.toContain("从公开番组体验一次大乱斗");
-    expect(preview).toContain("不保存结果");
+    expect(preview).toContain("对决预览");
   });
 });
 
@@ -59,30 +60,14 @@ describe("home mini match demo source", () => {
   });
 });
 
-describe("HomeActions anonymous state", () => {
+describe("HomeActions entry points", () => {
   const source = readFileSync("src/components/HomeActions.tsx", "utf8");
-
-  it("shows anonymous CTA when not logged in", () => {
+  it("makes anime and music navigation equally discoverable", () => {
+    expect(source).toContain("动画对决");
+    expect(source).toContain("音乐对决");
     expect(source).toContain('href="/pools?view=public"');
-    expect(source).toContain('href="/login"');
-    expect(source).toContain("handleCreateDemoPool");
-  });
-
-  it("distinguishes null user from logged-in user in getMe response", () => {
-    expect(source).toContain("me.user !== null");
-    expect(source).toContain("if (me.user === null) return;");
-  });
-
-  it("shows logged-in CTA when authenticated", () => {
-    expect(source).toContain("continueHref");
-    expect(source).toContain("getDashboard");
-    expect(source).toContain('preview.source === "CONTINUE_RUN"');
-    expect(source).toContain("preview.ctaHref");
-    expect(source).not.toContain("listPools");
-    expect(source).not.toContain("getPool");
-    expect(source).toContain('href="/pools?view=public"');
-    expect(source).toContain("进入番组大厅");
-    expect(source).toContain("体验示例番组");
+    expect(source).toContain('href="/anisong"');
+    expect(source).not.toContain("体验示例番组");
   });
 });
 

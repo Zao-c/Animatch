@@ -5,7 +5,7 @@ import { songRequest } from "@/lib/anisong/client";
 import { KIND_LABELS, SONG_KINDS, type SongTrack } from "@/lib/anisong/types";
 import type { ItunesSong } from "@/lib/anisong/itunes/api";
 import { SongCover } from "./SongCover";
-export function SongItunesSearch({ track, disabled, onSelect, onRemove, onClose, initialOpen = false }: { track?: SongTrack; disabled: boolean; onSelect: (song: ItunesSong, metadata: FormData) => Promise<boolean>; onRemove?: () => Promise<boolean>; onClose?: () => void; initialOpen?: boolean }) {
+export function SongItunesSearch({ track, disabled, onSelect, onRemove, onClose, onSaved, initialOpen = false }: { track?: SongTrack; disabled: boolean; onSelect: (song: ItunesSong, metadata: FormData) => Promise<boolean>; onRemove?: () => Promise<boolean>; onClose?: () => void; onSaved?: () => void; initialOpen?: boolean }) {
   const [open, setOpen] = useState(Boolean(track) || initialOpen);
   const [query, setQuery] = useState(track ? `${track.title} ${track.artist}`.slice(0, 100) : "");
   const [country, setCountry] = useState(track?.itunes?.country || "JP");
@@ -26,14 +26,14 @@ export function SongItunesSearch({ track, disabled, onSelect, onRemove, onClose,
   async function select(song: ItunesSong) {
     if (disabled || lock.current || !form.current || !form.current.reportValidity()) return;
     lock.current = true; setSaving(true); setError("");
-    try { if (await onSelect(song, new FormData(form.current))) { setSearched(`已${track ? "关联" : "加入"}：${song.reference.title}`); if (track) onClose?.(); } }
+    try { if (await onSelect(song, new FormData(form.current))) { setSearched(`已${track ? "关联" : "加入"}：${song.reference.title}`); if (track) (onSaved ?? onClose)?.(); } }
     catch (cause) { setError(cause instanceof Error ? cause.message : "保存失败"); }
     finally { lock.current = false; setSaving(false); }
   }
   return <section className={`rounded-2xl border bg-slate-950/30 p-4 sm:p-5 ${track ? "border-cyan-300/30" : "border-white/10"}`}>
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">{track ? `为「${track.title}」匹配 iTunes 备用源` : "从 iTunes 找歌"}</h2><p className="mt-1 text-xs leading-5 text-slate-400">{track ? "核对歌手、语言和录音版本，确认后才会在降级时使用。" : "无需音乐平台账号，添加外部试听与封面；也可给公共池歌曲补充备用源。"}</p></div><AppButton size="sm" variant="secondary" disabled={disabled || saving} onClick={() => track ? onClose?.() : setOpen(value => !value)}>{track ? "收起匹配" : open ? "收起 iTunes 搜索" : "打开 iTunes 搜索"}</AppButton></div>
     {open && <div className="mt-4 space-y-4">
-      {track?.itunes && <div className="flex flex-wrap items-center gap-3 text-xs"><span className="text-cyan-200">已关联：{track.itunes.title} · {track.itunes.artist}（{track.itunes.country}）</span><AppButton size="sm" variant="quiet" disabled={disabled || saving} onClick={() => { if (onRemove) void onRemove().then(saved => { if (saved) onClose?.(); }); }}>移除 iTunes 匹配</AppButton></div>}
+      {track?.itunes && <div className="flex flex-wrap items-center gap-3 text-xs"><span className="text-cyan-200">已关联：{track.itunes.title} · {track.itunes.artist}（{track.itunes.country}）</span><AppButton size="sm" variant="quiet" disabled={disabled || saving} onClick={() => { if (onRemove) void onRemove().then(saved => { if (saved) (onSaved ?? onClose)?.(); }); }}>移除 iTunes 匹配</AppButton></div>}
       <form onSubmit={event => { event.preventDefault(); void search(); }} className="flex flex-wrap gap-2"><input aria-label="iTunes 搜索关键词" maxLength={100} value={query} onChange={event => setQuery(event.target.value)} placeholder="歌名 + 歌手" className="anime-field min-w-0 flex-1" /><select aria-label="iTunes 商店地区" value={country} onChange={event => { controller.current?.abort(); setSearching(false); setCountry(event.target.value); setSongs([]); setSearched(""); }} className="anime-field w-auto"><option value="JP">日本</option><option value="US">美国</option><option value="HK">香港</option><option value="TW">台湾</option><option value="GB">英国</option></select><AppButton type="submit" disabled={searching || !query.trim()}>{searching ? "搜索中…" : "搜索 iTunes"}</AppButton></form>
       <form ref={form} onSubmit={event => event.preventDefault()} className={track ? "hidden" : "grid gap-3 sm:grid-cols-4"}>
         <label className="text-xs text-slate-400">加入时的类型<select name="kind" defaultValue="OP" className="anime-field mt-1" disabled={disabled || saving}>{SONG_KINDS.map(kind => <option key={kind} value={kind}>{KIND_LABELS[kind]}</option>)}</select></label>

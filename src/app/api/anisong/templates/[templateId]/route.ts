@@ -1,4 +1,4 @@
-import { requireCurrentUser } from "@/lib/auth-session";
+import { requireCurrentUser, getCurrentUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
 import { ok, fromError } from "@/lib/api-response";
 import { AppError } from "@/lib/app-error";
@@ -8,7 +8,8 @@ export async function GET(_request: Request, { params }: { params: { templateId:
   try {
     const template = await prisma.songTemplate.findFirst({ where: { id: params.templateId, active: true }, include: { owner: { select: { name: true, username: true } } } });
     if (!template) throw new AppError("公共曲单不存在或已下架", 404);
-    return ok({ ...templateSummary(template), document: template.document });
+    const viewer = await getCurrentUser();
+    return ok({ ...templateSummary(template, viewer?.id), document: template.document, ...(viewer?.id === template.ownerId ? { ownerBoardId: template.sourceBoardId } : {}) });
   } catch (error) { return fromError(error); }
 }
 export async function DELETE(_request: Request, { params }: { params: { templateId: string } }) {

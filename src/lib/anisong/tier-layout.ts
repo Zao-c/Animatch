@@ -1,7 +1,7 @@
 import { AppError } from "@/lib/app-error";
 import { DEFAULT_TIER_CONFIG } from "@/lib/tier-config";
 import { rankSongs } from "./engine";
-import type { SongDocument } from "./types";
+import { MAX_TRACKS, type SongDocument } from "./types";
 
 export const SONG_EDITABLE_TIERS = DEFAULT_TIER_CONFIG.rows.map(row => row.id);
 export const SONG_TIER_LAYOUT_ROWS = [...SONG_EDITABLE_TIERS, "pending"];
@@ -22,7 +22,7 @@ export function applySongTierLayout(document: SongDocument, value: unknown): voi
   const rows: Record<string, string[]> = {};
   for (const tierId of SONG_TIER_LAYOUT_ROWS) {
     const ids = input[tierId];
-    if (!Array.isArray(ids) || ids.length > 64 || ids.some(id => typeof id !== "string")) throw new AppError("分档内容无效", 400);
+    if (!Array.isArray(ids) || ids.length > MAX_TRACKS || ids.some(id => typeof id !== "string")) throw new AppError("分档内容无效", 400);
     rows[tierId] = ids;
     for (const id of ids) {
       if (!active.has(id) || !baseline.has(id) || seen.has(id)) throw new AppError("歌曲不属于当前参赛范围或重复出现", 400);

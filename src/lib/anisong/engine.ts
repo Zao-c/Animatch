@@ -82,12 +82,25 @@ function pairingRandom(document: SongDocument) {
   return () => { state += 0x6d2b79f5; let t = Math.imul(state ^ (state >>> 15), state | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 
+/** Bound pair scoring for annual playlists; retain low-exposure and rank-wide candidates. */
+export function songPairingCandidates<T extends ScoreItem>(scores: T[], random: () => number): T[] {
+  if (scores.length <= 128) return scores;
+  const shuffled = scores.map(score => ({ score, jitter: random() })).sort((a, b) => a.jitter - b.jitter);
+  const selected = new Map<string, T>();
+  const add = (score: T) => selected.set(score.animeId, score);
+  [...shuffled].sort((a, b) => a.score.compareCount - b.score.compareCount).slice(0, 64).forEach(({ score }) => add(score));
+  shuffled.slice(0, 32).forEach(({ score }) => add(score));
+  const offset = random();
+  for (let index = 0; index < 32; index++) add(scores[Math.floor((index + offset) * scores.length / 32)]);
+  return [...selected.values()];
+}
+
 export function nextSongPair(document: SongDocument, random: () => number = pairingRandom(document)) {
   const ranking = rankSongs(document);
   const compared = new Set(document.events.filter(e => ["LEFT_WIN", "RIGHT_WIN", "DRAW"].includes(e.result))
     .map(e => makePairKey(e.leftId, e.rightId)));
   const recent = new Set(document.events.slice(-12).map(e => makePairKey(e.leftId, e.rightId)));
-  const pair = pickNextPair(ranking.active, compared, recent, { stage: ranking.progress.stage, random });
+  const pair = pickNextPair(songPairingCandidates(ranking.active, random), compared, recent, { stage: ranking.progress.stage, random });
   if (!pair) return null;
   const left = document.tracks.find(t => t.id === pair.leftAnimeId)!;
   const right = document.tracks.find(t => t.id === pair.rightAnimeId)!;

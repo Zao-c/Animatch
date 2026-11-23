@@ -1,3 +1,4 @@
+import { MAX_TRACKS } from "@/lib/anisong/types";
 import { describe, expect, it } from "vitest";
 import { changeSongCandidates, selectedSongIds, songBulkPatch } from "@/lib/anisong/bulk";
 import { emptySongDocument, type SongTrack } from "@/lib/anisong/types";
@@ -6,7 +7,7 @@ const doc = () => ({ ...emptySongDocument(), tracks });
 describe("bulk song editing", () => {
   it("validates and deduplicates only songs from the current board", () => {
     expect(selectedSongIds(["a", "a", "b"], tracks)).toEqual(["a", "b"]);
-    for (const input of [[], ["other"], [null], "a", Array(65).fill("a")]) expect(() => selectedSongIds(input, tracks)).toThrow();
+    for (const input of [[], ["other"], [null], "a", Array(MAX_TRACKS + 1).fill("a")]) expect(() => selectedSongIds(input, tracks)).toThrow();
   });
   it("only includes explicitly chosen fields", () => {
     expect(songBulkPatch({ anime: " 秋日来信 ", year: "2026" })).toEqual({ anime: "秋日来信", year: 2026 });

@@ -118,7 +118,6 @@ export function HomeMiniMatchDemo() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-white">对决预览</h2>
-          <p className="mt-1 text-xs text-slate-400">不保存结果</p>
         </div>
       </div>
 

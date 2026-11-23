@@ -65,7 +65,8 @@ describe("public pools view UI", () => {
 
   it("home links point directly to /pools?view=public", () => {
     const matches = homeActionsSource.match(/href="\/pools\?view=public"/g) ?? [];
-    expect(matches.length).toBeGreaterThanOrEqual(2);
+    expect(matches).toHaveLength(1);
+    expect(homeActionsSource).toContain('href="/anisong"');
   });
 });
 

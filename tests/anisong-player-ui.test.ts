@@ -18,9 +18,18 @@ describe("song playback controls", () => {
     expect(html).toContain('preload="none"');
     expect(html).not.toContain("更喜欢");
   });
+  it("renders vector controls with a reserved accessible status area", () => {
+    const html = renderToStaticMarkup(createElement(SongPlayer, { track, boardId: "board", compact: true }));
+    expect(html).toContain("<svg");
+    expect(html).not.toContain("▶");
+    expect(html).not.toContain("Ⅱ");
+    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain('aria-label="音量与音源详情"');
+    expect(html).toContain('aria-label="试听 Cipher"');
+  });
   it("keeps the no-audio fallback without unusable controls", () => {
     const html = renderToStaticMarkup(createElement(SongPlayer, { track: { ...track, source: { kind: "none" } }, boardId: "board", shortcut: "e" }));
-    expect(html).toContain("尚未添加音频");
+    expect(html).toContain("暂无可试听音源");
     expect(html).not.toContain("<audio");
     expect(html).not.toContain("<button");
   });

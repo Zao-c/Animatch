@@ -19,6 +19,7 @@ export async function POST(request: Request, { params }: { params: { boardId: st
   try {
     const user = await requireCurrentUser();
     const board = await ownedSongBoard(user.id, params.boardId);
+    if (board.templateId) throw new AppError("只能由曲单创建者添加或编辑歌曲", 403);
     const body = await boundedBody(request, MAX_AUDIO_BYTES + MAX_SONG_COVER_BYTES + 64 * 1024);
     const form = await new Response(body, { headers: { "Content-Type": request.headers.get("content-type") ?? "" } }).formData().catch(() => { throw new AppError("请使用有效的音频表单", 400); });
     const importKey = form.get("importKey");
