@@ -26,15 +26,10 @@ const NAV: { id: SongLobbyView; label: string; href: string }[] = [
 export function SongLobby({ view = "public" }: { view?: SongLobbyView }) {
   const page = PAGES[view];
   return <div className="mx-auto w-full max-w-[90rem] space-y-5 sm:space-y-6">
-    <header className="flex flex-wrap items-end justify-between gap-4">
-      <div className="min-w-0">
-        <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">{page.title}</h1>
-      </div>
-      {view === "public" && <Link className={appButtonClasses({ variant: "primary", size: "sm" })} href="/anisong/create">＋ 创建曲单</Link>}
-    </header>
-    <nav aria-label="音乐曲单导航" className="flex flex-wrap gap-1 rounded-2xl border border-anime-border bg-anime-panel p-1.5">
+    <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">{page.title}</h1>
+    <nav aria-label="音乐曲单导航" className="grid grid-cols-3 gap-1 rounded-2xl border border-anime-border bg-anime-panel p-1.5 sm:inline-flex">
       {NAV.map(item => <Link key={item.id} href={item.href} aria-current={item.id === view ? "page" : undefined}
-        className={"inline-flex min-h-11 items-center rounded-xl px-4 text-sm font-semibold transition sm:min-h-10 " +
+        className={"inline-flex min-h-11 min-w-0 items-center justify-center rounded-xl px-2 text-center text-xs font-semibold transition sm:min-h-10 sm:px-4 sm:text-sm " +
           (item.id === view ? "border border-anime-purple/35 bg-anime-purple/20 text-purple-100" : "border border-transparent text-slate-400 hover:bg-white/5 hover:text-white")}>{item.label}</Link>)}
     </nav>
     {view === "public" ? <SongTemplateGallery /> : view === "mine" ? <SongMyBoards /> : <SongCreateBoard />}
@@ -59,22 +54,19 @@ function SongMyBoards() {
     return <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{items.map(item => {
       return <SongPlaylistCard key={item.id} title={item.title} href={`/anisong/${item.id}`}
         covers={item.covers} count={item.trackCount} playable={item.playableCount}
-        progress={item.progress} tag={item.templateId ? "个人参与" : "我创建的"}>
-        <div className="grid grid-cols-2 gap-2">
-          <Link href={`/anisong/${item.id}`} className={appButtonClasses({ variant: "ghost", size: "sm", className: "w-full px-2" })}>曲单详情</Link>
-          <Link href={item.canStart ? `/anisong/${item.id}/match` : `/anisong/${item.id}`}
-            className={appButtonClasses({ variant: item.canStart ? "primary" : "secondary", size: "sm", className: "w-full px-2" })}>
-            {item.canStart ? item.progress ? "继续对决" : "开始对决" : "完善参赛歌曲"}
-          </Link>
-        </div>
+        progress={item.progress}>
+        <Link href={item.canStart ? `/anisong/${item.id}/match` : `/anisong/${item.id}`}
+          className={appButtonClasses({ variant: item.canStart ? "primary" : "secondary", size: "sm", className: "w-full px-2" })}>
+          {item.canStart ? item.progress ? "继续对决" : "开始对决" : "完善参赛歌曲"}
+        </Link>
       </SongPlaylistCard>;
     })}</div>;
   }
   return <div className="space-y-8">
     {error && <div role="alert" className="rounded-xl border border-amber-300/20 p-4 text-sm text-amber-100">{error}{login && <> · <Link href="/login?next=%2Fanisong%2Fmine" className="underline">登录后查看我的曲单</Link></>}</div>}
     {loading ? <p role="status" className="py-8 text-sm text-slate-400">正在加载我的音乐曲单…</p> : error ? null : !boards.length ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-sm text-slate-300">你还没有音乐曲单。<Link href="/anisong/create" className="ml-2 text-anime-cyan underline">创建第一份曲单 →</Link></div> : <>
-      <section className="space-y-4" aria-label="我创建的曲单"><div className="flex items-center justify-between gap-3"><h2 className="text-xl font-bold">我创建的曲单</h2><span className="text-xs text-slate-400">{own.length} 份</span></div>
-        {own.length ? cards(own) : <p className="text-sm text-slate-400">暂无自己创建的曲单。</p>}</section>
+      {own.length > 0 && <section className="space-y-4" aria-label="我创建的曲单"><div className="flex items-center justify-between gap-3"><h2 className="text-xl font-bold">我创建的曲单</h2><span className="text-xs text-slate-400">{own.length} 份</span></div>
+        {cards(own)}</section>}
       {participated.length > 0 && <section className="space-y-4" aria-label="我参加的公共曲单"><div className="flex items-center justify-between gap-3"><h2 className="text-xl font-bold">我参加的公共曲单</h2><span className="text-xs text-slate-400">{participated.length} 份</span></div>{cards(participated)}</section>}
     </>}
   </div>;

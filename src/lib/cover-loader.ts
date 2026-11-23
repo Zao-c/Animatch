@@ -91,9 +91,12 @@ async function deliver(sources: readonly string[], signal: AbortSignal, priority
   signal.addEventListener("abort", abort, { once: true }); if (signal.aborted) abort();
   const deadline = setTimeout(abort, 24000);
   try {
-    // A slow primary gets a head start, not an exclusive 15-second wait.
+    // A newly generated artwork derivative needs a longer head start:
+    // otherwise the original source wins the hedge and Match looks unchanged.
+    // Other covers retain the fast 800ms fallback behavior.
+    const fallbackStaggerMs = sources[0]?.startsWith("/api/cover-thumbnail?") ? 2500 : 800;
     return await Promise.any(candidates.map(async (source, index) => {
-      await delay(index * 800, controller.signal);
+      await delay(index * fallbackStaggerMs, controller.signal);
       try { return await queue.load(source, { signal: controller.signal, priority: priority.value }); }
       catch (error) { if (!controller.signal.aborted) boundedSet(failures, source, Date.now() + 10000); throw error; }
     }));

@@ -21,7 +21,9 @@ function render(coverUrl?: string) {
 describe("snapshot cover priority", () => {
   it("preserves resolved COS and custom covers even when old large originals exist", () => {
     expect(render(cos)).toContain(`data-export-src="${cos}"`);
-    expect(render("/uploads/anime-covers/custom.png")).toContain('data-export-src="/uploads/anime-covers/custom.png"');
+    const custom = render("/uploads/anime-covers/custom.png");
+    expect(custom).toContain('data-export-src="/api/cover-thumbnail?variant=tier&amp;src=%2Fuploads%2Fanime-covers%2Fcustom.png"');
+    expect(custom).toContain("/uploads/anime-covers/custom.png");
     // Old originals may remain as retry fallbacks, but must never be the primary cover.
     expect(render(cos)).not.toContain(`data-export-src="https://lain.bgm.tv/old-large.jpg"`);
   });

@@ -3,7 +3,6 @@ import { PoolStatus } from "@prisma/client";
 import { badRequest, forbidden, notFound, ok, fromError } from "@/lib/api-response";
 import {
   AnimeCoverUploadError,
-  deleteLocalAnimeCoverIfPresent,
   saveAnimeCoverUpload
 } from "@/lib/anime-cover-upload";
 import { requireCurrentUser } from "@/lib/auth-session";
@@ -78,7 +77,6 @@ export async function POST(request: Request, context: RouteContext) {
       poolId: pool.id,
       animeId: context.params.animeId
     });
-    const oldCoverUrlOverride = existingEntry.coverUrlOverride;
     const updated = await prisma.poolAnime.update({
       where: {
         id: existingEntry.id
@@ -93,7 +91,8 @@ export async function POST(request: Request, context: RouteContext) {
     });
     const poolAnime = serializePoolAnime(updated);
 
-    await deleteLocalAnimeCoverIfPresent(oldCoverUrlOverride);
+    // Previous uploads can be referenced by immutable public Tier snapshots.
+    // Keep them until a reference-aware cleanup job is available.
 
     return ok({
       ok: true,

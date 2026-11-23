@@ -16,6 +16,7 @@ import type { PublicTierShare, TierShareSnapshotItem } from "@/lib/client-api";
 import { copyToClipboard } from "@/lib/clipboard";
 import { formatDateTimeStable } from "@/lib/date-format";
 import { proxyExternalImageUrl } from "@/lib/image-proxy";
+import { smartCoverUrl } from "@/lib/smart-cover-url";
 
 export function TierShareView({
   share,
@@ -250,8 +251,12 @@ function ShareItemCard({
   const coverFit = shouldUseContainCover(item) ? "contain" : "cover";
   // Keep the snapshot's chosen cover first, then retry original sources if it fails.
   const rawCoverUrl = item.coverUrl?.trim() || getAnimeCoverUrl(item, { intent: "export" });
-  const coverUrl = exportMode ? proxyExternalImageUrl(rawCoverUrl) : rawCoverUrl;
-  const sourceCandidates = getAnimeSourceCoverCandidates(item).filter((url) => url !== rawCoverUrl);
+  const smartUrl = smartCoverUrl(rawCoverUrl, item.source, "tier");
+  const isSmart = smartUrl !== rawCoverUrl;
+  const originalUrl = exportMode ? proxyExternalImageUrl(rawCoverUrl) : rawCoverUrl;
+  const coverUrl = exportMode ? proxyExternalImageUrl(smartUrl) : smartUrl;
+  const sourceCandidates = [originalUrl, ...getAnimeSourceCoverCandidates(item)]
+    .filter((url): url is string => !!url && url !== coverUrl);
 
   return (
     <article className="w-28 rounded-xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_12px_36px_rgba(0,0,0,0.25)] sm:w-32">
@@ -266,17 +271,24 @@ function ShareItemCard({
               decoding="async"
               referrerPolicy="no-referrer"
               data-export-fallback-srcs={sourceCandidates.length > 0 ? JSON.stringify(sourceCandidates) : undefined}
-              className={`relative h-full w-full ${coverFit === "contain" ? "object-contain" : "object-cover"}`}
+              className={`relative h-full w-full ${isSmart ? "object-cover" : coverFit === "contain" ? "object-contain" : "object-cover"}`}
+              onError={(event) => {
+                if (isSmart && originalUrl && event.currentTarget.getAttribute("src") !== originalUrl) {
+                  event.currentTarget.src = originalUrl;
+                  event.currentTarget.classList.remove("object-cover");
+                  event.currentTarget.classList.add(coverFit === "contain" ? "object-contain" : "object-cover");
+                }
+              }}
             />
           ) : null}
         </div>
       ) : <AnimeCover
         src={coverUrl}
-        secondarySrc={sourceCandidates[0]}
+        secondarySrc={originalUrl}
         fallbackSrcs={sourceCandidates}
         title={title}
         size="sm"
-        fit={coverFit}
+        fit={isSmart ? "cover" : coverFit}
         className="h-28 w-full rounded-lg sm:h-32"
       />}
       {!exportMode ? (

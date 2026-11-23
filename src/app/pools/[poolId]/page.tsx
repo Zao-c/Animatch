@@ -17,6 +17,7 @@ import { PageShell } from "@/components/PageShell";
 import { StatusHint } from "@/components/StatusHint";
 import { TierShareCard } from "@/components/TierShareView";
 import { getAnimeCoverUrl, getAnimeSourceCoverCandidates } from "@/lib/anime-cover-url";
+import { smartCoverUrl } from "@/lib/smart-cover-url";
 import { getAnimeDisplayTitle, shouldUseContainCover } from "@/lib/anime-display";
 import { isSuspiciousPoolAnimeTitle, matchesPoolAnimeSearch } from "@/lib/pool-anime-search";
 import { isSlowNetwork, prewarmCoverUrls } from "@/lib/cover-prewarm";
@@ -66,6 +67,7 @@ import {
   previewTierMakerTemplate,
   removeAnimeFromPool,
   batchRemoveAnimeFromPool,
+  replacePoolAnimeImage,
   restorePool,
   uploadCustomItemToPool,
   uploadPoolAnimeCover,
@@ -2709,12 +2711,12 @@ function PoolAnimeCard({
       aria-label={batchMode ? `${isBatchSelected ? "取消选择" : "选择"} ${title}` : undefined}
     >
       <AnimeCover
-        src={coverUrl}
-        secondarySrc={entry.anime.imageSmallUrl ?? entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl}
+        src={smartCoverUrl(coverUrl, entry.anime.source, "card")}
+        secondarySrc={coverUrl}
         fallbackSrcs={getAnimeSourceCoverCandidates(entry.anime)}
         title={title}
         size="md"
-        fit={coverFit}
+        fit={smartCoverUrl(coverUrl, entry.anime.source, "card") !== coverUrl ? "cover" : coverFit}
         className="h-48 w-full rounded-none border-0 sm:h-52"
       />
       {batchMode ? (
@@ -2787,10 +2789,16 @@ function PoolAnimeDisplayPanel({
   onUploaded: () => Promise<void>;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const originalInputRef = useRef<HTMLInputElement>(null);
   const [selectedCoverFile, setSelectedCoverFile] = useState<File | null>(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [coverUploadError, setCoverUploadError] = useState<string | null>(null);
+  const [isReplacingOriginal, setIsReplacingOriginal] = useState(false);
+  const [replaceOriginalError, setReplaceOriginalError] = useState<string | null>(null);
+  const canReplaceOriginal = ["CUSTOM_UPLOAD", "TIERMAKER_IMPORT", "MANUAL"].includes(
+    entry.anime.source ?? ""
+  );
   const display = entry.display;
   const displayAnime = { ...entry.anime, display };
   const title = getAnimeDisplayTitle(displayAnime);
@@ -2819,6 +2827,36 @@ function PoolAnimeDisplayPanel({
   function handleCoverFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null;
     selectCoverFile(file);
+  }
+
+  async function handleOriginalImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    event.target.value = "";
+    setReplaceOriginalError(null);
+
+    if (file === null) return;
+
+    if (!COVER_UPLOAD_ACCEPT.split(",").includes(file.type)) {
+      setReplaceOriginalError("只支持 jpg、png、webp、gif 图片。");
+      return;
+    }
+
+    if (file.size > COVER_UPLOAD_MAX_BYTES) {
+      setReplaceOriginalError("图片不能超过 5MB。");
+      return;
+    }
+
+    setIsReplacingOriginal(true);
+
+    try {
+      await replacePoolAnimeImage(entry.poolId, entry.animeId, file);
+      setSelectedCoverFile(null);
+      await onUploaded();
+    } catch (reason) {
+      setReplaceOriginalError(reason instanceof Error ? reason.message : "替换图片失败");
+    } finally {
+      setIsReplacingOriginal(false);
+    }
   }
 
   function handleCoverDrop(event: DragEvent<HTMLDivElement>) {
@@ -2891,12 +2929,12 @@ function PoolAnimeDisplayPanel({
     <AppCard className="p-5" variant="focus">
       <div className="flex gap-3">
         <AnimeCover
-          src={coverUrl}
-          secondarySrc={entry.anime.imageSmallUrl ?? entry.anime.imageMediumUrl ?? entry.anime.imageLargeUrl}
-        fallbackSrcs={getAnimeSourceCoverCandidates(entry.anime)}
+          src={smartCoverUrl(coverUrl, entry.anime.source, "card")}
+          secondarySrc={coverUrl}
+          fallbackSrcs={getAnimeSourceCoverCandidates(entry.anime)}
           title={title}
           size="sm"
-          fit={coverFit}
+          fit={smartCoverUrl(coverUrl, entry.anime.source, "card") !== coverUrl ? "cover" : coverFit}
           className="shrink-0 rounded-xl"
         />
         <div className="min-w-0 flex-1">
@@ -2920,6 +2958,34 @@ function PoolAnimeDisplayPanel({
           <p className="text-xs leading-5 text-cyan-100">
             这个修改只影响当前番组，不会改动全局动画库。
           </p>
+          {canReplaceOriginal ? (
+            <div className="rounded-2xl border border-amber-300/25 bg-amber-300/[0.05] p-3">
+              <p className="text-xs font-semibold text-amber-100">替换原图</p>
+              <p className="mt-1 text-xs leading-5 text-slate-400">
+                直接换掉这条内容自己的图片，所有引用它的榜单都会更新，旧图与云端副本会被删除。
+              </p>
+              <input
+                ref={originalInputRef}
+                type="file"
+                accept={COVER_UPLOAD_ACCEPT}
+                onChange={handleOriginalImageChange}
+                className="hidden"
+              />
+              <AppButton
+                type="button"
+                onClick={() => originalInputRef.current?.click()}
+                disabled={isMutating || isReplacingOriginal}
+                variant="secondary"
+                size="sm"
+                className="mt-2 w-full"
+              >
+                {isReplacingOriginal ? "替换中..." : "选择新图片并替换"}
+              </AppButton>
+              {replaceOriginalError ? (
+                <p className="mt-1 text-xs leading-5 text-rose-200">{replaceOriginalError}</p>
+              ) : null}
+            </div>
+          ) : null}
           <input
             value={displayForm.displayTitleOverride}
             onChange={(event) =>

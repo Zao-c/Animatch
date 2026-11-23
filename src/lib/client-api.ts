@@ -977,6 +977,31 @@ export async function uploadPoolAnimeCover(poolId: string, animeId: string, file
   return payload.data;
 }
 
+export async function replacePoolAnimeImage(poolId: string, animeId: string, file: File) {
+  const formData = new FormData();
+  formData.set("file", file);
+
+  const response = await fetch(`/api/pools/${poolId}/anime/${animeId}/image`, {
+    method: "POST",
+    body: formData
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | ApiResponse<{ poolAnime: PoolAnimeEntry; display: EffectiveAnimeDisplay }>
+    | null;
+
+  if (payload === null) {
+    throw new Error(response.ok ? "Invalid API response" : `Request failed (${response.status})`);
+  }
+
+  if (!response.ok || payload.ok === false) {
+    const message =
+      payload.ok === false ? payload.error.message : `Request failed (${response.status})`;
+    throw new Error(message);
+  }
+
+  return payload.data;
+}
+
 export function clearPoolAnimeDisplayOverrides(poolId: string, animeId: string) {
   return fetchJson<{ poolAnime: PoolAnimeEntry; display: EffectiveAnimeDisplay }>(
     `/api/pools/${poolId}/anime/${animeId}/overrides`,

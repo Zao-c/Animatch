@@ -1,14 +1,19 @@
 "use client";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 /** The native top layer escapes both card overflow and modal clipping. */
 export function SongPlayerPopover({ label, children }: { label: string; children: ReactNode }) {
   const panel = useRef<HTMLDivElement>(null), trigger = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
   useEffect(() => {
     const p = panel.current, button = trigger.current;
     if (!p) return;
     p.setAttribute("popover", "auto");
     p.removeAttribute("hidden");
-    const syncExpanded = () => button?.setAttribute("aria-expanded", String(p.matches(":popover-open")));
+    const syncExpanded = () => {
+      const open = p.matches(":popover-open");
+      button?.setAttribute("aria-expanded", String(open));
+      if (!open && p.contains(document.activeElement)) button?.focus();
+    };
     p.addEventListener("toggle", syncExpanded);
     return () => { p.removeEventListener("toggle", syncExpanded); if (p.matches(":popover-open")) p.hidePopover(); };
   }, []);
@@ -31,5 +36,5 @@ export function SongPlayerPopover({ label, children }: { label: string; children
       ? below : Math.max(12, Math.min(rect.top, viewportHeight - height - 12));
     p.style.top = `${top}px`;
   }
-  return <><button ref={trigger} type="button" onClick={toggle} aria-label={label} aria-haspopup="dialog" aria-expanded="false" className="min-h-8 min-w-0 max-w-full truncate text-[10px] text-slate-300 hover:text-white">{label.startsWith("音量") ? "音量" : label}</button><div ref={panel} hidden role="dialog" aria-label={label} className="fixed m-0 max-h-60 overflow-y-auto overscroll-contain break-words rounded-xl border border-white/20 bg-slate-950 p-3 text-xs leading-6 text-slate-100 shadow-2xl">{children}</div></>;
+  return <><button ref={trigger} type="button" onClick={toggle} aria-label={label} aria-haspopup="dialog" aria-controls={panelId} aria-expanded="false" className="min-h-8 min-w-0 max-w-full truncate text-[10px] text-slate-300 hover:text-white">{label.startsWith("音量") ? "音量" : label}</button><div id={panelId} ref={panel} hidden role="dialog" aria-label={label} className="fixed m-0 max-h-60 overflow-y-auto overscroll-contain break-words rounded-xl border border-white/20 bg-slate-950 p-3 text-xs leading-6 text-slate-100 shadow-2xl">{children}</div></>;
 }

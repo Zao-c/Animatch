@@ -10,7 +10,7 @@ export function SongPlaylistCard({ title, href, covers, count, playable, progres
 }) {
   const available = [...new Set(covers.filter((cover): cover is string => Boolean(cover)))];
   return <AppCard className="group flex h-full min-w-0 flex-col overflow-hidden p-0 transition hover:border-anime-cyan/40">
-    <Link href={href} className="block min-w-0">
+    <Link href={href} aria-label={`查看曲单：${title}`} className="block min-w-0 rounded-t-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-cyan-300">
       <div className="flex h-24 items-center justify-center gap-1 overflow-hidden bg-gradient-to-r from-cyan-950/20 via-slate-900 to-violet-950/20 p-2">
         {available.length ? available.slice(0, 5).map(src =>
           <SongCover key={src} src={src} title={title} className={"!h-full !min-w-0 !rounded-md !border-0 " + (available.length === 1 ? "!w-20" : "!w-0 flex-1")} />

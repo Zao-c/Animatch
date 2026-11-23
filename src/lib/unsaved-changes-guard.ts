@@ -18,7 +18,10 @@ export function registerUnsavedChangesGuard(browser: Window, message: string): (
   const beforeUnload = (event: BeforeUnloadEvent) => {
     if (approvedLink) return;
     event.preventDefault();
-    event.returnValue = "";
+    // Browsers expose a writable BeforeUnloadEvent.returnValue; Node test Events
+    // may expose a read-only getter. Reflect.set keeps the native fallback without
+    // throwing during synthetic events or non-browser environments.
+    Reflect.set(event, "returnValue", "");
   };
 
   const beforeNavigate = (event: MouseEvent) => {

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 describe("onboarding guide copy", () => {
   const homeSource = readFileSync("src/app/page.tsx", "utf8");
+  const homeActionsSource = readFileSync("src/components/HomeActions.tsx", "utf8");
   const detailSource = readFileSync("src/app/pools/[poolId]/page.tsx", "utf8");
   const matchSource = readFileSync("src/app/pools/[poolId]/runs/[runId]/match/page.tsx", "utf8");
   const tierSource = readFileSync("src/app/pools/[poolId]/runs/[runId]/tier/page.tsx", "utf8");
@@ -16,6 +17,9 @@ describe("onboarding guide copy", () => {
     expect(homeSource).toContain("<HomeMiniMatchDemo />");
     expect(homeSource).not.toContain("三步生成榜单");
     expect(homeSource).not.toContain("从公开番组体验一次大乱斗");
+    // The two entry actions moved into HomeActions; both must stay offered.
+    expect(homeActionsSource).toContain("动画对决");
+    expect(homeActionsSource).toContain("音乐对决");
   });
 
   it("shows public pool anonymous onboarding copy", () => {

@@ -84,8 +84,8 @@ describe("TierExportCanvas", () => {
     expect(html).toContain(">B<");
     expect(html).toContain(">C<");
     expect(html).toContain(">D<");
-    expect(html).toContain('src="/uploads/custom-items/export-test.png"');
-    expect(html).toContain("tiermaker-export-image-contain");
+    expect(html).toContain("/api/cover-thumbnail?variant=tier&amp;src=%2Fuploads%2Fcustom-items%2Fexport-test.png");
+    expect(html).not.toContain("tiermaker-export-image-contain");
     expect(html).toContain('referrerPolicy="no-referrer"');
     expect(html).toContain("tiermaker-export-fallback");
   });
@@ -226,6 +226,7 @@ describe("TierExportCanvas", () => {
               animeId: "anime-1",
               id: "anime-1",
               title: "One Piece",
+              source: "MANAMI",
               imageUrl: "https://img.example.test/one-piece.jpg",
               imageLargeUrl: "https://img.example.test/one-piece-large.jpg",
               coverUrl: null,
@@ -235,6 +236,7 @@ describe("TierExportCanvas", () => {
               animeId: "anime-2",
               id: "anime-2",
               title: "Chainsaw Man",
+              source: "MANAMI",
               imageUrl: "https://img.example.test/chainsaw-man.jpg",
               imageLargeUrl: "https://img.example.test/chainsaw-man-large.jpg",
               coverUrl: null,
@@ -265,6 +267,7 @@ describe("TierExportCanvas", () => {
               animeId: "anime-1",
               id: "anime-1",
               title: "One Piece",
+              source: "MANAMI",
               imageUrl: "https://img.example.test/one-piece.jpg",
               coverUrl: null,
               thumbnailUrl: null
@@ -273,6 +276,7 @@ describe("TierExportCanvas", () => {
               animeId: "anime-2",
               id: "anime-2",
               title: "Chainsaw Man",
+              source: "MANAMI",
               imageUrl: "https://img.example.test/chainsaw-man.jpg",
               coverUrl: null,
               thumbnailUrl: null

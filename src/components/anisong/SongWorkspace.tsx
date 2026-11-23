@@ -25,6 +25,7 @@ import { MatchHeading } from "@/components/MatchPresentation";
 import { SongPlaybackPreferences } from "./SongPlaybackPreferences";
 import { SongVisibilityActions, type SongVisibility } from "./SongVisibilityActions";
 import { SongCommunityRanking } from "./SongCommunityRanking";
+import { SongVersionUpdateNotice } from "./SongVersionUpdateNotice";
 import { registerUnsavedChangesGuard } from "@/lib/unsaved-changes-guard";
 import { createClientMutationId } from "@/lib/client-id";
 
@@ -152,7 +153,7 @@ export function SongWorkspace({ boardId, view = "library", initialLibraryTab = "
   // not a destructive bulk-selection scratchpad.
   useEffect(() => {
     if (board?.templateId) setSelectedIds(board.document.candidateIds ?? board.document.tracks.map(track => track.id));
-  }, [board?.id, board?.revision, board?.templateId]);
+  }, [board?.id, board?.revision, board?.templateId, board?.document.candidateIds, board?.document.tracks]);
   useEffect(() => {
     if (board?.templateId && libraryTab === "settings") setLibraryTab("range");
   }, [board?.templateId, libraryTab]);
@@ -217,7 +218,7 @@ export function SongWorkspace({ boardId, view = "library", initialLibraryTab = "
         <AppButton variant="quiet" size="sm" disabled={disabled || !board.document.events.length} onClick={() => void mutate({ action: "undo" })}>撤回上次选择</AppButton>
         <details className="relative"><summary className="flex min-h-9 cursor-pointer items-center px-3 text-xs font-semibold text-slate-300">对决设置</summary><div className="absolute right-0 z-30 mt-3 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-white/10 bg-slate-950 p-3 shadow-xl"><SongPlaybackPreferences /><p className="mt-3 text-xs leading-6 text-slate-400">Q / E 试听或暂停左右歌曲，切换试听会自动暂停另一首。← / → 选择，↑ 平局，↓ 跳过；也支持 1 / 2 / 3 / 4。</p></div></details>
       </>}
-    ><p className="mt-1.5 min-h-5 text-xs text-slate-500">{ranking?.progress.stageLabel} · 有效 {ranking?.progress.effectiveComparisons}/{ranking?.progress.highConfidenceTarget}</p></MatchHeading> : view === "tier" ? <header><div className="flex flex-wrap items-center justify-between gap-3"><span className="rounded-full border border-amber-200/30 bg-amber-200/10 px-2.5 py-1 text-xs font-semibold text-amber-100">我的 Tier List</span><span role="status" className="text-xs text-slate-400">{busy ? "正在处理…" : conflict ? "请重新载入确认进度" : notice || "进度已保存"}</span></div><h1 className="mt-3 break-words text-3xl font-black tracking-tight text-white sm:text-4xl">{board.title}</h1></header> : <header className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,540px)]">
+    ><p className="mt-1.5 min-h-5 text-xs text-slate-500">{board.document.matchMode === "quick" ? "快速分档 · 可随时查看初稿" : ranking?.progress.stageLabel} · 有效 {ranking?.progress.effectiveComparisons} 场</p></MatchHeading> : view === "tier" ? <header><div className="flex flex-wrap items-center justify-between gap-3"><span className="rounded-full border border-amber-200/30 bg-amber-200/10 px-2.5 py-1 text-xs font-semibold text-amber-100">我的 Tier List</span><span role="status" className="text-xs text-slate-400">{busy ? "正在处理…" : conflict ? "请重新载入确认进度" : notice || "进度已保存"}</span></div><h1 className="mt-3 break-words text-3xl font-black tracking-tight text-white sm:text-4xl">{board.title}</h1></header> : <header className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,540px)]">
       <div className="min-w-0">
         <Link href="/anisong" className="mb-4 inline-flex text-xs text-slate-400 hover:text-white">← 音乐曲单</Link>
         <div className="flex flex-wrap gap-2"><AppBadge tone="status">{board.templateId ? "我的参与记录" : publicInfo?.isPublic ? "我创建的 · 公开" : "我创建的"}</AppBadge><AppBadge>{board.document.tracks.length} 首歌曲</AppBadge></div>
@@ -229,6 +230,12 @@ export function SongWorkspace({ boardId, view = "library", initialLibraryTab = "
         <section aria-label="开始音乐对决" className="rounded-xl border border-anime-cyan/35 bg-anime-cyan/[0.06] p-3">
           <div className="mb-3 flex items-center justify-between gap-2"><h2 className="text-sm font-bold text-cyan-100">个人音乐对决</h2><span className="text-xs text-slate-400">{ranking?.active.length ?? 0} 首参赛</span></div>
           <AppButton variant="primary" size="lg" className="w-full" disabled={disabled || (ranking?.active.length ?? 0) < 2} onClick={() => navigate("match")}>{board.document.events.length ? "继续音乐对决" : "开始音乐对决"}</AppButton>
+          {ranking && ranking.active.length >= 128 && board.document.matchMode !== "quick" && <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs text-slate-400">大曲单可先快速分档，不会清空你的已有投票。</span>
+            <AppButton variant="quiet" size="sm" disabled={disabled} onClick={async () => {
+              if (await mutate({ action: "matchMode", mode: "quick" })) navigate("match");
+            }}>开启快速分档</AppButton>
+          </div>}
         </section>
         <div className="mt-3 grid grid-cols-2 gap-3"><AppButton variant="secondary" disabled={disabled} onClick={() => navigate("tier")}>查看 / 调整 Tier List</AppButton><AppButton variant="secondary" disabled={disabled} onClick={() => jumpToLibraryTab("range")}>选择参赛范围</AppButton></div>
         {!board.templateId && <div className="mt-3 border-t border-white/10 pt-3">
@@ -239,6 +246,7 @@ export function SongWorkspace({ boardId, view = "library", initialLibraryTab = "
     </header>}
 
     {error && !taskActive && !bulkEditing && <div role="alert" className="space-y-3 rounded-xl border border-amber-300/30 bg-amber-300/5 p-4 text-sm text-amber-100"><p>{error}</p>{conflict && <><p>当前操作未确认。重新载入已保存进度后即可继续。</p><AppButton size="sm" onClick={() => void reload()} disabled={busy || loading}>重新载入</AppButton></>}{login && <Link href={`/login?next=${encodeURIComponent(`/anisong/${boardId}`)}`} className="underline">重新登录</Link>}</div>}
+    {view === "library" && board.templateId && <SongVersionUpdateNotice board={board} disabled={disabled} onApplied={(next)=>{latestBoard.current=next;setBoard(next);setNotice("已同步公开曲单，历史对决保留");}} />}
     {view === "library" && <section aria-label={board.templateId ? "个人歌曲谱与参赛范围" : "曲单歌曲管理"} className="space-y-5">
       <nav id="song-library-tabs" role="tablist" aria-label="曲单导航" className="scroll-mt-24 flex gap-1 rounded-2xl border border-anime-border bg-anime-panel p-1.5">
         {([ ["wall", "歌曲谱"], ["community", "社区榜"], ["range", "参赛范围"], ...(!board.templateId ? [["settings", "管理"] as const] : []) ] as const).map(([id, label]) => <button key={id} type="button" role="tab" id={`song-library-tab-${id}`} aria-controls="song-library-panel" aria-selected={libraryTab === id} tabIndex={libraryTab === id ? 0 : -1} onKeyDown={event => { if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return; event.preventDefault(); const tabs = Array.from(event.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>('[role="tab"]')); const index = tabs.indexOf(event.currentTarget); tabs[event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length]?.focus(); }} onClick={() => switchLibraryTab(id)} className={"min-h-11 rounded-xl border px-4 text-sm font-semibold transition " + (libraryTab === id ? "border-anime-purple/25 bg-anime-purple/20 text-purple-100" : "border-transparent text-slate-400 hover:bg-white/5 hover:text-white")}>{label}{id === "wall" ? ` ${board.document.tracks.length}` : ""}</button>)}
@@ -318,7 +326,7 @@ export function SongWorkspace({ boardId, view = "library", initialLibraryTab = "
         </div>
       </AppCard>}
     </section>}
-    {view === "match" && ranking && <SongMatchPanel boardId={boardId} pair={pair} ranking={ranking} disabled={disabled} onVote={vote} busy={busy} notice={conflict ? "请重新载入确认进度" : notice} onLibrary={() => navigate("library")} onTier={() => navigate("tier")} />}
+    {view === "match" && ranking && <SongMatchPanel boardId={boardId} pair={pair} ranking={ranking} document={board.document} disabled={disabled} onVote={vote} onModeChange={(mode) => { void mutate({ action: "matchMode", mode }); }} busy={busy} notice={conflict ? "请重新载入确认进度" : notice} onLibrary={() => navigate("library")} onTier={() => navigate("tier")} />}
     {view === "tier" && snapshot && <SongTierPanel board={board} snapshot={snapshot} disabled={disabled} shareUrl={shareUrl} onLayout={rows => mutate({ action: "tierLayout", rows })} onReset={() => mutate({ action: "tierReset" })} onExportPng={() => void exportPng()} onPublish={() => void mutate({ action: "publish" })} onUnpublish={() => void mutate({ action: "unpublish" })} onNotice={setNotice} onError={setError} />}
   </div>;
 }

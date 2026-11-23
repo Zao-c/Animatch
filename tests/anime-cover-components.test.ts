@@ -212,8 +212,8 @@ describe("anime cover rendering", () => {
     );
 
     expect(html).toContain("<img");
-    expect(html).toContain('src="/uploads/custom-items/test.png"');
-    expect(html).toContain('data-cover-fit="contain"');
+    expect(html).toContain("/api/cover-thumbnail?variant=card&amp;src=%2Fuploads%2Fcustom-items%2Ftest.png");
+    expect(html).toContain('data-cover-fit="cover"');
   });
 
   it("TierAnimeCard prefers imageMediumUrl over imageUrl for display covers", () => {

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AppButton, appButtonClasses } from "@/components/ui/AppButton";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { AppCard } from "@/components/ui/AppCard";
+import { DashboardTabs } from "@/components/ui/DashboardTabs";
 import { songRequest, SongApiError } from "@/lib/anisong/client";
 import { KIND_LABELS, SONG_KINDS, type SongKind, type SongBoardView, type SongDocument, type SongTemplateView } from "@/lib/anisong/types";
 import { SongCover } from "./SongCover";
@@ -20,12 +21,15 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
   const router = useRouter(), lock = useRef(false), wallRef = useRef<HTMLDivElement>(null);
   const [template, setTemplate] = useState<PublicTemplate | null>(null);
   const [tab, setTab] = useState<PublicTab>("songs");
+  const pendingTabScroll = useRef(false);
   const [error, setError] = useState(""), [busy, setBusy] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [query, setQuery] = useState(""), [kind, setKind] = useState<"" | SongKind>("");
   const [page, setPage] = useState(0), [selectedIds, setSelectedIds] = useState<string[]>([]), [rangeTouched, setRangeTouched] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
+    setError("");
     songRequest<PublicTemplate>(`/api/anisong/templates/${templateId}`, { signal: controller.signal })
       .then(data => {
         if (controller.signal.aborted) return;
@@ -35,7 +39,7 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
       })
       .catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "加载失败"); });
     return () => controller.abort();
-  }, [templateId]);
+  }, [templateId, retryKey]);
 
   const tracks = useMemo(() => template?.document.tracks ?? [], [template]);
   const filteredTracks = useMemo(() => {
@@ -61,7 +65,18 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
     if (next.kind !== undefined) setKind(next.kind);
     setPage(0);
   }
+  useEffect(() => {
+    if (!pendingTabScroll.current) return;
+    pendingTabScroll.current = false;
+    wallRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [tab]);
+
   function selectTab(next: PublicTab) {
+    if (tab === next) {
+      wallRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    pendingTabScroll.current = true;
     setTab(next);
     setPage(0);
   }
@@ -90,12 +105,11 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
   const ownerHref = isCreator ? `/anisong/${template!.ownerBoardId}` : "";
   return <div className="mx-auto w-full max-w-[90rem] space-y-4">
     <Link href="/anisong" className="inline-flex min-h-9 items-center text-sm text-anime-cyan">← 公开曲单</Link>
-    {error && <p role="alert" className="rounded-xl border border-amber-300/25 p-3 text-sm text-amber-200">{error}</p>}
+    {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/25 p-3 text-sm text-amber-200"><span>{error}</span>{!template && <AppButton variant="ghost" size="sm" onClick={() => setRetryKey(value => value + 1)}>重试加载</AppButton>}</div>}
     {!template ? !error && <p role="status">正在加载曲单…</p> : <>
       <header className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(310px,430px)]">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <AppBadge tone="success">公开</AppBadge>
             {template.mine && <AppBadge tone="status">我创建的</AppBadge>}
             <AppBadge>{template.trackCount} 首歌曲</AppBadge>
           </div>
@@ -111,7 +125,7 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
               {busy ? "正在进入…" : "开始 / 继续对决"}
             </AppButton>}
           <div className="grid grid-cols-2 gap-2">
-            <AppButton variant="secondary" size="sm" onClick={() => { selectTab("range"); wallRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>
+            <AppButton variant="secondary" size="sm" onClick={() => selectTab("range")}>
               {isCreator ? "查看参赛范围" : "选择参赛范围"}
             </AppButton>
             <SongShareButton path={`/anisong/templates/${templateId}`} />
@@ -119,20 +133,13 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
           {isCreator && <Link href={ownerHref} className="block py-1 text-center text-xs text-anime-cyan">管理我的曲单 →</Link>}
         </AppCard>
       </header>
-      <nav role="tablist" aria-label="公共曲单导航" className="flex flex-wrap gap-2 rounded-xl border border-anime-border bg-anime-panel p-1.5">
-        {([["songs","歌曲谱"],["range","参赛范围"],["community","社区榜"]] as const).map(([id,label]) =>
-          <button type="button" key={id} role="tab" aria-controls="song-public-panel" aria-selected={tab === id} onClick={() => selectTab(id)}
-            className={"min-h-10 rounded-lg px-4 text-sm font-semibold transition " + (tab === id ? "bg-anime-purple/20 text-purple-100" : "text-slate-400 hover:bg-white/5 hover:text-white")}>
-            {label}
-          </button>
-        )}
-      </nav>
-      {tab === "community" ? <AppCard id="song-public-panel" role="tabpanel" className="p-4 sm:p-5"><SongCommunityRanking templateId={templateId}/></AppCard> :
-        <AppCard id="song-public-panel" role="tabpanel" className="space-y-4 p-3 sm:p-4">
-          <div ref={wallRef} className="scroll-mt-24 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="sr-only">{tab === "range" ? "参赛范围" : "歌曲谱"}</h2>
-            {tab === "range" ? <span className="text-xs text-slate-400">{selectedIds.length} / {tracks.length} 首</span> : (query || kind) ? <span className="text-xs text-slate-400">{filteredTracks.length} 首结果</span> : null}
-          </div>
+      <div ref={wallRef} className="scroll-mt-24">
+        <DashboardTabs id="song-public" label="公共曲单导航" value={tab} onChange={selectTab}
+          items={[{ value: "songs", label: "歌曲谱" }, { value: "range", label: "参赛范围" }, { value: "community", label: "社区榜" }]} />
+      </div>
+      {tab === "community" ? <AppCard id={`song-public-panel-${tab}`} role="tabpanel" aria-labelledby={`song-public-tab-${tab}`} className="p-4 sm:p-5"><SongCommunityRanking templateId={templateId}/></AppCard> :
+        <AppCard id={`song-public-panel-${tab}`} role="tabpanel" aria-labelledby={`song-public-tab-${tab}`} className="space-y-4 p-3 sm:p-4">
+          <h2 className="sr-only">{tab === "range" ? "参赛范围" : "歌曲谱"}</h2>
           {tab === "range" && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-anime-cyan/20 bg-anime-cyan/[0.04] p-3">
             {isCreator ?
               <Link href={`${ownerHref}?tab=range`} className={appButtonClasses({ variant: "secondary", size: "sm" })}>调整我的参赛范围</Link> :
@@ -178,7 +185,7 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
           </div>
           {tab === "range" && !isCreator && <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-3">
             <p role="status" className="text-xs text-slate-300">已选择 {selectedIds.length} 首（至少 2 首）</p>
-            <AppButton variant="primary" disabled={busy || !canParticipate} onClick={() => void start()}>{busy ? "正在保存…" : "用已选歌曲开始对决"}</AppButton>
+            <AppButton variant="primary" disabled={busy || !canParticipate} onClick={() => void start()}>{busy ? "正在保存…" : "开始对决"}</AppButton>
           </div>}
         </AppCard>}
     </>}

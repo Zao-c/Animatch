@@ -585,7 +585,7 @@ export async function createManualAnime(input: ManualAnimeInput): Promise<Anime>
 
   const sourceId = `manual-${Date.now()}-${input.title.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 40)}`;
 
-  return prisma.anime.create({
+  const anime = await prisma.anime.create({
     data: {
       title: input.title.trim(),
       titleCn: input.titleCn?.trim() || null,
@@ -605,6 +605,9 @@ export async function createManualAnime(input: ManualAnimeInput): Promise<Anime>
       imageStatus: input.imageUrl ? "OK" : "MISSING",
     },
   });
+
+  cacheAnimeCoverToCosBackground(anime);
+  return anime;
 }
 
 // Manami data interfaces

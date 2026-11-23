@@ -35,9 +35,10 @@ describe("automatic taste profiles", () => {
     expect(await getTasteProfile("owner", "visitor")).toMatchObject({ visible: true, profile: { animeCount: 0 }, scopes: [] });
     expect(prisma.userPoolScore.findMany).toHaveBeenCalled();
   });
-  it("does not apply the old profile visibility switch to public-pool taste", async () => {
+  it("respects an explicit private profile setting even when the account has public-pool scores", async () => {
     vi.mocked(prisma.user.findFirst).mockResolvedValue({ id: "owner", tasteProfilePublic: true, allowTasteMatching: true, profileVisibility: "PRIVATE" } as any);
-    expect(await getTasteProfile("owner", "visitor")).toMatchObject({ visible: true });
+    expect(await getTasteProfile("owner", "visitor")).toMatchObject({ visible: false, profile: null, scopes: [] });
+    expect(await getTasteProfile("owner", "owner")).toMatchObject({ visible: true, isOwner: true });
   });
   it("still rejects a scope the current user did not participate in", async () => {
     await expect(findTasteMatches("owner", "pool:any")).rejects.toMatchObject({ statusCode: 400 });

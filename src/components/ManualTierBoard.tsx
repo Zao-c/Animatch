@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimeCover } from "./AnimeCover";
+import { smartCoverUrl } from "@/lib/smart-cover-url";
 import { TierShareCard } from "./TierShareView";
 import { AppButton, appButtonClasses } from "./ui/AppButton";
 import { buildManualBoardShare, moveBoardItem, validateManualBoard, type ManualBoardData } from "@/lib/manual-board";
@@ -201,7 +202,7 @@ export function ManualTierBoard({ initial, ownerId }: { initial: ManualBoardData
       onDragEnd={endDrag}
       onClick={() => setSelectedIds((current) => multiSelect ? current.includes(item.animeId) ? current.filter((id) => id !== item.animeId) : [...current, item.animeId] : current.length === 1 && current[0] === item.animeId ? [] : [item.animeId])}
       className={`w-full cursor-grab select-none overflow-hidden rounded-lg border text-left active:cursor-grabbing focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 ${selectedIds.includes(item.animeId) ? "border-cyan-300 ring-2 ring-cyan-300" : "border-white/10 hover:border-white/40"}`}>
-      <AnimeCover src={item.coverUrl} secondarySrc={getAnimeSourceCoverCandidates(item).find((url) => url !== item.coverUrl)} fallbackSrcs={getAnimeSourceCoverCandidates(item)} title={item.title} size="sm" className="aspect-[2/3] h-auto w-full rounded-none border-0" />
+      <AnimeCover src={smartCoverUrl(item.coverUrl, item.source, "card")} secondarySrc={item.coverUrl} fallbackSrcs={getAnimeSourceCoverCandidates(item)} title={item.title} size="sm" className="aspect-[2/3] h-auto w-full rounded-none border-0" />
       <span className="line-clamp-2 h-9 px-1 py-1 text-[11px] leading-[14px] text-slate-200" title={item.title}>{item.title}</span>
     </button>
     {search && <span className="block truncate py-1 text-center text-[11px] text-cyan-200">{row ? board.layout.rows.find((entry) => entry.id === row)?.label : "待排"}</span>}

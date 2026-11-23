@@ -25,7 +25,7 @@ describe("shared playback choices", () => {
   ] as const)("honors preferred %s and fallback %s", (preferred, fallback, expected) => { expect(songPlaybackPlan(track, { preferred, fallback })).toEqual(expected); });
   it("falls back only to sources actually attached to this recording", () => {
     expect(songPlaybackPlan({ ...track, itunes: null }, { preferred: "itunes", fallback: true })).toEqual(["pool"]);
-    expect(songPlaybackPlan({ ...track, itunes: null }, { preferred: "itunes", fallback: false })).toEqual([]);
+    expect(songPlaybackPlan({ ...track, itunes: null }, { preferred: "itunes", fallback: false })).toEqual(["pool"]); // An existing sole provider must still play
     expect(songPlaybackPlan({ ...track, source: { kind: "none" } }, { preferred: "pool", fallback: true })).toEqual(["itunes"]);
   });
   it("supports private uploads before publication without requiring a provider login", () => {

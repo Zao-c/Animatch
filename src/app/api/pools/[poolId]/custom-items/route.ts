@@ -13,6 +13,7 @@ import { canEditPoolContent } from "@/lib/pool-permissions";
 import { ANIME_SOURCE } from "@/lib/anime-source";
 import { serializePoolAnime } from "@/lib/pool-anime-serializer";
 import { getNextPoolAnimePosition, withPoolAnimePositionTransaction } from "@/lib/pool-anime-position";
+import { enqueuePoolAnimeCoverCache } from "@/lib/server/pool-cover-cache";
 
 interface RouteContext {
   params: {
@@ -123,6 +124,10 @@ export async function POST(request: Request, context: RouteContext) {
         }
       });
     });
+
+    // Mirror the image to COS so custom item art is served from the CDN; the
+    // local file stays on disk as the fallback and remains in control of deletes.
+    enqueuePoolAnimeCoverCache(createdEntry.anime);
 
     return ok(
       {
