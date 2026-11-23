@@ -33,12 +33,12 @@ describe("pool listing card hierarchy", () => {
 
     expect(actionRow).toContain('onOpenRun(pool, "match")');
     expect(actionRow).toContain('onOpenRun(pool, "tier")');
-    expect(actionRow).toContain("查看 Tier");
+    expect(actionRow).toContain('tierEntry.kind === "create"');
+    expect(actionRow).toContain('tierEntry.kind !== "none"');
     expect(actionRow).toContain("详情");
-    expect(actionRow).toContain('canViewTier ? (');
-    expect(actionRow).toContain("canPlay");
-    expect(actionRow).toContain('window.location.assign');
+    expect(actionRow).toContain("tierEntry.href");
     expect(more).not.toContain("查看 Tier");
+    expect(more).not.toContain('onOpenRun(pool, "tier")');
   });
 
   it("keeps only management actions in the accessible, expandable section", () => {
@@ -49,8 +49,18 @@ describe("pool listing card hierarchy", () => {
     expect(more).toContain("番组设置");
     expect(more).toContain("恢复番组");
     expect(more).toContain("归档番组");
-    expect(more).toContain("添加动画");
+    expect(more).not.toContain("添加动画");
     expect(more).toContain('min-h-11');
+  });
+
+  it("shows the add-anime shortcut outside the collapsed controls only for editors", () => {
+    const shortcutIndex = card.indexOf('aria-label={`向${pool.name}添加动画`}');
+    const moreIndex = card.indexOf('<details className="mt-3 border-t');
+    expect(shortcutIndex).toBeGreaterThan(0);
+    expect(shortcutIndex).toBeLessThan(moreIndex);
+    expect(card).toContain('!isArchived && canAddAnime && (!isPublicView || canManage) ? (');
+    expect(card).toContain('href={`/pools/${pool.id}#add-anime`}');
+    expect(card).toContain('size: "md"');
   });
 
   it("presents count metadata as quiet text rather than repeated pills", () => {
