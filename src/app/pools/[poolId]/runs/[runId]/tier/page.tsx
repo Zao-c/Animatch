@@ -843,10 +843,10 @@ function TierPageContent({ params }: { params: { poolId: string; runId: string }
 
       {isLoading ? <ErrorAlert message="正在加载榜单..." tone="notice" className="mb-5" /> : null}
       {isEditing ? (
-        <div className="sticky top-32 z-30 mb-5 flex flex-col items-stretch gap-2 rounded-xl border border-amber-300/30 bg-slate-950 p-3 shadow-xl sm:flex-row sm:flex-wrap sm:items-center sm:justify-between xl:top-24">
+        <div className="sticky top-32 z-30 mb-5 flex flex-col items-stretch gap-2 rounded-xl border border-amber-400/30 bg-[#181b21] p-3 shadow-xl sm:flex-row sm:flex-wrap sm:items-center sm:justify-between xl:top-24">
           <p role="status" aria-atomic="true" className="min-w-0 flex-1 text-sm text-amber-100">
             {isSaving || shareStage === "saving" ? "正在保存排序…" : shareStage === "creating" ? "正在创建公开链接…" : hasUnsavedChanges ? recovery.ready && !recovery.storageError ? "未保存到账号 · 此标签页暂存" : "有未保存修改" : "编辑中 · 可拖动或用卡片菜单调整"}
-            {sortStatus ? <span title={sortStatus} className="mt-1 line-clamp-2 text-xs text-slate-300 [overflow-wrap:anywhere]">{sortStatus}</span> : null}
+            {sortStatus ? <span title={sortStatus} className="mt-1 line-clamp-2 text-xs text-zinc-300 [overflow-wrap:anywhere]">{sortStatus}</span> : null}
           </p>
           <div className="flex shrink-0 gap-2 [&>button]:flex-1 sm:[&>button]:flex-none"><AppButton onClick={handleSave} disabled={isTierBusy || !hasUnsavedChanges} variant="primary">{isSaving ? "保存中…" : "保存排序"}</AppButton><AppButton onClick={cancelEditing} disabled={isTierBusy} variant="ghost">取消编辑</AppButton></div>
         </div>
@@ -857,7 +857,7 @@ function TierPageContent({ params }: { params: { poolId: string; runId: string }
         <label className="flex min-h-11 items-center gap-2 text-sm text-slate-300">
           <input
             type="checkbox"
-            className="h-4 w-4 shrink-0 accent-cyan-400"
+            className="h-4 w-4 shrink-0 accent-zinc-200"
             checked={exportShowTitles}
             disabled={isExporting}
             onChange={(event) => setExportShowTitles(event.target.checked)}
@@ -873,7 +873,7 @@ function TierPageContent({ params }: { params: { poolId: string; runId: string }
         <div className="tier-export-surface">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-bold text-white">作品分层</h2>
-            <span className="text-sm text-slate-400">{tierList.totalAnime} 部作品 · {tierList.effectiveComparisons} 场有效对决</span>
+            <span className="text-sm text-zinc-400">{tierList.totalAnime} 部作品 · {tierList.effectiveComparisons} 场有效对决</span>
           </div>
           {showTierInfo ? <>
           <div className="mb-4 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.025] p-3">
@@ -913,19 +913,19 @@ function TierPageContent({ params }: { params: { poolId: string; runId: string }
               }
             />
           ) : null}
-          <div className="mb-3">
-            {!isEditing ? <AppButton onClick={startEditing} disabled={isTierBusy} variant="secondary" size="sm">调整排序</AppButton> : null}
-            <AppButton variant="secondary" size="sm" aria-pressed={compactBoard} onClick={() => setCompactBoard((value) => !value)}>{compactBoard ? "切换大图详情" : "切换紧凑总览"}</AppButton>
-            <AppButton
-              onClick={() => setShowTierInfo((value) => !value)}
-              variant="quiet"
-              size="sm"
-              aria-expanded={showTierInfo}
-            >
-              {showTierInfo ? "收起说明" : "榜单说明与初始估计"}
-            </AppButton>
-            {showTierInfo ? (
-              <div className="mt-3 space-y-3">
+        <div className="mb-3 flex flex-wrap gap-2">
+          {!isEditing ? <AppButton onClick={startEditing} disabled={isTierBusy} variant="secondary" size="sm">调整排序</AppButton> : null}
+          <AppButton variant="secondary" size="sm" aria-pressed={compactBoard} onClick={() => setCompactBoard((value) => !value)}>{compactBoard ? "切换大图详情" : "切换紧凑总览"}</AppButton>
+          <AppButton
+            onClick={() => setShowTierInfo((value) => !value)}
+            variant="quiet"
+            size="sm"
+            aria-expanded={showTierInfo}
+          >
+            {showTierInfo ? "收起说明" : "榜单说明与初始估计"}
+          </AppButton>
+          {showTierInfo ? (
+            <div className="mt-2 w-full space-y-3">
                 <StatusHint
                   label="榜单说明"
                   title="系统排序来自两两对决"
@@ -944,7 +944,7 @@ function TierPageContent({ params }: { params: { poolId: string; runId: string }
             ) : null}
           </div>
 
-          <div role="region" aria-label="作品分层榜单" tabIndex={0} className={compactBoard && !isEditing ? "max-h-[70dvh] space-y-3 overflow-y-auto overscroll-contain pr-1" : "space-y-4"}>
+          <div role="region" aria-label="作品分层榜单" tabIndex={0} className={compactBoard && !isEditing ? "max-h-[70dvh] overflow-hidden overflow-y-auto overscroll-contain rounded-xl border border-white/[0.08] bg-[#14161b]" : "overflow-hidden rounded-xl border border-white/[0.08] bg-[#14161b]"}>
             {tierRows.map((row) => {
               const rowItems = visibleTiers?.[row.id] ?? [];
               return (
@@ -958,10 +958,10 @@ function TierPageContent({ params }: { params: { poolId: string; runId: string }
                   event.preventDefault();
                   handleDrop(row.id);
                 }}
-                className="grid min-w-0 gap-3 rounded-2xl border border-anime-border bg-anime-panel p-3 sm:grid-cols-[80px_minmax(0,1fr)]"
+                className="grid min-w-0 border-b border-white/[0.08] last:border-b-0 sm:grid-cols-[84px_minmax(0,1fr)]"
               >
                 <div
-                  className="flex min-h-11 items-center justify-between gap-2 rounded-xl px-3 py-2 text-center sm:flex-col sm:justify-center"
+                  className="flex min-h-11 items-center justify-between gap-2 px-3 py-2 text-center sm:flex-col sm:justify-center"
                   style={{ backgroundColor: row.color }}
                 >
                   <span className="max-w-full text-2xl font-black leading-tight text-slate-950 [overflow-wrap:anywhere]">
@@ -970,13 +970,13 @@ function TierPageContent({ params }: { params: { poolId: string; runId: string }
                   <span className="text-xs font-semibold text-slate-950">{rowItems.length} 部</span>
                 </div>
                 {rowItems.length === 0 ? (
-                  <div className="flex min-h-24 items-center rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-4">
-                    <p className="text-sm text-slate-500">
+                  <div className="flex min-h-24 items-center bg-[#0f1115] px-4">
+                    <p className="text-sm text-zinc-500">
                       {row.label} Tier 暂无作品。继续对决后作品会自动进入对应区间。
                     </p>
                   </div>
                 ) : (
-                  <div className={compactBoard && !isEditing ? "grid min-w-0 grid-cols-4 items-start gap-2 sm:grid-cols-[repeat(auto-fill,minmax(88px,1fr))]" : "grid min-w-0 grid-cols-2 items-start gap-3 min-[380px]:grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(128px,1fr))]"}>
+                  <div className={compactBoard && !isEditing ? "grid min-w-0 grid-cols-4 items-start gap-1.5 bg-[#0f1115] p-2 sm:grid-cols-[repeat(auto-fill,minmax(84px,1fr))]" : "grid min-w-0 grid-cols-2 items-start gap-2.5 bg-[#0f1115] p-2.5 min-[380px]:grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(124px,1fr))]"}>
                     {rowItems.map((item) => (
                       <TierAnimeCard
                         key={item.animeId}
@@ -1036,7 +1036,7 @@ function TierPageContent({ params }: { params: { poolId: string; runId: string }
           <label className="flex min-h-11 items-center gap-2 text-sm text-slate-300">
             <input
               type="checkbox"
-              className="h-4 w-4 shrink-0 accent-cyan-400"
+              className="h-4 w-4 shrink-0 accent-zinc-200"
               checked={exportShowTitles}
               disabled={isExporting}
               onChange={(event) => setExportShowTitles(event.target.checked)}
@@ -1147,7 +1147,7 @@ function TierPageContent({ params }: { params: { poolId: string; runId: string }
           aria-labelledby="tier-share-confirm-title"
           tabIndex={-1}
           aria-busy={isSharing}
-          className="mb-5 scroll-mt-40 border-cyan-300/25 p-4 focus:outline-none"
+          className="mb-5 scroll-mt-40 border-white/15 p-4 focus:outline-none"
           variant="focus"
           onKeyDown={(event) => {
             if (event.key === "Escape" && !isTierBusy) { event.stopPropagation(); closeShareConfirmation(); }
@@ -1160,7 +1160,7 @@ function TierPageContent({ params }: { params: { poolId: string; runId: string }
               <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">
                 这会生成一份固定的公开快照。拿到链接的任何人都能查看当前榜单；之后的对决不会修改这份快照。
               </p>
-              <p className="mt-2 text-sm leading-6 text-cyan-100">
+              <p className="mt-2 text-sm leading-6 text-zinc-200">
                 {hasUnsavedChanges ? "当前有未保存排序。确认后先保存到账号，再按保存成功的版本创建公开链接。" : "将按当前已保存排序和当前分层名称创建公开链接。之后的编辑不会更新这个链接。"}
               </p>
               {isSharing ? <p role="status" className="mt-2 text-sm text-slate-300">{shareStage === "saving" ? "正在保存当前排序…" : "正在创建公开链接…"}</p> : null}
@@ -1251,8 +1251,8 @@ function TierPageContent({ params }: { params: { poolId: string; runId: string }
                   onClick={() => setRecalibrationType(mode.type)}
                   className={`rounded-2xl border p-4 text-left transition ${
                     selected
-                      ? "border-cyan-300/50 bg-cyan-300/12 shadow-[0_0_28px_rgba(3,218,197,0.14)]"
-                      : "border-white/10 bg-slate-950/42 hover:border-white/20"
+                      ? "border-white/35 bg-white/[0.08]"
+                      : "border-white/10 bg-[#14161b] hover:border-white/20"
                   }`}
                 >
                   <h3 className="font-semibold text-white">{mode.title}</h3>
@@ -1309,8 +1309,8 @@ function TierPageContent({ params }: { params: { poolId: string; runId: string }
                     }
                     className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
                       selected
-                        ? "border-cyan-300 bg-cyan-300 text-slate-950"
-                        : "border-white/15 text-slate-300 hover:border-cyan-300/35"
+                        ? "border-zinc-100 bg-zinc-100 text-zinc-950"
+                        : "border-white/15 text-slate-300 hover:border-white/25"
                     }`}
                   >
                     {getAnimeDisplayTitle(item)}
@@ -1350,7 +1350,7 @@ function TierPageContent({ params }: { params: { poolId: string; runId: string }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/10 bg-slate-950/28 px-3 text-xs text-slate-400">
+    <div className="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/10 bg-[#14161b] px-3 text-xs text-slate-400">
       <span>{label}</span>
       <span className="font-black text-white">{value}</span>
     </div>

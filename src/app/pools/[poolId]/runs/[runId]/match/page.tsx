@@ -52,7 +52,7 @@ function MatchPageContent({ params }: { params: { poolId: string; runId: string 
   const [confidenceScore, setConfidenceScore] = useState(0);
   const [queueMeta, setQueueMeta] = useState<Pick<
     MatchQueueResponse,
-    "scoreDistribution" | "progress"
+"scoreDistribution" | "progress"
   > | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -349,7 +349,7 @@ function MatchPageContent({ params }: { params: { poolId: string; runId: string 
     if (pendingVote.current) { setError("请先重试并确认上一票，再重开本轮"); return; }
     if (
       !window.confirm(
-        "这会开启一轮新的对决，旧榜单和历史记录仍会保留。确定重开吗？"
+"这会开启一轮新的对决，旧榜单和历史记录仍会保留。确定重开吗？"
       )
     ) {
       return;
@@ -445,10 +445,10 @@ function MatchPageContent({ params }: { params: { poolId: string; runId: string 
   const candidateTrigger = ownerId.current && <AppButton id="personal-candidate-trigger" variant="secondary" size="sm" disabled={interactionBusy || !!pendingVote.current} onClick={openCandidateEditor}>本轮对决范围{scopeCounts.paused > 0 ? ` · 暂停 ${scopeCounts.paused} 部` : ""}</AppButton>;
 
   if (recoveredVote) {
-    return <PageShell><section className="mx-auto max-w-xl space-y-4 rounded-2xl border border-cyan-300/30 bg-slate-950/50 p-6">
+    return <PageShell><section className="mx-auto max-w-xl space-y-4 rounded-2xl border border-white/25 bg-[#14161b] p-6">
       <h1 className="text-xl font-bold">发现一票尚未确认的选择</h1>
       <p className="text-sm leading-6 text-slate-300">刷新前的请求可能已保存。确认时会复用原来的编号，不会再次计票；确认后再继续选择。</p>
-      <dl className="space-y-2 text-sm"><div><dt className="text-slate-400">左边</dt><dd>{recoveredVote.leftTitle}</dd></div><div><dt className="text-slate-400">右边</dt><dd>{recoveredVote.rightTitle}</dd></div><div><dt className="text-slate-400">你的选择</dt><dd className="font-bold text-cyan-200">{VOTE_LABELS[recoveredVote.request.result]}</dd></div></dl>
+      <dl className="space-y-2 text-sm"><div><dt className="text-slate-400">左边</dt><dd>{recoveredVote.leftTitle}</dd></div><div><dt className="text-slate-400">右边</dt><dd>{recoveredVote.rightTitle}</dd></div><div><dt className="text-slate-400">你的选择</dt><dd className="font-bold text-zinc-200">{VOTE_LABELS[recoveredVote.request.result]}</dd></div></dl>
       {error && <ErrorAlert message={error} />}
       {storageWarning && <p role="alert" className="text-sm text-amber-200">{storageWarning}</p>}
       <div className="flex flex-wrap gap-3"><AppButton disabled={isSubmitting} onClick={() => void confirmRecoveredVote()}>{isSubmitting ? "正在确认…" : "确认上一票并继续"}</AppButton><Link href={`/pools/${params.poolId}/runs/${params.runId}/tier`} className={appButtonClasses({ variant: "ghost" })}>查看当前榜单</Link><Link href={`/pools/${params.poolId}`} className={appButtonClasses({ variant: "ghost" })}>返回番组</Link></div>
@@ -553,7 +553,7 @@ function MatchPageContent({ params }: { params: { poolId: string; runId: string 
             <summary className={appButtonClasses({ variant: "quiet", size: "sm", className: "list-none" })}>
               对决设置
             </summary>
-            <div className="absolute right-0 z-20 mt-3 w-72 rounded-2xl border border-white/10 bg-slate-950/92 p-3 shadow-anime-panel backdrop-blur-xl">
+            <div className="absolute right-0 z-20 mt-3 w-72 rounded-2xl border border-white/10 bg-[#111318] p-3">
               <div className="mb-3 grid grid-cols-2 gap-2">
                 <Stat label="我的稳定度" value={confidenceScore.toFixed(1)} />
                 <Stat label="队列" value={String(queue.length)} />
@@ -594,8 +594,8 @@ function MatchPageContent({ params }: { params: { poolId: string; runId: string 
 
       {ownerId.current && <MatchSessionGoal key={ownerId.current} scopeKey={`${ownerId.current}:${params.poolId}:${params.runId}`} count={effectiveCount} resultHref={`/pools/${params.poolId}/runs/${params.runId}/tier`} disabled={interactionBusy || !!pendingVote.current} />}
 
-      <div role="status" aria-live="polite" aria-atomic="true" className="mb-2 min-h-6 text-center text-sm text-cyan-100">
-        {isSubmitting ? feedbackResult ? "已记录，准备下一组…" : "正在保存选择…" : notice ?? "点击封面，选出更喜欢的一部"}
+      <div role="status" aria-live="polite" aria-atomic="true" className="mb-2 min-h-6 text-center text-sm text-zinc-300">
+        {isSubmitting ? feedbackResult ? "已记录，准备下一组…" : "正在保存选择…" : notice ?? "点击海报，选出更喜欢的一部"}
       </div>
       {error ? <ErrorAlert message={`${error}。当前对决已保留，请重试。`} className="mb-3" /> : null}
       {storageWarning && <p role="alert" className="mb-3 text-sm text-amber-200">{storageWarning}</p>}
@@ -698,7 +698,7 @@ function getMatchEmptyCopy(
     return {
       title: "本轮已经达到高可信度",
       description:
-        "当前排序已经比较稳定。你可以查看 Tier List，或重开本轮重新校准自己的偏好。",
+"当前排序已经比较稳定。你可以查看 Tier List，或重开本轮重新校准自己的偏好。",
       canReset: true
     };
   }
@@ -707,7 +707,7 @@ function getMatchEmptyCopy(
     return {
       title: "当前没有新的可用组合",
       description:
-        "可以先打开本轮对决范围，恢复暂停的作品。如果范围没有缩小，可能是最近组合暂时被去重；也可以查看 Tier List 或添加更多作品。",
+"可以先打开本轮对决范围，恢复暂停的作品。如果范围没有缩小，可能是最近组合暂时被去重；也可以查看 Tier List 或添加更多作品。",
       canReset: true
     };
   }

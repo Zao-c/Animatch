@@ -62,7 +62,7 @@ export default function NewPoolPage() {
                   key={chip}
                   type="button"
                   onClick={() => applyNameChip(chip)}
-                  className="min-h-11 rounded-full border border-anime-purple/25 bg-anime-purple/10 px-4 text-xs font-semibold text-purple-100 transition hover:border-anime-pink/40 hover:bg-anime-pink/12 focus:outline-none focus:ring-2 focus:ring-anime-pink/40"
+                  className="min-h-11 rounded-full border border-white/15 bg-white/[0.05] px-4 text-xs font-semibold text-zinc-200 transition hover:border-white/30 hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-white/30"
                 >
                   {chip}
                 </button>
@@ -87,7 +87,7 @@ export default function NewPoolPage() {
                   type="checkbox"
                   checked={visibility === "PUBLIC"}
                   onChange={(event) => setVisibility(event.target.checked ? "PUBLIC" : "PRIVATE")}
-                  className="mt-1 h-4 w-4 accent-cyan-400"
+                  className="mt-1 h-4 w-4 accent-zinc-200"
                 />
                 <span>
                   <span className="block text-sm font-semibold text-slate-200">公开展示</span>

@@ -185,7 +185,7 @@ export default function RecalibratePage({
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
             <AppBadge tone="source">为什么是它们？</AppBadge>
-            <p className="mt-3 text-sm leading-6 text-cyan-50">{pair?.reason}</p>
+            <p className="mt-3 text-sm leading-6 text-zinc-100">{pair?.reason}</p>
             <p className="mt-2 text-xs leading-5 text-slate-400">
               系统会优先选择分数接近、信息不足或未直接比较过的作品。
             </p>

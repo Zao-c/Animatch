@@ -6,7 +6,7 @@ import { nomineeKey, normalizeNomineeText, referenceKindForAward, referenceUrl, 
 import { featureRequest } from "@/lib/feature-api";
 import type { ReferenceCard, ReferenceDetail } from "@/lib/award-reference-types";
 
-const field = "min-h-11 w-full min-w-0 rounded-xl border border-white/15 bg-slate-950 px-3 py-2 text-base text-white";
+const field = "min-h-11 w-full min-w-0 rounded-xl border border-white/15 bg-[#0c0d10] px-3 py-2 text-base text-white";
 export function AwardCandidatePicker({ ceremonyId, award, initial, selected, disabled, assisted = true, onChoose }: {
   assisted?: boolean; ceremonyId: string; award: AwardDefinition; initial: SuggestedNominee[]; selected: Nominee[]; disabled: boolean; onChoose: (candidate: Nominee) => void;
 }) {
@@ -55,7 +55,7 @@ export function AwardCandidatePicker({ ceremonyId, award, initial, selected, dis
       <div className="flex gap-2"><label className="min-w-0 flex-1"><span className="sr-only">资料查询关键词</span><input className={field} maxLength={100} value={query} placeholder={mode === "work" ? "输入你熟悉的动画名" : "中文名、日文名或简称"} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !loading && query.trim().length >= 2) { e.preventDefault(); void search(); } }} /></label><AppButton onClick={search} disabled={loading || query.trim().length < 2}>{loading ? "查询中…" : "查询"}</AppButton></div>
       {searchError && <p role="alert" className="mt-3 text-sm text-rose-200">{searchError}</p>}
       {credits && <div className="mt-4"><p className="mb-2 text-sm text-amber-100">《{sourceTitle}》的{kind === "person" ? "制作人员" : "角色"}</p><label className="block text-sm">筛选名字或职务<input className={`${field} mt-1`} value={creditQuery} placeholder="例如：监督、脚本、系列构成" onChange={(e) => { setCreditQuery(e.target.value); setPage(1); }} /></label></div>}
-      <div className="mt-3 space-y-3">{shown.slice((page - 1) * 5, page * 5).map((card) => <article key={`${card.reference.kind}:${card.reference.id}`} className="rounded-xl border border-white/10 bg-slate-950/40 p-3">
+      <div className="mt-3 space-y-3">{shown.slice((page - 1) * 5, page * 5).map((card) => <article key={`${card.reference.kind}:${card.reference.id}`} className="rounded-xl border border-white/10 bg-[#14161b] p-3">
         <div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0 flex-1"><h4 className="break-words font-semibold">{card.title}</h4>{card.subtitle && <p className="mt-1 break-words text-xs text-slate-400">{card.subtitle}</p>}{card.role && <p className="mt-1 text-xs text-amber-200">{card.role}</p>}</div>
           {mode === "work" && !credits ? <AppButton disabled={loading} variant="secondary" onClick={() => findCredits(card)}>查看{kind === "person" ? "制作人员" : "角色"}</AppButton> : kind && <AppButton variant="secondary" disabled={disabled || selectedKeys.has(nomineeKey({ title: card.title, workTitle: "", reference: card.reference }))} onClick={() => choose({ title: card.title, workTitle: credits ? sourceTitle : "", reference: card.reference })}>{selectedKeys.has(nomineeKey({ title: card.title, workTitle: "", reference: card.reference })) ? "已添加" : "选为候选"}</AppButton>}
         </div>

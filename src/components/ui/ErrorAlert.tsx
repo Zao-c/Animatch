@@ -11,10 +11,10 @@ export function ErrorAlert({
 }) {
   const toneClass =
     tone === "notice"
-      ? "border-cyan-300/25 bg-cyan-300/10 text-cyan-100"
+      ? "border-white/15 bg-white/[0.06] text-zinc-100"
       : tone === "warning"
-        ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
-        : "border-rose-300/25 bg-rose-400/10 text-rose-100";
+        ? "border-amber-400/25 bg-amber-400/10 text-amber-100"
+        : "border-rose-400/25 bg-rose-500/10 text-rose-100";
 
   return (
     <div

@@ -96,7 +96,7 @@ export function PersonalCandidatePicker({ poolId, runId, ownerId, onSave, onClos
     finally { lock.current = false; setSaving(false); }
   }
 
-  return <section aria-labelledby="personal-candidates-title" className="my-3 rounded-2xl border border-amber-300/30 bg-slate-950 p-4">
+  return <section aria-labelledby="personal-candidates-title" className="my-3 rounded-2xl border border-amber-300/30 bg-[#0c0d10] p-4">
     <div className="flex flex-wrap items-center justify-between gap-2"><h2 id="personal-candidates-title" className="font-bold">本轮对决范围</h2><AppButton variant="ghost" size="sm" disabled={saving} onClick={close}>关闭</AppButton></div>
     <p className="my-2 text-sm text-slate-400">勾选接下来想比较的作品，未勾选的暂不出题。已有评分、Tier 排名和观看记录保留；撤回不改变范围，重开新一轮恢复默认。</p>
     {hiddenIds.size > 0 && <p className="mb-3 text-xs leading-5 text-slate-400">{hiddenIds.size} 部已标记没看过，不能在这里改成看过。若是刚刚误点，可关闭面板撤回上次选择；重新开始一轮会恢复全部作品，旧榜单保留。</p>}

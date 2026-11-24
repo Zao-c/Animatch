@@ -16,17 +16,17 @@ export function MatchHeading({ mode, title, context, backHref, description, tool
   mode: MatchMode; title: string; context?: ReactNode; backHref: string;
   description: string; tools?: ReactNode; children?: ReactNode;
 }) {
-  return <header className="mb-2 border-b border-white/10 pb-2">
+  return <header className="mb-2 border-b border-white/[0.08] pb-2">
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
       <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
-        <span className={`rounded-full border px-2.5 py-1 font-bold ${mode === "season" ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-cyan-300/30 bg-cyan-300/10 text-cyan-100"}`}>{mode === "season" ? "赛季投票" : mode === "music" ? "音乐对决" : "个人自由对决"}</span>
+        <span className={`rounded-full border px-2.5 py-1 font-semibold ${mode === "season" ? "border-amber-400/25 bg-amber-400/10 text-amber-200" : "border-white/15 bg-white/[0.06] text-zinc-200"}`}>{mode === "season" ? "赛季投票" : mode === "music" ? "音乐对决" : "个人自由对决"}</span>
         <h1 className="max-w-full truncate text-base font-bold text-white sm:max-w-md sm:text-lg" title={title}>{title}</h1>
         {context}
       </div>
       <div className="flex flex-wrap items-center gap-2">
       {tools}
-      <Link className="inline-flex min-h-11 items-center px-2 text-sm text-slate-300 hover:text-white" href={backHref}>{mode === "season" ? "返回赛季" : mode === "music" ? "返回曲单" : "返回番组"} →</Link>
-      <details className="relative"><summary className="flex min-h-11 cursor-pointer items-center text-xs text-slate-400">玩法说明</summary><p className="absolute right-0 z-30 w-64 rounded-xl border border-white/10 bg-slate-950 p-3 text-sm leading-6 shadow-xl">{description}</p></details>
+      <Link className="inline-flex min-h-11 items-center px-2 text-sm text-zinc-300 hover:text-white" href={backHref}>{mode === "season" ? "返回赛季" : mode === "music" ? "返回曲单" : "返回番组"} →</Link>
+      <details className="relative"><summary className="flex min-h-11 cursor-pointer items-center text-xs text-zinc-400 hover:text-zinc-200">玩法说明</summary><p className="absolute right-0 z-30 w-64 rounded-xl border border-white/10 bg-[#181b21] p-3 text-sm leading-6 text-zinc-200 shadow-xl">{description}</p></details>
       </div>
     </div>
     {children}
@@ -36,7 +36,7 @@ export function MatchHeading({ mode, title, context, backHref, description, tool
 export function MatchArena({ left, right, mode = "personal" }: { left: ReactNode; right: ReactNode; mode?: MatchMode }) {
   return <div className="grid grid-cols-[minmax(0,1fr)_20px_minmax(0,1fr)] items-stretch gap-1 sm:grid-cols-[minmax(0,1fr)_40px_minmax(0,1fr)] sm:gap-3">
     {left}
-    <div aria-hidden="true" className="flex items-center justify-center"><span className={`text-xs font-black sm:text-lg ${mode === "season" ? "text-amber-200" : "text-cyan-200"}`}>VS</span></div>
+    <div aria-hidden="true" className="flex items-center justify-center"><span className={`text-xs font-black sm:text-lg ${mode === "season" ? "text-amber-200" : "text-zinc-500"}`}>VS</span></div>
     {right}
   </div>;
 }
@@ -48,14 +48,14 @@ export function MatchChoiceCard({ title, src, secondarySrc, fallbackSrcs, animeI
 }) {
   return <MatchCardFrame title={title} side={side} disabled={disabled} onPick={onPick} actionLabel={actionLabel} mode={mode} highlighted={highlighted} className={className}
     artwork={<AnimeCover src={src} secondarySrc={secondarySrc} fallbackSrcs={fallbackSrcs} animeId={animeId} title={title} size="lg" fit={fit} loading="eager" warm className="!h-full !max-h-none !aspect-auto rounded-none border-0" />}
-    afterAction={<details className="relative text-xs text-slate-400"><summary className="flex min-h-9 cursor-pointer items-center justify-center">作品详情</summary><div className="absolute inset-x-0 top-full z-20 rounded-xl border border-white/15 bg-slate-950 p-3 text-sm leading-6 shadow-xl"><p className="mb-2 font-semibold text-slate-100">{title}</p>{details}</div></details>}
+    afterAction={<details className="relative text-xs text-zinc-400"><summary className="flex min-h-9 cursor-pointer items-center justify-center hover:text-zinc-200">作品详情</summary><div className="absolute inset-x-0 top-full z-20 rounded-xl border border-white/15 bg-[#181b21] p-3 text-sm leading-6 text-zinc-200 shadow-xl"><p className="mb-2 font-semibold text-white">{title}</p>{details}</div></details>}
   />;
 }
 
 export function MatchActionBar({ children, columnsClassName = "grid-cols-2", hint }: { children: ReactNode; columnsClassName?: string; hint?: string }) {
-  return <section aria-label="其他对决操作" className="mt-3 rounded-2xl border border-white/10 bg-slate-950/20 p-2 sm:p-3">
+  return <section aria-label="其他对决操作" className="mt-3 rounded-xl border border-white/[0.08] bg-[#14161b] p-2 sm:p-3">
     <div className={"grid gap-2 " + columnsClassName}>{children}</div>
-    {hint && <details className="px-1 text-xs leading-5 text-slate-400"><summary className="min-h-9 cursor-pointer py-2">跳过和没看过的区别</summary><p className="pb-2">{hint}</p></details>}
+    {hint && <details className="px-1 text-xs leading-5 text-zinc-400"><summary className="min-h-9 cursor-pointer py-2 hover:text-zinc-200">跳过和没看过的区别</summary><p className="pb-2">{hint}</p></details>}
   </section>;
 }
 

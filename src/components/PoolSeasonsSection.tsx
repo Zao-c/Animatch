@@ -106,7 +106,7 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
         ) : null}
 
         {canEdit && showForm ? (
-          <div className="mb-5 rounded-2xl border border-white/10 bg-slate-950/60 p-5">
+          <div className="mb-5 rounded-2xl border border-white/10 bg-[#14161b] p-5">
             <div className="mb-4 space-y-3">
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-300">赛季标题</label>
@@ -115,7 +115,7 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
                   value={formData.title}
                   onChange={(e) => setFormData((f) => ({ ...f, title: e.target.value }))}
                   placeholder="例如：S1 赛季"
-                  className="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-amber-400/50 focus:outline-none"
+                  className="w-full rounded-lg border border-white/10 bg-[#14161b] px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-amber-400/50 focus:outline-none"
                 />
               </div>
               <div>
@@ -125,7 +125,7 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
                   value={formData.description}
                   onChange={(e) => setFormData((f) => ({ ...f, description: e.target.value }))}
                   placeholder="赛季说明"
-                  className="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-amber-400/50 focus:outline-none"
+                  className="w-full rounded-lg border border-white/10 bg-[#14161b] px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-amber-400/50 focus:outline-none"
                 />
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -135,7 +135,7 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
                     type="datetime-local"
                     value={formData.startsAt}
                     onChange={(e) => setFormData((f) => ({ ...f, startsAt: e.target.value }))}
-                    className="min-h-11 rounded-lg border border-white/10 bg-slate-900 px-3 text-sm text-white focus:border-amber-400/50 focus:outline-none"
+                    className="min-h-11 rounded-lg border border-white/10 bg-[#14161b] px-3 text-sm text-white focus:border-amber-400/50 focus:outline-none"
                   />
                   <span className="text-xs leading-5 text-slate-500">留空表示发布后立即开放。</span>
                 </label>
@@ -145,7 +145,7 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
                     type="datetime-local"
                     value={formData.endsAt}
                     onChange={(e) => setFormData((f) => ({ ...f, endsAt: e.target.value }))}
-                    className="min-h-11 rounded-lg border border-white/10 bg-slate-900 px-3 text-sm text-white focus:border-amber-400/50 focus:outline-none"
+                    className="min-h-11 rounded-lg border border-white/10 bg-[#14161b] px-3 text-sm text-white focus:border-amber-400/50 focus:outline-none"
                   />
                   <span className="text-xs leading-5 text-slate-500">留空表示由管理员手动结束赛季。</span>
                 </label>
@@ -185,7 +185,7 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
                     value={formData.maxVotesPerUser}
                     onChange={(e) => setFormData((f) => ({ ...f, maxVotesPerUser: Math.max(1, Number(e.target.value)) }))}
                     min={1}
-                    className="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white focus:border-amber-400/50 focus:outline-none"
+                    className="w-full rounded-lg border border-white/10 bg-[#14161b] px-3 py-2 text-sm text-white focus:border-amber-400/50 focus:outline-none"
                   />
                 </div>
                 {formData.mode === "BIAS" ? (
@@ -196,7 +196,7 @@ export function PoolSeasonsSection({ poolId, canEdit }: { poolId: string; canEdi
                       value={formData.biasVotesPerUser}
                       onChange={(e) => setFormData((f) => ({ ...f, biasVotesPerUser: Math.max(1, Number(e.target.value)) }))}
                       min={1}
-                      className="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white focus:border-amber-400/50 focus:outline-none"
+                      className="w-full rounded-lg border border-white/10 bg-[#14161b] px-3 py-2 text-sm text-white focus:border-amber-400/50 focus:outline-none"
                     />
                   </div>
                 ) : null}
@@ -227,7 +227,7 @@ function SeasonListCard({ poolId, season }: { poolId: string; season: SeasonList
   return (
     <Link
       href={`/pools/${poolId}/seasons/${season.id}`}
-      className="group rounded-2xl border border-white/10 bg-slate-950/60 p-4 transition hover:border-amber-300/30"
+      className="group rounded-2xl border border-white/10 bg-[#14161b] p-4 transition hover:border-amber-300/30"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">

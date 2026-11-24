@@ -55,11 +55,11 @@ export function CommunityAverageTierList({
 
   return (
     <div className="mt-5 space-y-5">
-      <p className="rounded-xl border border-cyan-300/15 bg-cyan-300/[0.06] px-4 py-3 text-sm leading-6 text-slate-300">
+      <p className="text-xs leading-5 text-zinc-400">
         社区平均 Tier List 使用宽版布局，按社区聚合 Elo 排序后分桶。样本不足的作品会保留展示，但不会挤进正式排名。
       </p>
 
-      <section className="overflow-hidden rounded-2xl border border-black/80 bg-[#191d21] shadow-[0_20px_90px_rgba(0,0,0,0.35)]">
+      <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#14161b]">
         {resolvedRows.map((row) => {
           const items = buckets[row.id] ?? [];
           if (items.length === 0) return null;
@@ -67,7 +67,7 @@ export function CommunityAverageTierList({
           return (
             <div
               key={row.id}
-              className="grid min-h-24 grid-cols-[72px_1fr] border-b border-black/80 last:border-b-0 sm:grid-cols-[112px_1fr]"
+              className="grid min-h-24 grid-cols-[72px_1fr] border-b border-white/[0.08] last:border-b-0 sm:grid-cols-[112px_1fr]"
             >
               <div
                 className="flex items-center justify-center px-2"
@@ -77,7 +77,7 @@ export function CommunityAverageTierList({
                   {row.label}
                 </span>
               </div>
-              <div className="flex min-h-24 flex-wrap content-start gap-3 bg-[#171b20] p-3 sm:gap-4 sm:p-4">
+              <div className="flex min-h-24 flex-wrap content-start gap-3 bg-[#0f1115] p-3 sm:gap-4 sm:p-4">
                 {items.map((item) => (
                   <CommunityAverageCard key={item.animeId} item={item} />
                 ))}
@@ -87,13 +87,13 @@ export function CommunityAverageTierList({
         })}
 
         {insufficient.length > 0 ? (
-          <div className="grid min-h-24 grid-cols-[72px_1fr] border-b border-black/80 last:border-b-0 sm:grid-cols-[112px_1fr]">
+          <div className="grid min-h-24 grid-cols-[72px_1fr] border-b border-white/[0.08] last:border-b-0 sm:grid-cols-[112px_1fr]">
             <div className="share-tier-label-insufficient flex items-center justify-center px-2">
               <span className="text-center text-sm font-bold text-slate-600 sm:text-base">
                 样本不足
               </span>
             </div>
-            <div className="bg-[#171b20] p-3 sm:p-4">
+            <div className="bg-[#0f1115] p-3 sm:p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm leading-6 text-slate-400">
                   {insufficient.length} 部作品还在等待更多玩家与有效比较，不参与 S-D 正式分档。
@@ -102,7 +102,7 @@ export function CommunityAverageTierList({
                   type="button"
                   onClick={() => setShowInsufficient((value) => !value)}
                   aria-expanded={showInsufficient}
-                  className="min-h-11 rounded-lg border border-white/10 px-3 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300/35 hover:bg-cyan-300/10"
+                  className="min-h-11 rounded-lg border border-white/10 px-3 text-sm font-semibold text-zinc-200 transition hover:border-white/25 hover:bg-white/[0.08]"
                 >
                   {showInsufficient ? "收起作品" : `查看 ${insufficient.length} 部作品`}
                 </button>
@@ -130,7 +130,7 @@ function CommunityTierListSkeleton({ rows }: { rows: TierRowConfig[] }) {
         <div className="h-16 rounded-xl bg-slate-800/80" />
         <div className="h-16 rounded-xl bg-slate-800/80" />
       </div>
-      <section className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/70">
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#14161b]">
         {rows.slice(0, 5).map((row, rowIndex) => (
           <div
             key={row.id}
@@ -163,7 +163,7 @@ function CommunityTierEmptyState({
 }) {
   return (
     <div className="mt-5 space-y-4">
-      <div className="rounded-xl border border-white/10 bg-slate-950/60 p-5">
+      <div className="rounded-xl border border-white/10 bg-[#14161b] p-5">
         <p className="text-base font-semibold text-white">
           {isUnavailable ? "社区平均 Tier List 正在准备" : "还没有玩家对决数据"}
         </p>
@@ -176,10 +176,10 @@ function CommunityTierEmptyState({
       </div>
 
       {previewItems.length > 0 ? (
-        <section className="rounded-2xl border border-white/10 bg-slate-950/45 p-4">
+        <section className="rounded-2xl border border-white/10 bg-[#14161b] p-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.28em] text-cyan-200/80">
+              <p className="text-xs font-black uppercase tracking-[0.28em] text-zinc-400">
                 Preview
               </p>
               <h3 className="mt-1 text-lg font-black text-white">待生成榜单作品预览</h3>
@@ -201,7 +201,7 @@ function CommunityAverageCard({ item }: { item: CommunityRankingItem }) {
   const title = item.title.length > 0 ? item.title : "未命名作品";
 
   return (
-    <article className="w-28 rounded-xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_8px_24px_rgba(0,0,0,0.2)] sm:w-32">
+    <article className="w-28 rounded-lg border border-white/[0.08] bg-[#14161b] p-1.5 sm:w-32">
       <AnimeCover
         src={item.imageUrl}
         title={title}
@@ -214,7 +214,7 @@ function CommunityAverageCard({ item }: { item: CommunityRankingItem }) {
       </h3>
       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
         {item.rank !== null ? (
-          <span className="rounded-full bg-cyan-300/12 px-2 py-0.5 text-[10px] font-bold text-cyan-200">
+          <span className="rounded-full bg-white/[0.08] px-2 py-0.5 text-[10px] font-bold text-zinc-200">
             #{item.rank}
           </span>
         ) : null}
@@ -235,7 +235,7 @@ function CommunityPreviewCard({ item }: { item: CommunityTierPreviewItem }) {
   const title = item.title.length > 0 ? item.title : "未命名作品";
 
   return (
-    <article className="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-slate-950/60">
+    <article className="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#14161b]">
       <AnimeCover
         src={item.imageUrl}
         title={title}

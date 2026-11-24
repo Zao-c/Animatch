@@ -88,7 +88,7 @@ export function SeasonCandidatePicker({ poolId, seasonId, ownerId, onSave, onClo
     finally { lock.current = false; setSaving(false); }
   }
 
-  return <section aria-labelledby="season-candidates-title" className="my-3 rounded-2xl border border-amber-300/30 bg-slate-950 p-4">
+  return <section aria-labelledby="season-candidates-title" className="my-3 rounded-2xl border border-amber-300/30 bg-[#0c0d10] p-4">
     <div className="flex flex-wrap items-center justify-between gap-2"><h2 id="season-candidates-title" className="font-bold">选择熟悉的作品</h2><AppButton variant="ghost" size="sm" disabled={saving} onClick={close}>关闭</AppButton></div>
     <p className="my-2 text-sm text-slate-400">勾选参与本赛季对决的作品，未勾选的暂时隐藏。可以随时回来恢复，不消耗票数，也不会删除历史投票。</p>
     {loading ? <p role="status" className="py-6 text-sm text-slate-300">正在加载作品清单…</p> : <>

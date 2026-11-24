@@ -92,15 +92,15 @@ function ReadinessMetric({
   tone: "muted" | "source" | "danger";
 }) {
   return (
-    <div className="rounded-lg border border-white/10 bg-slate-950/40 px-3 py-2">
+    <div className="rounded-lg border border-white/10 bg-[#14161b] px-3 py-2">
       <p className="text-[11px] text-slate-500">{label}</p>
       <p
         className={
-          "text-lg font-bold " +
+"text-lg font-bold " +
           (tone === "danger"
             ? "text-red-400"
             : tone === "source"
-              ? "text-cyan-300"
+              ? "text-zinc-200"
               : "text-slate-300")
         }
       >

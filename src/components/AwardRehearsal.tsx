@@ -6,7 +6,7 @@ import type { AwardDefinition } from "@/lib/award-nominations";
 import type { PublishedAward } from "@/lib/award-live-types";
 import { advanceRehearsal, newRehearsal, type RehearsalAction, type RehearsalState } from "@/lib/award-rehearsal";
 
-const box = "min-w-0 rounded-2xl border border-purple-300/20 bg-slate-950/40 p-4 sm:p-6";
+const box = "min-w-0 rounded-2xl border border-white/[0.08] bg-[#14161b] p-4 sm:p-6";
 const scenes = { NOMINEES: "入围展示", VOTING: "模拟投票中", CLOSED: "模拟票箱已关闭", READY: "模拟结果待揭晓", REVEALED: "模拟获奖揭晓" };
 const methods = { VOTE: "模拟投票", DISCUSSION: "模拟讨论决定", WITHHELD: "模拟空缺" };
 
@@ -49,7 +49,7 @@ export function AwardRehearsal({ awards, published, initialAwardId, onExit }: {
         <p className="mt-3 text-xs text-slate-400">可随时重练，不需要创建测试活动。</p></details>
       </aside>
       <div className="min-w-0 space-y-4">
-        <section className={`${box} bg-gradient-to-br from-purple-300/10 to-slate-950`}>
+        <section className={`${box} bg-gradient-to-br from-[#181b21] to-[#0c0d10]`}>
           <p className="text-xs font-bold tracking-widest text-purple-200">REHEARSAL · 非正式结果</p>
           <p role="status" className="mt-3 text-sm text-purple-100">{scenes[state.scene]}{round && ` · 第 ${state.rounds.length} 轮`}</p>
           <h2 className="mt-3 text-2xl font-black">{award?.title ?? "未设置奖项"}</h2>

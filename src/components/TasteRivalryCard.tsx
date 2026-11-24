@@ -57,9 +57,9 @@ export function TasteRivalryCard({ scope }: { scope: string }) {
           <h3 className="mb-2 text-xs font-semibold text-slate-400">分歧最大的一组</h3>
           {pair ? <>
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-white">
-              <Link href={`/u/${encodeURIComponent(pair.left.username)}`} className="font-semibold hover:text-cyan-200 hover:underline">{pair.left.name}</Link>
+              <Link href={`/u/${encodeURIComponent(pair.left.username)}`} className="font-semibold hover:text-zinc-200 hover:underline">{pair.left.name}</Link>
               <span aria-hidden="true" className="text-slate-500">×</span>
-              <Link href={`/u/${encodeURIComponent(pair.right.username)}`} className="font-semibold hover:text-cyan-200 hover:underline">{pair.right.name}</Link>
+              <Link href={`/u/${encodeURIComponent(pair.right.username)}`} className="font-semibold hover:text-zinc-200 hover:underline">{pair.right.name}</Link>
             </p>
             <p className="mt-1 text-xs text-slate-400">共同评价 {pair.commonCount} 部 · 明显分歧 {pair.conflictCount} 部</p>
             {pair.examples.length > 0 && <details className="mt-2 text-xs text-slate-400">
@@ -77,9 +77,9 @@ export function TasteRivalryCard({ scope }: { scope: string }) {
         <div className="min-w-0 border-t border-white/10 pt-4 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
           <h3 className="mb-2 text-xs font-semibold text-slate-400">与你的口味</h3>
           {closest ? <>
-            <p className="text-sm text-slate-200">最接近：<Link href={`/u/${encodeURIComponent(closest.username)}`} className="font-semibold text-white hover:text-cyan-200 hover:underline">{closest.name}</Link></p>
+            <p className="text-sm text-slate-200">最接近：<Link href={`/u/${encodeURIComponent(closest.username)}`} className="font-semibold text-white hover:text-zinc-200 hover:underline">{closest.name}</Link></p>
             <p className="mt-1 text-xs text-slate-400">共同评价 {closest.commonCount} 部 · 排序相似度 {closest.similarity ?? "—"}/100{closest.commonCount < 10 ? " · 样本较少" : ""}</p>
-            {furthest && <p className="mt-3 text-sm text-slate-200">分歧较大：<Link href={`/u/${encodeURIComponent(furthest.username)}`} className="font-semibold text-white hover:text-cyan-200 hover:underline">{furthest.name}</Link></p>}
+            {furthest && <p className="mt-3 text-sm text-slate-200">分歧较大：<Link href={`/u/${encodeURIComponent(furthest.username)}`} className="font-semibold text-white hover:text-zinc-200 hover:underline">{furthest.name}</Link></p>}
             {closest.recommendations.length > 0 && <details className="mt-2 text-xs text-slate-400">
               <summary className="flex min-h-9 cursor-pointer items-center hover:text-white">对方推荐的作品</summary>
               <ul className="space-y-1.5 pb-1">{closest.recommendations.map((work) =>

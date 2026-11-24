@@ -45,9 +45,9 @@ export function SeasonPlayEntry({ poolId, canPlay, onBrowse }: {
   const matchPath = selected ? `/pools/${poolId}/seasons/${selected.id}/match` : "";
 
   return (
-    <section aria-label="参与赛季投票" className="flex min-w-0 flex-col rounded-xl border border-anime-cyan/35 bg-anime-cyan/[0.06] p-3">
+    <section aria-label="参与赛季投票" className="flex min-w-0 flex-col rounded-xl border border-white/15 bg-[#14161b] p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-bold text-cyan-100">赛季投票</h2>
+        <h2 className="text-sm font-bold text-white">赛季投票</h2>
         <button type="button" onClick={onBrowse} className="min-h-9 shrink-0 px-2 text-xs text-slate-300 underline decoration-slate-500/50 underline-offset-4 hover:text-white">全部赛季 →</button>
       </div>
       {loading ? <p role="status" className="py-3 text-sm text-slate-400">正在寻找开放的赛季…</p> : failed ? (

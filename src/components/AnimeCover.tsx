@@ -83,7 +83,7 @@ function CoverImage({ sourceKey, secondarySrc, title, size = "md", fit = "cover"
   const candidateIndex = imageSrc ? candidates.indexOf(imageSrc) : 0;
   const coverState = candidates.length ? state : "empty";
   const isCoverUnavailable = coverState === "error" || coverState === "empty";
-  const imageFitClass = fit === "contain" ? "object-contain bg-slate-950" : "object-cover";
+  const imageFitClass = fit === "contain" ? "object-contain bg-[#0c0d10]" : "object-cover";
   return (
     <div
       ref={containerRef}
@@ -97,8 +97,8 @@ function CoverImage({ sourceKey, secondarySrc, title, size = "md", fit = "cover"
       title={coverState === "empty" ? "暂无封面" : isCoverUnavailable ? "封面暂时不可用，会自动重试，不影响选择作品。" : undefined}
       aria-label={isCoverUnavailable ? `${title}：${coverState === "empty" ? "暂无封面" : "封面暂时不可用"}` : undefined}
     >
-      <div className="absolute inset-0 flex h-full w-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-cyan-900/30 via-zinc-900 to-purple-900/20 p-3">
-        <span className="text-lg font-bold text-cyan-400/60">
+      <div className="absolute inset-0 flex h-full w-full flex-col items-center justify-center gap-1 bg-[#14161b] p-3">
+        <span className="text-lg font-bold text-zinc-500">
           {title.charAt(0).toUpperCase() || "A"}
         </span>
         {size !== "sm" && (
@@ -117,7 +117,7 @@ function CoverImage({ sourceKey, secondarySrc, title, size = "md", fit = "cover"
       </div>
       {isCoverUnavailable && size === "sm" ? (
         <span
-          className="absolute right-1 top-1 z-20 flex h-4 w-4 items-center justify-center rounded-full border border-amber-200/50 bg-slate-950/85 text-[10px] font-black leading-none text-amber-100"
+          className="absolute right-1 top-1 z-20 flex h-4 w-4 items-center justify-center rounded-full border border-amber-200/50 bg-[#0c0d10]/90 text-[10px] font-black leading-none text-amber-100"
           aria-hidden="true"
         >
           !

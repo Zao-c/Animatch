@@ -82,8 +82,8 @@ export function SeasonImpactPanel({ poolId, seasonId, status, fetchImpact }: Sea
       <SeasonStory impact={impact} />
 
       {impact.currentUserImpact && impact.currentUserImpact.voteCount > 0 ? (
-        <div className="mt-4 border-y border-anime-cyan/20 bg-anime-cyan/[0.03] px-4 py-3">
-          <p className="text-sm font-semibold text-anime-cyan">我的参与</p>
+        <div className="mt-4 border-y border-white/[0.08] bg-[#14161b] px-4 py-3">
+          <p className="text-sm font-semibold text-zinc-200">我的参与</p>
           <div className="mt-1.5 grid grid-cols-2 gap-2 text-xs text-slate-300">
             <span>已投 {impact.currentUserImpact.voteCount} 票</span>
             <span>个人 Elo 变动 {formatImpactNumber(impact.currentUserImpact.totalScoreSwing)}</span>
@@ -208,7 +208,7 @@ function PlayerImpactTable({ ranking, offset }: { offset: number; ranking: NonNu
               <td className="py-2.5 hidden sm:table-cell">
                 <div className="flex flex-wrap gap-1">
                   {u.supportedAnimeTop3.map((a) => (
-                    <span key={a.animeId} className="rounded bg-anime-cyan/12 px-1.5 py-0.5 text-[10px] text-anime-cyan">
+                    <span key={a.animeId} className="rounded bg-white/[0.08] px-1.5 py-0.5 text-[10px] text-zinc-200">
                       {a.title}
                     </span>
                   ))}

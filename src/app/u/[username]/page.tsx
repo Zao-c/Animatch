@@ -82,19 +82,19 @@ function ProfileMediaCard({ href, title, covers, meta, description, music }: {
 }) {
   const [failed, setFailed] = useState<Record<string, boolean>>({});
   const uniqueCovers = [...new Set(covers.filter(Boolean))].slice(0, 5);
-  return <Link href={href} className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border border-anime-border bg-anime-panel transition hover:border-anime-cyan/40 hover:bg-white/[0.045] focus-visible:outline focus-visible:outline-2 focus-visible:outline-anime-cyan">
-    <div className="flex h-28 items-center justify-center gap-1.5 overflow-hidden border-b border-white/10 bg-slate-950/30 p-2.5 sm:h-32">
+  return <Link href={href} className="group flex min-w-0 flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#14161b] transition hover:border-white/25 hover:bg-[#191c23] focus-visible:outline focus-visible:outline-2 focus-visible:outline-zinc-100">
+    <div className="flex h-28 items-center justify-center gap-0.5 overflow-hidden border-b border-white/[0.06] bg-[#101216] sm:h-32">
       {uniqueCovers.length ? uniqueCovers.map(url =>
-        <div key={url} className={"relative h-full overflow-hidden rounded-md bg-gradient-to-br from-cyan-950/80 to-violet-950/50 " + (music ? "aspect-square" : "aspect-[3/4]") + (uniqueCovers.length === 1 ? "" : " min-w-0 flex-1")}>
+        <div key={url} className={"relative h-full overflow-hidden bg-[#14161b] " + (music ? "aspect-square" : "aspect-[3/4]") + (uniqueCovers.length === 1 ? "" : " min-w-0 flex-1")}>
           {!failed[url] ? <img src={proxyExternalImageUrl(url) ?? url} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer"
             onError={() => setFailed(previous => previous[url] ? previous : { ...previous, [url]: true })}
             className="absolute inset-0 h-full w-full object-cover" /> :
-            <span aria-hidden="true" className="flex h-full items-center justify-center text-xl text-slate-500">{music ? "♪" : "◇"}</span>}
+            <span aria-hidden="true" className="flex h-full items-center justify-center text-xl text-zinc-500">{music ? "♪" : "◇"}</span>}
         </div>
-      ) : <span aria-hidden="true" className="text-2xl text-slate-500">{music ? "♪" : "◇"}</span>}
+      ) : <span aria-hidden="true" className="text-2xl text-zinc-500">{music ? "♪" : "◇"}</span>}
     </div>
     <div className="flex flex-1 flex-col gap-2 p-4">
-      <h3 className="line-clamp-2 text-base font-semibold text-white group-hover:text-cyan-100">{title}</h3>
+      <h3 className="line-clamp-2 text-base font-semibold text-white group-hover:text-zinc-200">{title}</h3>
       {description && <p className="line-clamp-2 text-xs text-slate-400">{description}</p>}
       <p className="mt-auto pt-1 text-xs text-slate-400">{meta}</p>
     </div>
@@ -175,7 +175,7 @@ export default function UserProfilePage() {
         {loading && !profile ? (
           <ProfileSkeleton />
         ) : error === "USER_NOT_FOUND" ? (
-          <div className="rounded-3xl border border-white/10 bg-slate-950/72 p-10 text-center shadow-[0_28px_100px_rgba(0,0,0,0.35)]">
+          <div className="rounded-3xl border border-white/10 bg-[#14161b] p-10 text-center shadow-[0_28px_100px_rgba(0,0,0,0.35)]">
             <h1 className="mt-5 text-2xl font-black">用户不存在</h1>
             <p className="mt-3 text-sm text-slate-400">
               这位用户可能已注销，或你输入的地址有误。
@@ -188,7 +188,7 @@ export default function UserProfilePage() {
             </Link>
           </div>
         ) : error !== null && !profile ? (
-          <div className="rounded-3xl border border-white/10 bg-slate-950/72 p-10 text-center shadow-[0_28px_100px_rgba(0,0,0,0.35)]">
+          <div className="rounded-3xl border border-white/10 bg-[#14161b] p-10 text-center shadow-[0_28px_100px_rgba(0,0,0,0.35)]">
             <h1 className="mt-5 text-2xl font-black">加载失败</h1>
             <p className="mt-3 text-sm text-slate-400">无法获取用户信息，请稍后再试。</p>
             <AppButton className="mt-4" onClick={() => setRetry(value => value + 1)}>重新加载</AppButton>
@@ -198,7 +198,7 @@ export default function UserProfilePage() {
             <section className="rounded-2xl border border-anime-border bg-anime-panel p-5 sm:p-7">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
                 <div className="flex min-w-0 items-center gap-4 sm:gap-5">
-                  <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-gradient-to-br from-cyan-900/70 to-violet-900/60 text-2xl font-black text-cyan-100">
+                  <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-gradient-to-br from-zinc-800 to-[#0c0d10] text-2xl font-black text-zinc-200">
                     {profile.user.image && !avatarFailed
                       ? <img src={proxyExternalImageUrl(profile.user.image) ?? profile.user.image} alt={displayName + "头像"} decoding="async" referrerPolicy="no-referrer" onError={() => setAvatarFailed(true)} className="h-full w-full object-cover" />
                       : <span aria-hidden="true">{displayName.slice(0, 1).toUpperCase()}</span>}
@@ -217,7 +217,7 @@ export default function UserProfilePage() {
                 </div>
                 <div className="flex min-w-0 shrink-0 flex-col items-start gap-2 sm:items-end">
                   <AppButton size="sm" variant="secondary" onClick={() => void copyProfileLink()}>分享主页</AppButton>
-                  {copyStatus && <span role="status" className="text-xs text-cyan-100">{copyStatus}</span>}
+                  {copyStatus && <span role="status" className="text-xs text-zinc-200">{copyStatus}</span>}
                   {manualUrl && <input ref={copyInput} value={manualUrl} aria-label="手动复制主页网址" readOnly onFocus={event => event.currentTarget.select()} className="anime-field w-full max-w-[22rem] text-xs" />}
                 </div>
               </div>

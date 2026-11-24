@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "数据来源与许可 · AniMatch" }
 export default function DataSourcesPage() {
   return (
     <PageShell>
-      <article className="mx-auto max-w-3xl space-y-8 text-sm leading-7 text-slate-300 [&_a]:text-cyan-200 [&_a]:underline [&_a]:underline-offset-4">
+      <article className="mx-auto max-w-3xl space-y-8 text-sm leading-7 text-slate-300 [&_a]:text-zinc-200 [&_a]:underline [&_a]:underline-offset-4">
         <h1 className="text-3xl font-black text-white">数据来源与许可</h1>
         <section>
           <h2 className="mb-2 text-lg font-bold text-white">Bangumi</h2>

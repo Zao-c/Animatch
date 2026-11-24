@@ -63,8 +63,8 @@ function LoginContent() {
       <section className="mx-auto max-w-md py-6">
         <AppCard variant="focus" className="p-5 sm:p-6">
           <h1 className="text-xl font-black text-white">登录 AniMatch</h1>
-          <div className="mt-3 rounded-xl border border-cyan-300/20 bg-cyan-300/5 p-3 text-sm leading-6">
-            <p>默认密码：<strong className="select-all font-mono text-cyan-200">{FRIEND_SHARED_PASSWORD}</strong></p>
+          <div className="mt-3 rounded-xl border border-white/[0.08] bg-[#14161b] p-3 text-sm leading-6">
+            <p>默认密码：<strong className="select-all font-mono text-zinc-200">{FRIEND_SHARED_PASSWORD}</strong></p>
             <p className="text-slate-300">改密自愿；忘记个人密码也可用默认密码登录。</p>
           </div>
           <p className="mt-3 text-xs leading-5 text-slate-400">这是群共用登录模式，知道共用密码和用户名的人也能进入该账号。请勿复用其他网站的重要密码。</p>

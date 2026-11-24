@@ -5,7 +5,7 @@ import { AppCard } from "@/components/ui/AppCard";
 type StatusHintTone = "guide" | "success" | "warning" | "muted";
 
 const TONE_CLASS: Record<StatusHintTone, string> = {
-  guide: "border-cyan-300/18 bg-cyan-300/[0.07]",
+  guide: "border-white/[0.08] bg-[#14161b]",
   success: "border-emerald-300/18 bg-emerald-300/[0.07]",
   warning: "border-amber-200/20 bg-amber-200/[0.07]",
   muted: "border-white/10 bg-white/[0.04]"

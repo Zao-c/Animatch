@@ -35,17 +35,17 @@ export function formatFeedbackText(input: {
     typeof navigator !== "undefined" ? navigator.userAgent : "Unknown";
 
   return [
-    "【AniMatch 试玩反馈】",
+"【AniMatch 试玩反馈】",
     `时间：${timeStr}`,
     `页面：${input.pathname}`,
     `类型：${typeLabel}`,
-    "反馈：",
+"反馈：",
     input.content,
-    "",
-    "备注：",
+"",
+"备注：",
     input.name || "（未填写）",
-    "",
-    "浏览器：",
+"",
+"浏览器：",
     ua
   ].join("\n");
 }
@@ -57,7 +57,7 @@ export function PlaytestFeedbackButton() {
   const [content, setContent] = useState("");
   const [name, setName] = useState("");
   const [copyStatus, setCopyStatus] = useState<
-    "idle" | "copied" | "manual"
+"idle" | "copied" | "manual"
   >("idle");
 
   const manualTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -168,7 +168,7 @@ export function PlaytestFeedbackButton() {
         type="button"
         onClick={handleOpen}
         aria-label="反馈试玩体验"
-        className="fixed bottom-3 right-3 z-30 flex h-10 min-h-10 w-10 min-w-10 items-center justify-center rounded-full border border-white/10 bg-slate-950/70 text-slate-400 opacity-70 shadow-[0_8px_26px_rgba(0,0,0,0.28)] backdrop-blur-xl transition duration-anime hover:border-anime-purple/35 hover:text-purple-200 hover:opacity-100 hover:shadow-[0_12px_34px_rgba(167,139,250,0.12)] active:scale-[0.96] sm:bottom-5 sm:right-5"
+        className="fixed bottom-3 right-3 z-30 flex h-10 min-h-10 w-10 min-w-10 items-center justify-center rounded-full border border-white/10 bg-[#14161b]/90 text-zinc-400 opacity-75 shadow-[0_8px_24px_rgba(0,0,0,0.4)] transition duration-anime hover:border-white/25 hover:text-zinc-100 hover:opacity-100 active:scale-[0.96] sm:bottom-5 sm:right-5"
       >
         <svg
           className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4"
@@ -189,7 +189,7 @@ export function PlaytestFeedbackButton() {
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
           <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/50 "
             onClick={handleClose}
           />
           <AppCard
@@ -240,10 +240,10 @@ export function PlaytestFeedbackButton() {
                       type="button"
                       onClick={() => setType(ft.key)}
                       className={[
-                        "rounded-full border px-3 py-1.5 text-xs font-medium transition duration-anime",
+"rounded-full border px-3 py-1.5 text-xs font-medium transition duration-anime",
                         type === ft.key
-                          ? "border-anime-purple/50 bg-anime-purple/15 text-purple-100"
-                          : "border-white/10 bg-white/[0.04] text-slate-400 hover:border-white/20 hover:text-slate-200"
+                          ? "border-white/30 bg-white/[0.12] text-white"
+                          : "border-white/10 bg-white/[0.04] text-zinc-400 hover:border-white/20 hover:text-zinc-200"
                       ].join(" ")}
                     >
                       {ft.label}
@@ -261,7 +261,7 @@ export function PlaytestFeedbackButton() {
                   onChange={(e) => setContent(e.target.value)}
                   rows={4}
                   placeholder="描述你遇到的问题或感受…"
-                  className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-anime-purple/40 focus:outline-none focus:ring-1 focus:ring-anime-purple/20"
+                  className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-white/35 focus:outline-none focus:ring-1 focus:ring-white/20"
                 />
               </label>
 
@@ -275,7 +275,7 @@ export function PlaytestFeedbackButton() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="方便站长知道是谁反馈"
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-anime-purple/40 focus:outline-none focus:ring-1 focus:ring-anime-purple/20"
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-white/35 focus:outline-none focus:ring-1 focus:ring-white/20"
                 />
               </label>
 
@@ -300,7 +300,7 @@ export function PlaytestFeedbackButton() {
               )}
 
               {copyStatus === "copied" && (
-                <p className="rounded-xl border border-anime-cyan/30 bg-anime-cyan/8 px-3.5 py-2.5 text-sm text-cyan-200">
+                <p className="rounded-xl border border-emerald-400/25 bg-emerald-400/10 px-3.5 py-2.5 text-sm text-emerald-200">
                   已复制，可以直接发给站长。
                 </p>
               )}

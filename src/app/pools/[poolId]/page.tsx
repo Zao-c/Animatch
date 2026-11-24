@@ -160,7 +160,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
   const [batchNote, setBatchNote] = useState("");
   const [animeWallSearch, setAnimeWallSearch] = useState("");
   const [animeWallFilter, setAnimeWallFilter] = useState<
-    "all" | "missingCover" | "suspiciousTitle" | "tiermaker" | "custom"
+"all" | "missingCover" | "suspiciousTitle" | "tiermaker" | "custom"
   >("all");
   const [animeWallPage, setAnimeWallPage] = useState(1);
   const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
@@ -338,12 +338,12 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     document.body.style.overflow = "hidden";
 
     const focusableSelector = [
-      "a[href]",
-      "button:not([disabled])",
-      "input:not([disabled])",
-      "select:not([disabled])",
-      "textarea:not([disabled])",
-      "[tabindex]:not([tabindex='-1'])"
+"a[href]",
+"button:not([disabled])",
+"input:not([disabled])",
+"select:not([disabled])",
+"textarea:not([disabled])",
+"[tabindex]:not([tabindex='-1'])"
     ].join(",");
     const getFocusableElements = () =>
       Array.from(inspectorPanel.querySelectorAll<HTMLElement>(focusableSelector)).filter(
@@ -622,7 +622,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
     if (pool === null || archived()) return;
     if (
       !window.confirm(
-        "确定归档这个番组吗？归档后它会从默认列表隐藏，历史对决和 Tier List 不会被删除。"
+"确定归档这个番组吗？归档后它会从默认列表隐藏，历史对决和 Tier List 不会被删除。"
       )
     ) {
       return;
@@ -1209,7 +1209,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
               {pool.creator.username ? (
                 <Link
                   href={`/u/${pool.creator.username}`}
-                  className="font-medium text-slate-300 underline decoration-slate-600/40 hover:text-anime-purple"
+                  className="font-medium text-slate-300 underline decoration-slate-600/40 hover:text-white"
                 >
                   {pool.creator.name ?? pool.creator.username}
                 </Link>
@@ -1239,8 +1239,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         </div>
         <AppCard className="p-3" variant="focus">
           <div className="grid min-w-0 grid-cols-1 items-stretch gap-3 sm:grid-cols-2">
-            <section aria-label="个人自由对决" className={`flex min-w-0 flex-col rounded-xl border border-anime-cyan/35 bg-anime-cyan/[0.06] p-3 ${isArchived ? "sm:col-span-2" : ""}`}>
-              <h2 className="mb-2 flex min-h-9 items-center text-sm font-bold text-cyan-100">个人自由对决</h2>
+            <section aria-label="个人自由对决" className={`flex min-w-0 flex-col rounded-xl border border-white/15 bg-[#14161b] p-3 ${isArchived ? "sm:col-span-2" : ""}`}>
+              <h2 className="mb-2 flex min-h-9 items-center text-sm font-bold text-white">个人自由对决</h2>
             {canShowCommunityBattle ? (
               <>
                 <AppButton
@@ -1495,7 +1495,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                     key={option.value}
                     className={`rounded-lg border p-3 ${
                       editVisibility === option.value
-                        ? "border-cyan-300/50 bg-cyan-300/[0.08]"
+                        ? "border-white/35 bg-white/[0.08]"
                         : "border-white/10 bg-white/[0.03]"
                     }`}
                   >
@@ -1520,11 +1520,11 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                 </p>
               </div>
               <label className="flex items-center gap-3 rounded-lg border-white/10 bg-white/[0.03] p-3 text-sm text-slate-500">
-                <input type="checkbox" disabled className="h-4 w-4 accent-cyan-400" />
+                <input type="checkbox" disabled className="h-4 w-4 accent-zinc-200" />
                 允许其他人添加动画
               </label>
               <label className="flex items-center gap-3 rounded-lg border-white/10 bg-white/[0.03] p-3 text-sm text-slate-500">
-                <input type="checkbox" disabled className="h-4 w-4 accent-cyan-400" />
+                <input type="checkbox" disabled className="h-4 w-4 accent-zinc-200" />
                 启用大乱斗公共榜单
               </label>
             </section>
@@ -1692,7 +1692,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
               </div>
 
               {batchMode ? (
-                <div className="mt-3 rounded-xl border border-white/10 bg-slate-950/60 p-4">
+                <div className="mt-3 rounded-xl border border-white/10 bg-[#14161b] p-4">
                   <p className="text-sm font-semibold text-white">批量编辑</p>
                   <p className="mt-1 text-xs text-slate-400">
                     留空的字段不会被修改，只对已选中的 {selectedAnimeIds.size} 个作品生效。
@@ -1801,7 +1801,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
         <button
           type="button"
           aria-label="关闭工作台"
-          className="fixed inset-0 z-30 bg-slate-950/60 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-30 bg-[#14161b]  lg:hidden"
           onClick={closeInspector}
         />
         <div
@@ -1810,9 +1810,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           aria-modal={isMobileInspector ? true : undefined}
           aria-labelledby={isMobileInspector ? "pool-workspace-title" : undefined}
           tabIndex={isMobileInspector ? -1 : undefined}
-          className="fixed inset-x-0 bottom-0 z-40 max-h-[85dvh] overflow-y-auto rounded-t-3xl border border-cyan-300/20 bg-slate-950 p-4 shadow-2xl shadow-cyan-950/30 lg:sticky lg:top-32 lg:z-auto lg:max-h-[calc(100dvh-9rem)] lg:rounded-2xl lg:bg-transparent lg:p-0 lg:shadow-none xl:top-24 xl:max-h-[calc(100dvh-7rem)]"
+          className="fixed inset-x-0 bottom-0 z-40 max-h-[85dvh] overflow-y-auto rounded-t-3xl border border-white/[0.08] bg-[#0c0d10] p-4 shadow-2xl lg:sticky lg:top-32 lg:z-auto lg:max-h-[calc(100dvh-9rem)] lg:rounded-2xl lg:bg-transparent lg:p-0 lg:shadow-none xl:top-24 xl:max-h-[calc(100dvh-7rem)]"
         >
-        <div className="sticky top-0 z-20 mb-3 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 py-1">
+        <div className="sticky top-0 z-20 mb-3 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#0c0d10] px-3 py-1">
           <p id="pool-workspace-title" className="text-sm font-semibold text-white">{workspaceMode === "add" ? "添加作品" : "番组工作台"}</p>
           <button
             type="button"
@@ -1847,7 +1847,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
           ) : (
             <>
               <div className="grid grid-cols-3 gap-2 border-b border-anime-border pb-3" role="group" aria-label="添加作品方式">
-                {TABS.map((tab) => <button key={tab.key} type="button" aria-pressed={activeTab === tab.key} onClick={() => setActiveTab(tab.key)} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-semibold transition ${activeTab === tab.key ? "border-cyan-300/40 bg-cyan-300/10 text-cyan-100" : "border-white/10 text-slate-400 hover:text-white"}`}>{tab.label}</button>)}
+                {TABS.map((tab) => <button key={tab.key} type="button" aria-pressed={activeTab === tab.key} onClick={() => setActiveTab(tab.key)} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-semibold transition ${activeTab === tab.key ? "border-white/30 bg-white/[0.08] text-white" : "border-white/10 text-slate-400 hover:text-white"}`}>{tab.label}</button>)}
               </div>
               {activeTab === "search" ? <AnimeDiscoveryPanel poolId={params.poolId} joinedAnimeIds={joinedAnimeIds} joinedBangumiIds={joinedBangumiIds} onAdded={refreshPool} /> : null}
 
@@ -1895,9 +1895,9 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                     }}
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={handleCustomDrop}
-                    className="rounded-2xl border border-dashed border-purple-300/30 bg-purple-300/[0.06] p-5 text-center text-sm leading-6 text-slate-300 transition hover:border-purple-300/50 hover:bg-purple-300/[0.09]"
+                    className="rounded-2xl border border-dashed border-white/15 bg-[#14161b] p-5 text-center text-sm leading-6 text-slate-300 transition hover:border-white/30 hover:bg-[#181b21]"
                   >
-                    <p className="font-semibold text-purple-100">拖拽图片到这里，或点击选择多张文件</p>
+                    <p className="font-semibold text-zinc-100">拖拽图片到这里，或点击选择多张文件</p>
                     <p className="mt-1 text-xs text-slate-500">支持 jpg/png/webp/gif，单张最大 5MB，不支持 svg。</p>
                   </div>
 
@@ -1906,7 +1906,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                       {customUploadDrafts.map((draft) => (
                         <div
                           key={draft.id}
-                          className="rounded-2xl border border-white/10 bg-slate-950/45 p-3"
+                          className="rounded-2xl border border-white/10 bg-[#14161b] p-3"
                         >
                           <div className="flex gap-3">
                             <div
@@ -1980,7 +1980,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                       </AppButton>
                     </div>
                     {tiermakerAssistantCopyMessage ? (
-                      <p className={`mt-2 text-xs leading-5 ${tiermakerAssistantCopied ? "text-cyan-200" : "text-amber-200"}`}>
+                      <p className={`mt-2 text-xs leading-5 ${tiermakerAssistantCopied ? "text-zinc-200" : "text-amber-200"}`}>
                         {tiermakerAssistantCopyMessage}
                       </p>
                     ) : null}
@@ -2035,7 +2035,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                     </AppButton>
                   </div>
 
-                  <div className="space-y-2 rounded-2xl border border-anime-border bg-slate-950/35 p-4">
+                  <div className="space-y-2 rounded-2xl border border-anime-border bg-[#14161b] p-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                       可选：自动解析模板链接
                     </p>
@@ -2117,8 +2117,8 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                                 key={item.sourceIndex}
                                 className={`cursor-pointer overflow-hidden rounded-xl border transition duration-anime ${
                                   isSelected
-                                    ? "border-anime-cyan/60 bg-anime-cyan/[0.08] ring-1 ring-anime-cyan/30"
-                                    : "border-anime-border bg-white/[0.03] hover:border-anime-cyan/25"
+                                    ? "border-white/35 bg-white/[0.08] ring-1 ring-white/20"
+                                    : "border-anime-border bg-white/[0.03] hover:border-white/25"
                                 }`}
                               >
                                 <AnimeCover
@@ -2134,7 +2134,7 @@ export default function PoolDetailPage({ params }: { params: { poolId: string } 
                                     type="checkbox"
                                     checked={isSelected}
                                     onChange={() => toggleTiermakerItem(item.sourceIndex)}
-                                    className="h-4 w-4 accent-cyan-400"
+                                    className="h-4 w-4 accent-zinc-200"
                                   />
                                   <p className="line-clamp-1 min-w-0 text-xs text-slate-300">
                                     {item.title}
@@ -2363,7 +2363,7 @@ function CommunitySection({
                 onClick={() => onViewChange("ranking")}
                 className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                   view === "ranking"
-                    ? "bg-cyan-400/20 text-cyan-200"
+                    ? "bg-white/[0.1] text-zinc-100"
                     : "text-slate-400 hover:text-slate-200"
                 }`}
               >
@@ -2396,7 +2396,7 @@ function CommunitySection({
                 <label className="flex min-h-11 items-center gap-2 text-sm text-slate-300">
                   <input
                     type="checkbox"
-                    className="h-4 w-4 shrink-0 accent-cyan-400"
+                    className="h-4 w-4 shrink-0 accent-zinc-200"
                     checked={communityShowTitles}
                     disabled={isCommunityTierExporting}
                     onChange={(event) => setCommunityShowTitles(event.target.checked)}
@@ -2527,7 +2527,7 @@ function CommunityRankingCard({
         <EvidenceLabel item={item} />
       </div>
       <div className="text-right" title={'平均 Elo ' + averageText}>
-        <p className="text-base font-black text-cyan-100">{scoreText}</p>
+        <p className="text-base font-black text-white">{scoreText}</p>
         <p className="text-xs text-slate-400">社区分</p>
       </div>
     </article>
@@ -2560,7 +2560,7 @@ function CommunityScoreCell({
       <p className="text-[11px] text-slate-500">{label}</p>
       <p
         className={`mt-1 leading-tight [overflow-wrap:anywhere] ${
-          strong ? "text-lg font-black text-cyan-100" : "text-sm font-semibold text-slate-300"
+          strong ? "text-lg font-black text-white" : "text-sm font-semibold text-slate-300"
         }`}
       >
         {value}
@@ -2686,13 +2686,13 @@ function PoolAnimeCard({
   return (
     <div
       className={
-        "group relative overflow-hidden rounded-2xl border bg-slate-950/36 transition duration-anime " +
+"group relative overflow-hidden rounded-2xl border bg-[#14161b] transition duration-anime " +
         (batchMode
           ? "cursor-pointer " +
             (isBatchSelected
-              ? "border-cyan-400/70 ring-2 ring-cyan-400/40"
-              : "border-white/10 hover:border-cyan-300/40")
-          : "border-white/10 hover:-translate-y-0.5 hover:border-anime-cyan/25 hover:shadow-anime-panel focus-within:border-anime-cyan/35")
+              ? "border-zinc-100 ring-2 ring-zinc-100/40"
+              : "border-white/10 hover:border-white/30")
+          : "border-white/10 hover:border-white/25 focus-within:border-white/35")
       }
       onClick={batchMode ? () => onToggleBatchSelect?.() : undefined}
       onKeyDown={
@@ -2723,14 +2723,14 @@ function PoolAnimeCard({
         <span
           aria-hidden="true"
           className={
-            "pointer-events-none absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-lg border-2 transition " +
+"pointer-events-none absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-lg border-2 transition " +
             (isBatchSelected
-              ? "border-cyan-400 bg-cyan-400/30"
-              : "border-white/40 bg-slate-950/60")
+              ? "border-zinc-100 bg-zinc-100/20"
+              : "border-white/40 bg-[#14161b]")
           }
         >
           {isBatchSelected ? (
-            <svg className="h-4 w-4 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
+            <svg className="h-4 w-4 text-zinc-100" fill="currentColor" viewBox="0 0 20 20">
               <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
             </svg>
           ) : null}
@@ -2753,7 +2753,7 @@ function PoolAnimeCard({
           </p>
         ) : null}
         {canManage && !batchMode ? (
-        <div className="absolute inset-x-3 bottom-3 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-slate-950/78 p-2 opacity-100 shadow-anime-panel backdrop-blur-xl transition-opacity duration-anime sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+        <div className="absolute inset-x-3 bottom-3 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-[#0c0d10]/95 p-2 opacity-100 shadow-anime-panel transition-opacity duration-anime sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
           {!isArchived ? (
             <AppButton onClick={onEdit} disabled={isMutating} variant="quiet" size="sm">
               编辑显示
@@ -2955,7 +2955,7 @@ function PoolAnimeDisplayPanel({
         </div>
       </div>
         <form onSubmit={handleDisplaySubmit} className="mt-4 space-y-2 border-t border-anime-border pt-4">
-          <p className="text-xs leading-5 text-cyan-100">
+          <p className="text-xs leading-5 text-white">
             这个修改只影响当前番组，不会改动全局动画库。
           </p>
           {canReplaceOriginal ? (
@@ -3024,7 +3024,7 @@ function PoolAnimeDisplayPanel({
             }}
             onDragOver={(event) => event.preventDefault()}
             onDrop={handleCoverDrop}
-            className="rounded-2xl border border-dashed border-cyan-300/25 bg-cyan-300/[0.05] p-3 text-center text-xs leading-5 text-slate-300 transition hover:border-cyan-300/45 hover:bg-cyan-300/[0.08]"
+            className="rounded-2xl border border-dashed border-white/15 bg-[#14161b] p-3 text-center text-xs leading-5 text-slate-300 transition hover:border-white/30 hover:bg-white/[0.05]"
           >
             {coverPreviewUrl ? (
               <div className="flex items-center gap-3 text-left">
@@ -3040,7 +3040,7 @@ function PoolAnimeDisplayPanel({
               </div>
             ) : (
               <>
-                <p className="font-semibold text-cyan-100">拖拽图片到这里，或点击选择文件</p>
+                <p className="font-semibold text-white">拖拽图片到这里，或点击选择文件</p>
                 <p className="mt-1 text-slate-500">支持 jpg/png/webp/gif，最大 5MB。</p>
               </>
             )}

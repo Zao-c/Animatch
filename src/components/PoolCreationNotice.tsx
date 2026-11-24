@@ -9,7 +9,7 @@ export function PoolCreationNotice({ creation }: { creation: ReturnType<typeof u
   if (!creation.ready) return <p role="status" className="text-sm text-slate-400">正在读取账号与创建记录…</p>;
   if (!record && !error && !warning) return null;
   const name = record ? "name" in record.body ? record.body.name : record.body.poolName : "";
-  return <section className="my-3 space-y-3 rounded-xl border border-cyan-300/25 bg-cyan-300/5 p-4" aria-label="创建状态">
+  return <section className="my-3 space-y-3 rounded-xl border border-white/[0.08] bg-[#14161b] p-4" aria-label="创建状态">
     {record && <><h3 className="font-bold">{record.poolId ? "番组已创建" : busy ? "正在确认创建结果…" : "有一次创建尚待确认"}</h3><p className="break-words text-sm">{name}{"selectedAnimeIds" in record.body ? ` · ${record.body.selectedAnimeIds?.length ?? 0} 部作品` : ""}</p></>}
     {record && <p className="text-xs text-slate-400">{record.body.visibility === "PUBLIC" ? "公开番组" : record.body.visibility === "UNLISTED" ? "仅链接可见" : "私密番组"}</p>}
     {record && !record.poolId && <p className="text-sm text-slate-400">重试会使用原来的名称、可见性和作品清单。已创建则打开原番组，未创建则继续原请求；刷新恢复后不会自动提交。</p>}

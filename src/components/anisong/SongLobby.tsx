@@ -27,10 +27,10 @@ export function SongLobby({ view = "public" }: { view?: SongLobbyView }) {
   const page = PAGES[view];
   return <div className="mx-auto w-full max-w-[90rem] space-y-5 sm:space-y-6">
     <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">{page.title}</h1>
-    <nav aria-label="音乐曲单导航" className="grid grid-cols-3 gap-1 rounded-2xl border border-anime-border bg-anime-panel p-1.5 sm:inline-flex">
+    <nav aria-label="音乐曲单导航" className="grid grid-cols-3 gap-1 rounded-xl border border-white/[0.08] bg-[#14161b] p-1 sm:inline-flex">
       {NAV.map(item => <Link key={item.id} href={item.href} aria-current={item.id === view ? "page" : undefined}
-        className={"inline-flex min-h-11 min-w-0 items-center justify-center rounded-xl px-2 text-center text-xs font-semibold transition sm:min-h-10 sm:px-4 sm:text-sm " +
-          (item.id === view ? "border border-anime-purple/35 bg-anime-purple/20 text-purple-100" : "border border-transparent text-slate-400 hover:bg-white/5 hover:text-white")}>{item.label}</Link>)}
+        className={"inline-flex min-h-11 min-w-0 items-center justify-center rounded-lg px-2 text-center text-xs font-semibold transition sm:min-h-10 sm:px-4 sm:text-sm " +
+          (item.id === view ? "border border-white/15 bg-white/[0.09] text-white" : "border border-transparent text-zinc-400 hover:bg-white/[0.05] hover:text-white")}>{item.label}</Link>)}
     </nav>
     {view === "public" ? <SongTemplateGallery /> : view === "mine" ? <SongMyBoards /> : <SongCreateBoard />}
   </div>;
@@ -68,7 +68,7 @@ function SongMyBoards() {
   }
   return <div className="space-y-8">
     {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/20 p-4 text-sm text-amber-100"><span>{error}{login && <> · <Link href="/login?next=%2Fanisong%2Fmine" className="underline">登录后查看我的曲单</Link></>}</span><AppButton variant="ghost" size="sm" onClick={() => setRetryKey(key => key + 1)}>重新加载</AppButton></div>}
-    {loading ? <p role="status" className="py-8 text-sm text-slate-400">正在加载我的音乐曲单…</p> : error ? null : !boards.length ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-sm text-slate-300">你还没有音乐曲单。<Link href="/anisong/create" className="ml-2 text-anime-cyan underline">创建第一份曲单 →</Link></div> : <>
+    {loading ? <p role="status" className="py-8 text-sm text-slate-400">正在加载我的音乐曲单…</p> : error ? null : !boards.length ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-sm text-slate-300">你还没有音乐曲单。<Link href="/anisong/create" className="ml-2 text-zinc-200 underline">创建第一份曲单 →</Link></div> : <>
       {own.length > 0 && <section className="space-y-4" aria-label="我创建的曲单"><div className="flex items-center justify-between gap-3"><h2 className="text-xl font-bold">我创建的曲单</h2><span className="text-xs text-slate-400">{own.length} 份</span></div>
         {cards(own)}</section>}
       {participated.length > 0 && <section className="space-y-4" aria-label="我参加的公共曲单"><div className="flex items-center justify-between gap-3"><h2 className="text-xl font-bold">我参加的公共曲单</h2><span className="text-xs text-slate-400">{participated.length} 份</span></div>{cards(participated)}</section>}
@@ -99,7 +99,7 @@ function SongCreateBoard() {
       <h2 className="text-xl font-bold">创建音乐曲单</h2>
       <label className="block text-sm font-medium">曲单名称<input required autoFocus maxLength={80} className="anime-field mt-2" value={title} onChange={event => setTitle(event.target.value)} placeholder="2026 年度动画歌曲" /></label>
       <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-4">
-        <input type="checkbox" checked={isPublic} onChange={event => setIsPublic(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-teal-300" />
+        <input type="checkbox" checked={isPublic} onChange={event => setIsPublic(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-zinc-200" />
         <span className="text-sm font-semibold">公开曲单<span className="mt-1 block text-xs font-normal text-slate-400">只公开曲目信息，不共享私人音频</span></span>
       </label>
       {error && <p role="alert" className="text-sm text-amber-200">{error}</p>}

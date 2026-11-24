@@ -443,7 +443,7 @@ function SeasonMatchContent({ poolId, seasonId }: { poolId: string; seasonId: st
 {schedule.canVote && cs && <AppButton id="season-candidate-trigger" size="sm" variant="secondary" disabled={controlsDisabled} onClick={() => setEditingCandidates(true)}>选择熟悉的作品</AppButton>}
 </>} />
         {editingCandidates && detail.viewerId && <SeasonCandidatePicker poolId={poolId} seasonId={seasonId} ownerId={detail.viewerId} onSave={saveCandidates} onClose={() => { if (!actionLock.current) { setEditingCandidates(false); void fetchData(skippedPairKeys); } }} />}
-        {notice && <p role="status" className="my-2 text-sm text-cyan-200">{notice}</p>}
+        {notice && <p role="status" className="my-2 text-sm text-zinc-200">{notice}</p>}
         {storageWarning && <div role="alert" className="my-3 rounded-xl border border-amber-300/25 p-4 text-sm text-amber-100"><p>{storageWarning}</p>{storageReadFailed && <AppButton className="mt-3" size="sm" variant="secondary" disabled={busy} onClick={discardPendingVote}>清除本地记录并同步</AppButton>}</div>}
         {pendingRecord && !submitting && <AppCard className="my-3 p-4" role="status">
           <h2 className="font-bold text-amber-100">有一票尚待确认</h2>
@@ -473,7 +473,7 @@ function SeasonMatchContent({ poolId, seasonId }: { poolId: string; seasonId: st
             </span>
             {dailyVotesRemaining !== null ? (
               <span className="rounded-xl border border-white/10 bg-white/[0.025] px-1.5 py-2 text-center sm:px-3">
-                <span className="text-slate-400 sm:text-xs"><span className="sm:hidden">今日</span><span className="hidden sm:inline">今日剩余</span></span> <strong className={dailyVotesRemaining > 0 ? "text-cyan-200" : "text-amber-200"}>{dailyVotesRemaining}</strong>
+                <span className="text-slate-400 sm:text-xs"><span className="sm:hidden">今日</span><span className="hidden sm:inline">今日剩余</span></span> <strong className={dailyVotesRemaining > 0 ? "text-zinc-200" : "text-amber-200"}>{dailyVotesRemaining}</strong>
               </span>
             ) : null}
             {detail.mode === "BIAS" ? (

@@ -35,11 +35,11 @@ export function SongVersionUpdateNotice({board,onApplied,disabled}:{
   }
   if(!board.templateId || loading || !preview&&!error || preview&&!preview.outdated&&!preview.unavailable&&!error) return null;
   const diff=preview?.diff;
-  return <section aria-label="公开曲单版本更新" className="rounded-xl border border-cyan-300/25 bg-cyan-300/[0.045] p-4">
+  return <section aria-label="公开曲单版本更新" className="rounded-xl border border-white/[0.08] bg-[#14161b] p-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><h2 className="text-sm font-bold text-cyan-100">{error&&!preview?"检查曲单更新失败":preview?.unavailable?"原公开曲单已下架":"公开曲单有新版本"}</h2>
+      <div><h2 className="text-sm font-bold text-zinc-200">{error&&!preview?"检查曲单更新失败":preview?.unavailable?"原公开曲单已下架":"公开曲单有新版本"}</h2>
         <p className="mt-1 text-xs leading-5 text-slate-300">{error&&!preview?"无法确认公开曲单版本，请重新检查。":preview?.unavailable?"个人历史仍可保留，但无法同步已下架的曲单。":
-        "个人版本 v"+(preview?.currentRevision??0)+" → 公开版本 v"+(preview?.latestRevision??"?")+"。更新需要你主动确认。"}</p></div>
+"个人版本 v"+(preview?.currentRevision??0)+" → 公开版本 v"+(preview?.latestRevision??"?")+"。更新需要你主动确认。"}</p></div>
       {error&&<AppButton size="sm" variant="ghost" onClick={()=>setRetry(n=>n+1)}>重新检查</AppButton>}
     </div>
     {error&&<p role="alert" className="mt-2 text-xs text-amber-200">{error}</p>}

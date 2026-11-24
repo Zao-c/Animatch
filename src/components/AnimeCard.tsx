@@ -31,10 +31,10 @@ export function AnimeCard({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`group flex w-full gap-4 rounded-2xl border p-3 text-left backdrop-blur-xl transition ${
+      className={`group flex w-full gap-4 rounded-2xl border p-3 text-left  transition ${
         selected
-          ? "border-cyan-300/60 bg-cyan-300/12 shadow-[0_0_26px_rgba(3,218,197,0.14)]"
-          : "border-white/10 bg-slate-950/45 hover:border-cyan-300/25 hover:bg-white/[0.07]"
+          ? "border-white/35 bg-white/[0.08] shadow-[0_0_26px_rgba(3,218,197,0.14)]"
+          : "border-white/10 bg-[#14161b] hover:border-white/15 hover:bg-white/[0.07]"
       } ${disabled ? "cursor-default" : ""}`}
     >
       <AnimeCover
@@ -75,7 +75,7 @@ export function AnimeCard({
           </div>
         ) : null}
         {actionLabel ? (
-          <div className="mt-4 text-sm font-medium text-cyan-300">{actionLabel}</div>
+          <div className="mt-4 text-sm font-medium text-zinc-200">{actionLabel}</div>
         ) : null}
       </div>
     </button>

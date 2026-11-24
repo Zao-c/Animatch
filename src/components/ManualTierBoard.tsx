@@ -187,7 +187,7 @@ export function ManualTierBoard({ initial, ownerId }: { initial: ManualBoardData
   }
 
   function card(item: TierShareSnapshotItem, row?: string) {
-    return <div key={item.animeId} {...dropProps(row, row ? item.animeId : undefined)} className="w-[72px] shrink-0 sm:w-20">
+    return <div key={item.animeId} {...dropProps(row, row ? item.animeId : undefined)} className="group w-[72px] shrink-0 sm:w-20">
       <button type="button" draggable={!!editable} disabled={busy}
       aria-pressed={selectedIds.includes(item.animeId)} aria-label={`选择 ${item.title}${row ? `，位于 ${board.layout.rows.find((entry) => entry.id === row)?.label}` : "，待排作品"}`}
       onDragStart={(event) => {
@@ -201,11 +201,16 @@ export function ManualTierBoard({ initial, ownerId }: { initial: ManualBoardData
       }}
       onDragEnd={endDrag}
       onClick={() => setSelectedIds((current) => multiSelect ? current.includes(item.animeId) ? current.filter((id) => id !== item.animeId) : [...current, item.animeId] : current.length === 1 && current[0] === item.animeId ? [] : [item.animeId])}
-      className={`w-full cursor-grab select-none overflow-hidden rounded-lg border text-left active:cursor-grabbing focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 ${selectedIds.includes(item.animeId) ? "border-cyan-300 ring-2 ring-cyan-300" : "border-white/10 hover:border-white/40"}`}>
-      <AnimeCover src={smartCoverUrl(item.coverUrl, item.source, "card")} secondarySrc={item.coverUrl} fallbackSrcs={getAnimeSourceCoverCandidates(item)} title={item.title} size="sm" className="aspect-[2/3] h-auto w-full rounded-none border-0" />
-      <span className="line-clamp-2 h-9 px-1 py-1 text-[11px] leading-[14px] text-slate-200" title={item.title}>{item.title}</span>
+      className={`w-full cursor-grab select-none overflow-hidden rounded-md bg-[#0c0d10] text-left ring-1 transition active:cursor-grabbing focus-visible:outline focus-visible:outline-2 focus-visible:outline-zinc-100 ${selectedIds.includes(item.animeId) ? "ring-2 ring-zinc-100" : "ring-white/[0.08] hover:ring-white/35"}`}>
+      <div className="relative">
+        <AnimeCover src={smartCoverUrl(item.coverUrl, item.source, "card")} secondarySrc={item.coverUrl} fallbackSrcs={getAnimeSourceCoverCandidates(item)} title={item.title} size="sm" className="aspect-[2/3] h-auto w-full rounded-none border-0" />
+        <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-1 pb-1 pt-4 text-[10px] font-medium leading-[12px] text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+          <span className="line-clamp-2">{item.title}</span>
+        </span>
+      </div>
+      <span className="line-clamp-2 block h-8 px-1 py-1 text-[11px] leading-[13px] text-zinc-300" title={item.title}>{item.title}</span>
     </button>
-    {search && <span className="block truncate py-1 text-center text-[11px] text-cyan-200">{row ? board.layout.rows.find((entry) => entry.id === row)?.label : "待排"}</span>}
+    {search && <span className="block truncate py-1 text-center text-[11px] text-zinc-300">{row ? board.layout.rows.find((entry) => entry.id === row)?.label : "待排"}</span>}
     </div>;
   }
 
@@ -215,17 +220,17 @@ export function ManualTierBoard({ initial, ownerId }: { initial: ManualBoardData
     {error && recovery.pending && <p role="alert" className="text-sm text-red-200">{error}</p>}
     <fieldset disabled={!recovery.ready || !!recovery.pending} className="min-w-0 space-y-4">
     <header className="flex flex-wrap items-start justify-between gap-4">
-      <div><p className="text-sm text-cyan-200">自由排榜 · {board.pool.name}</p><h1 className="mt-1 text-2xl font-black sm:text-3xl">制作我的 Tier List</h1></div>
+      <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-400">自由排榜 · {board.pool.name}</p><h1 className="mt-1 text-2xl font-black sm:text-3xl">制作我的 Tier List</h1></div>
       <Link href={`/pools/${board.pool.id}`} className={appButtonClasses({ variant: "ghost" })}>返回番组</Link>
     </header>
-    <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+    <div className="flex flex-wrap items-end gap-3 rounded-xl border border-white/[0.08] bg-[#14161b] p-4">
       <label className="w-full min-w-0 text-xs text-slate-400 sm:w-auto sm:min-w-[200px] sm:flex-1">榜单标题<input className="anime-field mt-1 block w-full" maxLength={100} value={board.title} disabled={busy} onChange={(event) => { setBoard({ ...board, title: event.target.value }); }} /></label>
       <AppButton variant="primary" onClick={() => save()} disabled={busy || !board.title.trim()}>{busy ? "处理中…" : "保存草稿"}</AppButton>
       <AppButton variant="secondary" onClick={exportPng} disabled={busy || ranked.size === 0}>导出图片</AppButton>
       <label className="flex min-h-11 items-center gap-2 text-xs text-slate-300">
         <input
           type="checkbox"
-          className="h-4 w-4 shrink-0 accent-cyan-400"
+          className="h-4 w-4 shrink-0 accent-zinc-200"
           checked={showItemTitles}
           disabled={busy}
           onChange={(event) => setShowItemTitles(event.target.checked)}
@@ -236,7 +241,7 @@ export function ManualTierBoard({ initial, ownerId }: { initial: ManualBoardData
       <span className={`text-xs ${dirty ? "text-amber-200" : "text-slate-400"}`}>{dirty ? recovery.ready && !recovery.storageError ? "未保存到账号 · 此标签页暂存" : "有未保存修改" : board.revision ? "草稿已保存" : "新榜单"}</span>
     </div>
     {error && <p role="alert" className="rounded-xl border border-red-400/30 bg-red-950/30 p-3 text-sm text-red-200">{error}</p>}
-    <p role="status" className="min-h-5 text-sm text-cyan-100">{status}</p>
+    <p role="status" className="min-h-5 text-sm text-zinc-300">{status}</p>
     <div className="flex flex-wrap items-center gap-3 text-sm">
       <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={multiSelect} disabled={busy} onChange={(event) => { setMultiSelect(event.target.checked); setSelectedIds([]); }} />批量选择</label>
       <details className="text-xs text-slate-400">
@@ -244,14 +249,14 @@ export function ManualTierBoard({ initial, ownerId }: { initial: ManualBoardData
         <p className="pb-3">{multiSelect ? "点选多部后点击档位，或直接拖动任意已选封面一起移动；一次撤销即可恢复。" : "直接拖动封面分档；也支持点作品 → 点档位，手机和键盘均可操作。"}</p>
       </details>
     </div>
-    {dragging && <div role="status" className="pointer-events-none fixed inset-x-4 bottom-4 z-50 mx-auto max-w-lg rounded-xl border border-cyan-300/40 bg-slate-950 p-3 text-sm text-cyan-100">正在移动 {dragIds.current.length} 部作品 · {dragTarget === null ? "拖到档位后松手，Esc 取消" : `松手放入 ${board.layout.rows.find((row) => row.id === dragTarget)?.label ?? "待排作品"}`}</div>}
+    {dragging && <div role="status" className="pointer-events-none fixed inset-x-4 bottom-4 z-50 mx-auto max-w-lg rounded-xl border border-white/25 bg-[#181b21] p-3 text-sm text-zinc-100 shadow-xl">正在移动 {dragIds.current.length} 部作品 · {dragTarget === null ? "拖到档位后松手，Esc 取消" : `松手放入 ${board.layout.rows.find((row) => row.id === dragTarget)?.label ?? "待排作品"}`}</div>}
     {board.shareUrl && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 p-3 text-sm">
       <label className="min-w-0 flex-1">公开链接<input aria-label="公开分享链接" readOnly className="anime-field mt-1 w-full" value={typeof window === "undefined" ? board.shareUrl : new URL(board.shareUrl, window.location.origin).href} onFocus={(event) => event.target.select()} /></label>
       <a href={board.shareUrl} target="_blank" rel="noreferrer" className={appButtonClasses({ variant: "ghost" })}>查看分享</a>
       <AppButton variant="ghost" onClick={revoke} disabled={busy}>关闭分享</AppButton>
       <p className="w-full text-xs text-slate-400">仅包含上次分享时已分档的作品。保存草稿不会更新公开链接里的内容。</p>
     </div>}
-    {selectedIds.length > 0 && <div role="region" aria-label="选中作品操作" className="fixed inset-x-3 bottom-3 z-30 flex max-h-[45dvh] flex-wrap items-center gap-2 overflow-y-auto rounded-xl border border-cyan-300/30 bg-slate-950 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-xl sm:sticky sm:inset-x-auto sm:bottom-auto sm:top-32 xl:top-24">
+    {selectedIds.length > 0 && <div role="region" aria-label="选中作品操作" className="fixed inset-x-3 bottom-3 z-30 flex max-h-[45dvh] flex-wrap items-center gap-2 overflow-y-auto rounded-xl border border-white/20 bg-[#181b21] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-xl sm:sticky sm:inset-x-auto sm:bottom-auto sm:top-32 xl:top-24">
       <span className="w-full truncate text-sm">已选择：{selected ? byId.get(selected)?.title : `${selectedIds.length} 部作品（包含其他页的选择）`} · 点击档位放入</span>
       {board.layout.rows.map((row) => <button key={row.id} aria-label={`将选中作品放入 ${row.label}`} disabled={busy} className="min-h-11 min-w-11 max-w-full break-words rounded-lg px-3 font-bold text-slate-950" style={{ backgroundColor: row.color }} onClick={() => moveItems(selectedIds, row.id)}>{row.label}</button>)}
       <AppButton variant="secondary" disabled={busy} onClick={() => moveItems(selectedIds)}>移回待排</AppButton>
@@ -260,20 +265,20 @@ export function ManualTierBoard({ initial, ownerId }: { initial: ManualBoardData
       <AppButton variant="ghost" onClick={() => setSelectedIds([])}>取消选择</AppButton>
     </div>}
     <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <section aria-label="我的分档" className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/30">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 p-3"><h2 className="font-bold">已分档 {ranked.size} / {board.items.length}</h2>
+      <section aria-label="我的分档" className="min-w-0 overflow-hidden rounded-xl border border-white/[0.08] bg-[#14161b]">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.08] p-3"><h2 className="font-bold text-white">已分档 {ranked.size} / {board.items.length}</h2>
           <AppButton size="sm" variant="secondary" disabled={busy || board.layout.rows.length >= 7} onClick={addRow}>＋ 添加档位</AppButton>
           <AppButton size="sm" variant="ghost" disabled={busy || !history.length} onClick={() => { setBoard({ ...board, layout: history[history.length - 1] }); setHistory(history.slice(0, -1)); setStatus("已撤销上一步分档修改。"); }}>撤销一步</AppButton></div>
         <div data-tier-scroll className="max-h-[44vh] overflow-y-auto overscroll-contain sm:max-h-[65vh]">
-          {board.layout.rows.map((row) => <div key={row.id} {...dropProps(row.id)} className={`grid min-h-24 grid-cols-[64px_minmax(0,1fr)] border-b border-white/10 last:border-0 sm:grid-cols-[84px_minmax(0,1fr)] ${dragTarget === row.id ? "bg-cyan-300/10 ring-2 ring-inset ring-cyan-300" : ""}`}>
+          {board.layout.rows.map((row) => <div key={row.id} {...dropProps(row.id)} className={`grid min-h-24 grid-cols-[64px_minmax(0,1fr)] border-b border-white/[0.08] last:border-0 sm:grid-cols-[84px_minmax(0,1fr)] ${dragTarget === row.id ? "bg-white/[0.06] ring-2 ring-inset ring-zinc-100/70" : ""}`}>
             <button disabled={busy} aria-disabled={!selectedIds.length} aria-label={`放入 ${row.label}`} onClick={() => moveItems(selectedIds, row.id)} className="break-all px-2 text-lg font-black text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" style={{ backgroundColor: row.color }}>{row.label}<span className="mt-2 block text-xs font-medium">{board.layout.tiers[row.id]?.length ?? 0} 部</span></button>
-            <div className="flex min-w-0 flex-wrap content-start gap-2 p-2">{(board.layout.tiers[row.id] ?? []).map((id) => byId.has(id) ? card(byId.get(id)!, row.id) : null)}
+            <div className="flex min-w-0 flex-wrap content-start gap-1.5 bg-[#0f1115] p-1.5">{(board.layout.tiers[row.id] ?? []).map((id) => byId.has(id) ? card(byId.get(id)!, row.id) : null)}
             </div>
           </div>)}
         </div>
       </section>
       <aside aria-label="待排作品" className="min-w-0 space-y-4">
-        <section {...dropProps()} className={`rounded-2xl border bg-slate-950/40 p-3 ${dragTarget === "" ? "border-cyan-300 ring-2 ring-cyan-300/40" : "border-white/10"}`}>
+        <section {...dropProps()} className={`rounded-xl border bg-[#14161b] p-3 ${dragTarget === "" ? "border-zinc-100 ring-2 ring-zinc-100/30" : "border-white/[0.08]"}`}>
           <h2 className="font-bold">{search ? "全部作品搜索" : "待排作品"} <span className="text-slate-400">{filtered.length}</span></h2>
           <label className="sr-only" htmlFor="unranked-search">搜索所有作品，包括已分档</label><input id="unranked-search" className="anime-field my-3 w-full" placeholder="搜索所有作品，包括已分档" value={query} onChange={(event) => { setQuery(event.target.value); setPage(0); }} />
           {query && <AppButton size="sm" variant="quiet" onClick={() => { setQuery(""); setPage(0); }}>清除搜索 · 返回待排区</AppButton>}
@@ -282,7 +287,7 @@ export function ManualTierBoard({ initial, ownerId }: { initial: ManualBoardData
             {!filtered.length && <p className="py-8 text-sm text-slate-400">{query ? "没有找到匹配的作品。" : board.items.length ? "全部排好了！也可以把作品移回这里。" : "番组里还没有作品，请先返回番组添加。"}</p>}</div>
           {maxPage > 0 && <div className="mt-3 flex items-center justify-between text-xs"><AppButton size="sm" variant="ghost" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>上一页</AppButton><span>{currentPage + 1} / {maxPage + 1}</span><AppButton size="sm" variant="ghost" disabled={currentPage === maxPage} onClick={() => setPage(currentPage + 1)}>下一页</AppButton></div>}
         </section>
-        <details ref={rowEditor} className="rounded-2xl border border-white/10 bg-slate-950/30 p-3">
+        <details ref={rowEditor} className="rounded-xl border border-white/[0.08] bg-[#14161b] p-3">
           <summary className="min-h-11 cursor-pointer py-3 font-semibold">管理档位 · 名称、颜色与顺序</summary>
           <p className="text-xs text-slate-400">支持 2–7 个档位，删除、移动和新增都可以撤销。</p>
           <AppButton className="my-2" variant="secondary" disabled={busy || board.layout.rows.length >= 7} onClick={addRow}>添加档位（{board.layout.rows.length}/7）</AppButton>
