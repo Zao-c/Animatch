@@ -330,7 +330,7 @@ export default function SeasonDetailPage() {
             </AppButton>
           </div>
           {shareNotice ? (
-            <p className="mt-3 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.06] px-3 py-2 text-xs font-medium text-cyan-100">
+            <p className="mt-3 rounded-xl border border-white/[0.08] bg-[#14161b] px-3 py-2 text-xs font-medium text-zinc-200">
               {shareNotice}
             </p>
           ) : null}
@@ -362,7 +362,7 @@ export default function SeasonDetailPage() {
                 <input
                   value={editForm.title}
                   onChange={(event) => setEditForm((form) => ({ ...form, title: event.target.value }))}
-                  className="min-h-11 rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
+                  className="min-h-11 rounded-xl border border-white/10 bg-[#14161b] px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
                   disabled={detail.status === "ENDED" || actionLoading}
                 />
               </label>
@@ -371,7 +371,7 @@ export default function SeasonDetailPage() {
                 <textarea
                   value={editForm.description}
                   onChange={(event) => setEditForm((form) => ({ ...form, description: event.target.value }))}
-                  className="min-h-24 rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white outline-none transition focus:border-amber-300/50"
+                  className="min-h-24 rounded-xl border border-white/10 bg-[#14161b] px-3 py-2 text-sm text-white outline-none transition focus:border-amber-300/50"
                   disabled={detail.status === "ENDED" || actionLoading}
                 />
               </label>
@@ -382,7 +382,7 @@ export default function SeasonDetailPage() {
                     type="datetime-local"
                     value={editForm.startsAt}
                     onChange={(event) => setEditForm((form) => ({ ...form, startsAt: event.target.value }))}
-                    className="min-h-11 rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
+                    className="min-h-11 rounded-xl border border-white/10 bg-[#14161b] px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
                     disabled={detail.status === "ENDED" || actionLoading}
                   />
                 </label>
@@ -392,7 +392,7 @@ export default function SeasonDetailPage() {
                     type="datetime-local"
                     value={editForm.endsAt}
                     onChange={(event) => setEditForm((form) => ({ ...form, endsAt: event.target.value }))}
-                    className="min-h-11 rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
+                    className="min-h-11 rounded-xl border border-white/10 bg-[#14161b] px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
                     disabled={detail.status === "ENDED" || actionLoading}
                   />
                   <span className="text-xs leading-5 text-slate-500">清空后由管理员手动结束赛季。</span>
@@ -404,7 +404,7 @@ export default function SeasonDetailPage() {
                   <select
                     value={editForm.mode}
                     onChange={(event) => setEditForm((form) => ({ ...form, mode: event.target.value as SeasonDetail["mode"] }))}
-                    className="min-h-11 rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
+                    className="min-h-11 rounded-xl border border-white/10 bg-[#14161b] px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
                     disabled={detail.status === "ENDED" || actionLoading}
                   >
                     <option value="CLASSIC">传统模式</option>
@@ -418,7 +418,7 @@ export default function SeasonDetailPage() {
                     min={1}
                     value={editForm.maxVotesPerUser}
                     onChange={(event) => setEditForm((form) => ({ ...form, maxVotesPerUser: Number(event.target.value) }))}
-                    className="min-h-11 rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
+                    className="min-h-11 rounded-xl border border-white/10 bg-[#14161b] px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
                     disabled={detail.status === "ENDED" || actionLoading}
                   />
                 </label>
@@ -430,7 +430,7 @@ export default function SeasonDetailPage() {
                     placeholder="不限"
                     value={editForm.maxVotesPerUserPerDay}
                     onChange={(event) => setEditForm((form) => ({ ...form, maxVotesPerUserPerDay: event.target.value }))}
-                    className="min-h-11 rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
+                    className="min-h-11 rounded-xl border border-white/10 bg-[#14161b] px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
                     disabled={detail.status === "ENDED" || actionLoading}
                   />
                 </label>
@@ -441,7 +441,7 @@ export default function SeasonDetailPage() {
                     min={0}
                     value={editForm.biasVotesPerUser}
                     onChange={(event) => setEditForm((form) => ({ ...form, biasVotesPerUser: Number(event.target.value) }))}
-                    className="min-h-11 rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
+                    className="min-h-11 rounded-xl border border-white/10 bg-[#14161b] px-3 text-sm text-white outline-none transition focus:border-amber-300/50"
                     disabled={detail.status === "ENDED" || actionLoading}
                   />
                 </label>
@@ -465,7 +465,7 @@ export default function SeasonDetailPage() {
           </p>
         ) : null}
         {exportNotice ? (
-          <p className="mb-4 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.06] px-4 py-3 text-sm font-medium text-cyan-100">
+          <p className="mb-4 rounded-xl border border-white/[0.08] bg-[#14161b] px-4 py-3 text-sm font-medium text-zinc-200">
             {exportNotice}
           </p>
         ) : null}
@@ -580,7 +580,7 @@ export default function SeasonDetailPage() {
                 <label className="flex min-h-11 items-center gap-2 text-sm text-slate-300">
                   <input
                     type="checkbox"
-                    className="h-4 w-4 shrink-0 accent-cyan-400"
+                    className="h-4 w-4 shrink-0 accent-zinc-200"
                     checked={showSeasonExportTitles}
                     disabled={isPersonalExporting || isSharedExporting}
                     onChange={(event) => setShowSeasonExportTitles(event.target.checked)}
@@ -940,7 +940,7 @@ function SeasonPersonalResult({
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:items-end">
-          <div className="min-w-40 rounded-2xl border border-white/10 bg-slate-950/45 px-4 py-3">
+          <div className="min-w-40 rounded-2xl border border-white/10 bg-[#14161b] px-4 py-3">
             <p className="text-xs text-slate-500">我的进度</p>
             <p className="mt-1 text-xl font-black text-white">{votesUsed} / {maxVotesPerUser}</p>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
@@ -955,7 +955,7 @@ function SeasonPersonalResult({
               <label className="flex min-h-11 items-center gap-2 text-xs text-slate-300">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 shrink-0 accent-cyan-400"
+                  className="h-4 w-4 shrink-0 accent-zinc-200"
                   checked={showTitles}
                   disabled={isExporting}
                   onChange={(event) => onShowTitlesChange(event.target.checked)}
@@ -976,7 +976,7 @@ function SeasonPersonalResult({
         </div>
       ) : (
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <section aria-label="赛季分层作品" tabIndex={0} className="max-h-[65dvh] overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-slate-950/35">
+          <section aria-label="赛季分层作品" tabIndex={0} className="max-h-[65dvh] overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-[#14161b]">
             {buckets.map(({ row, items }) => (
               <div
                 key={row.id}
@@ -990,7 +990,7 @@ function SeasonPersonalResult({
                     {row.label}
                   </span>
                 </div>
-                <div className="flex min-h-24 flex-wrap content-start gap-3 bg-slate-950/20 p-3 sm:gap-4 sm:p-4">
+                <div className="flex min-h-24 flex-wrap content-start gap-3 bg-[#14161b] p-3 sm:gap-4 sm:p-4">
                   {items.length === 0 ? (
                     <span className="self-center text-xs text-slate-600">等待更多个人对决</span>
                   ) : (
@@ -1001,7 +1001,7 @@ function SeasonPersonalResult({
             ))}
           </section>
 
-          <section className="rounded-2xl border border-white/10 bg-slate-950/35 p-4">
+          <section className="rounded-2xl border border-white/10 bg-[#14161b] p-4">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-bold text-white">我的前 10</h3>
               <AppBadge tone={mode === "BIAS" ? "warning" : "muted"}>
@@ -1068,7 +1068,7 @@ function SeasonSharedTierList({
               <label className="flex min-h-11 items-center gap-2 text-xs text-slate-300">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 shrink-0 accent-cyan-400"
+                  className="h-4 w-4 shrink-0 accent-zinc-200"
                   checked={showTitles}
                   disabled={isExporting}
                   onChange={(event) => onShowTitlesChange(event.target.checked)}
@@ -1085,7 +1085,7 @@ function SeasonSharedTierList({
       ) : (
         <div role="region" aria-label="赛季共享分层作品" tabIndex={0} className="max-h-[65dvh] space-y-4 overflow-y-auto overscroll-contain pr-1">
           {formalItemCount > 0 ? (
-            <section className="rounded-2xl border border-white/10 bg-slate-950/35">
+            <section className="rounded-2xl border border-white/10 bg-[#14161b]">
               {buckets.map(({ row, items }) => (
                 <div
                   key={row.id}
@@ -1099,7 +1099,7 @@ function SeasonSharedTierList({
                       {row.label}
                     </span>
                   </div>
-                  <div className="flex min-h-24 flex-wrap content-start gap-3 bg-slate-950/20 p-3 sm:gap-4 sm:p-4">
+                  <div className="flex min-h-24 flex-wrap content-start gap-3 bg-[#14161b] p-3 sm:gap-4 sm:p-4">
                     {items.length === 0 ? (
                       <span className="self-center text-xs text-slate-600">等待达标作品</span>
                     ) : (
@@ -1119,7 +1119,7 @@ function SeasonSharedTierList({
           )}
 
           {insufficientItems.length > 0 ? (
-            <section className="rounded-2xl border border-white/10 bg-slate-950/35 p-3">
+            <section className="rounded-2xl border border-white/10 bg-[#14161b] p-3">
               <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <h3 className="text-sm font-bold text-white">样本不足区</h3>
@@ -1140,7 +1140,7 @@ function SeasonSharedTierList({
 
 function SeasonPersonalTierCard({ item }: { item: SeasonPersonalRankingItem }) {
   return (
-    <article className="w-28 rounded-xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_8px_24px_rgba(0,0,0,0.2)] sm:w-32">
+    <article className="w-28 rounded-xl border border-white/10 bg-[#14161b] p-2 shadow-[0_8px_24px_rgba(0,0,0,0.2)] sm:w-32">
       <AnimeCover
         src={item.imageUrl}
         title={item.title}
@@ -1160,7 +1160,7 @@ function SeasonPersonalTierCard({ item }: { item: SeasonPersonalRankingItem }) {
 
 function SeasonTierCard({ item }: { item: SeasonRankingItem }) {
   return (
-    <article className="w-28 rounded-xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_8px_24px_rgba(0,0,0,0.2)] sm:w-32">
+    <article className="w-28 rounded-xl border border-white/10 bg-[#14161b] p-2 shadow-[0_8px_24px_rgba(0,0,0,0.2)] sm:w-32">
       <AnimeCover
         src={item.imageUrl}
         title={item.title}

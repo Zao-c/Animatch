@@ -326,7 +326,7 @@ export function QuickImportPanel({
               key={preset.label}
               type="button"
               onClick={() => applyPreset(preset)}
-              className="min-h-11 rounded-full border border-anime-purple/25 bg-anime-purple/10 px-4 text-xs font-semibold text-purple-100 transition hover:border-anime-pink/40 hover:bg-anime-pink/12 focus:outline-none focus:ring-2 focus:ring-anime-pink/40"
+              className="min-h-11 rounded-full border border-white/15 bg-white/[0.05] px-4 text-xs font-semibold text-zinc-200 transition hover:border-white/30 hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-white/30"
             >
               {preset.label}
             </button>
@@ -353,9 +353,9 @@ export function QuickImportPanel({
                     if (m.key === "USER_COLLECTION") setSource("BANGUMI");
                   }}
                   aria-pressed={mode === m.key}
-                  className={`min-h-11 rounded-full border px-4 py-1 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-anime-pink/40 ${
+                  className={`min-h-11 rounded-full border px-4 py-1 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-white/25 ${
                     mode === m.key
-                      ? "border-anime-pink/50 bg-anime-pink/12 text-pink-100"
+                      ? "border-white/35 bg-white/[0.1] text-white"
                       : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
                   }`}
                 >
@@ -486,7 +486,7 @@ export function QuickImportPanel({
                 setUseRemote(e.target.checked);
               }}
               disabled={remoteRequired}
-              className="h-4 w-4 accent-anime-purple"
+              className="h-4 w-4 accent-zinc-200"
             />
             <span className="text-xs text-slate-400">
               {remoteRequired ? "从 Bangumi 实时拉取" : "本地不足时从 Bangumi 补全"}
@@ -527,9 +527,9 @@ export function QuickImportPanel({
                       setCollectionType(ct.key);
                     }}
                     aria-pressed={collectionType === ct.key}
-                    className={`min-h-11 rounded-full border px-3 py-1 text-[11px] font-semibold transition focus:outline-none focus:ring-2 focus:ring-anime-purple/40 ${
+                    className={`min-h-11 rounded-full border px-3 py-1 text-[11px] font-semibold transition focus:outline-none focus:ring-2 focus:ring-white/25 ${
                       collectionType === ct.key
-                        ? "border-anime-purple/50 bg-anime-purple/12 text-purple-100"
+                        ? "border-white/35 bg-white/[0.1] text-white"
                         : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
                     }`}
                   >
@@ -568,7 +568,7 @@ export function QuickImportPanel({
                 type="checkbox"
                 checked={visibility === "PUBLIC"}
                 onChange={(e) => setVisibility(e.target.checked ? "PUBLIC" : "PRIVATE")}
-                className="h-4 w-4 accent-cyan-400"
+                className="h-4 w-4 accent-zinc-200"
               />
               <span className="text-sm text-slate-300">公开展示</span>
             </label>
@@ -612,7 +612,7 @@ export function QuickImportPanel({
             <div className="flex flex-wrap items-center gap-2">
               <AppBadge tone="source">{preview.total} 部</AppBadge>
               {preview.remoteFetch?.attempted ? (
-                <span className="text-[10px] text-anime-cyan">
+                <span className="text-[10px] text-zinc-200">
                   {preview.remoteFetch.succeeded
                     ? `Bangumi 补全 +${preview.remoteFetch.fetchedCount}`
                     : "Bangumi 未返回结果"}
@@ -629,7 +629,7 @@ export function QuickImportPanel({
               <button
                 type="button"
                 onClick={selectAll}
-                className="min-h-11 rounded-lg px-3 text-xs font-semibold text-slate-400 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-anime-cyan/40"
+                className="min-h-11 rounded-lg px-3 text-xs font-semibold text-slate-400 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-white/25"
               >
                 全选所有页
               </button>
@@ -637,7 +637,7 @@ export function QuickImportPanel({
                 <button
                   type="button"
                   onClick={deselectExisting}
-                  className="min-h-11 rounded-lg px-3 text-xs font-semibold text-slate-400 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-anime-cyan/40"
+                  className="min-h-11 rounded-lg px-3 text-xs font-semibold text-slate-400 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-white/25"
                 >
                   取消已存在
                 </button>
@@ -675,9 +675,9 @@ export function QuickImportPanel({
                     disabled={candidate.alreadyInPool}
                     aria-pressed={selected}
                     aria-label={`${candidate.alreadyInPool ? "已存在，" : selected ? "已选择，" : "未选择，"}${displayTitle}`}
-                    className={`group relative overflow-hidden rounded-xl border text-left transition focus:outline-none focus:ring-2 focus:ring-anime-cyan/50 ${
+                    className={`group relative overflow-hidden rounded-xl border text-left transition focus:outline-none focus:ring-2 focus:ring-white/30 ${
                       selected
-                        ? "border-anime-cyan/70 ring-1 ring-anime-cyan/40"
+                        ? "border-zinc-100/80 ring-1 ring-zinc-100/30"
                         : candidate.alreadyInPool
                           ? "border-white/10 bg-white/[0.02] opacity-50"
                           : "border-white/10 bg-white/[0.03] hover:border-white/20"
@@ -718,7 +718,7 @@ export function QuickImportPanel({
                       </div>
                     </div>
                     {selected ? (
-                      <div className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-anime-cyan text-[10px] font-black text-slate-900">
+                      <div className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-black text-zinc-950">
                         ✓
                       </div>
                     ) : null}
@@ -728,7 +728,7 @@ export function QuickImportPanel({
             </div>
           )}
           {preview.candidates.length > 20 && <nav aria-label="导入预览分页" className="mt-4 flex items-center justify-between gap-2"><AppButton variant="ghost" disabled={resultPage === 1} onClick={() => setResultPage((p) => p - 1)}>上一页</AppButton><span className="text-sm">{resultPage} / {Math.ceil(preview.candidates.length / 20)} · 已选 {selectedIds.size} 部</span><AppButton variant="ghost" disabled={resultPage * 20 >= preview.candidates.length} onClick={() => setResultPage((p) => p + 1)}>下一页</AppButton></nav>}
-          <div className="sticky bottom-2 z-20 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-anime-border bg-slate-950 p-3 shadow-xl">
+          <div className="sticky bottom-2 z-20 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-anime-border bg-[#0c0d10] p-3 shadow-xl">
             <p className="text-sm text-slate-300">已选 {selectedIds.size} 部{!poolId && !poolName.trim() ? " · 请先填写番组名" : ""}</p>
             <AppButton type="button" variant="primary" onClick={poolId ? handleAddToPool : handleCreatePool} disabled={isCreating || isLoading || (poolId ? !canAdd : !canCreate)}>{isCreating ? "正在导入…" : poolId ? "添加选中作品" : "创建番组并导入"}</AppButton>
           </div>

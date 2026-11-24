@@ -182,7 +182,7 @@ export function PoolTierConfigEditor({
         {rows.map((row, index) => (
           <div
             key={`${row.id}-${index}`}
-            className={compact ? "grid min-w-0 grid-cols-[28px_minmax(0,1fr)_36px] items-center gap-2 rounded-xl border border-white/10 bg-slate-950/35 p-2" : "grid min-w-0 gap-2 rounded-xl border border-white/10 bg-slate-950/34 p-2 lg:grid-cols-[36px_minmax(0,1fr)_minmax(0,180px)_auto] lg:items-center"}
+            className={compact ? "grid min-w-0 grid-cols-[28px_minmax(0,1fr)_36px] items-center gap-2 rounded-xl border border-white/10 bg-[#14161b] p-2" : "grid min-w-0 gap-2 rounded-xl border border-white/10 bg-[#14161b] p-2 lg:grid-cols-[36px_minmax(0,1fr)_minmax(0,180px)_auto] lg:items-center"}
           >
             <div
               className="flex h-9 w-full max-w-9 items-center justify-center rounded-lg text-xs font-black text-slate-950"
@@ -199,7 +199,7 @@ export function PoolTierConfigEditor({
               placeholder="行名称"
               disabled={isSaving}
             />
-            {compact ? <input type="color" value={row.color} onChange={(event) => handleColorChange(index, event.target.value)} disabled={isSaving} aria-label={`第 ${index + 1} 层颜色`} title="修改层级颜色" className="h-11 w-9 cursor-pointer rounded-lg border border-white/15 bg-slate-900 p-1" /> : <div className="flex min-w-0 flex-wrap gap-1.5">
+            {compact ? <input type="color" value={row.color} onChange={(event) => handleColorChange(index, event.target.value)} disabled={isSaving} aria-label={`第 ${index + 1} 层颜色`} title="修改层级颜色" className="h-11 w-9 cursor-pointer rounded-lg border border-white/15 bg-[#14161b] p-1" /> : <div className="flex min-w-0 flex-wrap gap-1.5">
               {COLOR_PALETTE.map((color) => (
                 <button
                   key={color}
@@ -208,7 +208,7 @@ export function PoolTierConfigEditor({
                   disabled={isSaving}
                   className={`h-5 w-5 rounded-md border-2 transition-colors ${
                     row.color === color
-                      ? "border-cyan-200"
+                      ? "border-zinc-100"
                       : "border-transparent hover:border-white/35"
                   }`}
                   style={{ backgroundColor: color }}
@@ -295,7 +295,7 @@ function IconButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-sm font-bold text-slate-300 transition hover:border-cyan-300/30 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-35"
+      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-sm font-bold text-slate-300 transition hover:border-white/25 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-35"
     >
       {children}
     </button>

@@ -15,9 +15,9 @@ export default function AccountSecurity() {
     setReturnTo(next === "/" || next.startsWith("/account/security") || next.startsWith("/login") ? "/pools?view=public" : next);
   }, []);
   useEffect(() => { featureRequest<{ configured: boolean }>("/api/auth/password").then((d) => setConfigured(d.configured)).catch((e) => setError(e.message)); }, []);
-  return <PageShell><section className="mx-auto max-w-lg rounded-2xl border border-white/10 bg-slate-950/40 p-6"><h1 className="text-2xl font-bold">账号设置</h1>
-    <div className="mt-4 rounded-xl border border-cyan-300/20 bg-cyan-300/5 p-4 text-sm leading-6">
-      <p>群共用密码 <strong className="select-all font-mono text-cyan-200">{FRIEND_SHARED_PASSWORD}</strong></p>
+  return <PageShell><section className="mx-auto max-w-lg rounded-2xl border border-white/10 bg-[#14161b] p-6"><h1 className="text-2xl font-bold">账号设置</h1>
+    <div className="mt-4 rounded-xl border border-white/[0.08] bg-[#14161b] p-4 text-sm leading-6">
+      <p>群共用密码 <strong className="select-all font-mono text-zinc-200">{FRIEND_SHARED_PASSWORD}</strong></p>
       <p className="mt-1 text-slate-300">不改密码也能正常使用。忘记个人密码时，仍可用共用密码登录原账号。</p>
     </div>
     <p className="mt-3 text-sm leading-6 text-slate-400">个人密码由你自愿设置，请勿复用其他网站的重要密码。知道共用密码和用户名的人也能进入该账号；设置个人密码不会关闭共用入口。</p>

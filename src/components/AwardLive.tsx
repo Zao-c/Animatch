@@ -12,7 +12,7 @@ import { awardPreparationScene, buildHostScript, nextUnrevealedAward } from "@/l
 
 type Live = Awaited<ReturnType<typeof getAwardLive>>;
 type Mode = "host" | "live" | "screen" | "results";
-const box = "min-w-0 rounded-2xl border border-white/10 bg-slate-950/40 p-4 sm:p-6";
+const box = "min-w-0 rounded-2xl border border-white/10 bg-[#14161b] p-4 sm:p-6";
 const field = "anime-field mt-2 w-full min-w-0";
 const sceneLabels: Record<string, string> = { WAITING: "等待主持人", NOMINEES: "入围展示", VOTING: "现场投票中", CLOSED: "票箱已关闭", READY: "等待揭晓", REVEALED: "获奖揭晓", FINISHED: "本届颁奖结束" };
 const methodLabels: Record<string, string> = { VOTE: "现场投票", DISCUSSION: "讨论决定", WITHHELD: "本项空缺" };
@@ -87,7 +87,7 @@ export function AwardLive({ id, mode }: { id: string; mode: Mode }) {
   const selectedIndex = data.awards.findIndex((a) => a.id === selected);
   const nextAward = nextUnrevealedAward(data.awards, selected, revealed);
 
-  const stage = <section className={`${box} ${screen ? "flex min-h-[85vh] flex-col justify-center bg-gradient-to-br from-amber-200/10 via-slate-950 to-slate-900 p-6 sm:aspect-video sm:min-h-0 sm:p-12" : ""}`}>
+  const stage = <section className={`${box} ${screen ? "flex min-h-[85vh] flex-col justify-center bg-gradient-to-br from-[#181b21] via-[#14161b] to-[#0c0d10] p-6 sm:aspect-video sm:min-h-0 sm:p-12" : ""}`}>
     <p className="text-xs font-bold tracking-[0.2em] text-amber-200">{data.year} ANIMATCH AWARDS {host && "· 主持准备预览"}</p>
     <p className="mt-3 text-sm text-slate-300">{sceneLabels[scene]}{!waiting && round && ` · 第 ${round.number} 轮`}</p>
     <h1 className={`mt-3 font-black ${screen ? "text-3xl sm:text-5xl" : "text-2xl"}`}>{waiting ? data.title : award?.title ?? data.title}</h1>
@@ -98,7 +98,7 @@ export function AwardLive({ id, mode }: { id: string; mode: Mode }) {
     {canVote && <div className="mt-4 flex flex-wrap items-center gap-3"><AppButton variant="ghost" disabled={busy} onClick={() => vote(null)}>本轮弃权</AppButton><p className="text-sm text-amber-100">{round?.mine ? round.mine.candidateKey === null ? "你已弃权" : "你已投票，点击其他候选可改选" : "点选你支持的候选"}</p></div>}
   </section>;
 
-  if (screen) return <main className="min-h-screen bg-slate-950 p-3 text-white sm:p-6"><div className="mx-auto max-w-[100rem]">{stage}{error && <p role="alert" className="mt-3 text-amber-200">连接中断，显示上次同步画面。{error}</p>}<Link href={`${root}/live`} className="mt-3 inline-flex min-h-11 items-center text-sm text-slate-400">退出展示屏</Link></div></main>;
+  if (screen) return <main className="min-h-screen bg-[#0c0d10] p-3 text-white sm:p-6"><div className="mx-auto max-w-[100rem]">{stage}{error && <p role="alert" className="mt-3 text-amber-200">连接中断，显示上次同步画面。{error}</p>}<Link href={`${root}/live`} className="mt-3 inline-flex min-h-11 items-center text-sm text-slate-400">退出展示屏</Link></div></main>;
   return <PageShell><div className="mx-auto max-w-6xl">
     <header className="mb-5 flex flex-wrap items-start justify-between gap-3"><div><Link href={root} className="text-sm text-slate-400">← {data.title}</Link><h1 className="mt-2 text-2xl font-black">{host ? "主持颁奖" : mode === "results" ? "年度回顾" : "颁奖现场"}</h1><p className="mt-2 text-sm text-slate-400">已揭晓 {revealed.length} / {data.awards.length} 项</p></div><div className="flex flex-wrap gap-2"><Link className={appButtonClasses({ variant: "ghost" })} href={`${root}/live`}>现场投票</Link><Link className={appButtonClasses({ variant: "ghost" })} href={`${root}/results`}>年度回顾</Link>{data.isOwner && <Link className={appButtonClasses({ variant: "secondary" })} href={`${root}/host`}>主持台</Link>}</div></header>
     {error && <p role="alert" className="mb-4 rounded-xl border border-rose-300/30 p-3 text-rose-200">{error} <AppButton variant="quiet" onClick={refresh}>刷新</AppButton></p>}{notice && <p role="status" className="mb-4 text-emerald-200">{notice}</p>}
@@ -113,8 +113,8 @@ export function AwardLive({ id, mode }: { id: string; mode: Mode }) {
         <label className="mt-3 block text-sm">准备奖项<select aria-label="准备奖项" className={field} value={selected} onChange={(e) => setSelected(e.target.value)}>{data.awards.map((a, i) => <option key={a.id} value={a.id}>{i + 1}. {a.title}{revealed.some((d) => d.awardId === a.id) ? " · 已揭晓" : ""}</option>)}</select></label>
         <div className="mt-3 grid grid-cols-2 gap-2"><AppButton disabled={busy || selectedIndex <= 0} onClick={() => setSelected(data.awards[selectedIndex - 1].id)}>上一项</AppButton><AppButton disabled={busy || selectedIndex < 0 || selectedIndex >= data.awards.length - 1} onClick={() => setSelected(data.awards[selectedIndex + 1].id)}>下一项</AppButton></div>
         <p className="mt-3 hidden text-xs leading-6 text-slate-400 lg:block">切换只用于准备，推送后观众才会看到。</p>
-        <div className="mt-4 rounded-xl border border-cyan-300/20 bg-cyan-300/5 p-3 text-sm">
-          <p className="text-xs text-cyan-200">正式现场 · {sceneLabels[data.stage.scene]}</p>
+        <div className="mt-4 rounded-xl border border-white/[0.08] bg-[#14161b] p-3 text-sm">
+          <p className="text-xs text-zinc-200">正式现场 · {sceneLabels[data.stage.scene]}</p>
           <p className="mt-2 break-words">{data.stage.scene === "WAITING" || data.stage.scene === "FINISHED" ? data.title : data.awards.find((a) => a.id === data.stage.awardId)?.title ?? "等待画面"}</p>
           {active && active.awardId !== selected && <AppButton className="mt-2" variant="quiet" onClick={() => setSelected(active.awardId)}>返回正在投票的奖项</AppButton>}
         </div>

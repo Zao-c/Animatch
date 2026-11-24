@@ -107,7 +107,7 @@ function AuthNavContent() {
     return (
       <Link
         href={`/login${nextPath}`}
-        className="inline-flex min-h-11 items-center rounded-full border border-anime-border bg-white/[0.04] px-4 py-2 transition duration-anime hover:border-anime-purple/40 hover:text-white"
+        className="inline-flex min-h-11 items-center rounded-full border border-anime-border bg-white/[0.04] px-4 py-2 transition duration-anime hover:border-white/30 hover:text-white"
       >
         登录
       </Link>
@@ -118,7 +118,7 @@ function AuthNavContent() {
     <div className="flex min-w-0 items-center gap-2">
       <Link href="/tierlists?view=mine"
         aria-label="我的榜单" title="我的榜单"
-        className="hidden min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.035] px-3 text-xs font-semibold text-slate-200 transition hover:border-cyan-300/50 hover:text-cyan-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 lg:inline-flex">
+        className="hidden min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 text-xs font-semibold text-zinc-200 transition hover:border-white/25 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-zinc-100 lg:inline-flex">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-4 w-4 shrink-0" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 20V10M10 20V4M16 20v-7M22 20V8" />
           <path d="M2 20h20" />
@@ -127,8 +127,8 @@ function AuthNavContent() {
       </Link>
       {user.username ? <Link href={`/u/${user.username}`}
         aria-label="个人主页" title="个人主页"
-        className="hidden min-h-11 shrink-0 items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/[0.07] px-2.5 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300/60 hover:bg-cyan-300/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 sm:inline-flex">
-        <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-400/30 to-cyan-300/30 text-xs font-bold">{(user.name ?? user.username).slice(0, 1)}</span>
+        className="hidden min-h-11 shrink-0 items-center gap-2 rounded-full border border-white/15 bg-white/[0.05] px-2.5 text-sm font-semibold text-zinc-100 transition hover:border-white/30 hover:bg-white/[0.1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-zinc-100 sm:inline-flex">
+        <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/[0.12] text-xs font-bold text-white">{(user.name ?? user.username).slice(0, 1)}</span>
       </Link> : null}
       <details
       ref={menuRef}
@@ -141,12 +141,12 @@ function AuthNavContent() {
     >
       <summary
         aria-label={`账号菜单：${user.name ?? user.username ?? "我的账号"}`}
-        className="flex min-h-11 max-w-[136px] cursor-pointer list-none items-center gap-2 rounded-full border border-anime-purple/25 bg-anime-purple/10 px-3 py-2 text-xs font-semibold text-purple-100 transition hover:border-anime-purple/50 hover:bg-anime-purple/20 [&::-webkit-details-marker]:hidden"
+        className="flex min-h-11 max-w-[136px] cursor-pointer list-none items-center gap-2 rounded-full border border-white/15 bg-white/[0.05] px-3 py-2 text-xs font-semibold text-zinc-100 transition hover:border-white/30 hover:bg-white/[0.1] [&::-webkit-details-marker]:hidden"
       >
         <span className="min-w-0 truncate">{user.name ?? user.username ?? "我的账号"}</span>
         <svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m4 6 4 4 4-4" /></svg>
       </summary>
-      <div className="absolute right-0 top-full z-50 mt-2 w-60 max-w-[calc(100vw-2rem)] rounded-2xl border border-anime-border bg-slate-950 p-2 shadow-xl">
+      <div className="absolute right-0 top-full z-50 mt-2 w-60 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/10 bg-[#14161b] p-2 shadow-xl">
         {user.username ? <Link href={`/u/${user.username}`} className="flex min-h-11 items-center rounded-xl px-3 hover:bg-white/[0.06]">我的主页</Link> : null}
         <Link href="/tierlists?view=mine" className="flex min-h-11 items-center rounded-xl px-3 hover:bg-white/[0.06]">我的榜单</Link>
         <Link href={pathname === "/account/security" ? "/account/security" : `/account/security?next=${encodeURIComponent(pathname)}`} className="flex min-h-11 items-center rounded-xl px-3 hover:bg-white/[0.06]">账号设置</Link>

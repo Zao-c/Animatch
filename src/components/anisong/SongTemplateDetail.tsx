@@ -104,7 +104,7 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
 
   const ownerHref = isCreator ? `/anisong/${template!.ownerBoardId}` : "";
   return <div className="mx-auto w-full max-w-[90rem] space-y-4">
-    <Link href="/anisong" className="inline-flex min-h-9 items-center text-sm text-anime-cyan">← 公开曲单</Link>
+    <Link href="/anisong" className="inline-flex min-h-9 items-center text-sm text-zinc-200">← 公开曲单</Link>
     {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/25 p-3 text-sm text-amber-200"><span>{error}</span>{!template && <AppButton variant="ghost" size="sm" onClick={() => setRetryKey(value => value + 1)}>重试加载</AppButton>}</div>}
     {!template ? !error && <p role="status">正在加载曲单…</p> : <>
       <header className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(310px,430px)]">
@@ -130,7 +130,7 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
             </AppButton>
             <SongShareButton path={`/anisong/templates/${templateId}`} />
           </div>
-          {isCreator && <Link href={ownerHref} className="block py-1 text-center text-xs text-anime-cyan">管理我的曲单 →</Link>}
+          {isCreator && <Link href={ownerHref} className="block py-1 text-center text-xs text-zinc-200">管理我的曲单 →</Link>}
         </AppCard>
       </header>
       <div ref={wallRef} className="scroll-mt-24">
@@ -140,7 +140,7 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
       {tab === "community" ? <AppCard id={`song-public-panel-${tab}`} role="tabpanel" aria-labelledby={`song-public-tab-${tab}`} className="p-4 sm:p-5"><SongCommunityRanking templateId={templateId}/></AppCard> :
         <AppCard id={`song-public-panel-${tab}`} role="tabpanel" aria-labelledby={`song-public-tab-${tab}`} className="space-y-4 p-3 sm:p-4">
           <h2 className="sr-only">{tab === "range" ? "参赛范围" : "歌曲谱"}</h2>
-          {tab === "range" && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-anime-cyan/20 bg-anime-cyan/[0.04] p-3">
+          {tab === "range" && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.08] bg-[#14161b] p-3">
             {isCreator ?
               <Link href={`${ownerHref}?tab=range`} className={appButtonClasses({ variant: "secondary", size: "sm" })}>调整我的参赛范围</Link> :
               <><AppButton size="sm" variant="ghost" onClick={selectAll}>全选</AppButton>
@@ -158,17 +158,17 @@ export function SongTemplateDetail({ templateId }: { templateId: string }) {
           {filteredTracks.length ? <div className="grid grid-cols-2 items-start gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
             {pageTracks.map(track => {
               const playable = track.source.kind === "pool" || track.source.kind === "itunes" || Boolean(track.itunes);
-              return <article key={track.id} className="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-slate-950/25">
+              return <article key={track.id} className="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#14161b]">
                 <div className="relative">
                   <SongCover src={track.coverUrl} title={track.title} className="w-full !rounded-none !border-0" />
-                  {tab === "range" && !isCreator && <label className="absolute left-2 top-2 flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-white/15 bg-slate-950/90 px-2 text-xs text-white">
-                    <input type="checkbox" className="h-4 w-4 accent-teal-300" aria-label={`选择参赛：${track.title}`} checked={selected.has(track.id)} onChange={() => toggleTrack(track.id)} />
+                  {tab === "range" && !isCreator && <label className="absolute left-2 top-2 flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-white/15 bg-[#0c0d10]/90 px-2 text-xs text-white">
+                    <input type="checkbox" className="h-4 w-4 accent-zinc-200" aria-label={`选择参赛：${track.title}`} checked={selected.has(track.id)} onChange={() => toggleTrack(track.id)} />
                     参赛
                   </label>}
                 </div>
                 <div className="space-y-1.5 p-2.5">
                   <h3 title={track.title} className="line-clamp-2 min-h-9 break-words text-xs font-bold leading-4">{track.title}</h3>
-                  <p title={track.anime || "动画来源未填写"} className="line-clamp-2 min-h-7 break-words text-[11px] leading-4 text-cyan-100">{track.anime || "动画来源未填写"} · {KIND_LABELS[track.kind]}</p>
+                  <p title={track.anime || "动画来源未填写"} className="line-clamp-2 min-h-7 break-words text-[11px] leading-4 text-zinc-200">{track.anime || "动画来源未填写"} · {KIND_LABELS[track.kind]}</p>
                   <p className="truncate text-[11px] text-slate-400" title={track.artist}>{track.artist || "歌手未填写"}</p>
                   {playable ? <SongPlayer track={track} boardId="" templateId={templateId} minimal /> :
                     <p className="py-2 text-[11px] text-slate-500">暂无试听</p>}

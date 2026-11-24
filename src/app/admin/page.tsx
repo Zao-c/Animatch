@@ -191,7 +191,7 @@ export default function AdminPage() {
       const dialog = document.querySelector<HTMLElement>("[data-admin-dialog='true']");
       const focusable = dialog
         ? Array.from(dialog.querySelectorAll<HTMLElement>(
-            "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href]"
+"button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href]"
           )).filter((element) => element.tabIndex >= 0)
         : [];
       if (focusable.length === 0) return;
@@ -475,7 +475,7 @@ export default function AdminPage() {
             <div className="overflow-x-auto rounded-lg border border-slate-800">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-800 bg-slate-900/60">
+                  <tr className="border-b border-slate-800 bg-[#14161b]/60">
                     <th className="px-4 py-3 text-xs font-medium text-slate-400">
                       名称
                     </th>
@@ -654,7 +654,7 @@ export default function AdminPage() {
               aria-modal="true"
               aria-labelledby="admin-edit-dialog-title"
               aria-busy={editLoading}
-              className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6"
+              className="w-full max-w-md rounded-xl border border-slate-700 bg-[#14161b] p-6"
             >
               <h2 id="admin-edit-dialog-title" className="text-lg font-bold text-white">编辑番组</h2>
               <form onSubmit={handleUpdate} className="mt-4 space-y-4">
@@ -738,7 +738,7 @@ export default function AdminPage() {
               aria-labelledby="admin-danger-dialog-title"
               aria-describedby="admin-danger-dialog-description"
               aria-busy={confirmLoading}
-              className="w-full max-w-sm rounded-xl border border-amber-500/30 bg-slate-900 p-6"
+              className="w-full max-w-sm rounded-xl border border-amber-500/30 bg-[#14161b] p-6"
             >
               <h2 id="admin-danger-dialog-title" className="text-lg font-bold text-amber-400">确认操作</h2>
               <p id="admin-danger-dialog-description" className="mt-2 text-sm text-slate-300">

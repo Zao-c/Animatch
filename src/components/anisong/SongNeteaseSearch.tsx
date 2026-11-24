@@ -11,7 +11,7 @@ const accountAction = <T,>(action: string, signal?: AbortSignal) => songRequest<
 
 export function SongNeteaseSearch({ tracks, disabled, onSave, initialOpen = false }: { tracks: SongTrack[]; disabled: boolean; onSave: (form: FormData) => Promise<boolean>; initialOpen?: boolean }) {
   const [open, setOpen] = useState(initialOpen);
-  return <section className="rounded-2xl border border-white/10 bg-slate-950/30 p-4 sm:p-5">
+  return <section className="rounded-2xl border border-white/10 bg-[#14161b] p-4 sm:p-5">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">从网易云找歌</h2><p className="mt-1 text-xs text-slate-400">搜索歌曲和封面，加入曲单后试听、比较。</p></div><AppButton variant="secondary" disabled={disabled} onClick={() => setOpen(value => !value)}>{open ? "收起网易云搜索" : "打开网易云搜索"}</AppButton></div>
     {open && <SearchPanel tracks={tracks} disabled={disabled} onSave={onSave} />}
   </section>;
@@ -92,7 +92,7 @@ function SearchPanel({ tracks, disabled, onSave }: { tracks: SongTrack[]; disabl
         {!unavailable && <AppButton size="sm" variant="ghost" disabled={accountBusy || disabled || Boolean(qr)} onClick={() => void login(account?.connected ? "disconnect" : "start")}>{accountBusy ? "正在处理…" : account?.connected ? "断开网易云" : "扫码连接网易云"}</AppButton>}</div>
       {account?.message && <p className="mt-2 text-amber-200">{account.message}</p>}
       {qr && <div className="mt-4 flex flex-wrap items-center gap-4"><img src={qr.image} alt="网易云登录二维码" width={180} height={180} className="rounded-xl bg-white p-2" /><p className="max-w-xs text-xs leading-6 text-slate-400">使用你自己的网易云账号扫码。登录状态仅用于当前 AniMatch 用户，其他用户不会共享你的账号。</p></div>}
-      {qrMessage && <p role="status" className="mt-2 text-xs text-anime-cyan">{qrMessage}</p>}
+      {qrMessage && <p role="status" className="mt-2 text-xs text-zinc-200">{qrMessage}</p>}
       {accountError && <p role="alert" className="mt-2 text-xs text-amber-200">{accountError}</p>}
     </div>
     <form className="flex gap-2" onSubmit={event => { event.preventDefault(); void search(); }}><input aria-label="网易云搜索关键词" value={query} onChange={event => setQuery(event.target.value)} maxLength={100} placeholder="歌名 + 歌手，如 YOASOBI アイドル" className="anime-field min-w-0 flex-1" disabled={unavailable} /><AppButton type="submit" disabled={unavailable || searching || !query.trim()}>{searching ? "搜索中…" : "搜索"}</AppButton></form>
@@ -103,7 +103,7 @@ function SearchPanel({ tracks, disabled, onSave }: { tracks: SongTrack[]; disabl
       <label className="text-xs text-slate-400">季度<select name="quarter" className="anime-field mt-1" disabled={disabled || Boolean(adding)}><option value="">未指定</option>{["冬季", "春季", "夏季", "秋季"].map((label, index) => <option key={label} value={index + 1}>{label}</option>)}</select></label>
     </form>
     {searchError && <p role="alert" className="text-sm text-amber-200">{searchError}</p>}
-    {added && <p role="status" className="text-sm text-anime-cyan">{added}</p>}
+    {added && <p role="status" className="text-sm text-zinc-200">{added}</p>}
     {searched && <p className="text-xs text-slate-400">「{searched}」· {songs.length ? `显示 ${songs.length} 个版本，请核对歌手和专辑。` : "没有找到歌曲，试试日文歌名或歌手名。"}</p>}
     <ul className="max-h-[32rem] space-y-2 overflow-y-auto">{songs.map(song => {
       const exists = tracks.some(track => track.source.kind === "netease" && track.source.id === song.id);

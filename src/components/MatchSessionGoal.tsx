@@ -38,9 +38,9 @@ export function MatchSessionGoal({ scopeKey, count, resultHref, disabled }: {
   const completed = goal ? Math.max(0, count - goal.startCount) : 0;
   const reached = !!goal && completed >= goal.size;
   return <div aria-label="本段对决目标" className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
-    <label className="flex min-h-11 items-center gap-2">本段目标<select aria-label="本段有效对决目标" value={goal?.size ?? 0} disabled={!ready || disabled} onChange={(event) => choose(Number(event.target.value))} className="min-h-11 rounded-lg border border-white/10 bg-slate-950 px-2 text-slate-200"><option value={0}>不限</option><option value={10}>10 场</option><option value={20}>20 场</option></select></label>
-    {goal && <><progress aria-label="本段已完成的有效对决" value={Math.min(completed, goal.size)} max={goal.size} className="h-2 w-24 accent-cyan-300" /><span role="status" aria-live="polite" className={reached ? "text-cyan-200" : ""}>{reached ? `目标已完成 · ${completed} 场` : `${completed} / ${goal.size} 场 · 跳过和没看过不计入`}</span></>}
-    {goal && reached && <><Link href={resultHref} className="inline-flex min-h-11 items-center text-cyan-200 underline">看看榜单，休息一下</Link><AppButton size="sm" variant="quiet" disabled={disabled} onClick={() => choose(goal.size)}>再来 {goal.size} 场</AppButton></>}
+    <label className="flex min-h-11 items-center gap-2">本段目标<select aria-label="本段有效对决目标" value={goal?.size ?? 0} disabled={!ready || disabled} onChange={(event) => choose(Number(event.target.value))} className="min-h-11 rounded-lg border border-white/10 bg-[#0c0d10] px-2 text-slate-200"><option value={0}>不限</option><option value={10}>10 场</option><option value={20}>20 场</option></select></label>
+    {goal && <><progress aria-label="本段已完成的有效对决" value={Math.min(completed, goal.size)} max={goal.size} className="h-2 w-24 accent-zinc-200" /><span role="status" aria-live="polite" className={reached ? "text-zinc-200" : ""}>{reached ? `目标已完成 · ${completed} 场` : `${completed} / ${goal.size} 场 · 跳过和没看过不计入`}</span></>}
+    {goal && reached && <><Link href={resultHref} className="inline-flex min-h-11 items-center text-zinc-200 underline">看看榜单，休息一下</Link><AppButton size="sm" variant="quiet" disabled={disabled} onClick={() => choose(goal.size)}>再来 {goal.size} 场</AppButton></>}
     {storageFailed && <span className="text-amber-200">目标仅保留到离开当前页面，已保存的投票不受影响。</span>}
   </div>;
 }

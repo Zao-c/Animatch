@@ -355,7 +355,7 @@ describe("AuthNav links to user profile", () => {
   });
 
   it("Link has hover styles", () => {
-    expect(source).toContain("hover:border-anime-purple/50");
+    expect(source).toContain("hover:border-white/30");
   });
 });
 
@@ -390,7 +390,7 @@ describe("Pool detail links to creator profile", () => {
 
   it("has underline hover styles for creator link", () => {
     expect(source).toContain("decoration-slate-600/40");
-    expect(source).toContain("hover:text-anime-purple");
+    expect(source).toContain("hover:text-white");
   });
 
   it("falls back to plain span when no username", () => {

@@ -19,7 +19,7 @@ export function SongEditDrawer({ children, title = "批量编辑歌曲", busy, d
   useEffect(() => { if (dirty === false) changed.current = false; }, [dirty, title]);
   function close() { if (busy) return; if ((dirty || changed.current) && !window.confirm("放弃未保存的修改或待导入内容？")) return; onClose(); }
   function change() { changed.current = true; onDirtyChange?.(true); }
-  return <dialog ref={dialog} aria-labelledby={heading} onCancel={e => { e.preventDefault(); close(); }} className="fixed inset-0 ml-auto mr-0 mt-auto flex max-h-[94dvh] w-full max-w-xl flex-col rounded-t-2xl border border-white/15 bg-slate-950 p-0 text-slate-100 shadow-2xl backdrop:bg-slate-950/65 sm:my-0 sm:h-dvh sm:max-h-dvh sm:rounded-none">
+  return <dialog ref={dialog} aria-labelledby={heading} onCancel={e => { e.preventDefault(); close(); }} className="fixed inset-0 ml-auto mr-0 mt-auto flex max-h-[94dvh] w-full max-w-xl flex-col rounded-t-2xl border border-white/15 bg-[#0c0d10] p-0 text-slate-100 shadow-2xl backdrop:bg-[#0c0d10]/65 sm:my-0 sm:h-dvh sm:max-h-dvh sm:rounded-none">
     <header className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 py-3"><h2 id={heading} className="font-bold">{title}</h2><AppButton variant="quiet" size="sm" disabled={busy} onClick={close}>关闭任务</AppButton></header>
     <div onChange={change} onDrop={change} onClick={event => { if (event.target instanceof Element && event.target.closest("[data-dirties]")) change(); }} className="min-h-0 overflow-y-auto overscroll-contain">{children}</div>
   </dialog>;

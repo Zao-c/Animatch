@@ -129,7 +129,7 @@ function DivergenceRow({
         ) : type === "likes-more" ? (
           <p className="mt-1.5 text-xs leading-5 text-slate-300">
             你把它排在{" "}
-            <span className="font-semibold text-cyan-200">
+            <span className="font-semibold text-zinc-200">
               {item.personalTierLabel}
             </span>
             ，社区平均在{" "}
@@ -147,7 +147,7 @@ function DivergenceRow({
               {item.communityTierLabel}
             </span>
             ，你只排在{" "}
-            <span className="font-semibold text-cyan-200">
+            <span className="font-semibold text-zinc-200">
               {item.personalTierLabel}
             </span>
             。

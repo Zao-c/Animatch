@@ -29,7 +29,7 @@ export function DashboardTabs<T extends string>({ id, label, value, items, onCha
             onChange(items[next].value);
             buttons.current[next]?.focus();
           }}
-          className={`inline-flex min-h-11 ${mobileScroll ? "flex-none" : "flex-1"} items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 text-sm font-semibold transition sm:flex-none sm:px-5 ${value === item.value ? "bg-anime-purple/20 text-purple-100 ring-1 ring-anime-purple/35" : "text-slate-400 hover:bg-white/5 hover:text-white"}`}>
+          className={`inline-flex min-h-11 ${mobileScroll ? "flex-none" : "flex-1"} items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 text-sm font-semibold transition sm:flex-none sm:px-5 ${value === item.value ? "bg-white/[0.12] text-white ring-1 ring-white/20" : "text-zinc-400 hover:bg-white/5 hover:text-white"}`}>
           {item.label}
           {item.count !== undefined ? <span className="text-xs opacity-70">{item.count}</span> : null}
         </button>

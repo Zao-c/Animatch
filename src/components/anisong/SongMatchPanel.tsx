@@ -19,7 +19,7 @@ export function SongMatchPanel({ boardId, pair, ranking, document, disabled, bus
   const isQuick = document.matchMode === "quick";
   const quick = quickMatchProgress(ranking.active, document.events);
   return <section aria-label="音乐对决">
-    <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-slate-950/20 px-3 py-2">
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-[#14161b] px-3 py-2">
       <div className="flex flex-wrap items-center gap-2" role="group" aria-label="对决模式">
         <AppButton size="sm" variant={isQuick ? "primary" : "ghost"} disabled={disabled} aria-pressed={isQuick} onClick={() => onModeChange("quick")}>快速分档</AppButton>
         <AppButton size="sm" variant={!isQuick ? "primary" : "ghost"} disabled={disabled} aria-pressed={!isQuick} onClick={() => onModeChange("classic")}>经典 Elo</AppButton>
@@ -27,7 +27,7 @@ export function SongMatchPanel({ boardId, pair, ranking, document, disabled, bus
       {isQuick && <span role="status" className="text-xs text-slate-400">基础覆盖 {quick.covered}/{quick.total} 首</span>}
     </div>
     <MatchSessionGoal scopeKey={"anisong:" + boardId} count={ranking.progress.effectiveComparisons} resultHref={"/anisong/" + boardId + "/tier"} disabled={disabled} />
-    <div role="status" aria-live="polite" aria-atomic="true" className="mb-2 min-h-6 text-center text-sm text-cyan-100">{busy ? "正在保存选择…" : notice || ""}</div>
+    <div role="status" aria-live="polite" aria-atomic="true" className="mb-2 min-h-6 text-center text-sm text-zinc-200">{busy ? "正在保存选择…" : notice || ""}</div>
     {pair ? <>
       <MatchArena mode="music"
         left={<SongMatchCard key={playbackKey(pair.left)} track={pair.left} boardId={boardId} side="left" disabled={disabled} onPick={() => onVote("LEFT_WIN")} />}
@@ -51,7 +51,7 @@ export function SongMatchPanel({ boardId, pair, ranking, document, disabled, bus
           ? <p className="text-xs leading-6 text-slate-300">基础覆盖 {quick.covered}/{quick.total} 首 · 连通分组 {quick.components} · 建议约 {quick.suggestedBudget} 场</p>
           : <RankingProgressCard progress={ranking.progress} compact />}
         <p className="mt-2 text-xs leading-6 text-slate-500">覆盖和场数仅供参考，不代表排名准确度。没听过的歌曲不参与分档。</p>
-        <button type="button" className="mt-2 min-h-11 text-anime-cyan hover:underline" onClick={onTier}>查看当前 Tier →</button>
+        <button type="button" className="mt-2 min-h-11 text-zinc-200 hover:underline" onClick={onTier}>查看当前 Tier →</button>
       </div>
     </details>
   </section>;

@@ -39,11 +39,11 @@ export function RankingProgressCard({
                 {formatProgressCount(progress)}
               </p>
             </div>
-            <p className="text-sm font-bold text-cyan-100">{percent}%</p>
+            <p className="text-sm font-bold text-zinc-200">{percent}%</p>
           </div>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-800">
             <div
-              className="h-full rounded-full bg-cyan-300"
+              className="h-full rounded-full bg-zinc-200"
               style={{ width: `${percent}%` }}
             />
           </div>
@@ -53,7 +53,7 @@ export function RankingProgressCard({
               : progress.nextTargetLabel}
           </p>
           {overTargetCount > 0 ? (
-            <p className="mt-1 text-xs font-semibold text-cyan-100">
+            <p className="mt-1 text-xs font-semibold text-zinc-200">
               已超过目标 {overTargetCount} 场
             </p>
           ) : null}

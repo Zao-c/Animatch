@@ -14,8 +14,8 @@ import { nomineeKey, referenceUrl } from "@/lib/award-nominations";
 import { AwardMembers } from "@/components/AwardMembers";
 
 type Detail = Awaited<ReturnType<typeof getCeremony>>;
-const field = "mt-1 min-h-11 w-full min-w-0 rounded-xl border border-white/15 bg-slate-950 px-3 py-2 text-base text-white";
-const panel = "min-w-0 rounded-2xl border border-white/10 bg-slate-950/35 p-4 sm:p-5";
+const field = "mt-1 min-h-11 w-full min-w-0 rounded-xl border border-white/15 bg-[#0c0d10] px-3 py-2 text-base text-white";
+const panel = "min-w-0 rounded-2xl border border-white/10 bg-[#14161b] p-4 sm:p-5";
 const emptyCandidate = (): Nominee => ({ title: "", workTitle: "", reason: "", mediaUrl: "" });
 function download(filename: string, content: string, type: string) {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -159,7 +159,7 @@ export default function CeremonyPage({ params }: { params: { id: string } }) {
   const published = data.published.find((a) => a.awardId === award.id)?.candidates ?? [];
 
   return <PageShell><div className="mx-auto max-w-6xl">
-    <header className="mb-4 rounded-2xl border border-amber-200/20 bg-gradient-to-br from-amber-200/10 to-slate-950/30 p-5">
+    <header className="mb-4 rounded-2xl border border-amber-200/20 bg-gradient-to-br from-[#181b21] to-[#14161b] p-5">
       <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs font-bold text-amber-200">{data.status === "OPEN" && !canEdit ? "提名已截止 · 等待整理" : CEREMONY_STATUS[data.status]}</span><Link href="/ceremonies" className="inline-flex min-h-11 items-center text-sm text-slate-300">我的年度活动 →</Link></div>
       <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-xl font-black sm:text-3xl">{data.title}</h1><div className="flex gap-2"><AppButton variant="ghost" onClick={share}>邀请群友</AppButton><AppButton variant="quiet" onClick={refresh} disabled={busy}>刷新记录</AppButton></div></div>
       <p className="mt-2 text-sm leading-6 text-slate-400">{data.ownerName} 发起 · 提名截止 {new Date(data.deadline).toLocaleString("zh-CN")}</p>

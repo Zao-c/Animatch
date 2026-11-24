@@ -52,7 +52,7 @@ export function MobileNav({ items }: { items: readonly NavItem[] }) {
       </summary>
       <nav
         aria-label="移动端主导航"
-        className="absolute right-0 top-full z-50 mt-2 grid w-56 max-w-[calc(100vw-2rem)] gap-1 rounded-xl border border-white/15 bg-slate-950 p-2 shadow-xl"
+        className="absolute right-0 top-full z-50 mt-2 grid w-56 max-w-[calc(100vw-2rem)] gap-1 rounded-xl border border-white/15 bg-[#14161b] p-2 shadow-xl"
         onClickCapture={(event) => {
           if (event.target instanceof Element && event.target.closest("a") && menuRef.current) {
             menuRef.current.open = false;

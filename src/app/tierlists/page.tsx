@@ -67,12 +67,12 @@ export default async function TierListsPage({ searchParams }: { searchParams: { 
                     key={draft.poolId}
                     href={`/pools/${draft.poolId}/tier-maker`}
                     aria-label={`继续编辑${draft.title}`}
-                    className="group flex min-h-24 min-w-0 flex-col justify-between rounded-xl border border-cyan-300/25 bg-slate-950/40 p-4 transition-colors hover:border-cyan-300/50 hover:bg-cyan-300/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
+                    className="group flex min-h-24 min-w-0 flex-col justify-between rounded-xl border border-white/[0.1] bg-[#14161b] p-4 transition-colors hover:border-white/25 hover:bg-[#191c23] focus-visible:outline focus-visible:outline-2 focus-visible:outline-zinc-100"
                   >
                     <h3 className="truncate font-semibold text-white" title={draft.title}>{draft.title}</h3>
-                    <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-400">
+                    <div className="mt-2 flex items-center justify-between gap-2 text-xs text-zinc-400">
                       <span>{draft.shareToken ? "已分享" : "草稿"}</span>
-                      <span aria-hidden="true" className="text-cyan-200">→</span>
+                      <span aria-hidden="true" className="text-zinc-300">→</span>
                     </div>
                   </Link>
                 ))}
@@ -89,7 +89,7 @@ export default async function TierListsPage({ searchParams }: { searchParams: { 
             {shareGroups.length ? (
               <div className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {shareGroups.map(({ runId, latest, history }) => (
-                  <article key={runId} className="min-w-0 rounded-xl border border-white/10 bg-slate-950/40 p-4">
+                  <article key={runId} className="min-w-0 rounded-xl border border-white/[0.08] bg-[#14161b] p-4">
                     <div className="flex min-w-0 items-start justify-between gap-2">
                       <h3 className="min-w-0 truncate font-semibold text-white" title={latest.title}>{latest.title}</h3>
                       {history.length > 0 ? (
@@ -106,7 +106,7 @@ export default async function TierListsPage({ searchParams }: { searchParams: { 
                     </p>
                     <Link
                       href={`/share/tier/${latest.token}`}
-                      className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg border border-cyan-300/25 bg-cyan-300/[0.06] px-3 text-sm font-medium text-cyan-100 transition-colors hover:border-cyan-300/50 hover:bg-cyan-300/[0.1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
+                      className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg border border-white/15 bg-white/[0.05] px-3 text-sm font-medium text-zinc-100 transition-colors hover:border-white/30 hover:bg-white/[0.1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-zinc-100"
                     >
                       查看最新版本 <span aria-hidden="true">→</span>
                     </Link>
@@ -122,7 +122,7 @@ export default async function TierListsPage({ searchParams }: { searchParams: { 
                               <Link
                                 href={`/share/tier/${share.token}`}
                                 aria-label={`查看${share.title}于${formatDateTimeStable(share.createdAt)}分享的历史版本`}
-                                className="flex min-h-11 min-w-0 items-center justify-between gap-2 rounded-lg px-2 text-sm text-slate-300 transition-colors hover:bg-white/[0.05] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
+                                className="flex min-h-11 min-w-0 items-center justify-between gap-2 rounded-lg px-2 text-sm text-slate-300 transition-colors hover:bg-white/[0.05] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-zinc-100"
                               >
                                 <time dateTime={share.createdAt.toISOString()}>{formatDateTimeStable(share.createdAt)}</time>
                                 <span aria-hidden="true" className="shrink-0">→</span>
@@ -173,19 +173,19 @@ export default async function TierListsPage({ searchParams }: { searchParams: { 
   return <PageShell><div className="space-y-6">
     <header className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-semibold tracking-tight">自由排榜</h1>
       <Link href="/pools/new" className={appButtonClasses({ variant: "secondary" })}>创建番组</Link></header>
-    {!user && <p className="rounded-xl border border-cyan-300/20 bg-cyan-300/5 p-4 text-sm">登录后可保存榜单。</p>}
+    {!user && <p className="rounded-xl border border-white/[0.08] bg-[#14161b] px-4 py-3 text-sm text-zinc-300">登录后可保存榜单。</p>}
     {drafts.length > 0 && <section><h2 className="mb-3 text-lg font-semibold text-white">继续我的榜单</h2><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{drafts.map((draft, index) => (
         <Link
           key={draft.poolId}
           href={`/pools/${draft.poolId}/tier-maker`}
           aria-label={`继续编辑${draft.title}`}
-          className={`group flex min-h-24 flex-col justify-between rounded-xl border p-4 transition-colors hover:border-cyan-300/60 hover:bg-cyan-300/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 ${index === 0 ? "border-cyan-300/45 bg-cyan-300/[0.07]" : "border-white/10 bg-slate-950/40"}`}
+          className={`group flex min-h-24 flex-col justify-between rounded-xl border p-4 transition-colors hover:border-white/25 hover:bg-[#191c23] focus-visible:outline focus-visible:outline-2 focus-visible:outline-zinc-100 ${index === 0 ? "border-white/20 bg-[#181b21]" : "border-white/[0.08] bg-[#14161b]"}`}
         >
           <div className="flex min-w-0 items-start justify-between gap-3">
             <h3 className="min-w-0 truncate font-semibold text-white">{draft.title}</h3>
-            <span aria-hidden="true" className="shrink-0 text-cyan-200 transition-transform group-hover:translate-x-0.5">→</span>
+            <span aria-hidden="true" className="shrink-0 text-zinc-300 transition-transform group-hover:translate-x-0.5">→</span>
           </div>
-          <span className="mt-2 text-xs text-slate-400">{draft.shareToken ? "已分享" : "私人草稿"}</span>
+          <span className="mt-2 text-xs text-zinc-400">{draft.shareToken ? "已分享" : "私人草稿"}</span>
         </Link>
       ))}</div></section>}
     <section><div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><h2 className="text-lg font-semibold">番组</h2><form action="/tierlists" role="search" className="flex w-full min-w-0 items-center gap-2 sm:w-auto"><label className="sr-only" htmlFor="tier-pool-search">搜索番组</label><input id="tier-pool-search" name="q" defaultValue={q} placeholder="搜索番组" className="anime-field min-w-0 flex-1 sm:w-56" /><button type="submit" className={appButtonClasses({ variant: "secondary", className: "shrink-0 whitespace-nowrap" })}>搜索</button></form></div>
@@ -194,13 +194,13 @@ export default async function TierListsPage({ searchParams }: { searchParams: { 
           key={pool.id}
           href={`/pools/${pool.id}/tier-maker`}
           aria-label={`为${pool.name}制作自由榜，共${pool._count.poolAnime}部作品`}
-          className="group flex min-h-24 items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950/40 px-4 py-4 transition-colors hover:border-cyan-300/45 hover:bg-white/[0.045] focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
+          className="group flex min-h-24 items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-[#14161b] px-4 py-4 transition-colors hover:border-white/25 hover:bg-[#191c23] focus-visible:outline focus-visible:outline-2 focus-visible:outline-zinc-100"
         >
           <div className="min-w-0">
             <h3 className="truncate font-semibold text-white">{pool.name}</h3>
-            <p className="mt-1 text-sm text-slate-400">{pool._count.poolAnime} 部作品</p>
+            <p className="mt-1 text-sm text-zinc-400">{pool._count.poolAnime} 部作品</p>
           </div>
-          <span aria-hidden="true" className="shrink-0 text-lg text-cyan-200/80 transition-transform group-hover:translate-x-0.5">→</span>
+          <span aria-hidden="true" className="shrink-0 text-lg text-zinc-400 transition-transform group-hover:translate-x-0.5 group-hover:text-white">→</span>
         </Link>
       ))}</div>
       {!pools.length && <p className="py-8 text-slate-400">没有找到番组，可以换个关键词，或创建番组。</p>}

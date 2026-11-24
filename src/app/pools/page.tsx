@@ -317,7 +317,7 @@ function PoolsPageContent() {
         </div>
       </section>
 
-      <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/22 p-3">
+      <div className="mt-5 rounded-xl border border-white/[0.08] bg-[#14161b] p-3">
         <form role="search" onSubmit={handleSearch} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
           <input
             type="search"
@@ -331,9 +331,9 @@ function PoolsPageContent() {
             搜索
           </AppButton>
           <details className="col-span-2">
-            <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-slate-300 hover:text-white">
+            <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-zinc-300 hover:text-white">
               筛选与排序
-              {sort !== "UPDATED" ? <span className="text-xs text-cyan-200">{SORTS.find((item) => item.value === sort)?.label}</span> : null}
+              {sort !== "UPDATED" ? <span className="text-xs text-zinc-200">{SORTS.find((item) => item.value === sort)?.label}</span> : null}
               <svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="m4 6 4 4 4-4" />
               </svg>
@@ -563,7 +563,7 @@ function PoolCard({
 
   return (
     <AppCard
-      className={`flex h-full flex-col overflow-hidden p-0 transition hover:border-cyan-300/25 ${
+      className={`flex h-full flex-col overflow-hidden p-0 transition hover:border-white/20 ${
         isArchived ? "opacity-70 grayscale-[0.18]" : ""
       }`}
     >
@@ -572,7 +572,7 @@ function PoolCard({
         fallbacks={pool.coverImageFallbacks ?? []}
         title={pool.name}
       />
-      <div className="flex flex-1 flex-col p-5">
+      <div className="flex flex-1 flex-col p-4">
       {isEditing ? (
         <div className="space-y-3">
           <input
@@ -624,7 +624,7 @@ function PoolCard({
           <div className="flex items-start justify-between gap-3">
             <Link
               href={`/pools/${pool.id}`}
-              className="line-clamp-2 text-lg font-semibold text-white transition hover:text-cyan-200"
+              className="line-clamp-2 text-lg font-semibold text-white transition hover:text-zinc-300"
             >
               {pool.name}
             </Link>
@@ -747,22 +747,22 @@ function PoolCard({
               </Link>
             ) : null}
           </div>
-          {!isArchived && canAddAnime && (!isPublicView || canManage) ? (
-            <Link
-              href={`/pools/${pool.id}#add-anime`}
-              aria-label={`向${pool.name}添加动画`}
-              className={appButtonClasses({ variant: "quiet", size: "md", className: "mt-2 w-full justify-center border border-white/10 text-sm text-cyan-100 hover:border-cyan-300/30" })}
-            >
-              添加动画
-            </Link>
-          ) : null}
-          <details className="mt-3 border-t border-white/10 pt-1">
-            <summary className="flex min-h-11 cursor-pointer select-none items-center justify-between rounded-lg px-2 text-sm text-slate-400 transition-colors hover:bg-white/[0.04] hover:text-slate-200" aria-label={`${pool.name}的更多操作`}>
-              更多操作
-              <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
-                <path d="m4 6 4 4 4-4" />
-              </svg>
-            </summary>
+            {!isArchived && canAddAnime && (!isPublicView || canManage) ? (
+              <Link
+                href={`/pools/${pool.id}#add-anime`}
+                aria-label={`向${pool.name}添加动画`}
+                className={appButtonClasses({ variant: "quiet", size: "md", className: "mt-2 w-full justify-center border border-white/[0.08] text-xs text-zinc-300 hover:border-white/25" })}
+              >
+                添加动画
+              </Link>
+            ) : null}
+            <details className="mt-3 border-t border-white/[0.06] pt-1">
+              <summary className="flex min-h-11 cursor-pointer select-none items-center justify-between rounded-lg px-1 text-xs text-zinc-400 transition-colors hover:bg-white/[0.04] hover:text-zinc-200" aria-label={`${pool.name}的更多操作`}>
+                更多操作
+                <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
+                  <path d="m4 6 4 4 4-4" />
+                </svg>
+              </summary>
             <p className="mt-2 text-xs leading-5 text-slate-500">
               更新于 {formatDateTimeStable(pool.updatedAt)}
               {confidenceScore > 0 ? ` · ${confidenceLabel} ${confidenceScore.toFixed(1)}` : ""}
@@ -818,37 +818,64 @@ function CoverStrip({
 
   if (visibleImages.length === 0) {
     return (
-      <div className="grid h-28 grid-cols-5 gap-1 bg-slate-950/45 p-2">
-        {Array.from({ length: 5 }, (_, index) => (
-          <div
-            key={index}
-            className="flex items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br from-slate-800 via-slate-900 to-anime-purple/25 text-xs font-black text-slate-500"
-          >
-            {index === 2 ? title.slice(0, 1).toUpperCase() : ""}
-          </div>
+      <div className="flex h-36 items-center justify-center border-b border-white/[0.06] bg-[#101216] px-4 text-sm font-semibold tracking-wide text-zinc-500">
+        暂无封面
+      </div>
+    );
+  }
+
+  if (visibleImages.length === 1) {
+    return (
+      <div className="h-36 overflow-hidden border-b border-white/[0.06] bg-[#101216]">
+        <AnimeCover
+          src={visibleImages[0]}
+          secondarySrc={fallbacks[0] ?? null}
+          title={title}
+          size="sm"
+          className="h-full w-full rounded-none border-0"
+        />
+      </div>
+    );
+  }
+
+  if (visibleImages.length <= 3) {
+    const colClass = visibleImages.length === 2 ? "grid-cols-2" : "grid-cols-3";
+    return (
+      <div className={`grid h-36 ${colClass} gap-0.5 border-b border-white/[0.06] bg-[#101216]`}>
+        {visibleImages.map((image, index) => (
+          <AnimeCover
+            key={`${image}-${index}`}
+            src={image}
+            secondarySrc={fallbacks[index] ?? null}
+            title={title}
+            size="sm"
+            className="h-full w-full rounded-none border-0"
+          />
         ))}
       </div>
     );
   }
 
   return (
-    <div className="grid h-28 grid-cols-5 gap-1 bg-slate-950/45 p-2">
-      {visibleImages.map((image, index) => (
+    <div className="grid h-36 grid-cols-[1.35fr_1fr_1fr] grid-rows-2 gap-0.5 overflow-hidden border-b border-white/[0.06] bg-[#101216]">
+      <AnimeCover
+        src={visibleImages[0]}
+        secondarySrc={fallbacks[0] ?? null}
+        title={title}
+        size="sm"
+        className="row-span-2 h-full w-full rounded-none border-0"
+      />
+      {visibleImages.slice(1, 5).map((image, index) => (
         <AnimeCover
-          key={`${image}-${index}`}
+          key={`${image}-${index + 1}`}
           src={image}
-          secondarySrc={fallbacks[index] ?? null}
+          secondarySrc={fallbacks[index + 1] ?? null}
           title={title}
           size="sm"
-          className="h-full w-full rounded-xl"
+          className="h-full w-full rounded-none border-0"
         />
       ))}
-      {Array.from({ length: Math.max(0, 5 - visibleImages.length) }, (_, index) => (
-        <div
-          key={`fallback-${index}`}
-          className="rounded-xl border border-white/10 bg-gradient-to-br from-slate-800 to-slate-950"
-        />
-      ))}
+      {visibleImages.length === 4 ? <div className="bg-[#181b21]" /> : null}
     </div>
   );
 }

@@ -114,10 +114,10 @@ export function SongTierEditor({ snapshot, busy, onSave, onReset, onEditingChang
       <AppButton size="sm" variant="secondary" aria-pressed={!compact} onClick={() => setCompact(value => !value)}>{compact ? "切换大图详情" : "切换紧凑总览"}</AppButton>
       {!editing && <AppButton size="sm" variant="quiet" disabled={locked} onClick={() => void reset()}>恢复自动分档</AppButton>}
     </div>
-    {editing && <div className="sticky top-2 z-10 space-y-2 rounded-xl border border-anime-cyan/25 bg-slate-950/95 p-3">
+    {editing && <div className="sticky top-2 z-10 space-y-2 rounded-xl border border-white/15 bg-[#14161b] p-3">
       <p className="text-xs text-slate-300">拖动封面跨档或调整顺序；也可点选歌曲，再使用下方控件。</p>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="min-w-0 max-w-48 truncate text-xs text-cyan-100">{selectedId ? songs.get(selectedId)?.title : "请选择歌曲"}</span>
+        <span className="min-w-0 max-w-48 truncate text-xs text-zinc-200">{selectedId ? songs.get(selectedId)?.title : "请选择歌曲"}</span>
         <select aria-label="选中歌曲移动到档位" disabled={locked || !selectedId} value={TIERS.some(id => id === selectedRow) ? selectedRow : ""} className="anime-field !w-auto text-xs" onChange={event => { if (selectedId) move(selectedId, event.target.value); }}><option value="" disabled>移动到…</option>{TIERS.map(id => <option key={id} value={id}>{id.toUpperCase()}</option>)}</select>
         <AppButton size="sm" variant="secondary" disabled={locked || !selectedId || !selectedRow || selectedIndex <= 0 || !TIERS.some(id => id === selectedRow)} onClick={() => { if (selectedId && selectedRow) move(selectedId, selectedRow, rows[selectedRow][selectedIndex - 1]); }}>前移</AppButton>
         <AppButton size="sm" variant="secondary" disabled={locked || !selectedId || !selectedRow || selectedIndex >= rows[selectedRow].length - 1 || !TIERS.some(id => id === selectedRow)} onClick={() => { if (selectedId && selectedRow) move(rows[selectedRow][selectedIndex + 1], selectedRow, selectedId); }}>后移</AppButton>

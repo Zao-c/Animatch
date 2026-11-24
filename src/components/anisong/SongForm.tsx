@@ -90,9 +90,9 @@ export function SongForm({ track, boardId, busy, onSave, onCancel }: {
         <p className="text-xs text-slate-400">MP3 / M4A / WAV / OGG / FLAC，每首最多20 MB。{!removeAudio && track?.source.kind === "upload" ? "已保存音频，不选文件则保留。" : ""}</p>
         <label className="block text-sm">或填写 HTTPS 音频直链<input name="audioUrl" type="url" value={audioUrl} onChange={e => { setAudioUrl(e.target.value); if (e.target.value) { setAudioFile(null); if (audioInput.current) audioInput.current.value = ""; } }} placeholder="https://…/song.mp3" maxLength={2048} className="anime-field mt-1.5" /></label>
         <input type="hidden" name="removeAudio" value={String(removeAudio)} />
-        {!removeAudio && track?.source.kind === "netease" && <p className="text-sm text-anime-cyan">已关联网易云音源，保存信息会保留关联。可上传文件替换；平台试听请在保存后使用曲单播放器。</p>}
-        {!removeAudio && track?.source.kind === "pool" && <p className="text-sm text-anime-cyan">正在使用公共音频池。修改信息不会重新下载；上传文件可替换当前曲目的音源。</p>}
-        {!removeAudio && track?.source.kind === "itunes" && <p className="text-sm text-anime-cyan">正在使用 iTunes 外部试听。平台片段从0秒开始；可上传文件，发布后补充公共音频。</p>}
+        {!removeAudio && track?.source.kind === "netease" && <p className="text-sm text-zinc-200">已关联网易云音源，保存信息会保留关联。可上传文件替换；平台试听请在保存后使用曲单播放器。</p>}
+        {!removeAudio && track?.source.kind === "pool" && <p className="text-sm text-zinc-200">正在使用公共音频池。修改信息不会重新下载；上传文件可替换当前曲目的音源。</p>}
+        {!removeAudio && track?.source.kind === "itunes" && <p className="text-sm text-zinc-200">正在使用 iTunes 外部试听。平台片段从0秒开始；可上传文件，发布后补充公共音频。</p>}
         {(audioFile || audioUrl || (!removeAudio && track && track.source.kind !== "none")) && <AppButton data-dirties type="button" size="sm" variant="quiet" onClick={() => { setAudioFile(null); setAudioUrl(""); setRemoveAudio(true); if (audioInput.current) audioInput.current.value = ""; }}>移除音频</AppButton>}
         {removeAudio && !audioFile && !audioUrl && <p className="text-xs text-amber-200">保存后将移除音频，歌曲信息和对决记录会保留。</p>}
         <p className="text-xs text-slate-500">请使用你有权使用的音频。平台歌曲页面链接不能直接播放；也可以暂不添加音频。</p>
@@ -101,7 +101,7 @@ export function SongForm({ track, boardId, busy, onSave, onCancel }: {
       <SongClipEditor src={previewSource} initialStart={track?.source.kind === "itunes" ? 0 : track?.clipStart} initialLength={track?.clipLength} remote={!removeAudio && (track?.source.kind === "netease" || track?.source.kind === "itunes")} />
       </div></details>
       {error && <p role="alert" className="text-sm text-amber-200">{error}</p>}
-      <div className="sticky bottom-0 z-10 flex gap-3 border-t border-white/10 bg-slate-950 py-3"><AppButton type="submit" disabled={reading}>{busy ? "正在保存…" : track ? "保存歌曲" : "添加到曲单"}</AppButton><AppButton type="button" variant="ghost" onClick={onCancel}>取消</AppButton></div>
+      <div className="sticky bottom-0 z-10 flex gap-3 border-t border-white/10 bg-[#0c0d10] py-3"><AppButton type="submit" disabled={reading}>{busy ? "正在保存…" : track ? "保存歌曲" : "添加到曲单"}</AppButton><AppButton type="button" variant="ghost" onClick={onCancel}>取消</AppButton></div>
     </fieldset>
   </form>;
 }
